@@ -1,6 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
+import { productsRouter } from '@repo/products';
 
 export const createTRPCContext = async () => {
   return {};
@@ -24,6 +25,7 @@ export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
 export const appRouter = createTRPCRouter({
+  products: productsRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),
