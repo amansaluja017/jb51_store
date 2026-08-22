@@ -44,13 +44,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-brand-beige absolute inset-0 z-[100] top-0 left-0 overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-brand-sand absolute inset-0 z-[100] top-0 left-0 overflow-hidden">
       
       {/* Mobile Top Header */}
-      <header className="flex md:hidden items-center justify-between bg-brand-charcoal text-brand-cream px-6 py-4 h-16 w-full border-b border-white/5 shrink-0 z-30">
+      <header className="flex md:hidden items-center justify-between bg-brand-brown text-brand-cream px-6 py-4 h-16 w-full border-b border-white/5 shrink-0 z-30">
         <button 
           onClick={() => setIsMobileMenuOpen(true)}
-          className="p-1 hover:text-brand-gold transition-colors"
+          className="p-1 hover:text-brand-saffron transition-colors"
         >
           <Menu size={22} />
         </button>
@@ -75,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar (Responsive drawer on mobile, static on desktop) */}
       <aside className={`
-        fixed inset-y-0 left-0 w-64 bg-brand-charcoal text-brand-cream flex flex-col h-full z-50 transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 w-64 bg-brand-brown text-brand-cream flex flex-col h-full z-50 transition-transform duration-300 ease-in-out
         md:static md:translate-x-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Search, Heart, User, ShoppingBag, Menu, X } from 'lucide-react';
+import { Heart, User, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import gsap from 'gsap';
 import { cn } from '@/lib/utils';
@@ -39,9 +39,9 @@ export function Navbar() {
     { label: 'New Arrivals', href: '/shop?filter=new' },
     { label: 'Suits', href: '/shop?category=formal-suits' },
     { label: 'Collections', href: '/shop' },
-    { label: 'Festive Edit', href: '/shop?category=velvet-edit' },
-    { label: 'Best Sellers', href: '/shop?filter=bestsellers' },
-    { label: 'About', href: '/about' },
+    { label: 'Festive', href: '/shop?category=velvet-edit' },
+    { label: 'Bridal', href: '/shop?category=bridal' },
+    { label: 'Support', href: '/support' },
   ];
 
   const isAdmin = pathname.startsWith('/admin');
@@ -50,7 +50,7 @@ export function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex flex-col">
       {/* Premium Announcement Bar */}
-      <div className="bg-brand-wine text-brand-cream py-2 px-4 text-center text-[10px] md:text-xs tracking-[0.25em] uppercase font-medium border-b border-brand-gold/10">
+      <div className="bg-brand-maroon text-brand-cream py-2 px-4 text-center text-[10px] md:text-xs tracking-[0.25em] uppercase font-medium border-b border-brand-gold/10">
         THE FESTIVE EDIT — COMPLIMENTARY EXPRESS SHIPPING ON ALL SUITS
       </div>
 
@@ -58,8 +58,8 @@ export function Navbar() {
         className={cn(
           'transition-all duration-300 ease-in-out border-b backdrop-blur-md',
           isScrolled 
-            ? 'bg-brand-cream/95 border-brand-charcoal/5 py-3 shadow-sm' 
-            : 'bg-brand-cream/80 border-transparent py-5'
+            ? 'bg-brand-cream/95 border-brand-brown/10 py-3 shadow-sm' 
+            : 'bg-brand-cream/90 border-transparent py-5'
         )}
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
@@ -87,8 +87,8 @@ export function Navbar() {
                 key={link.label}
                 href={link.href}
                 className={cn(
-                  "text-xs tracking-widest text-brand-charcoal hover:text-brand-wine transition-colors uppercase font-medium relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1px] after:bg-brand-wine after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300",
-                  pathname === link.href && "text-brand-wine after:scale-x-100"
+                  "text-xs tracking-widest text-brand-brown hover:text-brand-sienna transition-colors uppercase font-medium relative py-1 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1px] after:bg-brand-sienna after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300",
+                  pathname === link.href && "text-brand-sienna after:scale-x-100"
                 )}
               >
                 {link.label}
@@ -98,26 +98,20 @@ export function Navbar() {
 
           {/* Actions */}
           <div className="flex items-center space-x-3 md:space-x-5">
-            <button className="text-brand-charcoal hover:text-brand-wine transition-colors p-1">
-              <Search size={18} strokeWidth={1.5} />
-            </button>
             <Link href="/wishlist" className="hidden md:block text-brand-charcoal hover:text-brand-wine transition-colors p-1">
               <Heart size={18} strokeWidth={1.5} />
             </Link>
             <Link href="/admin" className="hidden md:block text-brand-charcoal hover:text-brand-wine transition-colors p-1">
               <User size={18} strokeWidth={1.5} />
             </Link>
-            <Link href="/cart" className="text-brand-charcoal hover:text-brand-wine transition-colors p-1 relative">
-              <ShoppingBag size={18} strokeWidth={1.5} />
-            </Link>
           </div>
         </div>
 
-        {/* Subtle Devanagari/Indian inspired divider ornament */}
-        <div className="w-full flex items-center justify-center mt-2 opacity-30 px-6">
-          <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-brand-gold/50 max-w-[200px]" />
-          <span className="mx-3 text-[8px] text-brand-gold">✦</span>
-          <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-brand-gold/50 max-w-[200px]" />
+        {/* Subtle Indian inspired divider ornament - Textile border style */}
+        <div className="w-full flex items-center justify-center mt-2 opacity-40 px-6">
+          <div className="h-[2px] flex-1 pattern-jaali max-w-[300px]" />
+          <span className="mx-3 text-[8px] text-brand-saffron">✤</span>
+          <div className="h-[2px] flex-1 pattern-jaali max-w-[300px]" />
         </div>
       </div>
 

@@ -20,7 +20,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-charcoal fixed inset-0 z-[200]">
+    <div className="min-h-screen flex items-center justify-center bg-brand-brown fixed inset-0 z-[200]">
       <div className="bg-brand-cream p-12 max-w-sm w-full text-center">
         <h1 className="font-serif text-3xl mb-8">JB51 Admin</h1>
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -29,10 +29,10 @@ export default function AdminLogin() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter password" 
-            className="w-full px-4 py-3 border border-brand-charcoal/20 outline-none focus:border-brand-charcoal bg-transparent text-sm"
+            className="w-full px-4 py-3 border border-brand-brown/20 outline-none focus:border-brand-brown bg-transparent text-sm"
           />
           {error && <p className="text-red-500 text-xs">Invalid password</p>}
-          <button type="submit" className="w-full bg-brand-charcoal text-brand-cream py-3 text-sm tracking-widest uppercase mt-4">
+          <button type="submit" className="w-full bg-brand-brown text-brand-cream py-3 text-sm tracking-widest uppercase mt-4">
             Login
           </button>
         </form>
