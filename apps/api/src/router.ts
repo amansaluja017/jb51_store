@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError, z } from 'zod';
-import { getProducts, getProductBySlug } from './data';
+import { getProducts, getProductBySlug } from './data.js';
 
 export const createTRPCContext = async () => {
   return {};

@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
-import { appRouter, createTRPCContext } from './router';
+import { appRouter, createTRPCContext } from './router.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
