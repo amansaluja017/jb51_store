@@ -7,7 +7,7 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminProducts() {
-  const products = await apiServer.getProducts.query();
+  const products = await apiServer.products.getAll.query();
 
   return (
     <div>

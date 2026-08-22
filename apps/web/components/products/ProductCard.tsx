@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { type Product } from '@repo/api';
+import { type Product } from '@repo/products';
 import { formatPrice } from '@/lib/utils';
 import { Heart, Plus } from 'lucide-react';
 import { useRef, useEffect } from 'react';

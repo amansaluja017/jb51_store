@@ -12,7 +12,7 @@ import { ArrowRight } from 'lucide-react';
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
-  const { data: products = [] } = api.getProducts.useQuery();
+  const { data: products = [] } = api.products.getAll.useQuery();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

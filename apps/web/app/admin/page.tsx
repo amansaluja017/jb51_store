@@ -3,7 +3,7 @@ import { apiServer } from '@/lib/trpc/client/server';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
-  const products = await apiServer.getProducts.query();
+  const products = await apiServer.products.getAll.query();
   const activeProducts = products.length;
   const outOfStock = products.filter(p => p.variants.every(v => v.stock === 0)).length;
 

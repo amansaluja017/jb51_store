@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { type Product, CATEGORIES } from '@repo/api';
+import { type Product, CATEGORIES } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Filter, X } from 'lucide-react';
@@ -12,7 +12,7 @@ export function ShopClient() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category');
   
-  const { data: products = [], isLoading: loading } = api.getProducts.useQuery();
+  const { data: products = [], isLoading: loading } = api.products.getAll.useQuery();
   const [activeCategory, setActiveCategory] = useState<string | null>(initialCategory);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
