@@ -1,0 +1,6 @@
+{
+  "name": "JB51 Clothing Store",
+  "description": "A premium e-commerce website for a women's suits brand featuring quiet luxury aesthetic, GSAP animations, and WhatsApp/Instagram ordering flow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
