@@ -10,7 +10,6 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@repo/products": "workspace:*",
     "@trpc/server": "^11.18.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
@@ -22,6 +21,6 @@
     "@types/express": "^4.17.21",
     "@types/node": "^20",
     "tsx": "^4.19.1",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   }
 }
