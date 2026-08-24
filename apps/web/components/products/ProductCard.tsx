@@ -3,10 +3,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { type Product } from '@repo/products';
-import { formatPrice } from '@/lib/utils';
-import { Heart, Plus } from 'lucide-react';
+import { formatPrice, cn, generateWhatsAppMessage, generateInstagramMessage, WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
+import { Heart, MessageCircle, Instagram } from 'lucide-react';
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
+
+import { useWishlist } from '@/context/WishlistContext';
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +19,8 @@ interface ProductCardProps {
 export function ProductCard({ product, featured = false, theme = 'light' }: ProductCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const isLiked = isInWishlist(product.id);
 
   useEffect(() => {
     if (!cardRef.current || !imageRef.current) return;
@@ -84,26 +88,55 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
 
         {/* Wishlist Button */}
         <button 
-          className="absolute top-4 right-4 z-10 p-2 rounded-full bg-brand-cream/60 backdrop-blur-md text-brand-brown opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-brand-maroon hover:text-brand-cream"
+          className={cn(
+            "absolute top-4 right-4 z-10 p-2 rounded-full transition-all duration-300 shadow-sm",
+            isLiked 
+              ? "bg-brand-cream text-brand-maroon opacity-100" 
+              : "bg-brand-cream/60 backdrop-blur-md text-brand-brown opacity-0 group-hover:opacity-100 hover:bg-brand-maroon hover:text-brand-cream"
+          )}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            toggleWishlist(product.id);
           }}
         >
-          <Heart size={16} strokeWidth={1.5} />
+          <Heart size={16} strokeWidth={1.5} className={cn(isLiked && "fill-brand-maroon")} />
         </button>
 
-        {/* Quick Add Button sliding in */}
-        <div className="absolute bottom-4 left-4 right-4 z-10 translate-y-[150%] group-hover:translate-y-0 transition-transform duration-500 ease-out hidden md:block">
+        {/* Custom Inquiry options on hover */}
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-col gap-1.5 translate-y-[150%] group-hover:translate-y-0 transition-transform duration-500 ease-out hidden md:flex">
           <button 
-            className="w-full bg-brand-cream/90 backdrop-blur-md text-brand-maroon py-3 text-[10px] tracking-[0.2em] uppercase font-semibold flex items-center justify-center gap-2 hover:bg-brand-maroon hover:text-brand-cream transition-colors"
+            className="w-full bg-[#128C7E]/90 backdrop-blur-md text-white py-2 text-[8px] tracking-[0.2em] uppercase font-semibold flex items-center justify-center gap-1.5 hover:bg-[#075E54] transition-colors"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              const url = typeof window !== 'undefined' ? `${window.location.origin}/product/${product.slug}` : '';
+              const message = generateWhatsAppMessage(product, 'Custom Size', product.variants[0]?.color || 'Default', url);
+              window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
             }}
           >
-            <span>Quick Add</span>
-            <Plus size={14} />
+            <MessageCircle size={10} />
+            <span>Query on WhatsApp</span>
+          </button>
+          
+          <button 
+            className="w-full bg-brand-cream/90 backdrop-blur-md text-brand-maroon py-2 text-[8px] tracking-[0.2em] uppercase font-semibold flex items-center justify-center gap-1.5 hover:bg-brand-maroon hover:text-brand-cream transition-colors border border-brand-maroon/20"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const url = typeof window !== 'undefined' ? `${window.location.origin}/product/${product.slug}` : '';
+              const message = generateInstagramMessage(product, 'Custom Size', product.variants[0]?.color || 'Default', url);
+              navigator.clipboard.writeText(message);
+              import('sonner').then(({ toast }) => {
+                toast.success("Product details copied to clipboard!");
+              });
+              setTimeout(() => {
+                window.open(`https://instagram.com/${INSTAGRAM_HANDLE}`, '_blank');
+              }, 600);
+            }}
+          >
+            <Instagram size={10} />
+            <span>DM on Instagram</span>
           </button>
         </div>
       </Link>

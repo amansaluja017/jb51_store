@@ -100,10 +100,6 @@ export function Footer() {
       
       <div className="max-w-7xl mx-auto mt-24 pt-8 border-t border-brand-cream/10 flex flex-col md:flex-row justify-between items-center text-[10px] tracking-widest uppercase text-brand-cream/40 font-light">
         <p>&copy; {new Date().getFullYear()} JB51. All rights reserved.</p>
-        <div className="flex space-x-6 mt-4 md:mt-0">
-          <Link href="/privacy" className="hover:text-brand-gold transition-colors">Privacy Policy</Link>
-          <Link href="/terms" className="hover:text-brand-gold transition-colors">Terms of Service</Link>
-        </div>
       </div>
     </footer>
   );

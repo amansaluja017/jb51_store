@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { type Product } from '@repo/products';
-import { formatPrice, generateWhatsAppMessage, generateInstagramMessage, WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
+import { formatPrice, generateWhatsAppMessage, generateInstagramMessage, WHATSAPP_NUMBER, INSTAGRAM_HANDLE, cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import gsap from 'gsap';
 import { toast } from 'sonner';
+import { Heart } from 'lucide-react';
+import { useWishlist } from '@/context/WishlistContext';
 
 export function ProductClient({ product }: { product: Product }) {
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -14,6 +16,8 @@ export function ProductClient({ product }: { product: Product }) {
   const [activeImage, setActiveImage] = useState(0);
   const [isWhatsAppLoading, setIsWhatsAppLoading] = useState(false);
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const isLiked = isInWishlist(product.id);
   
   // Extract unique colors and sizes
   const colors = Array.from(new Set(product.variants.map(v => v.color)));
@@ -59,7 +63,7 @@ export function ProductClient({ product }: { product: Product }) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-16 w-full flex flex-col lg:flex-row items-start gap-16 bg-brand-ivory relative text-brand-brown">
+    <div className="max-w-7xl mx-auto px-6 pt-32 pb-16 w-full flex flex-col lg:flex-row items-start gap-16 bg-brand-ivory relative text-brand-brown">
       {/* Editorial subtle pattern */}
       <div className="absolute inset-0 opacity-[0.015] pointer-events-none paisley-bg" />
 
@@ -157,17 +161,30 @@ export function ProductClient({ product }: { product: Product }) {
               "ORDER ON WHATSAPP"
             )}
           </button>
-          <button 
-            disabled={isInstagramLoading}
-            onClick={handleInstagram}
-            className="w-full border border-brand-maroon text-brand-maroon py-4 flex items-center justify-center gap-3 text-xs tracking-[0.2em] uppercase hover:bg-brand-maroon hover:text-brand-cream transition-all duration-300 font-medium disabled:opacity-75"
-          >
-            {isInstagramLoading ? (
-              <span className="w-4 h-4 border-2 border-brand-maroon/30 border-t-brand-maroon rounded-full animate-spin" />
-            ) : (
-              "INQUIRE ON INSTAGRAM"
-            )}
-          </button>
+          <div className="flex gap-4">
+            <button 
+              disabled={isInstagramLoading}
+              onClick={handleInstagram}
+              className="flex-1 border border-brand-maroon text-brand-maroon py-4 flex items-center justify-center gap-3 text-xs tracking-[0.2em] uppercase hover:bg-brand-maroon hover:text-brand-cream transition-all duration-300 font-medium disabled:opacity-75"
+            >
+              {isInstagramLoading ? (
+                <span className="w-4 h-4 border-2 border-brand-maroon/30 border-t-brand-maroon rounded-full animate-spin" />
+              ) : (
+                "INQUIRE ON INSTAGRAM"
+              )}
+            </button>
+            <button 
+              onClick={() => toggleWishlist(product.id)}
+              className={cn(
+                "px-6 border transition-all duration-300 flex items-center justify-center",
+                isLiked 
+                  ? "border-brand-maroon bg-brand-maroon text-brand-cream" 
+                  : "border-brand-maroon text-brand-maroon hover:bg-brand-maroon hover:text-brand-cream"
+              )}
+            >
+              <Heart size={18} strokeWidth={1.5} className={cn(isLiked && "fill-brand-cream text-brand-cream")} />
+            </button>
+          </div>
           <p className="hidden md:block text-center text-[10px] tracking-widest uppercase text-brand-terracotta/80 mt-2 font-medium">
             ✦ Secure checkout directly via WhatsApp or Instagram Concierge ✦
           </p>

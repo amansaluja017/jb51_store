@@ -1,5 +1,5 @@
 import type {Metadata} from 'next';
-import { Playfair_Display, Plus_Jakarta_Sans, Caveat } from 'next/font/google';
+import { Playfair_Display, Plus_Jakarta_Sans, Caveat, Geist } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -35,20 +35,27 @@ export const metadata: Metadata = {
 };
 
 import { PageTransitionProvider } from '@/components/layout/PageTransitionProvider';
+import { WishlistProvider } from '@/context/WishlistContext';
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en" className={`${playfair.variable} ${plusJakarta.variable} ${caveat.variable}`}>
+    <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
         <TRPCReactProvider>
-          <PageTransitionProvider>
-            <Navbar />
-            <main className="flex-1 flex flex-col pt-24">
-              {children}
-            </main>
-            <Footer />
-            <Toaster position="bottom-center" />
-          </PageTransitionProvider>
+          <WishlistProvider>
+            <PageTransitionProvider>
+              <Navbar />
+              <main className="flex-1 flex flex-col">
+                {children}
+              </main>
+              <Footer />
+              <Toaster position="bottom-center" />
+            </PageTransitionProvider>
+          </WishlistProvider>
         </TRPCReactProvider>
       </body>
     </html>

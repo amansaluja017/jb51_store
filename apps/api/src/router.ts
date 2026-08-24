@@ -1,7 +1,8 @@
 import { initTRPC } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
-import { productsRouter } from '@repo/products';
+import { z } from 'zod';
+import { productsRouter } from '@repo/products/router';
 
 export const createTRPCContext = async () => {
   return {};
@@ -28,6 +29,16 @@ export const appRouter = createTRPCRouter({
   products: productsRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
+  }),
+  wishlist: createTRPCRouter({
+    sync: publicProcedure
+      .input(z.object({ productIds: z.array(z.string()) }))
+      .mutation(async ({ input }) => {
+        // Mock server logging for background sync
+        console.log('--- Background Wishlist Sync ---');
+        console.log('Received productIds:', input.productIds);
+        return { success: true, count: input.productIds.length };
+      }),
   }),
 });
 
