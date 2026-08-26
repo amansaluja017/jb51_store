@@ -129,7 +129,7 @@ export default function Home() {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [currentSlide]);
 
   // Countdown timer logic
   useEffect(() => {
@@ -153,14 +153,6 @@ export default function Home() {
         { clipPath: 'inset(100% 0% 0% 0%)', scale: 1.05 },
         { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.5, ease: 'power4.inOut' }
       );
-
-      tl.from('.hero-text-stagger', {
-        y: 40,
-        opacity: 0,
-        duration: 1.0,
-        stagger: 0.12,
-        ease: 'power3.out'
-      }, '-=0.8');
 
       // Scroll reveal animations
       gsap.utils.toArray('.fabric-reveal').forEach((el: any) => {
@@ -220,7 +212,24 @@ export default function Home() {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [products]);
+  }, []);
+
+  // Slide change text animation to prevent FOUT and animate on slide transitions
+  useEffect(() => {
+    const activeText = `.hero-slide-${currentSlide} .hero-text-stagger`;
+    
+    gsap.fromTo(activeText,
+      { y: 35, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.8,
+        stagger: 0.12,
+        ease: 'power3.out',
+        overwrite: 'auto'
+      }
+    );
+  }, [currentSlide]);
 
   // Tab change animation
   useEffect(() => {
@@ -272,7 +281,7 @@ export default function Home() {
           {slides.map((slide, idx) => (
             <div
               key={idx}
-              className={`absolute inset-0 transition-all duration-[1200ms] cubic-bezier(0.4, 0, 0.2, 1) ${
+              className={`absolute inset-0 transition-all duration-[1200ms] cubic-bezier(0.4, 0, 0.2, 1) hero-slide-${idx} ${
                 idx === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0 pointer-events-none'
               }`}
             >
@@ -283,6 +292,7 @@ export default function Home() {
                 fill
                 priority={idx === 0}
                 className="object-cover hero-mask opacity-85"
+                style={{ clipPath: 'inset(100% 0% 0% 0%)' }}
                 sizes="100vw"
               />
               {/* Darkening gradient */}
@@ -315,23 +325,23 @@ export default function Home() {
                 <div className="max-w-2xl flex flex-col justify-center h-full pt-20">
                   
                   {/* Tagline */}
-                  <span className="hero-text-stagger text-[10px] md:text-xs tracking-[0.3em] uppercase text-[#FF5E36] mb-4 font-bold inline-flex items-center gap-2">
+                  <span className="hero-text-stagger opacity-0 text-[10px] md:text-xs tracking-[0.3em] uppercase text-[#FF5E36] mb-4 font-bold inline-flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#FF5E36] inline-block" />
                     {slide.tagline}
                   </span>
 
                   {/* Title */}
-                  <h1 className="hero-text-stagger font-serif text-5xl md:text-7xl lg:text-[4.6rem] xl:text-[5.4rem] text-white leading-[1.08] mb-6 font-bold tracking-tight">
+                  <h1 className="hero-text-stagger opacity-0 font-serif text-5xl md:text-7xl lg:text-[4.6rem] xl:text-[5.4rem] text-white leading-[1.08] mb-6 font-bold tracking-tight">
                     {slide.title}
                   </h1>
 
                   {/* Subtitle */}
-                  <p className="hero-text-stagger text-zinc-300 font-light text-xs md:text-sm max-w-md mb-8 leading-relaxed">
+                  <p className="hero-text-stagger opacity-0 text-zinc-300 font-light text-xs md:text-sm max-w-md mb-8 leading-relaxed">
                     {slide.subtitle}
                   </p>
 
                   {/* Action Buttons */}
-                  <div className="hero-text-stagger flex flex-wrap items-center gap-4">
+                  <div className="hero-text-stagger opacity-0 flex flex-wrap items-center gap-4">
                     <Link
                       href="/shop"
                       className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"
@@ -441,7 +451,7 @@ export default function Home() {
           
           {/* Occasion Wear */}
           <Link href="/shop?category=occasion-wear" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
-            <div className="relative aspect-[4/5] overflow-hidden w-full">
+            <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
               <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Occasion Wear" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
             </div>
             <div className="p-4 flex items-center justify-between">
@@ -452,7 +462,7 @@ export default function Home() {
 
           {/* Silk Co-ords */}
           <Link href="/shop?category=silk-co-ords" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
-            <div className="relative aspect-[4/5] overflow-hidden w-full">
+            <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
               <Image src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=600&q=80" alt="Silk Co-ords" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
             </div>
             <div className="p-4 flex items-center justify-between">
@@ -463,7 +473,7 @@ export default function Home() {
 
           {/* Velvet Edit */}
           <Link href="/shop?category=velvet-edit" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
-            <div className="relative aspect-[4/5] overflow-hidden w-full">
+            <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
               <Image src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80" alt="Velvet Edit" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
             </div>
             <div className="p-4 flex items-center justify-between">
@@ -474,8 +484,8 @@ export default function Home() {
 
           {/* Anarkali Suits */}
           <Link href="/shop?category=anarkali-suits" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
-            <div className="relative aspect-[4/5] overflow-hidden w-full">
-              <Image src="https://images.unsplash.com/photo-1596783047904-89a4214f4e24?auto=format&fit=crop&w=600&q=80" alt="Anarkali Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
+              <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Anarkali Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
             </div>
             <div className="p-4 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Anarkalis</span>
@@ -485,7 +495,7 @@ export default function Home() {
 
           {/* Formal Suits */}
           <Link href="/shop?category=formal-suits" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
-            <div className="relative aspect-[4/5] overflow-hidden w-full">
+            <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
               <Image src="https://images.unsplash.com/photo-1620386875077-e322fb810928?auto=format&fit=crop&w=600&q=80" alt="Formal Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
             </div>
             <div className="p-4 flex items-center justify-between">
@@ -493,6 +503,56 @@ export default function Home() {
               <ArrowRight size={12} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
+
+        </div>
+      </section>
+
+      {/* Editorial Advertisement Section (Atelier Feature) */}
+      <section className="py-16 px-6 max-w-7xl mx-auto w-full fade-up">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-zinc-950 text-white rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative">
+          
+          {/* Subtle design aura blobs */}
+          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[#FF5E36]/5 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+
+          {/* Left Block: Narrative & Call to Action */}
+          <div className="md:col-span-5 flex flex-col justify-center relative z-10">
+            <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-3 block">
+              ATELIER SERVICE
+            </span>
+            <h3 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
+              The Art <br className="hidden md:block"/>of Custom <span className="font-serif italic text-zinc-300">Drape</span>
+            </h3>
+            <p className="text-zinc-400 font-light text-xs md:text-sm leading-relaxed mb-8">
+              Experience the pinnacle of bespoke couture. Our master craftsmen tailor each ensemble to your exact measurements, ensuring a silhouette that flows with effortless grace and timeless sophistication.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <Link
+                href="/support"
+                className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              >
+                <span>Book Appointment</span>
+                <ArrowRight size={12} />
+              </Link>
+              <Link
+                href="/shop"
+                className="border border-white/20 hover:border-white/40 hover:bg-white/5 text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300"
+              >
+                Explore Atelier
+              </Link>
+            </div>
+          </div>
+
+          {/* Right Block: Image advertisement frame */}
+          <div className="md:col-span-7 relative z-10 w-full h-full min-h-[350px] md:min-h-[480px] rounded-2xl overflow-hidden fabric-reveal shadow-xl">
+            <Image
+              src="/assets/luxury_ad_banner.png"
+              alt="The Art of Drape - Atelier Collection"
+              fill
+              className="object-cover hover:scale-105 transition-transform duration-[1.5s]"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
 
         </div>
       </section>
@@ -570,7 +630,7 @@ export default function Home() {
 
       {/* 6. Interactive Flash Sale Banner Section (Countdown Timer) */}
       <section className="py-24 overflow-hidden bg-zinc-950 text-white relative">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1596783047904-89a4214f4e24?auto=format&fit=crop&w=1920&q=80')] bg-cover bg-center opacity-15 parallax-bg mix-blend-overlay" />
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=1920&q=80')] bg-cover bg-center opacity-15 parallax-bg mix-blend-overlay" />
 
         {/* Aura light blobs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-[#FF5E36]/10 blur-3xl pointer-events-none" />
@@ -654,8 +714,8 @@ export default function Home() {
         <div className="hover-pause flex flex-col gap-6 w-full overflow-hidden relative z-10 select-none">
 
           {/* Row 1: Sliding Left */}
-          <div className="flex whitespace-nowrap gap-6 w-full">
-            <div className="flex gap-6 animate-marquee-left">
+          <div className="flex whitespace-nowrap w-full overflow-hidden">
+            <div className="flex gap-6 animate-marquee-left shrink-0">
               {[...testimonialsRow1, ...testimonialsRow1].map((item, idx) => (
                 <div
                   key={idx}
@@ -687,8 +747,8 @@ export default function Home() {
           </div>
 
           {/* Row 2: Sliding Right */}
-          <div className="flex whitespace-nowrap gap-6 w-full">
-            <div className="flex gap-6 animate-marquee-right">
+          <div className="flex whitespace-nowrap w-full overflow-hidden">
+            <div className="flex gap-6 animate-marquee-right shrink-0">
               {[...testimonialsRow2, ...testimonialsRow2].map((item, idx) => (
                 <div
                   key={idx}
@@ -835,17 +895,33 @@ export default function Home() {
           </div>
 
           <div className="text-center">
-            <MagneticButton>
+            {/* Desktop: Magnetic Button */}
+            <div className="hidden md:block">
+              <MagneticButton>
+                <a
+                  href="https://instagram.com/jb51_clothing_house"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-8 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full"
+                >
+                  <Instagram size={14} />
+                  <span>Follow @jb51_clothing_house</span>
+                </a>
+              </MagneticButton>
+            </div>
+
+            {/* Mobile: Simple Button */}
+            <div className="block md:hidden">
               <a
                 href="https://instagram.com/jb51_clothing_house"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-8 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full"
+                className="inline-flex items-center justify-center w-full max-w-[280px] gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-6 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full mx-auto"
               >
                 <Instagram size={14} />
                 <span>Follow @jb51_clothing_house</span>
               </a>
-            </MagneticButton>
+            </div>
           </div>
         </div>
       </section>

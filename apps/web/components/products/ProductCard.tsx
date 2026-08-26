@@ -130,7 +130,7 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
 
       {/* Details Container */}
       <div className={cn(
-        "p-4 flex flex-col flex-1 justify-between",
+        "p-2.5 sm:p-4 flex flex-col flex-1 justify-between",
         isDark ? "text-white" : "text-zinc-800"
       )}>
         <div>
@@ -146,7 +146,7 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
           <Link 
             href={`/product/${product.slug}`} 
             className={cn(
-              "font-serif text-sm md:text-base font-semibold leading-tight line-clamp-1 hover:text-[#FF5E36] transition-colors block mb-1.5",
+              "font-serif text-xs sm:text-sm md:text-base font-semibold leading-tight line-clamp-1 hover:text-[#FF5E36] transition-colors block mb-1.5",
               isDark ? "text-white" : "text-zinc-950"
             )}
           >
@@ -163,13 +163,13 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100/50">
           <div className="flex flex-col">
             {product.discountPrice ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs line-through text-zinc-400">{formatPrice(product.price)}</span>
-                <span className="text-sm font-bold text-[#FF5E36]">{formatPrice(product.discountPrice)}</span>
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                <span className="text-[10px] sm:text-xs line-through text-zinc-400">{formatPrice(product.price)}</span>
+                <span className="text-xs sm:text-sm font-bold text-[#FF5E36]">{formatPrice(product.discountPrice)}</span>
               </div>
             ) : (
               <span className={cn(
-                "text-sm font-bold",
+                "text-xs sm:text-sm font-bold",
                 isDark ? "text-white" : "text-zinc-900"
               )}>
                 {formatPrice(product.price)}
@@ -181,14 +181,14 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
           <Link
             href={`/product/${product.slug}`}
             className={cn(
-              "p-2.5 rounded-full transition-all duration-300 flex items-center justify-center hover:scale-105 shadow-sm",
+              "p-1.5 sm:p-2.5 rounded-full transition-all duration-300 flex items-center justify-center hover:scale-105 shadow-sm",
               isDark
                 ? "bg-zinc-800 hover:bg-[#FF5E36] text-white"
                 : "bg-zinc-100 hover:bg-[#FF5E36] text-zinc-800 hover:text-white"
             )}
             title="View Details"
           >
-            <ArrowRight size={14} />
+            <ArrowRight size={12} className="sm:w-[14px] sm:h-[14px]" />
           </Link>
         </div>
       </div>

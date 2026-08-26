@@ -5,9 +5,9 @@ import {
   View, 
   TouchableOpacity, 
   Alert, 
-  SafeAreaView, 
   Platform 
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { 
   LayoutDashboard, 
@@ -15,6 +15,7 @@ import {
   BarChart3, 
   LogOut 
 } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 
 import { Product, Inquiry } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
@@ -24,6 +25,17 @@ import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import ProductFormModal from './src/components/ProductFormModal';
 import CategoryManagerModal from './src/components/CategoryManagerModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
+
+// Configure notifications handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 // ----------------------------------------------------
 // DEFAULT MOCK DATA FALLBACKS
@@ -60,7 +72,7 @@ const MOCK_PRODUCTS: Product[] = [
     description: 'Rich silk velvet kurta with heavy hand-embroidered Zardozi sleeves.',
     price: 42000,
     category: 'Velvet Edit',
-    images: ['https://images.unsplash.com/photo-1610030469668-93535c17b6b3?auto=format&fit=crop&w=600&q=80'],
+    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80'],
     fabric: 'Silk Velvet & Chiffon Dupatta',
     fit: 'Relaxed Kurta Silhouette',
     careInstructions: 'Dry clean only.',
@@ -141,6 +153,45 @@ const INITIAL_INQUIRIES: Inquiry[] = [
   },
 ];
 
+const SIMULATED_NEW_INQUIRIES: Omit<Inquiry, 'id'>[] = [
+  {
+    customerName: 'Janhvi Kapoor',
+    productName: 'Crimson Velvet Edit Suit',
+    size: 'M',
+    color: 'Crimson Wine',
+    channel: 'WhatsApp',
+    timestamp: 'Just now',
+    status: 'Pending',
+    phone: '+919833445566',
+    email: 'janhvi.k@gmail.com',
+    query: 'Is this fabric velvet blend or 100% pure silk velvet? Can you share detail close-up videos of the zardozi sleeve work?'
+  },
+  {
+    customerName: 'Shanaya Kapoor',
+    productName: 'Palace Banarasi Silk Suit',
+    size: 'S',
+    color: 'Emerald Green',
+    channel: 'Instagram DM',
+    timestamp: 'Just now',
+    status: 'Pending',
+    phone: '+919922110033',
+    email: 'shanaya@kapoor.co',
+    query: 'Can you deliver this to London by next Friday? I have an engagement party to attend.'
+  },
+  {
+    customerName: 'Mira Kapoor',
+    productName: 'Ivory Chanderi Coord Set',
+    size: 'L',
+    color: 'Warm Ivory',
+    channel: 'WhatsApp',
+    timestamp: 'Just now',
+    status: 'Pending',
+    phone: '+919811223344',
+    email: 'mira.kapoor@outlook.com',
+    query: 'Hi, is this set lined? Wanted to confirm if the pants have an elasticated waistband.'
+  }
+];
+
 export default function App() {
   // Navigation & Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -164,6 +215,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [simulatedIndex, setSimulatedIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
 
@@ -325,6 +377,82 @@ export default function App() {
     showAlert('Inquiry Resolved', `Archived inquiry for ${customerName}`, 'success');
   };
 
+  // ----------------------------------------------------
+  // LOCAL NOTIFICATIONS & SIMULATION
+  // ----------------------------------------------------
+  useEffect(() => {
+    async function requestPermissions() {
+      if (Platform.OS === 'web') return;
+      const response = await Notifications.getPermissionsAsync() as any;
+      const existingStatus = response?.status;
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const reqResponse = await Notifications.requestPermissionsAsync() as any;
+        finalStatus = reqResponse?.status;
+      }
+      if (finalStatus !== 'granted') {
+        console.log('Failed to get push token for local notification!');
+        return;
+      }
+    }
+    requestPermissions();
+  }, []);
+
+  const triggerNotification = async (inquiryName: string, productName: string) => {
+    if (Platform.OS === 'web') return;
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'New Atelier Inquiry 🔔',
+          body: `${inquiryName} is asking about the ${productName}.`,
+          sound: true,
+        },
+        trigger: null, // immediate
+      });
+    } catch (err) {
+      console.warn('Failed to schedule local notification', err);
+    }
+  };
+
+  // Background Simulator: Adds a new inquiry every 90 seconds
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    let simCount = 0;
+    const interval = setInterval(() => {
+      if (simCount >= SIMULATED_NEW_INQUIRIES.length) {
+        clearInterval(interval);
+        return;
+      }
+      
+      const template = SIMULATED_NEW_INQUIRIES[simCount];
+      const newInq: Inquiry = {
+        ...template,
+        id: `inq_sim_${Date.now()}`
+      };
+      
+      setInquiries(prev => [newInq, ...prev]);
+      triggerNotification(newInq.customerName, newInq.productName);
+      simCount++;
+    }, 90000);
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  const handleSimulateNewInquiry = () => {
+    const nextIndex = simulatedIndex % SIMULATED_NEW_INQUIRIES.length;
+    const template = SIMULATED_NEW_INQUIRIES[nextIndex];
+    const newInq: Inquiry = {
+      ...template,
+      id: `inq_sim_${Date.now()}`
+    };
+    
+    setInquiries(prev => [newInq, ...prev]);
+    triggerNotification(newInq.customerName, newInq.productName);
+    showAlert('Inquiry Simulated', `New inquiry from ${newInq.customerName} has been simulated. Check device notifications!`, 'success');
+    setSimulatedIndex(prev => prev + 1);
+  };
+
 
 
   // Save edits/addings
@@ -433,7 +561,8 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.appContainer}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.appContainer}>
       <StatusBar style="dark" />
       
       {/* App Header Banner */}
@@ -456,6 +585,7 @@ export default function App() {
             stats={stats}
             inquiries={inquiries}
             onResolveInquiry={handleResolveInquiry}
+            onSimulateInquiry={handleSimulateNewInquiry}
           />
         )}
         {activeTab === 'catalogue' && (
@@ -541,7 +671,8 @@ export default function App() {
         config={alertConfig} 
         onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))} 
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

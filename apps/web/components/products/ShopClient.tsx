@@ -146,7 +146,7 @@ export function ShopClient() {
       <section className="max-w-7xl mx-auto px-6 py-10 w-full">
         
         {/* Stats and Sorting Bar */}
-        <div className="flex justify-between items-center border-b border-zinc-100 pb-5 mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 pb-5 mb-8">
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
               {filteredProducts.length} Products
@@ -161,7 +161,7 @@ export function ShopClient() {
             )}
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             {/* Sorting Dropdown */}
             <Dropdown
               options={[
@@ -173,13 +173,13 @@ export function ShopClient() {
               value={sortBy}
               onChange={setSortBy}
               labelPrefix="Sort by:"
-              className="w-48"
+              className="flex-1 sm:w-48"
             />
 
             {/* Mobile Filter Toggle */}
             <button 
               onClick={() => setIsFilterOpen(true)} 
-              className="lg:hidden flex items-center gap-2 text-xs font-bold tracking-wider uppercase border border-zinc-200 rounded-full px-5 py-2.5 bg-zinc-50 hover:bg-white transition-all shadow-sm"
+              className="lg:hidden flex-1 flex items-center justify-center gap-2 text-xs font-bold tracking-wider uppercase border border-zinc-200 rounded-full px-5 py-3 bg-zinc-50 hover:bg-white transition-all shadow-sm"
             >
               <SlidersHorizontal size={13} />
               <span>Filters</span>
@@ -189,9 +189,17 @@ export function ShopClient() {
 
         <div className="flex flex-col lg:flex-row gap-10 items-start">
           
+          {/* Mobile Overlay Backdrop */}
+          {isFilterOpen && (
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
+              onClick={() => setIsFilterOpen(false)}
+            />
+          )}
+
           {/* Desktop Left Sidebar Filter Menu (or Mobile overlay) */}
           <aside className={`
-            fixed inset-y-0 left-0 z-50 bg-white p-8 transition-transform duration-500 w-80 shadow-2xl border-r border-zinc-100
+            fixed inset-y-0 left-0 z-50 bg-white p-6 transition-transform duration-500 max-w-[85vw] w-80 shadow-2xl border-r border-zinc-100 overflow-y-auto
             lg:static lg:translate-x-0 lg:bg-transparent lg:p-0 lg:w-64 lg:flex-shrink-0 lg:shadow-none lg:border-none
             ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'}
           `}>
@@ -322,17 +330,34 @@ export function ShopClient() {
           {/* Product Grid Area */}
           <div className="flex-1 w-full">
             {loading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="flex flex-col gap-3">
-                    <div className="aspect-[3/4] bg-zinc-50 animate-pulse rounded-2xl border border-zinc-100" />
-                    <div className="h-4 bg-zinc-100 animate-pulse w-3/4 rounded-md" />
-                    <div className="h-4 bg-zinc-100 animate-pulse w-1/4 rounded-md" />
+                  <div key={i} className="flex flex-col rounded-2xl border border-zinc-100 bg-white overflow-hidden shadow-sm w-full">
+                    {/* Image Aspect ratio */}
+                    <div className="aspect-[3/4] bg-zinc-50 animate-pulse w-full" />
+                    
+                    {/* Info container */}
+                    <div className="p-4 flex flex-col justify-between flex-1 gap-3">
+                      <div className="space-y-2">
+                        {/* Category */}
+                        <div className="h-2.5 bg-zinc-100 animate-pulse w-1/3 rounded-md" />
+                        {/* Title */}
+                        <div className="h-4 bg-zinc-100 animate-pulse w-3/4 rounded-md" />
+                        {/* Fabric */}
+                        <div className="h-3 bg-zinc-50 animate-pulse w-1/2 rounded-md" />
+                      </div>
+                      
+                      {/* Divider and price block */}
+                      <div className="flex items-center justify-between pt-2 border-t border-zinc-100/50">
+                        <div className="h-4 bg-zinc-100 animate-pulse w-16 rounded-md" />
+                        <div className="w-8 h-8 rounded-full bg-zinc-100 animate-pulse" />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                 {filteredProducts.map(product => (
                   <div key={product.id} className="product-card-wrapper">
                     <ProductCard product={product} />

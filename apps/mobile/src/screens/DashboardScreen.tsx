@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
-import { Package, Sparkles, AlertCircle, MessageCircle } from 'lucide-react-native';
+import { StyleSheet, Text, View, ScrollView, Platform, TouchableOpacity } from 'react-native';
+import { Package, Sparkles, AlertCircle, MessageCircle, Plus } from 'lucide-react-native';
 import MetricCard from '../components/MetricCard';
 import InquiryItem from '../components/InquiryItem';
 import { Inquiry } from '../types';
@@ -14,12 +14,14 @@ interface DashboardScreenProps {
   };
   inquiries: Inquiry[];
   onResolveInquiry: (id: string, name: string) => void;
+  onSimulateInquiry: () => void;
 }
 
 export default function DashboardScreen({
   stats,
   inquiries,
-  onResolveInquiry
+  onResolveInquiry,
+  onSimulateInquiry
 }: DashboardScreenProps) {
   return (
     <ScrollView style={styles.tabContent} contentContainerStyle={styles.scrollPadding}>
@@ -64,6 +66,14 @@ export default function DashboardScreen({
             <Text style={styles.cardTitle}>Atelier Inquiries</Text>
             <Text style={styles.cardSub}>Direct chats initiated by luxury clients</Text>
           </View>
+          <TouchableOpacity 
+            onPress={onSimulateInquiry} 
+            style={styles.simulateBtn}
+            activeOpacity={0.7}
+          >
+            <Plus size={11} color="#FF5E36" />
+            <Text style={styles.simulateBtnText}>Simulate</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.inquiryList}>
@@ -126,5 +136,21 @@ const styles = StyleSheet.create({
   },
   inquiryList: {
     gap: 10,
+  },
+  simulateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 94, 54, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#fff7f5',
+  },
+  simulateBtnText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#FF5E36',
   },
 });

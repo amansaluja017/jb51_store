@@ -34,7 +34,6 @@ export const metadata: Metadata = {
   },
 };
 
-import { PageTransitionProvider } from '@/components/layout/PageTransitionProvider';
 import { WishlistProvider } from '@/context/WishlistContext';
 import { cn } from "@/lib/utils";
 
@@ -47,14 +46,12 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
         <TRPCReactProvider>
           <WishlistProvider>
-            <PageTransitionProvider>
-              <Navbar />
-              <main className="flex-1 flex flex-col">
-                {children}
-              </main>
-              <Footer />
-              <Toaster position="bottom-center" />
-            </PageTransitionProvider>
+            <Navbar />
+            <main className="flex-1 flex flex-col">
+              {children}
+            </main>
+            <Footer />
+            <Toaster position="bottom-center" />
           </WishlistProvider>
         </TRPCReactProvider>
       </body>

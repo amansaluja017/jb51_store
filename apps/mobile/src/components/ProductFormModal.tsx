@@ -8,12 +8,12 @@ import {
   TextInput, 
   Modal, 
   Switch, 
-  SafeAreaView, 
   Alert,
   Platform,
   Image,
   KeyboardAvoidingView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   X, 
   Trash2, 

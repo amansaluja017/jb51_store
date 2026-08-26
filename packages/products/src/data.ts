@@ -119,8 +119,8 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 28500,
     category: 'Anarkali Suits',
     images: [
-      'https://images.unsplash.com/photo-1596783047904-89a4214f4e24?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1533075373424-61b3d3c3b56f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1615806528302-05c722d51e0d?auto=format&fit=crop&w=800&q=80',
     ],
     fabric: '100% Handloom Tussar Silk',
     fit: 'Fluid panelled fit.',

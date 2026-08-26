@@ -5,9 +5,9 @@ import {
   View, 
   TextInput, 
   TouchableOpacity, 
-  SafeAreaView, 
   Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, RefreshCw } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 

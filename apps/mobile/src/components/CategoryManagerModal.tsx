@@ -7,9 +7,9 @@ import {
   TouchableOpacity, 
   TextInput, 
   Modal, 
-  SafeAreaView, 
   Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Plus, Trash2, Tag } from 'lucide-react-native';
 import { Product } from '../types';
 

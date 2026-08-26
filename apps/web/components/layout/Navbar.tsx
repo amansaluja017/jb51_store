@@ -16,6 +16,20 @@ export function Navbar() {
   
   const wishlistCount = wishlist.length;
 
+  const announcements = [
+    'Summer Sale: Up to 70% Off',
+    'Complimentary shipping on orders above ₹15,000',
+    'Bespoke customization available at our atelier',
+  ];
+  const [announcementIdx, setAnnouncementIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAnnouncementIdx((prev) => (prev + 1) % announcements.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [announcements.length]);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -55,9 +69,25 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 flex flex-col font-sans">
       
       {/* 1. Top Announcement Bar (Promo banner) */}
-      <div className="w-full bg-[#1F1A1B] text-[#FFFBE1] text-[9px] md:text-[10px] py-2 px-6 flex items-center justify-between tracking-[0.15em] font-semibold uppercase relative z-50 border-b border-white/5 border-box">
-        <div className="mx-auto md:mx-0 text-center text-[#FF5E36] tracking-wider animate-pulse">
-          SUMMER SALE: UP TO 70% OFF
+      <div className="w-full bg-zinc-950 text-zinc-300 text-[8px] md:text-[9px] py-2 px-6 flex items-center justify-center tracking-[0.2em] font-semibold uppercase relative z-50 border-b border-white/5">
+        <div className="relative overflow-hidden h-4 flex items-center justify-center w-full">
+          {announcements.map((text, idx) => (
+            <div
+              key={idx}
+              className={cn(
+                "absolute transition-all duration-700 ease-in-out transform flex items-center justify-center gap-2 w-full text-center",
+                idx === announcementIdx
+                  ? "opacity-100 translate-y-0 scale-100"
+                  : idx === (announcementIdx - 1 + announcements.length) % announcements.length
+                    ? "opacity-0 -translate-y-4 scale-95"
+                    : "opacity-0 translate-y-4 scale-95"
+              )}
+            >
+              <span className="text-[#FF5E36] text-[10px] animate-pulse">✦</span>
+              <span>{text}</span>
+              <span className="text-[#FF5E36] text-[10px] animate-pulse">✦</span>
+            </div>
+          ))}
         </div>
       </div>
 
