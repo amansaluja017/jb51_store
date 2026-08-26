@@ -22,6 +22,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import ProductFormModal from './src/components/ProductFormModal';
+import CategoryManagerModal from './src/components/CategoryManagerModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
 
 // ----------------------------------------------------
@@ -108,6 +109,9 @@ const INITIAL_INQUIRIES: Inquiry[] = [
     channel: 'WhatsApp',
     timestamp: '12 mins ago',
     status: 'Responded',
+    phone: '+919876543210',
+    email: 'aishwarya.sen@outlook.com',
+    query: 'Can I get this customized with a sweetheart neckline and full sleeves? I would need it by the first week of next month for a wedding.'
   },
   {
     id: 'inq_2',
@@ -118,6 +122,9 @@ const INITIAL_INQUIRIES: Inquiry[] = [
     channel: 'Instagram DM',
     timestamp: '45 mins ago',
     status: 'Pending',
+    phone: '+919988776655',
+    email: 'meera.rajput@gmail.com',
+    query: 'Is the crimson velvet suit available in size XS? The size chart shows S as the smallest, but I wanted to see if custom fitting is possible.'
   },
   {
     id: 'inq_3',
@@ -128,6 +135,9 @@ const INITIAL_INQUIRIES: Inquiry[] = [
     channel: 'WhatsApp',
     timestamp: '2 hours ago',
     status: 'Responded',
+    phone: '+919123456789',
+    email: 'kriti.sanon@icloud.com',
+    query: 'Hi, wanted to know if this Ivory Chanderi Coord Set comes with a dupatta or if it can be ordered separately? Thanks!'
   },
 ];
 
@@ -153,6 +163,7 @@ export default function App() {
   // Search & Modals
   const [searchQuery, setSearchQuery] = useState('');
   const [formModalOpen, setFormModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
 
@@ -286,6 +297,25 @@ export default function App() {
         showAlert('Success', 'Outfit deleted.', 'success');
       }
     );
+  };
+
+  const handleAddCategory = (newCat: string) => {
+    setCategories(prev => {
+      if (prev.includes(newCat)) return prev;
+      return [...prev, newCat];
+    });
+  };
+
+  const handleDeleteCategory = (catToDelete: string) => {
+    setCategories(prev => {
+      const filtered = prev.filter(c => c !== catToDelete);
+      if (filtered.length === 0) {
+        return ['Uncategorized'];
+      }
+      return filtered;
+    });
+    // Reassign products to Uncategorized
+    setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: 'Uncategorized' } : p));
   };
 
   const handleResolveInquiry = (id: string, customerName: string) => {
@@ -435,6 +465,7 @@ export default function App() {
             setSearchQuery={setSearchQuery}
             isLoading={isLoading}
             onAddProduct={triggerAddProduct}
+            onManageCategories={() => setCategoryModalOpen(true)}
             onToggleStock={handleToggleStock}
             onUpdateVisibility={handleUpdateVisibility}
             onEditProduct={triggerEditProduct}
@@ -490,8 +521,19 @@ export default function App() {
         categories={categories}
         onClose={() => setFormModalOpen(false)}
         onSave={handleSaveProduct}
-        onAddNewCategory={(newCat) => setCategories(prev => [...prev, newCat])}
-        onDeleteCategory={(catToDelete) => setCategories(prev => prev.filter(c => c !== catToDelete))}
+        onAddNewCategory={handleAddCategory}
+        onDeleteCategory={handleDeleteCategory}
+        showAlert={showAlert}
+      />
+
+      {/* Dedicated Category Manager Modal */}
+      <CategoryManagerModal 
+        visible={categoryModalOpen}
+        categories={categories}
+        products={products}
+        onClose={() => setCategoryModalOpen(false)}
+        onAddCategory={handleAddCategory}
+        onDeleteCategory={handleDeleteCategory}
         showAlert={showAlert}
       />
 

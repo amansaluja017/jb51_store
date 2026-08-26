@@ -8,7 +8,7 @@ import {
   TouchableOpacity, 
   ActivityIndicator 
 } from 'react-native';
-import { Search, Plus } from 'lucide-react-native';
+import { Search, Plus, Tag } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { Product } from '../types';
 
@@ -18,6 +18,7 @@ interface CatalogScreenProps {
   setSearchQuery: (val: string) => void;
   isLoading: boolean;
   onAddProduct: () => void;
+  onManageCategories: () => void;
   onToggleStock: (product: Product) => void;
   onUpdateVisibility: (product: Product, status: boolean) => void;
   onEditProduct: (product: Product) => void;
@@ -30,6 +31,7 @@ export default function CatalogScreen({
   setSearchQuery,
   isLoading,
   onAddProduct,
+  onManageCategories,
   onToggleStock,
   onUpdateVisibility,
   onEditProduct,
@@ -48,7 +50,7 @@ export default function CatalogScreen({
       {/* Search Header */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Search size={16} color="#a1a1aa" />
+          <Search size={14} color="#a1a1aa" />
           <TextInput 
             placeholder="Search products or categories..."
             placeholderTextColor="#a1a1aa"
@@ -57,10 +59,16 @@ export default function CatalogScreen({
             style={styles.searchInput}
           />
         </View>
-        <TouchableOpacity onPress={onAddProduct} style={styles.addButton}>
-          <Plus size={16} color="#fff" />
-          <Text style={styles.addButtonText}>Add Product</Text>
-        </TouchableOpacity>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity onPress={onManageCategories} style={styles.categoriesButton}>
+            <Tag size={13} color="#09090b" />
+            <Text style={styles.categoriesButtonText}>Manage Categories</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onAddProduct} style={styles.addButton}>
+            <Plus size={13} color="#fff" />
+            <Text style={styles.addButtonText}>Add Product</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollPadding}>
@@ -94,13 +102,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    flexDirection: 'row',
+    paddingVertical: 12,
     gap: 10,
-    alignItems: 'center',
   },
   searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f4f4f5',
@@ -112,21 +117,43 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     fontSize: 11,
-    fontWeight: 'medium',
+    fontWeight: '500',
     color: '#09090b',
   },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  categoriesButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4f4f5',
+    borderRadius: 10,
+    height: 36,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  categoriesButtonText: {
+    color: '#09090b',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   addButton: {
+    flex: 1,
     backgroundColor: '#FF5E36',
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 38,
-    gap: 4,
+    justifyContent: 'center',
+    height: 36,
+    gap: 6,
   },
   addButtonText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
   },
   scrollPadding: {

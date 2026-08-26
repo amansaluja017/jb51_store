@@ -32,4 +32,7 @@ export interface Inquiry {
   channel: 'WhatsApp' | 'Instagram' | 'Instagram DM' | string;
   timestamp: string;
   status: 'Pending' | 'Responded' | 'Resolved' | string;
+  phone?: string;
+  email?: string;
+  query?: string;
 }

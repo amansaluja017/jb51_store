@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
 import { Package, Sparkles, AlertCircle, MessageCircle } from 'lucide-react-native';
 import MetricCard from '../components/MetricCard';
 import InquiryItem from '../components/InquiryItem';
@@ -104,30 +104,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inquiriesContainer: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    borderRadius: 24,
-    padding: 20,
+    marginTop: 10,
   },
   inquiriesHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   cardTitle: {
-    fontFamily: 'serif',
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontSize: 16,
     fontWeight: 'bold',
     color: '#09090b',
   },
   cardSub: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#71717a',
     marginTop: 2,
   },
   inquiryList: {
-    gap: 12,
+    gap: 10,
   },
 });
