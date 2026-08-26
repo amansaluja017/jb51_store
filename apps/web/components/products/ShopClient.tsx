@@ -5,8 +5,9 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { type Product, CATEGORIES } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
-import { Filter, X, ChevronRight, SlidersHorizontal, ArrowRight, Sparkles } from 'lucide-react';
+import { X, SlidersHorizontal, ArrowRight, Sparkles, Sliders, ChevronDown } from 'lucide-react';
 import gsap from 'gsap';
+import { Dropdown } from '@/components/ui/Dropdown';
 
 export function ShopClient() {
   const searchParams = useSearchParams();
@@ -19,6 +20,11 @@ export function ShopClient() {
   const [activeCategory, setActiveCategory] = useState<string | null>(initialCategory);
   const [activeFilter, setActiveFilter] = useState<string | null>(initialFilter);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // Interactive Filters state
+  const [sortBy, setSortBy] = useState<string>('featured');
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState<number>(35000); // Max product price
 
   // Sync state with URL params changes
   useEffect(() => {
@@ -28,12 +34,13 @@ export function ShopClient() {
 
   useEffect(() => {
     if (!loading) {
+      gsap.killTweensOf('.product-card-wrapper');
       gsap.fromTo('.product-card-wrapper', 
-        { y: 40, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1.0, stagger: 0.08, ease: 'power3.out' }
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, stagger: 0.05, ease: 'power2.out' }
       );
     }
-  }, [loading, activeCategory, activeFilter]);
+  }, [loading, activeCategory, activeFilter, sortBy, selectedSizes, priceRange]);
 
   const handleCategorySelect = (catSlug: string | null) => {
     setIsFilterOpen(false);
@@ -53,9 +60,16 @@ export function ShopClient() {
     }
   };
 
+  const toggleSize = (size: string) => {
+    setSelectedSizes(prev => 
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+    );
+  };
+
   // Combine category filter and custom filters
-  let filteredProducts = products;
+  let filteredProducts = products.filter(p => p.isListed !== false);
   
+  // 1. URL params filters
   if (activeFilter === 'new') {
     filteredProducts = filteredProducts.filter(p => p.newArrival);
   } else if (activeFilter === 'bestseller') {
@@ -68,123 +82,164 @@ export function ShopClient() {
     );
   }
 
+  // 2. Interactive size filters
+  if (selectedSizes.length > 0) {
+    filteredProducts = filteredProducts.filter(p => 
+      p.variants.some(v => selectedSizes.includes(v.size) && v.stock > 0)
+    );
+  }
+
+  // 3. Price range filter
+  filteredProducts = filteredProducts.filter(p => p.price <= priceRange);
+
+  // 4. Sorting logic
+  if (sortBy === 'price-low-high') {
+    filteredProducts.sort((a, b) => a.price - b.price);
+  } else if (sortBy === 'price-high-low') {
+    filteredProducts.sort((a, b) => b.price - a.price);
+  } else if (sortBy === 'newest') {
+    filteredProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
   // Calculate product counts
-  const totalCount = products.length;
-  const newArrivalsCount = products.filter(p => p.newArrival).length;
-  const bestsellersCount = products.filter(p => p.bestseller).length;
+  const listedProductsOnly = products.filter(p => p.isListed !== false);
+  const totalCount = listedProductsOnly.length;
+  const newArrivalsCount = listedProductsOnly.filter(p => p.newArrival).length;
+  const bestsellersCount = listedProductsOnly.filter(p => p.bestseller).length;
+
+  const resetAllFilters = () => {
+    router.push('/shop');
+    setActiveCategory(null);
+    setActiveFilter(null);
+    setSelectedSizes([]);
+    setPriceRange(35000);
+    setSortBy('featured');
+  };
 
   return (
-    <div className="w-full bg-brand-ivory text-brand-brown min-h-screen">
+    <div className="w-full bg-white text-zinc-800 min-h-screen font-sans">
       
-      {/* Redesigned Luxury Hero Header */}
-      <section className="relative pt-36 pb-20 px-6 bg-brand-paper border-b border-brand-maroon/10 overflow-hidden">
-        {/* Decorative linework */}
+      {/* Editorial Collection Header */}
+      <section className="relative pt-36 pb-16 px-6 bg-zinc-50 border-b border-zinc-100 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.015] pointer-events-none bg-[url('https://picsum.photos/seed/curation/1920/1080')] bg-cover bg-center" />
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-brand-sand/30 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-zinc-200/50 blur-3xl pointer-events-none" />
         
         <div className="max-w-7xl mx-auto text-center relative z-10">
-          <span className="font-script text-4xl text-brand-saffron block mb-3">Atelier Collections</span>
-          <h1 className="font-serif text-4xl md:text-6xl text-brand-maroon tracking-wide mb-6">
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-3">ATELIER COLLECTIONS</span>
+          <h1 className="font-serif text-3xl md:text-5xl lg:text-6xl font-bold text-zinc-950 tracking-tight mb-4">
             {activeCategory 
               ? activeCategory.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
               : activeFilter === 'new' 
               ? 'New Arrivals' 
               : activeFilter === 'bestseller'
               ? 'Bestsellers'
-              : 'The Full Curation'
+              : 'Our Curation'
             }
           </h1>
-          <div className="h-[1px] bg-brand-maroon/20 w-36 mx-auto mb-6" />
-          <p className="text-brand-brown/70 text-xs md:text-sm font-light max-w-xl mx-auto leading-relaxed tracking-wider">
-            Discover bespoke tailoring, premium textiles, and contemporary drapes. Meticulously finished by our master artisans to elevate your wardrobe.
+          <p className="text-zinc-500 text-xs md:text-sm font-light max-w-xl mx-auto leading-relaxed tracking-wide mt-4">
+            Explore our edit of luxury handloom textiles, contemporary silhouettes, and bespoke tailoring designed to elevate your style.
           </p>
         </div>
       </section>
 
       {/* Main Content Area */}
-      <section className="max-w-7xl mx-auto px-6 py-12 w-full">
+      <section className="max-w-7xl mx-auto px-6 py-10 w-full">
         
-        {/* Stats and Mobile Filter Bar */}
-        <div className="flex justify-between items-center border-b border-brand-maroon/10 pb-6 mb-10">
-          <div className="flex items-center gap-4">
-            <span className="text-[10px] tracking-widest uppercase font-semibold text-brand-terracotta">
-              {filteredProducts.length} Silhouettes
+        {/* Stats and Sorting Bar */}
+        <div className="flex justify-between items-center border-b border-zinc-100 pb-5 mb-8">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
+              {filteredProducts.length} Products
             </span>
-            {(activeCategory || activeFilter) && (
+            {(activeCategory || activeFilter || selectedSizes.length > 0 || priceRange < 35000) && (
               <button 
-                onClick={() => {
-                  router.push('/shop');
-                  setActiveCategory(null);
-                  setActiveFilter(null);
-                }}
-                className="text-[10px] tracking-widest uppercase underline text-brand-maroon/60 hover:text-brand-maroon transition-colors"
+                onClick={resetAllFilters}
+                className="text-[11px] tracking-wider uppercase underline underline-offset-4 text-zinc-400 hover:text-[#FF5E36] transition-colors font-semibold"
               >
-                Clear Filters
+                Clear All
               </button>
             )}
           </div>
           
-          <button 
-            onClick={() => setIsFilterOpen(true)} 
-            className="lg:hidden flex items-center gap-2 text-xs tracking-widest uppercase border border-brand-maroon/20 px-4 py-2 bg-brand-cream/40"
-          >
-            <SlidersHorizontal size={14} />
-            <span>Filters</span>
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Sorting Dropdown */}
+            <Dropdown
+              options={[
+                { value: "featured", label: "Featured" },
+                { value: "price-low-high", label: "Price: Low to High" },
+                { value: "price-high-low", label: "Price: High to Low" },
+                { value: "newest", label: "Newest" }
+              ]}
+              value={sortBy}
+              onChange={setSortBy}
+              labelPrefix="Sort by:"
+              className="w-48"
+            />
+
+            {/* Mobile Filter Toggle */}
+            <button 
+              onClick={() => setIsFilterOpen(true)} 
+              className="lg:hidden flex items-center gap-2 text-xs font-bold tracking-wider uppercase border border-zinc-200 rounded-full px-5 py-2.5 bg-zinc-50 hover:bg-white transition-all shadow-sm"
+            >
+              <SlidersHorizontal size={13} />
+              <span>Filters</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-12 items-start">
+        <div className="flex flex-col lg:flex-row gap-10 items-start">
           
-          {/* Desktop Left Sidebar Filter Menu */}
+          {/* Desktop Left Sidebar Filter Menu (or Mobile overlay) */}
           <aside className={`
-            fixed inset-0 z-50 bg-brand-cream p-8 transition-transform duration-500 lg:static lg:translate-x-0 lg:bg-transparent lg:p-0 lg:w-64 lg:flex-shrink-0
+            fixed inset-y-0 left-0 z-50 bg-white p-8 transition-transform duration-500 w-80 shadow-2xl border-r border-zinc-100
+            lg:static lg:translate-x-0 lg:bg-transparent lg:p-0 lg:w-64 lg:flex-shrink-0 lg:shadow-none lg:border-none
             ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'}
           `}>
             {/* Mobile Header for Filters */}
-            <div className="flex justify-between items-center mb-10 lg:hidden">
-              <span className="font-serif text-2xl text-brand-maroon">Curation Filters</span>
+            <div className="flex justify-between items-center mb-8 lg:hidden">
+              <span className="font-serif text-xl font-bold text-zinc-950">Filters</span>
               <button 
                 onClick={() => setIsFilterOpen(false)}
-                className="p-2 border border-brand-maroon/10 rounded-full"
+                className="p-1.5 border border-zinc-200 rounded-full text-zinc-400 hover:text-zinc-700 transition-colors"
               >
-                <X size={20} className="text-brand-maroon" />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Filter Categories */}
-            <div className="space-y-10">
+            {/* Filter Sections */}
+            <div className="space-y-8">
               
-              {/* Curation Sort / Drop */}
+              {/* Category Links */}
               <div>
-                <h3 className="text-[10px] tracking-[0.2em] uppercase font-bold text-brand-terracotta mb-6 border-b border-brand-maroon/10 pb-2">
+                <h3 className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-950 mb-4 border-b border-zinc-100 pb-2">
                   Curation Drop
                 </h3>
-                <ul className="space-y-4">
+                <ul className="space-y-3">
                   <li>
                     <button 
                       onClick={() => handleFilterSelect(null)}
-                      className={`text-xs tracking-wider uppercase transition-colors flex justify-between items-center w-full ${!activeFilter ? 'text-brand-maroon font-semibold' : 'text-brand-brown/60 hover:text-brand-maroon'}`}
+                      className={`text-xs tracking-wide uppercase transition-colors flex justify-between items-center w-full ${!activeFilter ? 'text-[#FF5E36] font-bold' : 'text-zinc-500 hover:text-zinc-950'}`}
                     >
-                      <span>All Masterpieces</span>
-                      <span className="text-[9px] opacity-60">({totalCount})</span>
+                      <span>All Products</span>
+                      <span className="text-[9px] font-mono opacity-60">({totalCount})</span>
                     </button>
                   </li>
                   <li>
                     <button 
                       onClick={() => handleFilterSelect('new')}
-                      className={`text-xs tracking-wider uppercase transition-colors flex justify-between items-center w-full ${activeFilter === 'new' ? 'text-brand-maroon font-semibold' : 'text-brand-brown/60 hover:text-brand-maroon'}`}
+                      className={`text-xs tracking-wide uppercase transition-colors flex justify-between items-center w-full ${activeFilter === 'new' ? 'text-[#FF5E36] font-bold' : 'text-zinc-500 hover:text-zinc-950'}`}
                     >
-                      <span>New Drops</span>
-                      <span className="text-[9px] opacity-60">({newArrivalsCount})</span>
+                      <span>New Arrivals</span>
+                      <span className="text-[9px] font-mono opacity-60">({newArrivalsCount})</span>
                     </button>
                   </li>
                   <li>
                     <button 
                       onClick={() => handleFilterSelect('bestseller')}
-                      className={`text-xs tracking-wider uppercase transition-colors flex justify-between items-center w-full ${activeFilter === 'bestseller' ? 'text-brand-maroon font-semibold' : 'text-brand-brown/60 hover:text-brand-maroon'}`}
+                      className={`text-xs tracking-wide uppercase transition-colors flex justify-between items-center w-full ${activeFilter === 'bestseller' ? 'text-[#FF5E36] font-bold' : 'text-zinc-500 hover:text-zinc-950'}`}
                     >
                       <span>Bestsellers</span>
-                      <span className="text-[9px] opacity-60">({bestsellersCount})</span>
+                      <span className="text-[9px] font-mono opacity-60">({bestsellersCount})</span>
                     </button>
                   </li>
                 </ul>
@@ -192,10 +247,10 @@ export function ShopClient() {
 
               {/* Product Categories */}
               <div>
-                <h3 className="text-[10px] tracking-[0.2em] uppercase font-bold text-brand-terracotta mb-6 border-b border-brand-maroon/10 pb-2">
-                  Silhouettes
+                <h3 className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-950 mb-4 border-b border-zinc-100 pb-2">
+                  Categories
                 </h3>
-                <ul className="space-y-4">
+                <ul className="space-y-3">
                   {CATEGORIES.map(cat => {
                     const catSlug = cat.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
                     const count = products.filter(p => p.category === cat).length;
@@ -203,15 +258,62 @@ export function ShopClient() {
                       <li key={cat}>
                         <button 
                           onClick={() => handleCategorySelect(catSlug)}
-                          className={`text-xs tracking-wider uppercase transition-colors flex justify-between items-center w-full ${activeCategory === catSlug ? 'text-brand-maroon font-semibold' : 'text-brand-brown/60 hover:text-brand-maroon'}`}
+                          className={`text-xs tracking-wide uppercase transition-colors flex justify-between items-center w-full ${activeCategory === catSlug ? 'text-[#FF5E36] font-bold' : 'text-zinc-500 hover:text-zinc-950'}`}
                         >
                           <span>{cat}</span>
-                          <span className="text-[9px] opacity-60">({count})</span>
+                          <span className="text-[9px] font-mono opacity-60">({count})</span>
                         </button>
                       </li>
                     );
                   })}
                 </ul>
+              </div>
+
+              {/* Size Filter */}
+              <div>
+                <h3 className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-950 mb-4 border-b border-zinc-100 pb-2">
+                  Filter by Size
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {['XS', 'S', 'M', 'L'].map(size => {
+                    const isSelected = selectedSizes.includes(size);
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => toggleSize(size)}
+                        className={`w-9 h-9 text-[11px] font-bold rounded-lg border transition-all ${
+                          isSelected 
+                            ? 'bg-[#1F1A1B] text-white border-zinc-950 shadow-sm' 
+                            : 'border-zinc-200 text-zinc-600 hover:border-zinc-400 bg-white'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Price Filter */}
+              <div>
+                <h3 className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-950 mb-4 border-b border-zinc-100 pb-2">
+                  Price Limit
+                </h3>
+                <div className="space-y-3">
+                  <input 
+                    type="range" 
+                    min={10000} 
+                    max={35000} 
+                    step={1000} 
+                    value={priceRange}
+                    onChange={(e) => setPriceRange(Number(e.target.value))}
+                    className="w-full accent-[#FF5E36] cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs font-semibold text-zinc-500">
+                    <span>Up to:</span>
+                    <span className="text-zinc-950 font-bold">{priceRange.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</span>
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -220,22 +322,20 @@ export function ShopClient() {
           {/* Product Grid Area */}
           <div className="flex-1 w-full">
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="flex flex-col gap-4">
-                    <div className="aspect-[3/4] bg-brand-maroon/5 animate-pulse rounded-2xl" />
-                    <div className="h-4 bg-brand-maroon/5 animate-pulse w-3/4 rounded" />
-                    <div className="h-4 bg-brand-maroon/5 animate-pulse w-1/4 rounded" />
+                  <div key={i} className="flex flex-col gap-3">
+                    <div className="aspect-[3/4] bg-zinc-50 animate-pulse rounded-2xl border border-zinc-100" />
+                    <div className="h-4 bg-zinc-100 animate-pulse w-3/4 rounded-md" />
+                    <div className="h-4 bg-zinc-100 animate-pulse w-1/4 rounded-md" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProducts.map(product => (
                   <div key={product.id} className="product-card-wrapper">
-                    <div className="relative w-full rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
-                      <ProductCard product={product} />
-                    </div>
+                    <ProductCard product={product} />
                   </div>
                 ))}
               </div>
@@ -243,22 +343,17 @@ export function ShopClient() {
             
             {/* Empty State */}
             {!loading && filteredProducts.length === 0 && (
-              <div className="text-center py-24 border border-dashed border-brand-maroon/20 rounded-2xl bg-brand-cream/20">
-                <Sparkles size={36} className="mx-auto text-brand-saffron mb-4 animate-pulse" />
-                <h3 className="font-serif text-2xl text-brand-maroon mb-3">No silhouettes found</h3>
-                <p className="text-brand-brown/60 text-xs md:text-sm mb-8 max-w-sm mx-auto">
-                  We couldn't find any masterpieces matching your selections. Try resetting filters to browse our full catalog.
+              <div className="text-center py-20 border-2 border-dashed border-zinc-200 rounded-2xl bg-zinc-50/50">
+                <Sparkles size={36} className="mx-auto text-[#FF5E36] mb-4 animate-pulse" />
+                <h3 className="font-serif text-xl font-bold text-zinc-950 mb-2">No silhouettes found</h3>
+                <p className="text-zinc-500 text-xs mb-6 max-w-xs mx-auto leading-relaxed">
+                  We couldn't find any products matching your current filters. Try resetting to explore the full curation.
                 </p>
                 <button 
-                  onClick={() => {
-                    router.push('/shop');
-                    setActiveCategory(null);
-                    setActiveFilter(null);
-                  }}
-                  className="inline-flex items-center gap-2 text-xs tracking-widest uppercase border border-brand-maroon text-brand-maroon hover:bg-brand-maroon hover:text-brand-cream px-6 py-3 transition-colors rounded-full font-semibold"
+                  onClick={resetAllFilters}
+                  className="bg-brand-charcoal hover:bg-[#FF5E36] text-white px-6 py-3 rounded-full text-xs font-semibold uppercase tracking-widest transition-all duration-300 shadow-sm"
                 >
-                  <span>Reset All Filters</span>
-                  <ArrowRight size={12} />
+                  Reset All Filters
                 </button>
               </div>
             )}

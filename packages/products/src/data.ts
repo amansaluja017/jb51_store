@@ -21,6 +21,8 @@ export interface Product {
   newArrival: boolean;
   bestseller: boolean;
   createdAt: string;
+  tags?: string[];
+  isListed?: boolean;
 }
 
 export const CATEGORIES = [
@@ -57,6 +59,7 @@ export const MOCK_PRODUCTS: Product[] = [
     newArrival: true,
     bestseller: true,
     createdAt: new Date().toISOString(),
+    tags: ['silk', 'handloom', 'wedding', 'zari', 'luxury'],
   },
   {
     id: '2',
@@ -81,6 +84,7 @@ export const MOCK_PRODUCTS: Product[] = [
     newArrival: false,
     bestseller: true,
     createdAt: new Date().toISOString(),
+    tags: ['silk', 'coord', 'minimalist', 'luxury', 'modern'],
   },
   {
     id: '3',
@@ -105,6 +109,7 @@ export const MOCK_PRODUCTS: Product[] = [
     newArrival: true,
     bestseller: false,
     createdAt: new Date().toISOString(),
+    tags: ['velvet', 'embroidery', 'wedding', 'luxury', 'zardozi'],
   },
   {
     id: '4',
@@ -129,6 +134,7 @@ export const MOCK_PRODUCTS: Product[] = [
     newArrival: true,
     bestseller: true,
     createdAt: new Date().toISOString(),
+    tags: ['silk', 'anarkali', 'handloom', 'wedding', 'luxury'],
   },
   {
     id: '5',
@@ -154,6 +160,7 @@ export const MOCK_PRODUCTS: Product[] = [
     newArrival: false,
     bestseller: true,
     createdAt: new Date().toISOString(),
+    tags: ['georgette', 'embroidery', 'palazzo', 'festive'],
   },
   {
     id: '6',
@@ -178,6 +185,7 @@ export const MOCK_PRODUCTS: Product[] = [
     newArrival: true,
     bestseller: false,
     createdAt: new Date().toISOString(),
+    tags: ['cotton', 'block-print', 'minimalist', 'daily', 'indigo'],
   }
 ];
 
@@ -190,4 +198,26 @@ export async function getProducts(): Promise<Product[]> {
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   await new Promise(resolve => setTimeout(resolve, 500));
   return MOCK_PRODUCTS.find(p => p.slug === slug) || null;
+}
+
+export async function createProduct(product: Product): Promise<Product> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  MOCK_PRODUCTS.push(product);
+  return product;
+}
+
+export async function updateProduct(slug: string, updatedData: Partial<Product>): Promise<Product | null> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  const index = MOCK_PRODUCTS.findIndex(p => p.slug === slug);
+  if (index === -1) return null;
+  MOCK_PRODUCTS[index] = { ...MOCK_PRODUCTS[index], ...updatedData };
+  return MOCK_PRODUCTS[index];
+}
+
+export async function deleteProduct(slug: string): Promise<boolean> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  const index = MOCK_PRODUCTS.findIndex(p => p.slug === slug);
+  if (index === -1) return false;
+  MOCK_PRODUCTS.splice(index, 1);
+  return true;
 }

@@ -4,22 +4,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Mail, MessageCircle, MapPin, ChevronDown } from 'lucide-react';
 import { WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import dynamic from 'next/dynamic';
+
+const Dropdown = dynamic(() => import('@/components/ui/Dropdown').then(mod => mod.Dropdown), { ssr: false });
 
 export default function SupportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const subjects = [
     { value: "order", label: "Order Status / Issue" },
@@ -161,38 +152,17 @@ export default function SupportPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 mt-4" ref={dropdownRef}>
+                 <div className="flex flex-col gap-2 mt-4">
                   <label className="text-[10px] tracking-widest uppercase font-medium">Subject *</label>
-                  <div className="relative">
-                    <button 
-                      type="button"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors text-left flex items-center justify-between"
-                    >
-                      <span className={selectedSubject ? 'text-brand-brown' : 'text-brand-brown/50'}>
-                        {selectedSubject ? subjects.find(s => s.value === selectedSubject)?.label : 'Select an option'}
-                      </span>
-                      <ChevronDown size={16} className={`text-brand-brown/50 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {isDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-brand-ivory border border-brand-brass/20 shadow-lg z-50">
-                        {subjects.map(subject => (
-                          <button
-                            key={subject.value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedSubject(subject.value);
-                              setIsDropdownOpen(false);
-                            }}
-                            className="w-full text-left px-4 py-3 text-sm hover:bg-brand-sand transition-colors border-b border-brand-brass/10 last:border-0"
-                          >
-                            {subject.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <Dropdown
+                    options={subjects}
+                    value={selectedSubject}
+                    onChange={setSelectedSubject}
+                    placeholder="Select inquiry subject..."
+                    className="w-full text-left"
+                    triggerClassName="w-full bg-transparent border-b border-brand-brass/30 py-2 rounded-none px-0 hover:bg-transparent border-t-0 border-x-0 outline-none focus:ring-0 focus:border-brand-maroon focus:border-b"
+                    menuClassName="w-full origin-top-left"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2 mt-4">

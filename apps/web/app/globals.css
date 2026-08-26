@@ -46,19 +46,26 @@
   body {
     @apply bg-brand-cream text-brand-charcoal font-sans antialiased overflow-x-hidden;
     /* Subtle editorial weave pattern */
-    background-image: 
+    background-image:
       radial-gradient(rgba(31, 26, 27, 0.015) 1px, transparent 0),
       radial-gradient(rgba(31, 26, 27, 0.015) 1px, transparent 0);
     background-size: 24px 24px;
     background-position: 0 0, 12px 12px;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-serif font-normal;
   }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   html {
     @apply font-sans;
   }
@@ -106,15 +113,18 @@ html {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--color-brand-cream); 
+  background: var(--color-brand-cream);
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #d4d0c5; 
+  background: #d4d0c5;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #b5b1a5; 
+  background: #b5b1a5;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -124,8 +134,10 @@ html {
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .hide-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 @theme inline {
@@ -242,13 +254,23 @@ html {
 
 /* Infinite Marquee Animations for Testimonials */
 @keyframes marquee-left {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 @keyframes marquee-right {
-  0% { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .animate-marquee-left {
@@ -262,4 +284,13 @@ html {
 .hover-pause:hover .animate-marquee-left,
 .hover-pause:hover .animate-marquee-right {
   animation-play-state: paused;
+}
+
+@keyframes scale-up {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-scale-up {
+  animation: scale-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

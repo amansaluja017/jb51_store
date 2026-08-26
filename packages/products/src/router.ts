@@ -1,9 +1,15 @@
 import { initTRPC } from '@trpc/server';
-import { getProducts, getProductBySlug } from './data.js';
+import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct } from './data.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
-  GetProductBySlugOutputSchema 
+  GetProductBySlugOutputSchema,
+  CreateProductInputSchema,
+  CreateProductOutputSchema,
+  UpdateProductInputSchema,
+  UpdateProductOutputSchema,
+  DeleteProductInputSchema,
+  DeleteProductOutputSchema
 } from './services/validations.js';
 
 export interface RouteMeta {
@@ -25,5 +31,26 @@ export const productsRouter = t.router({
     .output(GetProductBySlugOutputSchema)
     .query(async ({ input }) => {
       return await getProductBySlug(input.slug);
+    }),
+  create: t.procedure
+    .meta({ description: 'Create a new product listing' })
+    .input(CreateProductInputSchema)
+    .output(CreateProductOutputSchema)
+    .mutation(async ({ input }) => {
+      return await createProduct(input);
+    }),
+  update: t.procedure
+    .meta({ description: 'Update an existing product listing' })
+    .input(UpdateProductInputSchema)
+    .output(UpdateProductOutputSchema)
+    .mutation(async ({ input }) => {
+      return await updateProduct(input.slug, input.data);
+    }),
+  delete: t.procedure
+    .meta({ description: 'Delete an existing product listing' })
+    .input(DeleteProductInputSchema)
+    .output(DeleteProductOutputSchema)
+    .mutation(async ({ input }) => {
+      return await deleteProduct(input.slug);
     }),
 });

@@ -7,7 +7,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
-import { ArrowRight, Play, Truck, RotateCcw, ShieldCheck, Instagram } from 'lucide-react';
+import { ArrowRight, Play, Truck, RotateCcw, ShieldCheck, Instagram, Sparkles, Star, Heart, ShoppingBag, Eye, HelpCircle } from 'lucide-react';
 import { MagneticButton } from '@/components/ui/magnetic-button';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -80,6 +80,9 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'bespoke' | 'pret'>('all');
+  
+  // Flash Sale Countdown Timer
+  const [timeLeft, setTimeLeft] = useState({ hours: 14, minutes: 45, seconds: 30 });
 
   const slides = [
     {
@@ -87,21 +90,40 @@ export default function Home() {
       tagline: 'NEW COLLECTION',
       title: 'Elevate Your Everyday Style',
       subtitle: 'Discover timeless silhouettes crafted for comfort, designed for elegance.',
+      badgeProduct: {
+        name: 'Ivory Chanderi Co-ord',
+        price: 16800,
+        img: 'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=150&h=150&q=80',
+        slug: 'ivory-chanderi-silk-coord'
+      }
     },
     {
       image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=2000&q=90',
       tagline: 'THE FESTIVE EDIT',
       title: 'Heritage Indian Silhouettes',
       subtitle: 'Meticulously crafted traditional ensembles, updated for modern celebrations.',
+      badgeProduct: {
+        name: 'Crimson Velvet Zardozi',
+        price: 32000,
+        img: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=150&h=150&q=80',
+        slug: 'crimson-velvet-zardozi-suit'
+      }
     },
     {
       image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=2000&q=90',
       tagline: 'HANDCRAFTED LUXURY',
       title: 'Rooted in Heritage Craft',
       subtitle: 'Pure textiles, organic colors, and hand-woven stories from across India.',
+      badgeProduct: {
+        name: 'Emerald Banarasi Suit',
+        price: 24500,
+        img: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=150&h=150&q=80',
+        slug: 'emerald-banarasi-suit'
+      }
     },
   ];
 
+  // Carousel slide timer
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -109,35 +131,48 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Countdown timer logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        return { hours: 24, minutes: 0, seconds: 0 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // GSAP animations setup
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // 1. Entrance Animations (Hero)
       const tl = gsap.timeline();
 
       tl.fromTo('.hero-mask',
         { clipPath: 'inset(100% 0% 0% 0%)', scale: 1.05 },
-        { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.8, ease: 'power4.inOut' }
+        { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.5, ease: 'power4.inOut' }
       );
 
       tl.from('.hero-text-stagger', {
         y: 40,
         opacity: 0,
-        duration: 1.2,
-        stagger: 0.15,
+        duration: 1.0,
+        stagger: 0.12,
         ease: 'power3.out'
-      }, '-=1.0');
+      }, '-=0.8');
 
-      // 2. Scroll Animations (Fabric Unfolding, Parallax)
+      // Scroll reveal animations
       gsap.utils.toArray('.fabric-reveal').forEach((el: any) => {
         gsap.fromTo(el,
           { clipPath: 'inset(0% 100% 0% 0%)' },
           {
             clipPath: 'inset(0% 0% 0% 0%)',
-            duration: 1.4,
+            duration: 1.2,
             ease: 'power3.inOut',
             scrollTrigger: {
               trigger: el,
-              start: 'top 85%',
+              start: 'top 90%',
               toggleActions: 'play none none reverse'
             }
           }
@@ -146,13 +181,13 @@ export default function Home() {
 
       gsap.utils.toArray('.fade-up').forEach((el: any) => {
         gsap.from(el, {
-          y: 30,
+          y: 25,
           opacity: 0,
-          duration: 1,
+          duration: 0.8,
           ease: 'power3.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 85%',
+            start: 'top 90%',
             toggleActions: 'play none none none'
           }
         });
@@ -160,7 +195,7 @@ export default function Home() {
 
       gsap.utils.toArray('.parallax-bg').forEach((bg: any) => {
         gsap.to(bg, {
-          yPercent: 15,
+          yPercent: 12,
           ease: 'none',
           scrollTrigger: {
             trigger: bg.parentElement,
@@ -170,28 +205,15 @@ export default function Home() {
           }
         });
       });
-      
-      // 3. Curated Silhouettes Header Entry
-      gsap.from('.silhouette-header', {
-        y: 40,
-        opacity: 0,
-        duration: 1.2,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: '#curated-silhouettes',
-          start: 'top 85%',
-          toggleActions: 'play none none none'
-        }
-      });
 
-      gsap.from('.silhouette-tabs', {
-        y: 20,
+      gsap.from('.silhouette-header', {
+        y: 30,
         opacity: 0,
         duration: 1.0,
         ease: 'power3.out',
         scrollTrigger: {
           trigger: '#curated-silhouettes',
-          start: 'top 80%',
+          start: 'top 85%',
           toggleActions: 'play none none none'
         }
       });
@@ -200,59 +222,59 @@ export default function Home() {
     return () => ctx.revert();
   }, [products]);
 
+  // Tab change animation
   useEffect(() => {
     if (!products.length) return;
 
     gsap.killTweensOf('.silhouette-card');
-    
+
     gsap.fromTo('.silhouette-card',
       {
         opacity: 0,
-        y: 50,
-        scale: 0.95,
-        rotateX: -8,
-        transformPerspective: 1000
+        y: 35,
+        scale: 0.98,
       },
       {
         opacity: 1,
         y: 0,
         scale: 1,
-        rotateX: 0,
-        duration: 0.8,
-        stagger: 0.12,
-        ease: 'power3.out',
-        clearProps: 'transform'
+        duration: 0.6,
+        stagger: 0.08,
+        ease: 'power2.out',
+        clearProps: 'all'
       }
     );
   }, [activeTab, products]);
 
   const getFilteredProducts = () => {
+    const listedProducts = products.filter(p => p.isListed !== false);
     if (activeTab === 'bespoke') {
-      return products.filter(p => ['Occasion Wear', 'Anarkali Suits'].includes(p.category)).slice(0, 3);
+      return listedProducts.filter(p => ['Occasion Wear', 'Anarkali Suits'].includes(p.category)).slice(0, 3);
     }
     if (activeTab === 'pret') {
-      return products.filter(p => ['Silk Co-ords', 'Velvet Edit', 'Formal Suits'].includes(p.category)).slice(0, 3);
+      return listedProducts.filter(p => ['Silk Co-ords', 'Velvet Edit', 'Formal Suits'].includes(p.category)).slice(0, 3);
     }
-    return products.slice(0, 3);
+    return listedProducts.slice(0, 3);
   };
+
   const filteredProducts = getFilteredProducts();
-  const festiveProducts = products.filter(p => p.category === 'Velvet Edit' || p.category === 'Occasion Wear').slice(0, 3);
+  const bestSellerProducts = products.filter(p => p.isListed !== false && p.bestseller).slice(0, 4);
+  const newArrivalProducts = products.filter(p => p.isListed !== false && p.newArrival).slice(0, 4);
 
   return (
-    <div ref={containerRef} className="flex flex-col w-full overflow-hidden bg-brand-ivory text-brand-brown">
+    <div ref={containerRef} className="flex flex-col w-full overflow-hidden bg-white text-zinc-800 font-sans">
 
-      {/* 1. Hero Section (Full-Width Luxury Editorial Carousel) */}
-      <section className="relative w-full h-[100vh] min-h-[600px] overflow-hidden bg-brand-ivory">
-        {/* Subtle block print pattern overlay */}
-        <div className="absolute inset-0 pattern-block-print opacity-20 pointer-events-none z-10" />
-
+      {/* 1. Hero Section (Visual Editorial Carousel with Floating Badges) */}
+      <section className="relative w-full h-[100vh] min-h-[600px] overflow-hidden bg-zinc-950">
+        
         {/* Carousel Slides */}
         <div className="relative w-full h-full">
           {slides.map((slide, idx) => (
             <div
               key={idx}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                }`}
+              className={`absolute inset-0 transition-all duration-[1200ms] cubic-bezier(0.4, 0, 0.2, 1) ${
+                idx === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0 pointer-events-none'
+              }`}
             >
               {/* Slide Background Image */}
               <Image
@@ -260,34 +282,61 @@ export default function Home() {
                 alt={slide.title}
                 fill
                 priority={idx === 0}
-                className="object-cover hero-mask"
+                className="object-cover hero-mask opacity-85"
                 sizes="100vw"
               />
-              {/* Premium dark gradient overlay to ensure readable text */}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/20 z-0" />
+              {/* Darkening gradient */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent z-10" />
+
+              {/* Interactive Floating Product Tag Badge (NovaTrend Inspired) */}
+              {idx === currentSlide && (
+                <Link
+                  href={`/product/${slide.badgeProduct.slug}`}
+                  className="absolute hidden md:flex items-center gap-3 bg-white/90 backdrop-blur-md p-2.5 rounded-2xl shadow-2xl border border-white/40 bottom-[20%] right-[15%] z-30 hover:scale-105 hover:bg-white transition-all duration-300 animate-scale-up group"
+                >
+                  <div className="relative w-12 h-16 rounded-lg overflow-hidden border border-zinc-200">
+                    <Image src={slide.badgeProduct.img} alt={slide.badgeProduct.name} fill className="object-cover" />
+                  </div>
+                  <div className="flex flex-col text-left pr-2">
+                    <span className="text-[8px] tracking-wider uppercase font-bold text-zinc-400">Featured Outfit</span>
+                    <span className="text-xs font-serif font-bold text-zinc-900 group-hover:text-[#FF5E36] transition-colors">{slide.badgeProduct.name}</span>
+                    <span className="text-xs font-bold text-[#FF5E36] mt-0.5">
+                      {slide.badgeProduct.price.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-[#FF5E36] text-white flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
+                    <ArrowRight size={12} />
+                  </div>
+                </Link>
+              )}
 
               {/* Slide Content Overlays */}
-              <div className="max-w-7xl mx-auto px-6 md:px-12 w-full h-full flex flex-col justify-center relative z-10 text-white">
-                <div className="max-w-2xl flex flex-col justify-center h-full pt-28 lg:pt-36">
-                  <span className="text-[11px] md:text-xs tracking-[0.3em] uppercase text-brand-terracotta mb-5 font-semibold block">
+              <div className="max-w-7xl mx-auto px-6 md:px-12 w-full h-full flex flex-col justify-center relative z-20 text-white">
+                <div className="max-w-2xl flex flex-col justify-center h-full pt-20">
+                  
+                  {/* Tagline */}
+                  <span className="hero-text-stagger text-[10px] md:text-xs tracking-[0.3em] uppercase text-[#FF5E36] mb-4 font-bold inline-flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF5E36] inline-block" />
                     {slide.tagline}
                   </span>
 
-                  <h1 className="font-serif text-5xl md:text-7xl lg:text-[4.8rem] xl:text-[5.5rem] text-brand-ivory leading-[1.08] mb-6 font-normal">
+                  {/* Title */}
+                  <h1 className="hero-text-stagger font-serif text-5xl md:text-7xl lg:text-[4.6rem] xl:text-[5.4rem] text-white leading-[1.08] mb-6 font-bold tracking-tight">
                     {slide.title}
                   </h1>
 
-                  <p className="text-brand-ivory/80 font-light text-sm md:text-base max-w-md mb-10 leading-relaxed">
+                  {/* Subtitle */}
+                  <p className="hero-text-stagger text-zinc-300 font-light text-xs md:text-sm max-w-md mb-8 leading-relaxed">
                     {slide.subtitle}
                   </p>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap items-center gap-6 mb-16">
+                  <div className="hero-text-stagger flex flex-wrap items-center gap-4">
                     <Link
                       href="/shop"
-                      className="bg-brand-ivory hover:bg-brand-terracotta text-brand-brown px-8 py-4 rounded-full text-xs font-semibold uppercase tracking-widest inline-flex items-center gap-3 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                      className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"
                     >
-                      <span>Shop Now</span>
+                      <span>Shop Collection</span>
                       <ArrowRight size={14} />
                     </Link>
 
@@ -298,12 +347,12 @@ export default function Home() {
                           curatedSection.scrollIntoView({ behavior: 'smooth' });
                         }
                       }}
-                      className="group inline-flex items-center gap-3 text-brand-ivory hover:text-brand-terracotta transition-colors py-2"
+                      className="group inline-flex items-center gap-3 text-white hover:text-[#FF5E36] transition-colors py-2"
                     >
-                      <div className="w-11 h-11 rounded-full border border-white/20 flex items-center justify-center bg-white/10 backdrop-blur-sm group-hover:border-white/40 group-hover:bg-white/35 transition-all duration-300">
-                        <Play size={12} fill="currentColor" className="text-white ml-0.5" />
+                      <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center bg-white/5 backdrop-blur-sm group-hover:border-white/40 group-hover:bg-white/10 transition-all duration-300">
+                        <Play size={10} fill="currentColor" className="text-white ml-0.5" />
                       </div>
-                      <span className="text-xs uppercase tracking-[0.15em] font-semibold">Watch Lookbook</span>
+                      <span className="text-[10px] uppercase tracking-widest font-bold">Explore Atelier</span>
                     </button>
                   </div>
                 </div>
@@ -313,123 +362,166 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Persistent Vertical Slide Navigation Selector */}
-        <div className="absolute right-6 md:right-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-6 text-[9px] tracking-[0.25em] text-brand-ivory/40 font-mono select-none z-20">
-          {slides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentSlide(idx)}
-              className="flex flex-col items-center gap-2 group cursor-pointer"
-            >
-              <span className={`text-[10px] tracking-widest transition-colors duration-300 ${idx === currentSlide ? 'text-brand-terracotta font-semibold' : 'text-brand-ivory/50 group-hover:text-brand-ivory'
-                }`}>
-                0{idx + 1}
-              </span>
-              <div className={`w-[1px] transition-all duration-500 ease-in-out bg-brand-terracotta ${idx === currentSlide ? 'h-10 bg-brand-terracotta' : 'h-0 bg-transparent'
-                }`} />
-            </button>
-          ))}
+        {/* Carousel Bottom Progress Line indicators */}
+        <div className="absolute bottom-10 left-6 right-6 md:left-12 md:right-12 z-20 flex items-center justify-between text-[10px] tracking-widest text-white/50">
+          <div className="flex gap-4">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`h-1 transition-all duration-500 rounded-full ${
+                  idx === currentSlide ? 'w-12 bg-[#FF5E36]' : 'w-6 bg-white/20'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="font-mono text-white/60">0{currentSlide + 1} / 0{slides.length}</span>
         </div>
       </section>
 
-      {/* Categories Row (Floating banner overlapping bottom of Hero) */}
-      <section className="relative z-20 -mt-10 lg:-mt-12 max-w-6xl mx-auto px-6 w-full">
-        <div className="bg-white rounded-2xl md:rounded-3xl border border-brand-brown/5 shadow-xl py-6 px-8 md:py-8 md:px-10">
-          <div className="flex items-center justify-start md:justify-center gap-6 md:gap-10 overflow-x-auto pb-2 hide-scrollbar">
+      {/* 2. Trust Badges Row (NovaTrend / AND SHOP inspired) */}
+      <section className="bg-white py-6 border-b border-zinc-100 z-20 relative select-none">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4 divide-y md:divide-y-0 md:divide-x divide-zinc-100">
+          <div className="flex items-center gap-3.5 pl-2 py-2 md:py-0">
+            <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-[#FF5E36] shrink-0">
+              <Truck size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Free Shipping</h4>
+              <p className="text-[10px] text-zinc-400 mt-0.5">On orders over 30,000 INR</p>
+            </div>
+          </div>
 
-            {/* Occasion Wear */}
-            <Link href="/shop?category=occasion-wear" className="flex flex-col items-center group shrink-0">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-brand-brown/10 p-1 bg-brand-cream/30 group-hover:border-brand-terracotta group-hover:scale-105 transition-all duration-300">
-                <div className="relative w-full h-full rounded-full overflow-hidden">
-                  <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=150&h=150&q=80" alt="Occasion Wear" fill className="object-cover" />
-                </div>
-              </div>
-              <span className="text-[9px] md:text-[10px] tracking-widest uppercase font-medium text-brand-brown/80 group-hover:text-brand-terracotta transition-colors mt-3">Occasions</span>
-            </Link>
+          <div className="flex items-center gap-3.5 pl-2 md:pl-6 py-2 md:py-0">
+            <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-[#FF5E36] shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Secure Payments</h4>
+              <p className="text-[10px] text-zinc-400 mt-0.5">100% encrypted checkout</p>
+            </div>
+          </div>
 
-            {/* Silk Co-ords */}
-            <Link href="/shop?category=silk-co-ords" className="flex flex-col items-center group shrink-0">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-brand-brown/10 p-1 bg-brand-cream/30 group-hover:border-brand-terracotta group-hover:scale-105 transition-all duration-300">
-                <div className="relative w-full h-full rounded-full overflow-hidden">
-                  <Image src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=150&h=150&q=80" alt="Silk Co-ords" fill className="object-cover" />
-                </div>
-              </div>
-              <span className="text-[9px] md:text-[10px] tracking-widest uppercase font-medium text-brand-brown/80 group-hover:text-brand-terracotta transition-colors mt-3">Co-ords</span>
-            </Link>
+          <div className="flex items-center gap-3.5 pl-2 md:pl-6 py-2 md:py-0">
+            <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-[#FF5E36] shrink-0">
+              <RotateCcw size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Easy Exchange</h4>
+              <p className="text-[10px] text-zinc-400 mt-0.5">No questions asked 7-day policy</p>
+            </div>
+          </div>
 
-            {/* Velvet Edit */}
-            <Link href="/shop?category=velvet-edit" className="flex flex-col items-center group shrink-0">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-brand-brown/10 p-1 bg-brand-cream/30 group-hover:border-brand-terracotta group-hover:scale-105 transition-all duration-300">
-                <div className="relative w-full h-full rounded-full overflow-hidden">
-                  <Image src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=150&h=150&q=80" alt="Velvet Edit" fill className="object-cover" />
-                </div>
-              </div>
-              <span className="text-[9px] md:text-[10px] tracking-widest uppercase font-medium text-brand-brown/80 group-hover:text-brand-terracotta transition-colors mt-3">Velvet Edit</span>
-            </Link>
-
-            {/* Anarkali Suits */}
-            <Link href="/shop?category=anarkali-suits" className="flex flex-col items-center group shrink-0">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-brand-brown/10 p-1 bg-brand-cream/30 group-hover:border-brand-terracotta group-hover:scale-105 transition-all duration-300">
-                <div className="relative w-full h-full rounded-full overflow-hidden">
-                  <Image src="https://images.unsplash.com/photo-1596783047904-89a4214f4e24?auto=format&fit=crop&w=150&h=150&q=80" alt="Anarkali Suits" fill className="object-cover" />
-                </div>
-              </div>
-              <span className="text-[9px] md:text-[10px] tracking-widest uppercase font-medium text-brand-brown/80 group-hover:text-brand-terracotta transition-colors mt-3">Anarkalis</span>
-            </Link>
-
-            {/* Formal Suits */}
-            <Link href="/shop?category=formal-suits" className="flex flex-col items-center group shrink-0">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-brand-brown/10 p-1 bg-brand-cream/30 group-hover:border-brand-terracotta group-hover:scale-105 transition-all duration-300">
-                <div className="relative w-full h-full rounded-full overflow-hidden">
-                  <Image src="https://images.unsplash.com/photo-1620386875077-e322fb810928?auto=format&fit=crop&w=150&h=150&q=80" alt="Formal Suits" fill className="object-cover" />
-                </div>
-              </div>
-              <span className="text-[9px] md:text-[10px] tracking-widest uppercase font-medium text-brand-brown/80 group-hover:text-brand-terracotta transition-colors mt-3">Formal Suits</span>
-            </Link>
-
-            {/* Sale */}
-            <Link href="/shop?filter=sale" className="flex flex-col items-center group shrink-0">
-              <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border border-brand-brown/10 p-1 bg-brand-cream/30 group-hover:border-brand-maroon group-hover:scale-105 transition-all duration-300">
-                <div className="w-full h-full rounded-full bg-brand-charcoal text-brand-ivory flex items-center justify-center text-[10px] tracking-widest font-semibold uppercase group-hover:bg-brand-maroon transition-colors">
-                  SALE
-                </div>
-              </div>
-              <span className="text-[9px] md:text-[10px] tracking-widest uppercase font-medium text-brand-brown/80 group-hover:text-brand-maroon transition-colors mt-3">Special Offer</span>
-            </Link>
-
+          <div className="flex items-center gap-3.5 pl-2 md:pl-6 py-2 md:py-0">
+            <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-[#FF5E36] shrink-0">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">24/7 Support</h4>
+              <p className="text-[10px] text-zinc-400 mt-0.5">Premium concierge assistance</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Traditional Textile Border Separator */}
-      <div className="w-full h-[6px] pattern-jaali opacity-40 fabric-reveal mt-16" />
+      {/* 3. Shop by Categories Grid (NovaTrend Inspired) */}
+      <section className="py-24 px-6 max-w-7xl mx-auto w-full">
+        <div className="flex justify-between items-end mb-12 fade-up">
+          <div>
+            <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">CURATED COLLECTIONS</span>
+            <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">Shop by Categories</h2>
+          </div>
+          <Link href="/shop" className="text-xs font-bold text-[#FF5E36] hover:text-[#E04D27] flex items-center gap-1 uppercase tracking-widest border-b border-transparent hover:border-[#E04D27] pb-1 transition-all">
+            <span>View All Categories</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
 
-      {/* 2. Product Collection (Editorial Layout) */}
-      <section id="curated-silhouettes" className="py-32 px-6 max-w-7xl mx-auto w-full relative overflow-hidden">
-        {/* Subtle decorative background elements */}
-        <div className="absolute top-12 left-6 text-brand-maroon/5 font-serif text-[180px] select-none pointer-events-none hidden xl:block font-bold">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 fade-up">
+          
+          {/* Occasion Wear */}
+          <Link href="/shop?category=occasion-wear" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
+            <div className="relative aspect-[4/5] overflow-hidden w-full">
+              <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Occasion Wear" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Occasion Wear</span>
+              <ArrowRight size={12} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Silk Co-ords */}
+          <Link href="/shop?category=silk-co-ords" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
+            <div className="relative aspect-[4/5] overflow-hidden w-full">
+              <Image src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=600&q=80" alt="Silk Co-ords" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Silk Co-ords</span>
+              <ArrowRight size={12} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Velvet Edit */}
+          <Link href="/shop?category=velvet-edit" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
+            <div className="relative aspect-[4/5] overflow-hidden w-full">
+              <Image src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80" alt="Velvet Edit" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Velvet Edit</span>
+              <ArrowRight size={12} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Anarkali Suits */}
+          <Link href="/shop?category=anarkali-suits" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
+            <div className="relative aspect-[4/5] overflow-hidden w-full">
+              <Image src="https://images.unsplash.com/photo-1596783047904-89a4214f4e24?auto=format&fit=crop&w=600&q=80" alt="Anarkali Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Anarkalis</span>
+              <ArrowRight size={12} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Formal Suits */}
+          <Link href="/shop?category=formal-suits" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
+            <div className="relative aspect-[4/5] overflow-hidden w-full">
+              <Image src="https://images.unsplash.com/photo-1620386875077-e322fb810928?auto=format&fit=crop&w=600&q=80" alt="Formal Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Formal Suits</span>
+              <ArrowRight size={12} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+        </div>
+      </section>
+
+      {/* 4. Curated Silhouettes (Editorial Collection tabs with GSAP) */}
+      <section id="curated-silhouettes" className="py-20 px-6 max-w-7xl mx-auto w-full bg-zinc-50 rounded-[2.5rem] relative overflow-hidden my-12">
+        <div className="absolute top-12 left-12 text-zinc-200/40 font-serif text-[130px] select-none pointer-events-none hidden xl:block font-bold">
           ATELIER
         </div>
 
-        <div className="text-center mb-16 silhouette-header">
-          <span className="font-script text-4xl text-brand-saffron block mb-4">Handpicked for you</span>
-          <h2 className="font-serif text-4xl md:text-5xl text-brand-maroon tracking-wide">Curated Silhouettes</h2>
+        <div className="text-center mb-10 silhouette-header relative z-10">
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">HANDPICKED CURATION</span>
+          <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">Curated Silhouettes</h2>
         </div>
 
         {/* Dynamic Category Tabs */}
-        <div className="flex justify-center items-center gap-6 md:gap-12 mb-20 border-b border-brand-maroon/10 max-w-2xl mx-auto pb-4 silhouette-tabs">
+        <div className="flex justify-center items-center gap-6 md:gap-10 mb-12 border-b border-zinc-200 max-w-md mx-auto pb-3 silhouette-tabs relative z-10">
           {[
-            { id: 'all', label: 'All Collections' },
-            { id: 'bespoke', label: 'Bespoke Craft' },
+            { id: 'all', label: 'All' },
+            { id: 'bespoke', label: 'Bespoke' },
             { id: 'pret', label: 'Ready-to-Wear' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`font-serif tracking-widest text-xs md:text-sm uppercase pb-2 transition-all duration-300 border-b-2 focus:outline-none ${
+              className={`font-semibold tracking-wider text-xs uppercase pb-2 transition-all duration-300 border-b-2 focus:outline-none cursor-pointer ${
                 activeTab === tab.id
-                  ? 'border-brand-maroon text-brand-maroon font-semibold'
-                  : 'border-transparent text-brand-brown/50 hover:text-brand-brown'
+                  ? 'border-[#FF5E36] text-[#FF5E36]'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-800'
               }`}
             >
               {tab.label}
@@ -437,182 +529,157 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Products Grid */}
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 items-start pt-8">
-            {filteredProducts.map((product, idx) => {
-              // Asymmetrical vertical offsets
-              const offsetClass = idx === 0 
-                ? 'lg:mt-0' 
-                : idx === 1 
-                ? 'lg:mt-16' 
-                : 'lg:mt-8';
-              
-              return (
-                <div 
-                  key={product.id} 
-                  className={`silhouette-card relative group flex flex-col ${offsetClass}`}
-                >
-                  {/* Absolute elegant numbers */}
-                  <span className="absolute -top-10 left-0 font-serif text-6xl text-brand-maroon/5 pointer-events-none select-none font-bold">
-                    0{idx + 1}
-                  </span>
-                  
-                  <div className="relative w-full rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl transition-shadow duration-500">
-                    <ProductCard product={product} />
-                  </div>
-                  
-                  {/* Decorative brand script label under the card */}
-                  <div className="mt-4 flex items-center justify-between px-1">
-                    <span className="text-[9px] tracking-[0.25em] uppercase font-bold text-brand-terracotta">
-                      {product.category}
-                    </span>
-                    <span className="h-[1px] bg-brand-maroon/15 flex-1 mx-4 group-hover:bg-brand-maroon/50 transition-colors duration-500" />
-                    <span className="text-[10px] font-serif italic text-brand-sienna">
-                      Est. Atelier
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start pt-4 relative z-10">
+            {filteredProducts.map((product, idx) => (
+              <div
+                key={product.id}
+                className="silhouette-card relative flex flex-col"
+              >
+                <ProductCard product={product} />
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="text-center py-20 text-brand-brown/60 text-sm tracking-wider">
+          <div className="text-center py-20 text-zinc-400 text-sm tracking-wider relative z-10">
             No silhouettes in this curation yet.
           </div>
         )}
       </section>
 
-      {/* 3. The Festive Edit */}
-      <section className="relative py-40 overflow-hidden bg-gradient-to-br from-[#2D0A0A] via-brand-maroon to-[#1E0505] text-brand-cream">
-        <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/indian-textile/1920/1080')] bg-cover bg-center opacity-10 parallax-bg mix-blend-overlay" />
-        
-        {/* Soft gold aura lights */}
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-brand-saffron/5 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-brand-saffron/5 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-            
-            {/* Left Column: Brand Story & Callout */}
-            <div className="lg:col-span-5 text-left flex flex-col justify-center fade-up">
-              <span className="font-script text-4xl text-brand-saffron block mb-4">Celebration dressing</span>
-              <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl text-brand-cream mb-6 tracking-wide leading-tight">
-                The Festive <br />
-                <span className="italic text-brand-saffron">Edit.</span>
-              </h2>
-              
-              {/* Ornamental Gold Divider */}
-              <div className="flex items-center gap-3 my-4 opacity-75">
-                <div className="w-16 h-[1px] bg-brand-saffron" />
-                <span className="text-brand-saffron text-sm">✦</span>
-                <div className="w-16 h-[1px] bg-brand-saffron" />
-              </div>
-
-              <p className="text-brand-cream/80 text-sm md:text-base font-light leading-relaxed mb-8 max-w-md">
-                Reimagined through traditional Indian craftsmanship. Intricate hand-done zardozi, rich velvets, and handwoven silks designed to capture the magic of your most cherished moments.
-              </p>
-              
-              {/* Feature highlights */}
-              <div className="space-y-3 mb-10">
-                {[
-                  'Hand-finished zardozi motifs',
-                  'Premium Banarasi & velvet fabrics',
-                  'Custom-tailored to your measurements'
-                ].map((highlight, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-[10px] tracking-widest uppercase text-brand-cream/60">
-                    <span className="text-brand-saffron text-[10px]">✦</span>
-                    <span>{highlight}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="self-start">
-                <Link 
-                  href="/shop?category=velvet-edit" 
-                  className="inline-flex items-center gap-3 border border-brand-saffron text-brand-saffron hover:bg-brand-saffron hover:text-brand-maroon px-8 py-3.5 text-xs tracking-[0.2em] uppercase font-semibold transition-all duration-300 rounded-full"
-                >
-                  Explore The Edit
-                </Link>
-              </div>
-            </div>
-
-            {/* Right Column: Staggered Products */}
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-6 lg:gap-8 items-stretch fade-up">
-              {festiveProducts.map((product, idx) => {
-                // Staggered vertical offsets
-                const offsetClass = idx === 0 
-                  ? 'lg:-translate-y-8' 
-                  : idx === 1 
-                  ? 'lg:translate-y-8' 
-                  : 'lg:translate-y-0';
-                  
-                return (
-                  <div 
-                    key={product.id} 
-                    className={`flex flex-col ${offsetClass} transition-transform duration-500 hover:scale-102`}
-                  >
-                    <div className="relative border border-brand-saffron/10 rounded-2xl overflow-hidden shadow-2xl bg-[#2D0A0A]/40 backdrop-blur-sm p-3 group">
-                      {/* Gold corner brackets inside */}
-                      <div className="absolute top-2.5 left-2.5 w-3 h-3 border-t border-l border-brand-saffron/30 pointer-events-none" />
-                      <div className="absolute bottom-2.5 right-2.5 w-3 h-3 border-b border-r border-brand-saffron/30 pointer-events-none" />
-                      
-                      <ProductCard product={product} theme="dark" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
+      {/* 5. New Arrivals Grid */}
+      <section className="py-20 px-6 max-w-7xl mx-auto w-full">
+        <div className="flex justify-between items-end mb-10 fade-up">
+          <div>
+            <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">LATEST DROPS</span>
+            <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">New Arrivals</h2>
           </div>
+          <Link href="/shop?filter=new" className="text-xs font-bold text-[#FF5E36] hover:text-[#E04D27] flex items-center gap-1 uppercase tracking-widest border-b border-transparent hover:border-[#E04D27] pb-1 transition-all">
+            <span>View All New</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 fade-up">
+          {newArrivalProducts.map(product => (
+            <ProductCard key={product.id} product={product} />
+          ))}
         </div>
       </section>
 
-      {/* 4. Testimonials Section (Infinite Loop Marquee) */}
-      <section id="testimonials" className="py-32 bg-brand-paper relative overflow-hidden">
-        {/* Subtle decorative block print overlays */}
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[radial-gradient(circle_at_center,_var(--color-brand-sand)_0%,_transparent_75%)] opacity-40 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[radial-gradient(circle_at_center,_var(--color-brand-sand)_0%,_transparent_75%)] opacity-40 pointer-events-none" />
+      {/* 6. Interactive Flash Sale Banner Section (Countdown Timer) */}
+      <section className="py-24 overflow-hidden bg-zinc-950 text-white relative">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1596783047904-89a4214f4e24?auto=format&fit=crop&w=1920&q=80')] bg-cover bg-center opacity-15 parallax-bg mix-blend-overlay" />
 
-        <div className="max-w-7xl mx-auto px-6 mb-16">
-          <div className="text-center mb-12 fade-up">
-            <span className="font-script text-3xl text-brand-saffron block mb-2">Atelier Diaries</span>
-            <h2 className="font-serif text-3xl md:text-4xl text-brand-maroon tracking-wide">Client Testimonials</h2>
-            <p className="text-brand-brown/60 text-xs md:text-sm tracking-widest uppercase mt-3 font-medium">
-              ✦ Trusted by patrons worldwide for bespoke luxury ✦
-            </p>
+        {/* Aura light blobs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-[#FF5E36]/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-zinc-200/5 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
+          <span className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-[#FF5E36] mb-5 font-bold block">
+            LIMITED TIME PROMO
+          </span>
+          <h2 className="font-serif text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight leading-tight">
+            Summer Season Flash Sale
+          </h2>
+          <p className="text-zinc-400 text-xs md:text-sm font-light leading-relaxed max-w-md mx-auto mb-10">
+            Enjoy up to 70% off on selected traditional designs and ready-to-wear silk co-ords. Offer expires shortly.
+          </p>
+
+          {/* JavaScript Live Countdown Timer */}
+          <div className="flex justify-center items-center gap-4 md:gap-6 mb-12">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-mono font-bold tracking-wider">
+                {String(timeLeft.hours).padStart(2, '0')}
+              </div>
+              <span className="text-[9px] uppercase tracking-widest text-zinc-500 mt-2 font-bold">Hours</span>
+            </div>
+            <span className="text-2xl text-zinc-600 font-mono">:</span>
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-mono font-bold tracking-wider">
+                {String(timeLeft.minutes).padStart(2, '0')}
+              </div>
+              <span className="text-[9px] uppercase tracking-widest text-zinc-500 mt-2 font-bold">Mins</span>
+            </div>
+            <span className="text-2xl text-zinc-600 font-mono">:</span>
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-mono font-bold tracking-wider text-[#FF5E36]">
+                {String(timeLeft.seconds).padStart(2, '0')}
+              </div>
+              <span className="text-[9px] uppercase tracking-widest text-[#FF5E36] mt-2 font-bold">Secs</span>
+            </div>
+          </div>
+
+          <Link
+            href="/shop?filter=sale"
+            className="inline-flex items-center gap-2.5 bg-[#FF5E36] hover:bg-[#E04D27] text-white px-8 py-4 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full shadow-md"
+          >
+            <span>Claim Discount</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </section>
+
+      {/* 7. Best Sellers Grid */}
+      <section className="py-20 px-6 max-w-7xl mx-auto w-full">
+        <div className="flex justify-between items-end mb-10 fade-up">
+          <div>
+            <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">TRENDING BESTSELLERS</span>
+            <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">Best Sellers</h2>
+          </div>
+          <Link href="/shop?filter=bestseller" className="text-xs font-bold text-[#FF5E36] hover:text-[#E04D27] flex items-center gap-1 uppercase tracking-widest border-b border-transparent hover:border-[#E04D27] pb-1 transition-all">
+            <span>View All Bestsellers</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 fade-up">
+          {bestSellerProducts.map(product => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* 8. Testimonials Section (Infinite Loop Marquee) */}
+      <section id="testimonials" className="py-24 bg-zinc-50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 mb-12">
+          <div className="text-center mb-10 fade-up">
+            <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">ATELIER DIARIES</span>
+            <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">Customer Testimonials</h2>
           </div>
         </div>
 
         {/* Infinite Loop Slider Tracks */}
-        <div className="hover-pause flex flex-col gap-6 md:gap-8 w-full overflow-hidden relative z-10">
-          
+        <div className="hover-pause flex flex-col gap-6 w-full overflow-hidden relative z-10 select-none">
+
           {/* Row 1: Sliding Left */}
           <div className="flex whitespace-nowrap gap-6 w-full">
             <div className="flex gap-6 animate-marquee-left">
               {[...testimonialsRow1, ...testimonialsRow1].map((item, idx) => (
-                <div 
+                <div
                   key={idx}
-                  className="w-[320px] md:w-[420px] shrink-0 bg-brand-cream/80 backdrop-blur-sm border border-brand-maroon/10 p-6 md:p-8 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md hover:border-brand-maroon/30 transition-all duration-300 relative group"
+                  className="w-[300px] md:w-[380px] shrink-0 bg-white border border-zinc-100 p-6 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group"
                 >
-                  <span className="absolute top-4 right-6 font-serif text-7xl text-brand-maroon/5 select-none pointer-events-none group-hover:text-brand-maroon/10 transition-colors">“</span>
+                  <span className="absolute top-2 right-5 font-serif text-7xl text-zinc-100 select-none pointer-events-none group-hover:text-zinc-200 transition-colors">“</span>
                   <div>
                     {/* Star icons */}
-                    <div className="flex gap-1 mb-4 text-brand-saffron">
+                    <div className="flex gap-1 mb-3 text-amber-400">
                       {[...Array(item.stars)].map((_, i) => (
-                        <span key={i} className="text-xs">✦</span>
+                        <Star key={i} size={11} className="fill-amber-400 text-amber-400" />
                       ))}
                     </div>
-                    <p className="text-brand-brown text-sm font-light italic leading-relaxed whitespace-normal mb-6">
+                    <p className="text-zinc-600 text-[11px] md:text-xs font-light italic leading-relaxed whitespace-normal mb-5">
                       "{item.quote}"
                     </p>
                   </div>
-                  
-                  <div className="flex items-center justify-between border-t border-brand-maroon/5 pt-4">
+
+                  <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
                     <div>
-                      <h4 className="font-serif text-xs md:text-sm font-semibold text-brand-maroon">{item.author}</h4>
-                      <p className="text-[9px] tracking-widest uppercase text-brand-brown/50 mt-0.5">{item.role}</p>
+                      <h4 className="font-bold text-zinc-950">{item.author}</h4>
+                      <p className="text-[8px] tracking-wider uppercase text-zinc-400 mt-0.5">{item.role}</p>
                     </div>
-                    <span className="text-[9px] tracking-widest uppercase font-medium text-brand-terracotta">{item.location}</span>
+                    <span className="text-[8px] tracking-widest uppercase font-bold text-[#FF5E36] bg-[#FF5E36]/5 px-2 py-0.5 rounded-full">{item.location}</span>
                   </div>
                 </div>
               ))}
@@ -623,29 +690,29 @@ export default function Home() {
           <div className="flex whitespace-nowrap gap-6 w-full">
             <div className="flex gap-6 animate-marquee-right">
               {[...testimonialsRow2, ...testimonialsRow2].map((item, idx) => (
-                <div 
+                <div
                   key={idx}
-                  className="w-[320px] md:w-[420px] shrink-0 bg-brand-cream/80 backdrop-blur-sm border border-brand-maroon/10 p-6 md:p-8 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md hover:border-brand-maroon/30 transition-all duration-300 relative group"
+                  className="w-[300px] md:w-[380px] shrink-0 bg-white border border-zinc-100 p-6 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group"
                 >
-                  <span className="absolute top-4 right-6 font-serif text-7xl text-brand-maroon/5 select-none pointer-events-none group-hover:text-brand-maroon/10 transition-colors">“</span>
+                  <span className="absolute top-2 right-5 font-serif text-7xl text-zinc-100 select-none pointer-events-none group-hover:text-zinc-200 transition-colors">“</span>
                   <div>
                     {/* Star icons */}
-                    <div className="flex gap-1 mb-4 text-brand-saffron">
+                    <div className="flex gap-1 mb-3 text-amber-400">
                       {[...Array(item.stars)].map((_, i) => (
-                        <span key={i} className="text-xs">✦</span>
+                        <Star key={i} size={11} className="fill-amber-400 text-amber-400" />
                       ))}
                     </div>
-                    <p className="text-brand-brown text-sm font-light italic leading-relaxed whitespace-normal mb-6">
+                    <p className="text-zinc-600 text-[11px] md:text-xs font-light italic leading-relaxed whitespace-normal mb-5">
                       "{item.quote}"
                     </p>
                   </div>
-                  
-                  <div className="flex items-center justify-between border-t border-brand-maroon/5 pt-4">
+
+                  <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
                     <div>
-                      <h4 className="font-serif text-xs md:text-sm font-semibold text-brand-maroon">{item.author}</h4>
-                      <p className="text-[9px] tracking-widest uppercase text-brand-brown/50 mt-0.5">{item.role}</p>
+                      <h4 className="font-bold text-zinc-950">{item.author}</h4>
+                      <p className="text-[8px] tracking-wider uppercase text-zinc-400 mt-0.5">{item.role}</p>
                     </div>
-                    <span className="text-[9px] tracking-widest uppercase font-medium text-brand-terracotta">{item.location}</span>
+                    <span className="text-[8px] tracking-widest uppercase font-bold text-[#FF5E36] bg-[#FF5E36]/5 px-2 py-0.5 rounded-full">{item.location}</span>
                   </div>
                 </div>
               ))}
@@ -655,58 +722,54 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5. Frequently Asked Questions */}
-      <section className="py-32 px-6 max-w-4xl mx-auto w-full">
-        <div className="text-center mb-16 fade-up">
-          <span className="font-script text-4xl text-brand-saffron block mb-4">Customer Concierge</span>
-          <h2 className="font-serif text-4xl text-brand-maroon">Frequently Asked Questions</h2>
+      {/* 9. Frequently Asked Questions */}
+      <section className="py-24 px-6 max-w-3xl mx-auto w-full">
+        <div className="text-center mb-12 fade-up">
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">CUSTOMER CONCIERGE</span>
+          <h2 className="font-serif text-3xl font-bold text-zinc-950">Frequently Asked Questions</h2>
         </div>
 
-        <div className="space-y-4 fade-up">
+        <div className="space-y-3.5 fade-up">
           {[
             {
               q: "How do I order a custom-fit suit?",
-              a: "All our garments can be custom tailored to your exact measurements. Simply click the 'Order on WhatsApp' or 'Inquire on Instagram' buttons on any product page, and our concierge team will guide you through the measurement process."
+              a: "Select your desired garment and size. During standard checkout, you can input custom measurements. Additionally, our concierge team actively contacts all bespoke orders via email or WhatsApp to confirm your proportions."
             },
             {
               q: "What is the typical timeline for bespoke tailoring?",
-              a: "Each bespoke suit is handcrafted by our master artisans. Custom tailoring takes approximately 2 to 3 weeks from the date of measurement confirmation to dispatch. Ready-to-wear pieces are dispatched within 2–3 business days."
+              a: "Each custom suit is handcrafted by our master designers. Tailoring requires 2 to 3 weeks from measurement confirmation to shipment. Ready-to-wear lines are dispatched within 2–3 business days."
             },
             {
               q: "Do you offer international shipping?",
-              a: "Yes, we ship our luxury garments worldwide. Express delivery typically takes 5–7 business days depending on your location, and tracking details are provided as soon as your package is dispatched."
+              a: "Yes, we ship globally. Express transit usually takes 5–7 business days depending on location. Full tracking credentials will be provided upon dispatch."
             },
             {
               q: "Can I request custom modifications to designs?",
-              a: "Absolutely. Since each piece is tailored individually, you can request custom sleeve lengths, alternate necklines, different lining fabrics, or custom embroidery motifs during your design consultation."
-            },
-            {
-              q: "What fabrics do you use in your collections?",
-              a: "We source only premium, heritage fabrics including pure Banarasi silk, hand-woven cotton, premium velvet, and raw silk. Detailed fabric specifications are listed on each product's description page."
+              a: "Absolutely. Since each outfit is individually finalized, you can request custom sleeve lengths, necklines, colors, or fabrics. Simply reach out immediately after booking."
             },
             {
               q: "What is your return and exchange policy?",
-              a: "Due to the custom-made nature of bespoke garments, we do not accept returns. However, we offer complimentary alterations to ensure your custom suit fits you perfectly. For ready-to-wear pieces, exchanges are accepted within 7 days."
+              a: "Ready-to-wear items can be exchanged within 7 days of delivery. Because customized garments are created strictly to your specifications, they are non-refundable, but we offer free tailoring adjustments if needed."
             }
           ].map((faq, idx) => {
             const isOpen = openIndex === idx;
             return (
-              <div key={idx} className="border-b border-brand-charcoal/10 pb-4">
-                <button 
+              <div key={idx} className="border border-zinc-100 rounded-2xl overflow-hidden bg-zinc-50/50">
+                <button
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  className="w-full flex items-center justify-between py-4 text-left font-serif text-lg md:text-xl text-brand-maroon hover:text-brand-sienna transition-colors focus:outline-none"
+                  className="w-full flex items-center justify-between p-5 text-left font-serif font-bold text-base text-zinc-900 hover:text-[#FF5E36] transition-colors focus:outline-none cursor-pointer"
                 >
                   <span className="pr-4">{faq.q}</span>
-                  <span className={`text-brand-saffron transition-transform duration-300 text-xl font-light shrink-0 ${isOpen ? 'rotate-45' : ''}`}>
+                  <span className={`text-[#FF5E36] transition-transform duration-300 text-lg font-light shrink-0 ${isOpen ? 'rotate-45' : ''}`}>
                     +
                   </span>
                 </button>
-                <div 
+                <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isOpen ? 'max-h-48 opacity-100 mt-2 pb-2' : 'max-h-0 opacity-0 pointer-events-none'
+                    isOpen ? 'max-h-40 opacity-100 p-5 pt-0 border-t border-zinc-100 bg-white' : 'max-h-0 opacity-0 pointer-events-none'
                   }`}
                 >
-                  <p className="text-brand-brown/85 text-xs md:text-sm font-light leading-relaxed">
+                  <p className="text-zinc-500 text-xs md:text-sm font-light leading-relaxed mt-4">
                     {faq.a}
                   </p>
                 </div>
@@ -716,18 +779,18 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. Follow us on Instagram */}
-      <section className="py-24 border-t border-brand-charcoal/5 bg-brand-cream/30 w-full overflow-hidden">
+      {/* 10. Follow us on Instagram Grid */}
+      <section className="py-20 border-t border-zinc-100 bg-zinc-50/40 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16 fade-up">
-            <span className="font-script text-3xl text-brand-saffron block mb-2">Follow the Journey</span>
-            <h2 className="font-serif text-3xl md:text-4xl text-brand-maroon">@jb51_clothing_house</h2>
-            <p className="text-brand-brown/60 text-xs md:text-sm tracking-widest uppercase mt-3 font-medium">
+          <div className="text-center mb-12 fade-up">
+            <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">FOLLOW THE JOURNEY</span>
+            <h2 className="font-serif text-3xl font-bold text-zinc-950">@jb51_clothing_house</h2>
+            <p className="text-zinc-400 text-xs mt-2 uppercase tracking-widest font-semibold">
               ✦ Share your style using #JB51Atelier ✦
             </p>
-          </div>  
+          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
             {[
               {
                 url: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&h=600&q=80",
@@ -750,22 +813,22 @@ export default function Home() {
                 alt: "Artisan Ornamentation"
               }
             ].map((img, idx) => (
-              <a 
+              <a
                 key={idx}
                 href="https://instagram.com/jb51clothing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative aspect-square w-full overflow-hidden bg-brand-brown rounded-xl shadow-sm border border-brand-charcoal/5 block"
+                className="group relative aspect-square w-full overflow-hidden bg-zinc-900 rounded-2xl border border-zinc-200/50 block shadow-sm"
               >
-                <Image 
-                  src={img.url} 
-                  alt={img.alt} 
-                  fill 
-                  className="object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100" 
+                <Image
+                  src={img.url}
+                  alt={img.alt}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100"
                   sizes="(max-width: 768px) 50vw, 20vw"
                 />
-                <div className="absolute inset-0 bg-brand-maroon/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <Instagram className="text-brand-cream w-8 h-8 stroke-[1.25]" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <Instagram className="text-white w-7 h-7 stroke-[1.5]" />
                 </div>
               </a>
             ))}
@@ -773,11 +836,11 @@ export default function Home() {
 
           <div className="text-center">
             <MagneticButton>
-              <a 
+              <a
                 href="https://instagram.com/jb51_clothing_house"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 border border-brand-maroon text-brand-maroon hover:bg-brand-maroon hover:text-brand-cream py-3.5 px-8 text-xs tracking-[0.2em] uppercase font-semibold transition-all duration-300 rounded-full"
+                className="inline-flex items-center gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-8 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full"
               >
                 <Instagram size={14} />
                 <span>Follow @jb51_clothing_house</span>

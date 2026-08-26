@@ -23,6 +23,8 @@ export const ProductSchema = z.object({
   newArrival: z.boolean(),
   bestseller: z.boolean(),
   createdAt: z.string(),
+  tags: z.array(z.string()).optional(),
+  isListed: z.boolean().optional(),
 });
 
 // Input Validations
@@ -30,7 +32,18 @@ export const GetAllProductsInputSchema = z.void();
 export const GetProductBySlugInputSchema = z.object({
   slug: z.string(),
 });
+export const CreateProductInputSchema = ProductSchema;
+export const UpdateProductInputSchema = z.object({
+  slug: z.string(),
+  data: ProductSchema.partial(),
+});
+export const DeleteProductInputSchema = z.object({
+  slug: z.string(),
+});
 
 // Output Validations
 export const GetAllProductsOutputSchema = z.array(ProductSchema);
 export const GetProductBySlugOutputSchema = ProductSchema.nullable();
+export const CreateProductOutputSchema = ProductSchema;
+export const UpdateProductOutputSchema = ProductSchema.nullable();
+export const DeleteProductOutputSchema = z.boolean();
