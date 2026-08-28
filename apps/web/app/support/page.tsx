@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Mail, MessageCircle, MapPin, ChevronDown } from 'lucide-react';
 import { WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import dynamic from 'next/dynamic';
 
 const Dropdown = dynamic(() => import('@/components/ui/Dropdown').then(mod => mod.Dropdown), { ssr: false });
@@ -170,18 +171,14 @@ export default function SupportPage() {
                   <textarea required id="message" rows={4} className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors resize-none" />
                 </div>
 
-                <button 
+                <Button 
                   type="submit" 
-                  disabled={isSubmitting}
-                  className="mt-8 w-full bg-brand-maroon hover:bg-brand-burgundy text-brand-cream py-4 text-xs tracking-[0.2em] uppercase transition-colors disabled:opacity-70 flex justify-center items-center h-[52px]"
+                  isLoading={isSubmitting}
+                  className="mt-8 w-full"
                   aria-label={isSubmitting ? "Submitting Inquiry" : "Submit Inquiry"}
                 >
-                  {isSubmitting ? (
-                    <span className="w-5 h-5 border-2 border-brand-cream/30 border-t-brand-cream rounded-full animate-spin" />
-                  ) : (
-                    "Submit Inquiry"
-                  )}
-                </button>
+                  Submit Inquiry
+                </Button>
               </form>
             </div>
           </div>

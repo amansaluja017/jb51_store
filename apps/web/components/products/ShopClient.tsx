@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { type Product, CATEGORIES } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
@@ -8,9 +9,10 @@ import { ProductCard } from '@/components/products/ProductCard';
 import { SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import gsap from 'gsap';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 // Beautiful luxury Indian lotus icon motif
-const LotusIcon = ({ className = "w-6 h-6 text-brand-gold" }) => (
+const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
     {/* Center petal */}
     <path d="M12 4C12 4 9 10 12 20C15 10 12 4 12 4Z" fill="currentColor" fillOpacity="0.08" />
@@ -18,10 +20,6 @@ const LotusIcon = ({ className = "w-6 h-6 text-brand-gold" }) => (
     <path d="M12 12C9 9 4 11 6 18C10 18 11 14 12 12Z" fill="currentColor" fillOpacity="0.04" />
     {/* Right petal */}
     <path d="M12 12C15 9 20 11 18 18C14 18 13 14 12 12Z" fill="currentColor" fillOpacity="0.04" />
-    {/* Far left petal */}
-    <path d="M12 16C8 14 3 16 3 20C8 20 10 18 12 16Z" fill="currentColor" fillOpacity="0.02" />
-    {/* Far right petal */}
-    <path d="M12 16C16 14 21 16 21 20C16 20 14 18 12 16Z" fill="currentColor" fillOpacity="0.02" />
     {/* Base stem */}
     <path d="M10 21C11 21.5 13 21.5 14 21" strokeLinecap="round" />
   </svg>
@@ -68,10 +66,16 @@ export function ShopClient() {
 
   useEffect(() => {
     if (!loading) {
+      gsap.killTweensOf('.product-grid-container');
+      gsap.fromTo('.product-grid-container', 
+        { opacity: 0.3 },
+        { opacity: 1, duration: 0.5, ease: 'power2.out' }
+      );
+
       gsap.killTweensOf('.product-card-wrapper');
       gsap.fromTo('.product-card-wrapper', 
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6, stagger: 0.04, ease: 'power3.out' }
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.03, ease: 'power3.out' }
       );
     }
   }, [loading, activeCategory, activeFilter, sortBy, selectedSizes, priceRange]);
@@ -148,35 +152,116 @@ export function ShopClient() {
   };
 
   return (
-    <div className="w-full bg-brand-cream/30 text-brand-charcoal min-h-screen font-sans pb-24">
+    <div className="w-full bg-white text-zinc-800 min-h-screen font-sans pb-24">
       
       {/* Editorial Collection Header */}
-      <section className="relative pt-36 pb-16 px-6 border-b border-brand-sand/15 overflow-hidden bg-brand-cream/70 pattern-jaali">
-        {/* Glow effects */}
-        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-brand-gold/5 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-brand-maroon/5 blur-3xl pointer-events-none" />
+      <section className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 px-6 border-b border-zinc-200/60 overflow-hidden bg-[#FAF9F5] text-zinc-900 select-none">
+        {/* Decorative Grid Backdrop */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000003_1px,transparent_1px),linear-gradient(to_bottom,#00000003_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
         
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <div className="flex items-center justify-center gap-2.5 mb-3">
-            <LotusIcon className="w-5 h-5 text-brand-gold" />
+        {/* Glow effects */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-[#FF5E36]/5 blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-black/5 blur-[80px] pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+          {/* Left: Typography & Editorial Description */}
+          <div className="lg:col-span-7 flex flex-col justify-center text-left">
+            <div className="inline-flex items-center gap-2 mb-4">
+              <LotusIcon className="w-5 h-5 text-[#FF5E36]" />
+              <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold font-sans">
+                Atelier Catalog
+              </span>
+            </div>
+            
+            <h1 className="font-serif text-4xl md:text-6xl font-bold text-zinc-900 tracking-tight mb-6 leading-tight">
+              {activeCategory 
+                ? activeCategory.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                : activeFilter === 'new' 
+                ? 'New Arrivals' 
+                : activeFilter === 'bestseller'
+                ? 'Bestsellers'
+                : 'Our Curation'
+              }
+            </h1>
+            
+            <div className="w-20 h-[3px] bg-[#FF5E36] mb-6 rounded-full" />
+            
+            <p className="text-zinc-600 text-xs md:text-sm font-light max-w-xl leading-relaxed tracking-wide mb-8">
+              {activeCategory === 'formal-suits' 
+                ? 'Tailored silhouettes meeting heritage fabrics. Discover structured elegance engineered for occasion wear and power dressing.'
+                : activeCategory === 'anarkali-suits'
+                ? 'Regal volume, sweeping lengths, and intricate zardozi hand-embroidery. Pure georgette and silk structures crafted for grandeur.'
+                : activeCategory === 'silk-co-ords'
+                ? 'Minimalism infused with handloom luxury. Lightweight, fluid silk sets designed for contemporary versatility and refined lounging.'
+                : activeCategory === 'velvet-edit'
+                ? 'Indulgent, plush micro-velvets adorned with traditional tilla and dabka handcraft. The epitome of royal winter ensembles.'
+                : activeCategory === 'occasion-wear'
+                ? 'Signature hand-crafted sarees, shararas, and heavy ensembles curated to celebrate your milestone moments.'
+                : 'Explore our catalog of luxury handloom textiles, contemporary silhouettes, and bespoke tailoring. Each piece is individually crafted to celebrate heritage Indian craftsmanship.'
+              }
+            </p>
+
+            {/* Quick Stats Panel */}
+            <div className="flex gap-8 border-t border-zinc-200/80 pt-6">
+              <div>
+                <span className="block text-2xl font-serif font-bold text-zinc-900">
+                  {filteredProducts.length}
+                </span>
+                <span className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold">
+                  Bespoke Items
+                </span>
+              </div>
+              <div className="border-l border-zinc-200/80 pl-8">
+                <span className="block text-2xl font-serif font-bold text-zinc-900">
+                  {CATEGORIES.length}
+                </span>
+                <span className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold">
+                  Collections
+                </span>
+              </div>
+              <div className="border-l border-zinc-200/80 pl-8">
+                <span className="block text-2xl font-serif font-bold text-zinc-900">
+                  XS - L
+                </span>
+                <span className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold">
+                  Size Range
+                </span>
+              </div>
+            </div>
           </div>
-          <span className="text-[10px] tracking-[0.3em] uppercase text-brand-maroon font-extrabold block mb-3 font-sans">
-            Atelier Catalog
-          </span>
-          <h1 className="font-serif text-4xl md:text-6xl font-light text-brand-brown tracking-tight mb-4">
-            {activeCategory 
-              ? activeCategory.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-              : activeFilter === 'new' 
-              ? 'New Arrivals' 
-              : activeFilter === 'bestseller'
-              ? 'Bestsellers'
-              : 'Our Curation'
-            }
-          </h1>
-          <div className="editorial-divider my-6" />
-          <p className="text-brand-charcoal/80 text-xs md:text-sm font-light max-w-xl mx-auto leading-relaxed tracking-wide">
-            Explore our edit of luxury handloom textiles, contemporary silhouettes, and bespoke tailoring designed to celebrate heritage Indian craftsmanship.
-          </p>
+
+          {/* Right: Premium Editorial Double Collage */}
+          <div className="lg:col-span-5 relative w-full h-[320px] md:h-[400px] flex items-center justify-center mt-6 lg:mt-0 select-none">
+            {/* Main Portrait Frame */}
+            <div className="absolute w-[60%] h-[85%] rounded-[2rem] overflow-hidden border border-black/5 shadow-2xl z-10 transform -rotate-3 hover:rotate-0 transition-transform duration-550 ease-out group">
+              <Image 
+                src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=800&q=80"
+                alt="Main curation"
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                sizes="(max-width: 768px) 100vw, 33vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+            </div>
+
+            {/* Overlapping Offset Frame */}
+            <div className="absolute w-[45%] h-[65%] rounded-[1.5rem] overflow-hidden border border-black/5 shadow-2xl z-20 bottom-0 left-[5%] transform rotate-6 hover:rotate-2 transition-transform duration-550 ease-out group">
+              <Image 
+                src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80"
+                alt="Detail curation"
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                sizes="(max-width: 768px) 100vw, 33vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+            </div>
+
+            {/* Floating Atelier Seal */}
+            <div className="absolute -top-4 right-[10%] w-16 h-16 rounded-full bg-[#FF5E36] text-white flex flex-col items-center justify-center z-30 shadow-lg animate-pulse">
+              <span className="text-[7px] tracking-[0.25em] uppercase font-bold text-white/80 font-sans">Est.</span>
+              <span className="text-[10px] tracking-widest font-serif font-bold">2026</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -184,17 +269,17 @@ export function ShopClient() {
       <section className="max-w-7xl mx-auto px-6 py-6 w-full">
         
         {/* Horizontal Category Nav */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 py-4 border-b border-brand-sand/20 mb-6 select-none">
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 py-4 border-b border-zinc-100 mb-6 select-none">
           <button
             onClick={() => {
               handleCategorySelect(null);
               handleFilterSelect(null);
             }}
             className={cn(
-              "text-xs tracking-[0.2em] uppercase font-bold transition-all duration-300 relative pb-1.5 cursor-pointer",
+              "text-xs tracking-[0.2em] uppercase font-bold transition-all duration-300 relative pb-1.5 cursor-pointer after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[2px] after:bg-[#FF5E36] after:transition-all after:duration-300 after:ease-out",
               !activeCategory && !activeFilter
-                ? "text-brand-maroon after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-brand-gold after:rounded-full"
-                : "text-brand-charcoal/60 hover:text-brand-maroon"
+                ? "text-[#FF5E36] after:w-8 after:opacity-100"
+                : "text-zinc-500 hover:text-[#FF5E36] hover:after:w-4 hover:after:opacity-50 after:w-0 after:opacity-0"
             )}
           >
             All Collections
@@ -207,10 +292,10 @@ export function ShopClient() {
                 key={cat}
                 onClick={() => handleCategorySelect(catSlug)}
                 className={cn(
-                  "text-xs tracking-[0.2em] uppercase font-bold transition-all duration-300 relative pb-1.5 cursor-pointer",
+                  "text-xs tracking-[0.2em] uppercase font-bold transition-all duration-300 relative pb-1.5 cursor-pointer after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[2px] after:bg-[#FF5E36] after:transition-all after:duration-300 after:ease-out",
                   isActive
-                    ? "text-brand-maroon after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-brand-gold after:rounded-full"
-                    : "text-brand-charcoal/60 hover:text-brand-maroon"
+                    ? "text-[#FF5E36] after:w-8 after:opacity-100"
+                    : "text-zinc-500 hover:text-[#FF5E36] hover:after:w-4 hover:after:opacity-50 after:w-0 after:opacity-0"
                 )}
               >
                 {cat}
@@ -220,10 +305,10 @@ export function ShopClient() {
         </div>
 
         {/* Stats and Refinement Bar */}
-        <div className="flex justify-between items-center gap-4 py-3 border-b border-brand-sand/20 mb-8 select-none">
+        <div className="flex justify-between items-center gap-4 py-3 border-b border-zinc-100 mb-8 select-none">
           {/* Stats */}
-          <div className="text-[10px] tracking-[0.2em] uppercase font-bold text-brand-charcoal/60">
-            Showing <span className="text-brand-maroon font-extrabold">{filteredProducts.length}</span> bespoke creations
+          <div className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-500">
+            Showing <span className="text-[#FF5E36] font-extrabold">{filteredProducts.length}</span> bespoke creations
           </div>
 
           {/* Controls */}
@@ -232,7 +317,7 @@ export function ShopClient() {
             {(activeFilter || selectedSizes.length > 0 || priceRange < maxAvailablePrice || sortBy !== 'featured') && (
               <button
                 onClick={resetAllFilters}
-                className="text-[9px] tracking-widest uppercase underline underline-offset-4 text-brand-maroon hover:text-brand-wine font-extrabold transition-colors cursor-pointer"
+                className="text-[9px] tracking-widest uppercase underline underline-offset-4 text-[#FF5E36] hover:text-[#E04D27] font-extrabold transition-colors cursor-pointer"
               >
                 Reset Refinements
               </button>
@@ -244,8 +329,8 @@ export function ShopClient() {
               className={cn(
                 "flex items-center gap-2 text-[10px] tracking-widest uppercase font-extrabold px-5 py-2.5 rounded-full border transition-all duration-300 cursor-pointer shadow-sm",
                 isFilterOpen
-                  ? "bg-brand-maroon text-white border-brand-maroon shadow-brand-maroon/10"
-                  : "bg-white border-brand-sand text-brand-charcoal hover:border-brand-gold hover:text-brand-gold"
+                  ? "bg-[#FF5E36] text-white border-[#FF5E36] shadow-[#FF5E36]/10"
+                  : "bg-white border-zinc-200 text-zinc-800 hover:border-[#FF5E36] hover:text-[#FF5E36]"
               )}
               aria-expanded={isFilterOpen}
             >
@@ -257,21 +342,21 @@ export function ShopClient() {
 
         {/* Refine Drawer Panel */}
         {isFilterOpen && (
-          <div className="bg-brand-ivory border border-brand-sand rounded-3xl p-6 md:p-8 mb-8 grid grid-cols-1 md:grid-cols-4 gap-8 pattern-jaali relative overflow-hidden shadow-xl animate-scale-up text-brand-brown">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 md:p-8 mb-8 grid grid-cols-1 md:grid-cols-4 gap-8 relative overflow-hidden shadow-xl animate-scale-up text-zinc-800">
             {/* Overlay glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF5E36]/5 rounded-full blur-2xl pointer-events-none" />
 
             {/* Column 1: Curation Filters (New Arrivals, Bestsellers) */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-brand-maroon border-b border-brand-sand/30 pb-2">
+              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Curation Drops
               </h4>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => handleFilterSelect(null)}
                   className={cn(
-                    "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-brand-maroon transition-colors cursor-pointer",
-                    !activeFilter ? "text-brand-maroon font-extrabold" : "text-brand-charcoal/60"
+                    "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-[#FF5E36] transition-colors cursor-pointer",
+                    !activeFilter ? "text-[#FF5E36] font-extrabold" : "text-zinc-500"
                   )}
                 >
                   All Outfits ({totalCount})
@@ -279,8 +364,8 @@ export function ShopClient() {
                 <button
                   onClick={() => handleFilterSelect('new')}
                   className={cn(
-                    "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-brand-maroon transition-colors cursor-pointer",
-                    activeFilter === 'new' ? "text-brand-maroon font-extrabold" : "text-brand-charcoal/60"
+                    "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-[#FF5E36] transition-colors cursor-pointer",
+                    activeFilter === 'new' ? "text-[#FF5E36] font-extrabold" : "text-zinc-500"
                   )}
                 >
                   New Arrivals ({newArrivalsCount})
@@ -288,8 +373,8 @@ export function ShopClient() {
                 <button
                   onClick={() => handleFilterSelect('bestseller')}
                   className={cn(
-                    "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-brand-maroon transition-colors cursor-pointer",
-                    activeFilter === 'bestseller' ? "text-brand-maroon font-extrabold" : "text-brand-charcoal/60"
+                    "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-[#FF5E36] transition-colors cursor-pointer",
+                    activeFilter === 'bestseller' ? "text-[#FF5E36] font-extrabold" : "text-zinc-500"
                   )}
                 >
                   Bestsellers ({bestsellersCount})
@@ -299,7 +384,7 @@ export function ShopClient() {
 
             {/* Column 2: Size Filter */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-brand-maroon border-b border-brand-sand/30 pb-2">
+              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Filter by Size
               </h4>
               <div className="flex flex-wrap gap-2 pt-1">
@@ -312,8 +397,8 @@ export function ShopClient() {
                       className={cn(
                         "w-9 h-9 text-[10px] font-bold rounded-xl border transition-all cursor-pointer",
                         isSelected
-                          ? "bg-brand-charcoal text-white border-brand-charcoal shadow-sm"
-                          : "border-brand-sand/60 text-brand-charcoal hover:border-brand-gold bg-white/50"
+                          ? "bg-[#FF5E36] text-white border-[#FF5E36] shadow-sm"
+                          : "border-zinc-200 text-zinc-600 hover:border-[#FF5E36] bg-white/50"
                       )}
                       aria-pressed={isSelected}
                       aria-label={`Filter by size ${size}`}
@@ -327,7 +412,7 @@ export function ShopClient() {
 
             {/* Column 3: Price Limit Slider */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-brand-maroon border-b border-brand-sand/30 pb-2">
+              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Price Limit
               </h4>
               <div className="flex flex-col gap-3 pt-1">
@@ -338,11 +423,11 @@ export function ShopClient() {
                   step={1000}
                   value={priceRange}
                   onChange={(e) => setPriceRange(Number(e.target.value))}
-                  className="w-full accent-brand-maroon cursor-pointer"
+                  className="w-full accent-[#FF5E36] cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] font-bold text-brand-charcoal/60">
+                <div className="flex justify-between text-[10px] font-bold text-zinc-500">
                   <span>Up to:</span>
-                  <span className="text-brand-maroon font-extrabold">
+                  <span className="text-[#FF5E36] font-extrabold">
                     {priceRange.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                   </span>
                 </div>
@@ -351,7 +436,7 @@ export function ShopClient() {
 
             {/* Column 4: Sort Order */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-brand-maroon border-b border-brand-sand/30 pb-2">
+              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Sort Order
               </h4>
               <div className="flex flex-col gap-2">
@@ -365,8 +450,8 @@ export function ShopClient() {
                     key={opt.value}
                     onClick={() => setSortBy(opt.value)}
                     className={cn(
-                      "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-brand-maroon transition-colors cursor-pointer",
-                      sortBy === opt.value ? "text-brand-maroon font-extrabold" : "text-brand-charcoal/60"
+                      "text-[10px] tracking-widest uppercase font-bold text-left py-1 hover:text-[#FF5E36] transition-colors cursor-pointer",
+                      sortBy === opt.value ? "text-[#FF5E36] font-extrabold" : "text-zinc-500"
                     )}
                   >
                     {opt.label}
@@ -378,14 +463,14 @@ export function ShopClient() {
         )}
 
         {/* Product Grid Area (Rearranged into a spacious 4-column grid on large screens) */}
-        <div className="w-full">
+        <div className="w-full product-grid-container">
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
               {[...Array(8)].map((_, i) => (
                 <div key={i} className="animate-pulse flex flex-col gap-3 w-full">
-                  <div className="aspect-[3/4] w-full bg-brand-cream/40 rounded-3xl border border-brand-sand/20" />
-                  <div className="h-4 bg-brand-cream/50 rounded-md w-2/3 mt-2" />
-                  <div className="h-4 bg-brand-cream/50 rounded-md w-1/3" />
+                  <div className="aspect-[3/4] w-full bg-zinc-100 rounded-3xl border border-zinc-200/50" />
+                  <div className="h-4 bg-zinc-100 rounded-md w-2/3 mt-2" />
+                  <div className="h-4 bg-zinc-100 rounded-md w-1/3" />
                 </div>
               ))}
             </div>
@@ -401,18 +486,18 @@ export function ShopClient() {
           
           {/* Empty State */}
           {!loading && filteredProducts.length === 0 && (
-            <div className="text-center py-20 border border-dashed border-brand-sand/50 rounded-[2.5rem] bg-brand-cream/20 pattern-jaali my-10 max-w-lg mx-auto">
-              <LotusIcon className="w-12 h-12 mx-auto text-brand-maroon/60 mb-4" />
-              <h3 className="font-serif text-xl text-brand-brown mb-2 font-medium">No creations match filters</h3>
-              <p className="text-brand-charcoal/60 text-xs mb-6 max-w-xs mx-auto leading-relaxed font-light">
+            <div className="text-center py-20 border border-dashed border-zinc-200 rounded-[2.5rem] bg-zinc-50 my-10 max-w-lg mx-auto">
+              <LotusIcon className="w-12 h-12 mx-auto text-[#FF5E36] mb-4" />
+              <h3 className="font-serif text-xl text-zinc-900 mb-2 font-medium">No creations match filters</h3>
+              <p className="text-zinc-500 text-xs mb-6 max-w-xs mx-auto leading-relaxed font-light">
                 We couldn't find any designs matching your refinement profile. Select another category or reset refinements.
               </p>
-              <button 
+              <Button 
                 onClick={resetAllFilters}
-                className="bg-brand-maroon hover:bg-brand-wine text-white px-7 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300 shadow-md cursor-pointer"
+                className="bg-[#FF5E36] hover:bg-[#E04D27] text-white rounded-full h-[46px] px-7"
               >
                 Reset Refinements
-              </button>
+              </Button>
             </div>
           )}
         </div>

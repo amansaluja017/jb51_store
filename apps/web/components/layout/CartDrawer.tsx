@@ -6,6 +6,7 @@ import { useCart, CartItem } from '@/context/CartContext';
 import { formatPrice } from '@/lib/utils';
 import { X, Plus, Minus, Trash2, ShoppingBag, Lock, CreditCard, Sparkles, ArrowRight, CheckCircle, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 export function CartDrawer() {
   const {
@@ -456,13 +457,13 @@ export function CartDrawer() {
               </div>
 
               {step === 'cart' && (
-                <button 
+                <Button 
                   onClick={handleGoToShipping}
-                  className="w-full bg-brand-charcoal hover:bg-[#FF5E36] text-white py-4 rounded-full text-xs font-semibold uppercase tracking-[0.25em] flex items-center justify-center gap-2.5 transition-all duration-300"
+                  className="w-full rounded-full"
                 >
                   <span>Checkout Securely</span>
-                  <ArrowRight size={14} />
-                </button>
+                  <ArrowRight size={14} className="ml-2.5" />
+                </Button>
               )}
 
               {step === 'shipping' && (
@@ -470,19 +471,19 @@ export function CartDrawer() {
                   <button 
                     type="button"
                     onClick={() => setStep('cart')}
-                    className="flex items-center justify-center p-4 border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-800 transition-all rounded-full bg-white"
+                    className="flex items-center justify-center p-4 border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-800 transition-all rounded-full bg-white cursor-pointer"
                     aria-label="Go back to cart view"
                   >
                     <ArrowLeft size={16} />
                   </button>
-                  <button 
+                  <Button 
                     type="button"
                     onClick={handleGoToPayment}
-                    className="flex-1 bg-brand-charcoal hover:bg-[#FF5E36] text-white py-4 rounded-full text-xs font-semibold uppercase tracking-[0.25em] flex items-center justify-center gap-2.5 transition-all duration-300"
+                    className="flex-1 rounded-full"
                   >
                     <span>Continue to Payment</span>
-                    <ArrowRight size={14} />
-                  </button>
+                    <ArrowRight size={14} className="ml-2.5" />
+                  </Button>
                 </div>
               )}
 
@@ -491,26 +492,20 @@ export function CartDrawer() {
                   <button 
                     type="button"
                     onClick={() => setStep('shipping')}
-                    className="flex items-center justify-center p-4 border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-800 transition-all rounded-full bg-white"
+                    className="flex items-center justify-center p-4 border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-800 transition-all rounded-full bg-white cursor-pointer"
                     aria-label="Go back to shipping details"
                   >
                     <ArrowLeft size={16} />
                   </button>
-                  <button 
+                  <Button 
                     type="submit"
-                    disabled={isSubmitting}
+                    isLoading={isSubmitting}
                     onClick={handlePlaceOrder}
-                    className="flex-1 bg-brand-charcoal hover:bg-[#FF5E36] text-white py-4 rounded-full text-xs font-semibold uppercase tracking-[0.25em] flex items-center justify-center gap-2.5 transition-all duration-300 disabled:opacity-50"
+                    className="flex-1 rounded-full"
                   >
-                    {isSubmitting ? (
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Lock size={13} />
-                        <span>Place Order {formatPrice(cartTotal + (isFreeShipping ? 0 : 450))}</span>
-                      </>
-                    )}
-                  </button>
+                    <Lock size={13} className="mr-2" />
+                    <span>Place Order {formatPrice(cartTotal + (isFreeShipping ? 0 : 450))}</span>
+                  </Button>
                 </div>
               )}
             </div>

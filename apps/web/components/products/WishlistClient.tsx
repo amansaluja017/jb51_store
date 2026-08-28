@@ -6,6 +6,7 @@ import { ProductCard } from '@/components/products/ProductCard';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import gsap from 'gsap';
+import { Button } from '@/components/ui/button';
 
 export function WishlistClient() {
   const { wishlist } = useWishlist();
@@ -50,11 +51,10 @@ export function WishlistClient() {
           <p className="text-brand-brown/60 text-sm max-w-sm mb-8 font-light leading-relaxed">
             Explore our curated collections of premium women's suits, heritage designs, and luxury formalwear to add your favorite pieces.
           </p>
-          <Link 
-            href="/shop"
-            className="bg-brand-maroon hover:bg-brand-burgundy text-brand-cream py-4 px-8 text-xs tracking-[0.2em] uppercase transition-colors font-medium border border-transparent"
-          >
-            Explore Collection
+          <Link href="/shop" passHref legacyBehavior>
+            <Button className="px-8">
+              Explore Collection
+            </Button>
           </Link>
         </div>
       ) : (

@@ -12,6 +12,8 @@ import { Heart, Truck, RotateCcw, ShieldCheck, MessageCircle, Instagram, Sparkle
 import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
+import { Button } from '@/components/ui/button';
+import { HeritageCraftBanner } from '@/components/products/HeritageCraftBanner';
 
 // Beautiful luxury Indian lotus icon motif
 const LotusIcon = ({ className = "w-6 h-6 text-brand-gold" }) => (
@@ -438,37 +440,37 @@ export function ProductClient({ product }: { product: Product }) {
           <div className="flex flex-col gap-3.5 mb-6">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch">
               {/* WhatsApp Inquiry Button (Emerald color palette) */}
-              <button 
+              <Button 
                 onClick={handleWhatsAppInquiry}
-                className="flex-1 bg-brand-emerald hover:bg-brand-emerald/90 text-white py-4 px-6 rounded-full flex items-center justify-center gap-2.5 text-[10px] tracking-widest uppercase font-extrabold transition-all duration-300 shadow-md shadow-brand-emerald/10 cursor-pointer"
+                className="flex-1 bg-brand-emerald hover:bg-brand-emerald/90 text-white rounded-full shadow-md shadow-brand-emerald/10"
               >
-                <MessageCircle size={14} className="fill-white/10" />
+                <MessageCircle size={14} className="fill-white/10 mr-2.5" />
                 <span>INQUIRE ON WHATSAPP</span>
-              </button>
+              </Button>
 
               {/* Instagram Inquiry Button (Wine color palette) */}
-              <button 
+              <Button 
                 onClick={handleInstagramInquiry}
-                className="flex-1 bg-brand-wine hover:bg-brand-wine/95 text-white py-4 px-6 rounded-full flex items-center justify-center gap-2.5 text-[10px] tracking-widest uppercase font-extrabold transition-all duration-300 shadow-md shadow-brand-wine/10 cursor-pointer"
+                className="flex-1 bg-brand-wine hover:bg-brand-wine/95 text-white rounded-full shadow-md shadow-brand-wine/10"
               >
-                <Instagram size={14} />
+                <Instagram size={14} className="mr-2.5" />
                 <span>DM ON INSTAGRAM</span>
-              </button>
+              </Button>
             </div>
 
             {/* Wishlist Button */}
-            <button 
+            <Button 
               onClick={() => toggleWishlist(product.id)}
               className={cn(
-                "w-full border py-4 rounded-full flex items-center justify-center gap-2.5 text-[10px] tracking-widest uppercase font-extrabold transition-all duration-300 hover:scale-101 cursor-pointer",
+                "w-full rounded-full border hover:scale-101 h-[52px]",
                 isLiked 
-                  ? "border-brand-maroon bg-brand-maroon/5 text-brand-maroon" 
+                  ? "border-brand-maroon bg-brand-maroon/5 text-brand-maroon hover:bg-brand-maroon/10" 
                   : "border-brand-sand/80 text-brand-charcoal hover:border-brand-gold hover:text-brand-gold bg-white/10"
               )}
             >
-              <Heart size={14} className={cn(isLiked && "fill-brand-maroon text-brand-maroon")} />
+              <Heart size={14} className={cn("mr-2.5", isLiked && "fill-brand-maroon text-brand-maroon")} />
               <span>{isLiked ? 'ADDED TO WISHLIST' : 'ADD TO WISHLIST'}</span>
-            </button>
+            </Button>
           </div>
 
           {/* The Karigar's Bespoke Consultation Card (Indian Touch) */}
@@ -537,46 +539,7 @@ export function ProductClient({ product }: { product: Product }) {
       </div>
 
       {/* 2. Editorial Craftsmanship Banner (Indian Touch) */}
-      <section className="max-w-7xl mx-auto px-6 mb-24 mt-12 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-brand-maroon text-brand-cream rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative shadow-xl shadow-brand-maroon/5 pattern-jaali">
-          {/* Light glow effects */}
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-brand-gold/10 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-white/5 blur-3xl pointer-events-none" />
-          
-          {/* Left Block: Narrative */}
-          <div className="md:col-span-7 flex flex-col justify-center relative z-10">
-            <span className="text-[10px] tracking-[0.3em] uppercase text-brand-gold font-bold mb-3 block">
-              HERITAGE CRAFT
-            </span>
-            <h3 className="font-serif text-3xl md:text-5xl font-light leading-[1.1] mb-6 tracking-tight">
-              Sustaining the Craft <br className="hidden md:block"/>of Indian <span className="font-serif italic text-brand-gold">Karigars</span>
-            </h3>
-            <p className="text-brand-cream/80 font-light text-xs md:text-sm leading-relaxed mb-8 max-w-xl">
-              Every drape, pleat, and embroidery detail is hand-guided by master artisans who preserve century-old textiles heritage. We partner directly with weaver guilds in Banaras, Lucknow, and Chanderi—bypassing middlemen to ensure fair wages and keep historical Indian loom arts alive.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <a
-                href={`https://wa.me/${WHATSAPP_NUMBER}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-brand-gold hover:bg-brand-gold/90 text-brand-brown px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md"
-              >
-                <span>Consult Weaver Guild</span>
-                <ArrowRight size={12} />
-              </a>
-            </div>
-          </div>
-
-          {/* Right Block: Motif Decoration */}
-          <div className="md:col-span-5 flex items-center justify-center relative z-10 p-4">
-            <div className="w-56 h-56 rounded-full border border-brand-gold/25 flex items-center justify-center relative bg-brand-burgundy/40 backdrop-blur-sm">
-              <div className="absolute inset-2 border border-dashed border-brand-gold/15 rounded-full" />
-              <div className="absolute inset-4 border border-brand-gold/5 rounded-full" />
-              <LotusIcon className="w-20 h-20 text-brand-gold opacity-90 stroke-[1.2]" />
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeritageCraftBanner />
 
       {/* 3. Similar Products Section */}
       <div className="border-t border-brand-sand/20 bg-brand-cream/10 py-20">
