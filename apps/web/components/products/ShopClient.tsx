@@ -51,8 +51,8 @@ export function ShopClient() {
     : 35000;
 
   useEffect(() => {
-    if (products.length > 0 && !hasSetInitialMax) {
-      const maxPrice = Math.max(...products.map(p => p.price));
+    if (listedProductsOnly.length > 0 && !hasSetInitialMax) {
+      const maxPrice = Math.max(...listedProductsOnly.map(p => p.price));
       if (maxPrice > 0) {
         setPriceRange(maxPrice);
         setHasSetInitialMax(true);

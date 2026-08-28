@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import superjson from 'superjson';
 import {
   StyleSheet,
   Text,
@@ -201,6 +202,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
+  const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'>('dashboard');
 
   const tabValues = useRef({
@@ -333,14 +335,29 @@ export default function App() {
       const response = await fetch(`${cleanHost}/trpc/products.getAll`);
       const json = await response.json();
       if (json?.result?.data) {
-        setProducts(json.result.data);
+        const decodedProducts = superjson.deserialize(json.result.data) as Product[];
+        setProducts(decodedProducts);
       }
 
       // Fetch reviews
-      const reviewsResponse = await fetch(`${cleanHost}/trpc/reviews.getAll`);
+      const reviewsUrl = isAuthenticated
+        ? `${cleanHost}/trpc/reviews.getModerationQueue`
+        : `${cleanHost}/trpc/reviews.getAll`;
+      
+      const reviewsHeaders: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (isAuthenticated && token) {
+        reviewsHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
+      const reviewsResponse = await fetch(reviewsUrl, {
+        headers: reviewsHeaders
+      });
       const reviewsJson = await reviewsResponse.json();
       if (reviewsJson?.result?.data) {
-        setReviews(reviewsJson.result.data);
+        const decodedReviews = superjson.deserialize(reviewsJson.result.data) as Review[];
+        setReviews(decodedReviews);
       }
 
       setSyncMessage('Successfully synced with server');
@@ -390,11 +407,28 @@ export default function App() {
     setIsSyncing(false);
   };
 
-  const handleLogin = () => {
-    if (username.trim().toLowerCase() === 'admin' && password === 'admin@123') {
-      setIsAuthenticated(true);
-    } else {
-      showAlert('Authentication Error', 'Invalid admin credentials.', 'error');
+  const handleLogin = async () => {
+    try {
+      const cleanHost = apiHost.trim().replace(/\/$/, '');
+      const response = await fetch(`${cleanHost}/trpc/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username: username.trim(), password })
+      });
+      if (!response.ok) {
+        throw new Error('Invalid credentials');
+      }
+      const json = await response.json();
+      if (json?.result?.data?.token) {
+        setToken(json.result.data.token);
+        setIsAuthenticated(true);
+      } else {
+        throw new Error('Invalid credentials');
+      }
+    } catch (err: any) {
+      showAlert('Authentication Error', err.message || 'Invalid admin credentials.', 'error');
     }
   };
 
@@ -493,8 +527,13 @@ export default function App() {
       }
       const json = await response.json();
       if (json?.result?.data) {
-        setReviews(prev => prev.map(r => r.id === tempId ? json.result.data : r));
-        showAlert('Review Submitted', 'Customer review added successfully.', 'success');
+        const decoded = superjson.deserialize(json.result.data) as Review;
+        if (decoded && decoded.id && decoded.name) {
+          setReviews(prev => prev.map(r => r.id === tempId ? decoded : r));
+          showAlert('Review Submitted', 'Customer review added successfully.', 'success');
+        } else {
+          throw new Error('Invalid decoded review data');
+        }
       } else {
         throw new Error('Invalid server payload format');
       }
@@ -516,7 +555,7 @@ export default function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer jb51-staff-secret-token'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ id: review.id, approved: newApproved })
       });
@@ -524,8 +563,13 @@ export default function App() {
         throw new Error('Server responded with an error status');
       }
       const json = await response.json();
-      if (json?.result) {
-        showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
+      if (json?.result?.data) {
+        const decoded = superjson.deserialize(json.result.data) as Review | null;
+        if (decoded && decoded.id) {
+          showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
+        } else {
+          throw new Error('Unknown review ID or invalid update');
+        }
       } else {
         throw new Error('Invalid server response format');
       }
@@ -549,7 +593,7 @@ export default function App() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer jb51-staff-secret-token'
+              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ id: review.id })
           });
@@ -801,7 +845,10 @@ export default function App() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => setIsAuthenticated(false)}
+            onPress={() => {
+              setIsAuthenticated(false);
+              setToken(null);
+            }}
             style={styles.logoutBtn}
             accessibilityLabel="Log out"
             accessibilityRole="button"
