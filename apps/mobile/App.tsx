@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  Animated
+  Animated,
+  ScrollView
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -259,63 +260,15 @@ export default function App() {
     ];
     Animated.parallel(
       tabs.map(tab =>
-        Animated.timing(tabValues[tab], {
+        Animated.spring(tabValues[tab], {
           toValue: activeTab === tab ? 1 : 0,
-          duration: 250,
-          useNativeDriver: false,
+          damping: 20,
+          stiffness: 150,
+          useNativeDriver: true,
         })
       )
     ).start();
   }, [activeTab]);
-
-  const getTabStyle = (tab: 'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews') => {
-    const width = tabValues[tab].interpolate({
-      inputRange: [0, 1],
-      outputRange: [44, 110],
-    });
-    const backgroundColor = tabValues[tab].interpolate({
-      inputRange: [0, 1],
-      outputRange: ['rgba(255, 255, 255, 0)', '#ffebe6'],
-    });
-    return {
-      width,
-      backgroundColor,
-      height: 44,
-      borderRadius: 22,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      overflow: 'hidden' as const,
-    };
-  };
-
-  const getTextStyle = (tab: 'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews') => {
-    const opacity = tabValues[tab];
-    return {
-      opacity,
-      color: '#FF5E36',
-      fontSize: 12,
-      fontWeight: 'bold' as const,
-      width: 65,
-    };
-  };
-
-  const getTextContainerStyle = (tab: 'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews') => {
-    const width = tabValues[tab].interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 65],
-    });
-    const marginLeft = tabValues[tab].interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 6],
-    });
-    return {
-      width,
-      marginLeft,
-      justifyContent: 'center' as const,
-      overflow: 'hidden' as const,
-    };
-  };
 
   // Backend Sync Configurations
   const [apiHost, setApiHost] = useState('http://localhost:3001');
@@ -661,15 +614,31 @@ export default function App() {
   };
 
   const handleDeleteCategory = (catToDelete: string) => {
-    setCategories(prev => {
-      const filtered = prev.filter(c => c !== catToDelete);
-      if (filtered.length === 0) {
-        return ['Uncategorized'];
-      }
-      return filtered;
-    });
-    // Reassign products to Uncategorized
-    setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: 'Uncategorized' } : p));
+    const hasProducts = products.some(p => p.category === catToDelete);
+
+    const performDelete = () => {
+      setCategories(prev => {
+        const filtered = prev.filter(c => c !== catToDelete);
+        if (filtered.length === 0) {
+          return ['Uncategorized'];
+        }
+        return filtered;
+      });
+      // Reassign products to Uncategorized
+      setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: 'Uncategorized' } : p));
+      showAlert('Success', `Category "${catToDelete}" has been deleted.`, 'success');
+    };
+
+    if (hasProducts) {
+      showAlert(
+        'Confirm Delete',
+        `The category "${catToDelete}" has products assigned to it. Deleting this category will reassign those products to "Uncategorized". Do you want to proceed?`,
+        'confirm',
+        performDelete
+      );
+    } else {
+      performDelete();
+    }
   };
 
   const handleResolveInquiry = (id: string, customerName: string) => {
@@ -950,90 +919,280 @@ export default function App() {
 
         {/* Tabs Menu Footer */}
         <View style={styles.navigationFooter}>
-          <Animated.View style={getTabStyle('dashboard')}>
-            <TouchableOpacity
-              onPress={() => setActiveTab('dashboard')}
-              style={styles.tabTouchable}
-              accessibilityLabel="Overview tab"
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === 'dashboard' }}
+          <TouchableOpacity
+            onPress={() => setActiveTab('dashboard')}
+            style={styles.tabItem}
+            accessibilityLabel="Overview tab"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'dashboard' }}
+          >
+            <Animated.View
+              style={[
+                styles.iconWrapper,
+                {
+                  transform: [
+                    {
+                      translateY: tabValues.dashboard.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -6],
+                      }),
+                    },
+                  ],
+                },
+              ]}
             >
-              <LayoutDashboard size={18} color={activeTab === 'dashboard' ? '#FF5E36' : '#a1a1aa'} />
-              <Animated.View style={getTextContainerStyle('dashboard')}>
-                <Animated.Text numberOfLines={1} style={getTextStyle('dashboard')}>
-                  Overview
-                </Animated.Text>
-              </Animated.View>
-            </TouchableOpacity>
-          </Animated.View>
+              <Animated.View
+                style={[
+                  styles.activeIndicator,
+                  {
+                    opacity: tabValues.dashboard,
+                    transform: [{ scale: tabValues.dashboard }],
+                  },
+                ]}
+              />
+              <View style={styles.iconPositioner}>
+                <LayoutDashboard size={18} color={activeTab === 'dashboard' ? '#FF5E36' : '#a1a1aa'} />
+              </View>
+            </Animated.View>
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                {
+                  opacity: tabValues.dashboard,
+                  transform: [
+                    {
+                      translateY: tabValues.dashboard.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [8, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              Overview
+            </Animated.Text>
+          </TouchableOpacity>
 
-          <Animated.View style={getTabStyle('catalogue')}>
-            <TouchableOpacity
-              onPress={() => setActiveTab('catalogue')}
-              style={styles.tabTouchable}
-              accessibilityLabel="Catalog tab"
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === 'catalogue' }}
+          <TouchableOpacity
+            onPress={() => setActiveTab('catalogue')}
+            style={styles.tabItem}
+            accessibilityLabel="Catalog tab"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'catalogue' }}
+          >
+            <Animated.View
+              style={[
+                styles.iconWrapper,
+                {
+                  transform: [
+                    {
+                      translateY: tabValues.catalogue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -6],
+                      }),
+                    },
+                  ],
+                },
+              ]}
             >
-              <Shirt size={18} color={activeTab === 'catalogue' ? '#FF5E36' : '#a1a1aa'} />
-              <Animated.View style={getTextContainerStyle('catalogue')}>
-                <Animated.Text numberOfLines={1} style={getTextStyle('catalogue')}>
-                  Catalog
-                </Animated.Text>
-              </Animated.View>
-            </TouchableOpacity>
-          </Animated.View>
+              <Animated.View
+                style={[
+                  styles.activeIndicator,
+                  {
+                    opacity: tabValues.catalogue,
+                    transform: [{ scale: tabValues.catalogue }],
+                  },
+                ]}
+              />
+              <View style={styles.iconPositioner}>
+                <Shirt size={18} color={activeTab === 'catalogue' ? '#FF5E36' : '#a1a1aa'} />
+              </View>
+            </Animated.View>
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                {
+                  opacity: tabValues.catalogue,
+                  transform: [
+                    {
+                      translateY: tabValues.catalogue.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [8, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              Catalog
+            </Animated.Text>
+          </TouchableOpacity>
 
-          <Animated.View style={getTabStyle('analytics')}>
-            <TouchableOpacity
-              onPress={() => setActiveTab('analytics')}
-              style={styles.tabTouchable}
-              accessibilityLabel="Analytics tab"
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === 'analytics' }}
+          <TouchableOpacity
+            onPress={() => setActiveTab('analytics')}
+            style={styles.tabItem}
+            accessibilityLabel="Analytics tab"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'analytics' }}
+          >
+            <Animated.View
+              style={[
+                styles.iconWrapper,
+                {
+                  transform: [
+                    {
+                      translateY: tabValues.analytics.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -6],
+                      }),
+                    },
+                  ],
+                },
+              ]}
             >
-              <BarChart3 size={18} color={activeTab === 'analytics' ? '#FF5E36' : '#a1a1aa'} />
-              <Animated.View style={getTextContainerStyle('analytics')}>
-                <Animated.Text numberOfLines={1} style={getTextStyle('analytics')}>
-                  Analytics
-                </Animated.Text>
-              </Animated.View>
-            </TouchableOpacity>
-          </Animated.View>
+              <Animated.View
+                style={[
+                  styles.activeIndicator,
+                  {
+                    opacity: tabValues.analytics,
+                    transform: [{ scale: tabValues.analytics }],
+                  },
+                ]}
+              />
+              <View style={styles.iconPositioner}>
+                <BarChart3 size={18} color={activeTab === 'analytics' ? '#FF5E36' : '#a1a1aa'} />
+              </View>
+            </Animated.View>
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                {
+                  opacity: tabValues.analytics,
+                  transform: [
+                    {
+                      translateY: tabValues.analytics.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [8, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              Analytics
+            </Animated.Text>
+          </TouchableOpacity>
 
-          <Animated.View style={getTabStyle('invoices')}>
-            <TouchableOpacity
-              onPress={() => setActiveTab('invoices')}
-              style={styles.tabTouchable}
-              accessibilityLabel="Invoices tab"
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === 'invoices' }}
+          <TouchableOpacity
+            onPress={() => setActiveTab('invoices')}
+            style={styles.tabItem}
+            accessibilityLabel="Invoices tab"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'invoices' }}
+          >
+            <Animated.View
+              style={[
+                styles.iconWrapper,
+                {
+                  transform: [
+                    {
+                      translateY: tabValues.invoices.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -6],
+                      }),
+                    },
+                  ],
+                },
+              ]}
             >
-              <FileText size={18} color={activeTab === 'invoices' ? '#FF5E36' : '#a1a1aa'} />
-              <Animated.View style={getTextContainerStyle('invoices')}>
-                <Animated.Text numberOfLines={1} style={getTextStyle('invoices')}>
-                  Invoices
-                </Animated.Text>
-              </Animated.View>
-            </TouchableOpacity>
-          </Animated.View>
+              <Animated.View
+                style={[
+                  styles.activeIndicator,
+                  {
+                    opacity: tabValues.invoices,
+                    transform: [{ scale: tabValues.invoices }],
+                  },
+                ]}
+              />
+              <View style={styles.iconPositioner}>
+                <FileText size={18} color={activeTab === 'invoices' ? '#FF5E36' : '#a1a1aa'} />
+              </View>
+            </Animated.View>
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                {
+                  opacity: tabValues.invoices,
+                  transform: [
+                    {
+                      translateY: tabValues.invoices.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [8, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              Invoices
+            </Animated.Text>
+          </TouchableOpacity>
 
-          <Animated.View style={getTabStyle('reviews')}>
-            <TouchableOpacity
-              onPress={() => setActiveTab('reviews')}
-              style={styles.tabTouchable}
-              accessibilityLabel="Reviews tab"
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === 'reviews' }}
+          <TouchableOpacity
+            onPress={() => setActiveTab('reviews')}
+            style={styles.tabItem}
+            accessibilityLabel="Reviews tab"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'reviews' }}
+          >
+            <Animated.View
+              style={[
+                styles.iconWrapper,
+                {
+                  transform: [
+                    {
+                      translateY: tabValues.reviews.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -6],
+                      }),
+                    },
+                  ],
+                },
+              ]}
             >
-              <Star size={18} color={activeTab === 'reviews' ? '#FF5E36' : '#a1a1aa'} />
-              <Animated.View style={getTextContainerStyle('reviews')}>
-                <Animated.Text numberOfLines={1} style={getTextStyle('reviews')}>
-                  Reviews
-                </Animated.Text>
-              </Animated.View>
-            </TouchableOpacity>
-          </Animated.View>
+              <Animated.View
+                style={[
+                  styles.activeIndicator,
+                  {
+                    opacity: tabValues.reviews,
+                    transform: [{ scale: tabValues.reviews }],
+                  },
+                ]}
+              />
+              <View style={styles.iconPositioner}>
+                <Star size={18} color={activeTab === 'reviews' ? '#FF5E36' : '#a1a1aa'} />
+              </View>
+            </Animated.View>
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                {
+                  opacity: tabValues.reviews,
+                  transform: [
+                    {
+                      translateY: tabValues.reviews.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [8, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              Reviews
+            </Animated.Text>
+          </TouchableOpacity>
         </View>
 
         {/* Create / Edit Form Modal */}
@@ -1129,37 +1288,36 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
-  navTab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeNavTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffebe6', // Soft warm-peach background matching application buttons
-    paddingHorizontal: 16,
-    height: 44,
-    borderRadius: 22,
-  },
-  tabTouchable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
+  tabItem: {
+    flex: 1,
     height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
   },
-  navTabText: {
+  iconWrapper: {
+    width: 48,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    width: 48,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#ffebe6', // Soft warm-peach background
+  },
+  iconPositioner: {
+    zIndex: 1,
+  },
+  tabLabel: {
     fontSize: 9,
-    fontWeight: 'semibold',
-    color: '#a1a1aa',
-    marginTop: 4,
-  },
-  activeNavTabText: {
-    color: '#FF5E36',
     fontWeight: 'bold',
+    color: '#FF5E36',
+    position: 'absolute',
+    bottom: 6,
   },
   screenView: {
     flex: 1,
