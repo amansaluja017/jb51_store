@@ -40,9 +40,11 @@ export function ProductClient({ product }: { product: Product }) {
   const sizeGuideTriggerRef = useRef<HTMLButtonElement | null>(null);
   const sizeGuideCloseBtnRef = useRef<HTMLButtonElement | null>(null);
   const sizeGuideModalRef = useRef<HTMLDivElement | null>(null);
+  const hasOpenedRef = useRef(false);
 
   useEffect(() => {
     if (showSizeGuide) {
+      hasOpenedRef.current = true;
       setTimeout(() => {
         if (sizeGuideCloseBtnRef.current) {
           sizeGuideCloseBtnRef.current.focus();
@@ -85,8 +87,10 @@ export function ProductClient({ product }: { product: Product }) {
         document.removeEventListener('keydown', handleKeyDown);
       };
     } else {
-      if (sizeGuideTriggerRef.current) {
-        sizeGuideTriggerRef.current.focus();
+      if (hasOpenedRef.current) {
+        if (sizeGuideTriggerRef.current) {
+          sizeGuideTriggerRef.current.focus();
+        }
       }
     }
   }, [showSizeGuide]);

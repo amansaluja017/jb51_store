@@ -37,10 +37,10 @@ export default function CustomAlert({ config, onClose }: CustomAlertProps) {
   };
 
   const handleConfirm = () => {
+    onClose();
     if (config.onConfirm) {
       config.onConfirm();
     }
-    onClose();
   };
 
   return (

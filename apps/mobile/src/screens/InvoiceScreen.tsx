@@ -605,54 +605,54 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
               </View>
             ) : (
               invoices.map((inv) => (
-                <TouchableOpacity
-                  key={inv.id}
-                  style={styles.invoiceCard}
-                  onPress={() => {
-                    setViewingInvoice(inv);
-                    setIsPreviewOpen(true);
-                  }}
-                  accessibilityLabel={`Invoice card for customer ${inv.clientName}, amount ₹${inv.totalAmount}`}
-                  accessibilityRole="button"
-                >
-                  <View style={styles.invoiceCardHeader}>
-                    <Text style={styles.invoiceCardClient}>{inv.clientName}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View key={inv.id} style={styles.invoiceCard}>
+                  <TouchableOpacity
+                    style={styles.invoiceCardMain}
+                    onPress={() => {
+                      setViewingInvoice(inv);
+                      setIsPreviewOpen(true);
+                    }}
+                    accessibilityLabel={`Invoice card for customer ${inv.clientName}, amount ₹${inv.totalAmount}`}
+                    accessibilityRole="button"
+                  >
+                    <View style={styles.invoiceCardHeader}>
+                      <Text style={styles.invoiceCardClient}>{inv.clientName}</Text>
                       <Text style={styles.invoiceCardDate}>{inv.date}</Text>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteInvoice(inv.id, inv.clientName)}
-                        style={styles.deleteInvoiceBtn}
-                        accessibilityLabel={`Delete invoice ${inv.id}`}
-                        accessibilityRole="button"
-                      >
-                        <Trash2 size={14} color="#ef4444" />
-                      </TouchableOpacity>
                     </View>
-                  </View>
 
-                  <View style={styles.invoiceCardBody}>
-                    <Text style={styles.invoiceCardId}>{inv.id}</Text>
-                    <Text style={styles.invoiceCardCount}>{inv.items.length} {inv.items.length === 1 ? 'item' : 'items'}</Text>
-                  </View>
+                    <View style={styles.invoiceCardBody}>
+                      <Text style={styles.invoiceCardId}>{inv.id}</Text>
+                      <Text style={styles.invoiceCardCount}>{inv.items.length} {inv.items.length === 1 ? 'item' : 'items'}</Text>
+                    </View>
 
-                  {inv.notes ? (
-                    <Text style={styles.invoiceCardNotes} numberOfLines={1}>
-                      Note: {inv.notes}
-                    </Text>
-                  ) : null}
-
-                  <View style={styles.invoiceCardFooter}>
-                    <Text style={styles.invoiceCardAmount}>₹{inv.totalAmount.toLocaleString('en-IN')}</Text>
-                    <View style={[
-                      styles.badge,
-                      inv.paymentMethod === 'Online' ? styles.badgeOnline : styles.badgeCash
-                    ]}>
-                      <Text style={inv.paymentMethod === 'Online' ? styles.badgeOnlineText : styles.badgeCashText}>
-                        {inv.paymentMethod}
+                    {inv.notes ? (
+                      <Text style={styles.invoiceCardNotes} numberOfLines={1}>
+                        Note: {inv.notes}
                       </Text>
+                    ) : null}
+
+                    <View style={styles.invoiceCardFooter}>
+                      <Text style={styles.invoiceCardAmount}>₹{inv.totalAmount.toLocaleString('en-IN')}</Text>
+                      <View style={[
+                        styles.badge,
+                        inv.paymentMethod === 'Online' ? styles.badgeOnline : styles.badgeCash
+                      ]}>
+                        <Text style={inv.paymentMethod === 'Online' ? styles.badgeOnlineText : styles.badgeCashText}>
+                          {inv.paymentMethod}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => handleDeleteInvoice(inv.id, inv.clientName)}
+                    style={styles.deleteInvoiceBtn}
+                    accessibilityLabel={`Delete invoice ${inv.id}`}
+                    accessibilityRole="button"
+                  >
+                    <Trash2 size={16} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
               ))
             )}
           </ScrollView>
@@ -1171,7 +1171,6 @@ const styles = StyleSheet.create({
   invoiceCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
     borderWidth: 1,
     borderColor: '#e4e4e7',
     marginBottom: 12,
@@ -1180,6 +1179,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 2,
     elevation: 1,
+    position: 'relative',
+  },
+  invoiceCardMain: {
+    padding: 16,
+    paddingRight: 60,
   },
   invoiceCardHeader: {
     flexDirection: 'row',
@@ -1748,10 +1752,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   deleteInvoiceBtn: {
-    padding: 6,
-    borderRadius: 8,
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
 });

@@ -82,6 +82,11 @@ export const reviewsRouter = t.router({
         .filter(r => r.approved)
         .map(({ phone, instagramId, ...rest }) => rest);
     }),
+  getModerationQueue: staffProcedure
+    .meta({ description: 'Fetch all reviews for moderation (including unapproved)' })
+    .query(async () => {
+      return await getReviews();
+    }),
   create: t.procedure
     .meta({ description: 'Submit a new customer review' })
     .input(CreateReviewInputSchema)
