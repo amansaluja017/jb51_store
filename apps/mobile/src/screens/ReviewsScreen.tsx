@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Review } from '../types';
 
 interface ReviewsScreenProps {
@@ -44,6 +45,38 @@ export default function ReviewsScreen({
   const [image, setImage] = useState('');
   const [video, setVideo] = useState('');
 
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      showAlert('Error', 'Failed to pick image from device.', 'error');
+    }
+  };
+
+  const pickVideo = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setVideo(result.assets[0].uri);
+      }
+    } catch (error) {
+      showAlert('Error', 'Failed to pick video from device.', 'error');
+    }
+  };
+
   // Filter reviews by name or message
   const filteredReviews = useMemo(() => {
     return reviews.filter(rev => 
@@ -70,8 +103,8 @@ export default function ReviewsScreen({
       location: location.trim() || null,
       instagramId: instagramId.trim() || null,
       phone: phone.trim() || null,
-      image: image.trim() || null,
-      video: video.trim() || null,
+      image: image || null,
+      video: video || null,
     });
 
     // Reset Form
@@ -171,30 +204,8 @@ export default function ReviewsScreen({
               {/* Footer Divider */}
               <View style={styles.cardDivider} />
 
-              {/* Card Actions: Approval toggle & Delete button */}
+              {/* Card Actions: Delete button */}
               <View style={styles.cardActions}>
-                <TouchableOpacity 
-                  onPress={() => onToggleApproval(rev)} 
-                  style={[
-                    styles.statusBtn, 
-                    rev.approved ? styles.approvedBtn : styles.unapprovedBtn
-                  ]}
-                  accessibilityLabel={`${rev.approved ? 'Disapprove' : 'Approve'} review by ${rev.name}`}
-                  accessibilityRole="button"
-                >
-                  {rev.approved ? (
-                    <>
-                      <Check size={10} color="#ffffff" style={styles.btnIcon} />
-                      <Text style={[styles.statusBtnText, styles.approvedBtnText]}>Approved</Text>
-                    </>
-                  ) : (
-                    <>
-                      <X size={10} color="#71717a" style={styles.btnIcon} />
-                      <Text style={[styles.statusBtnText, styles.unapprovedBtnText]}>Approve</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
                 <TouchableOpacity 
                   onPress={() => onDeleteReview(rev)} 
                   style={styles.deleteBtn}
@@ -324,30 +335,44 @@ export default function ReviewsScreen({
                 />
               </View>
 
-              {/* Image URL */}
+              {/* Image Picker */}
               <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Image URL</Text>
-                <TextInput
-                  placeholder="e.g. https://unsplash.com/photo.jpg"
-                  placeholderTextColor="#a1a1aa"
-                  value={image}
-                  onChangeText={setImage}
-                  style={styles.formInput}
-                  autoCapitalize="none"
-                />
+                <Text style={styles.fieldLabel}>Review Image</Text>
+                {image ? (
+                  <View style={styles.mediaPreviewContainer}>
+                    <Text style={styles.mediaSelectedText} numberOfLines={1}>
+                      {image.split('/').pop()}
+                    </Text>
+                    <TouchableOpacity onPress={() => setImage('')} style={styles.removeMediaBtn}>
+                      <X size={14} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={pickImage} style={styles.mediaPickBtn}>
+                    <ImageIcon size={16} color="#FF5E36" />
+                    <Text style={styles.mediaPickBtnText}>Select Image from Device</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
-              {/* Video URL */}
+              {/* Video Picker */}
               <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Video URL</Text>
-                <TextInput
-                  placeholder="e.g. https://example.com/video.mp4"
-                  placeholderTextColor="#a1a1aa"
-                  value={video}
-                  onChangeText={setVideo}
-                  style={styles.formInput}
-                  autoCapitalize="none"
-                />
+                <Text style={styles.fieldLabel}>Review Video</Text>
+                {video ? (
+                  <View style={styles.mediaPreviewContainer}>
+                    <Text style={styles.mediaSelectedText} numberOfLines={1}>
+                      {video.split('/').pop()}
+                    </Text>
+                    <TouchableOpacity onPress={() => setVideo('')} style={styles.removeMediaBtn}>
+                      <X size={14} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={pickVideo} style={styles.mediaPickBtn}>
+                    <Video size={16} color="#FF5E36" />
+                    <Text style={styles.mediaPickBtnText}>Select Video from Device</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </ScrollView>
 
@@ -523,7 +548,7 @@ const styles = StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   statusBtn: {
@@ -684,5 +709,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  mediaPickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff7f5',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#FF5E36',
+    borderRadius: 10,
+    height: 48,
+    gap: 8,
+  },
+  mediaPickBtnText: {
+    color: '#FF5E36',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  mediaPreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    borderRadius: 10,
+    height: 44,
+    paddingHorizontal: 12,
+  },
+  mediaSelectedText: {
+    fontSize: 11,
+    color: '#09090b',
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 10,
+  },
+  removeMediaBtn: {
+    padding: 6,
   },
 });

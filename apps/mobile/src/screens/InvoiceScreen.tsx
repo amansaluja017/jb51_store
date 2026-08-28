@@ -574,7 +574,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
                 accessibilityLabel="Create a new invoice button"
                 accessibilityRole="button"
               >
-                <Plus size={14} color="#ffffff" style={{ marginRight: 4 }} />
+                <Plus size={14} color="#ffffff" />
                 <Text style={styles.newInvoiceButtonTextHeader}>New Invoice</Text>
               </TouchableOpacity>
             </View>
@@ -1123,17 +1123,13 @@ const styles = StyleSheet.create({
   },
   newInvoiceButtonHeader: {
     backgroundColor: '#FF5E36',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF5E36',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    height: 38,
+    paddingHorizontal: 12,
+    gap: 6,
   },
   newInvoiceButtonTextHeader: {
     color: '#ffffff',
@@ -1755,10 +1751,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fee2e2',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
