@@ -43,6 +43,22 @@ export function ShopClient() {
   const [sortBy, setSortBy] = useState<string>('featured');
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<number>(35000); // Max product price
+  const [hasSetInitialMax, setHasSetInitialMax] = useState(false);
+
+  const listedProductsOnly = products.filter(p => p.isListed !== false);
+  const maxAvailablePrice = listedProductsOnly.length > 0 
+    ? Math.max(...listedProductsOnly.map(p => p.price)) 
+    : 35000;
+
+  useEffect(() => {
+    if (products.length > 0 && !hasSetInitialMax) {
+      const maxPrice = Math.max(...products.map(p => p.price));
+      if (maxPrice > 0) {
+        setPriceRange(maxPrice);
+        setHasSetInitialMax(true);
+      }
+    }
+  }, [products, hasSetInitialMax]);
 
   // Sync state with URL params changes
   useEffect(() => {
@@ -118,7 +134,6 @@ export function ShopClient() {
   }
 
   // Calculate product counts
-  const listedProductsOnly = products.filter(p => p.isListed !== false);
   const totalCount = listedProductsOnly.length;
   const newArrivalsCount = listedProductsOnly.filter(p => p.newArrival).length;
   const bestsellersCount = listedProductsOnly.filter(p => p.bestseller).length;
@@ -128,7 +143,7 @@ export function ShopClient() {
     setActiveCategory(null);
     setActiveFilter(null);
     setSelectedSizes([]);
-    setPriceRange(35000);
+    setPriceRange(maxAvailablePrice);
     setSortBy('featured');
   };
 
@@ -214,7 +229,7 @@ export function ShopClient() {
           {/* Controls */}
           <div className="flex items-center gap-4">
             {/* Clear filters if active */}
-            {(activeFilter || selectedSizes.length > 0 || priceRange < 35000 || sortBy !== 'featured') && (
+            {(activeFilter || selectedSizes.length > 0 || priceRange < maxAvailablePrice || sortBy !== 'featured') && (
               <button
                 onClick={resetAllFilters}
                 className="text-[9px] tracking-widest uppercase underline underline-offset-4 text-brand-maroon hover:text-brand-wine font-extrabold transition-colors cursor-pointer"
@@ -319,7 +334,7 @@ export function ShopClient() {
                 <input
                   type="range"
                   min={10000}
-                  max={35000}
+                  max={maxAvailablePrice}
                   step={1000}
                   value={priceRange}
                   onChange={(e) => setPriceRange(Number(e.target.value))}

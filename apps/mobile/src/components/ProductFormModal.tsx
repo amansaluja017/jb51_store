@@ -332,14 +332,14 @@ export default function ProductFormModal({
             style={[styles.tabButton, activeTab === 'visuals' && styles.activeTabButton]}
           >
             <ImageIcon size={16} color={activeTab === 'visuals' ? '#FF5E36' : '#71717a'} />
-            <Text style={[styles.tabText, activeTab === 'visuals' && styles.activeTabText]}>Visual Assets</Text>
+            <Text style={[styles.tabText, activeTab === 'visuals' && styles.activeTabText]}>Visuals</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => setActiveTab('inventory')} 
             style={[styles.tabButton, activeTab === 'inventory' && styles.activeTabButton]}
           >
             <Layers size={16} color={activeTab === 'inventory' ? '#FF5E36' : '#71717a'} />
-            <Text style={[styles.tabText, activeTab === 'inventory' && styles.activeTabText]}>Inventory & settings</Text>
+            <Text style={[styles.tabText, activeTab === 'inventory' && styles.activeTabText]}>Inventory</Text>
           </TouchableOpacity>
         </View>
 

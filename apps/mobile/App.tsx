@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TouchableOpacity, 
-  Alert, 
-  Platform 
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Alert,
+  Platform,
+  Animated
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { 
-  LayoutDashboard, 
-  Shirt, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Shirt,
+  BarChart3,
   FileText,
   LogOut,
   Star
@@ -202,6 +203,82 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'>('dashboard');
 
+  const tabValues = useRef({
+    dashboard: new Animated.Value(activeTab === 'dashboard' ? 1 : 0),
+    catalogue: new Animated.Value(activeTab === 'catalogue' ? 1 : 0),
+    analytics: new Animated.Value(activeTab === 'analytics' ? 1 : 0),
+    invoices: new Animated.Value(activeTab === 'invoices' ? 1 : 0),
+    reviews: new Animated.Value(activeTab === 'reviews' ? 1 : 0),
+  }).current;
+
+  useEffect(() => {
+    const tabs: Array<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'> = [
+      'dashboard',
+      'catalogue',
+      'analytics',
+      'invoices',
+      'reviews',
+    ];
+    Animated.parallel(
+      tabs.map(tab =>
+        Animated.timing(tabValues[tab], {
+          toValue: activeTab === tab ? 1 : 0,
+          duration: 250,
+          useNativeDriver: false,
+        })
+      )
+    ).start();
+  }, [activeTab]);
+
+  const getTabStyle = (tab: 'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews') => {
+    const width = tabValues[tab].interpolate({
+      inputRange: [0, 1],
+      outputRange: [44, 110],
+    });
+    const backgroundColor = tabValues[tab].interpolate({
+      inputRange: [0, 1],
+      outputRange: ['rgba(255, 255, 255, 0)', '#ffebe6'],
+    });
+    return {
+      width,
+      backgroundColor,
+      height: 44,
+      borderRadius: 22,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      overflow: 'hidden' as const,
+    };
+  };
+
+  const getTextStyle = (tab: 'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews') => {
+    const opacity = tabValues[tab];
+    return {
+      opacity,
+      color: '#FF5E36',
+      fontSize: 12,
+      fontWeight: 'bold' as const,
+      width: 65,
+    };
+  };
+
+  const getTextContainerStyle = (tab: 'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews') => {
+    const width = tabValues[tab].interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 65],
+    });
+    const marginLeft = tabValues[tab].interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 6],
+    });
+    return {
+      width,
+      marginLeft,
+      justifyContent: 'center' as const,
+      overflow: 'hidden' as const,
+    };
+  };
+
   // Backend Sync Configurations
   const [apiHost, setApiHost] = useState('http://localhost:3001');
   const [showConfig, setShowConfig] = useState(false);
@@ -236,9 +313,9 @@ export default function App() {
   });
 
   const showAlert = (
-    title: string, 
-    message: string, 
-    type: 'info' | 'success' | 'error' | 'confirm' = 'info', 
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'error' | 'confirm' = 'info',
     onConfirm?: () => void
   ) => {
     setAlertConfig({ visible: true, title, message, type, onConfirm });
@@ -251,7 +328,7 @@ export default function App() {
     setIsLoading(true);
     try {
       const cleanHost = apiHost.trim().replace(/\/$/, '');
-      
+
       // Fetch products
       const response = await fetch(`${cleanHost}/trpc/products.getAll`);
       const json = await response.json();
@@ -265,7 +342,7 @@ export default function App() {
       if (reviewsJson?.result?.data) {
         setReviews(reviewsJson.result.data);
       }
-      
+
       setSyncMessage('Successfully synced with server');
     } catch (err) {
       console.log('Backend unreachable, using local mock sandbox', err);
@@ -333,7 +410,7 @@ export default function App() {
       stock: isCurrentlyOOS ? 10 : 0
     }));
 
-    setProducts(prev => 
+    setProducts(prev =>
       prev.map(p => p.slug === product.slug ? { ...p, variants: updatedVariants } : p)
     );
 
@@ -348,11 +425,11 @@ export default function App() {
         })
       });
       showAlert('Stock Status Updated', `${product.name} is now ${isCurrentlyOOS ? 'In Stock' : 'Out of Stock'}.`, 'success');
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleUpdateVisibility = async (product: Product, status: boolean) => {
-    setProducts(prev => 
+    setProducts(prev =>
       prev.map(p => p.slug === product.slug ? { ...p, isListed: status } : p)
     );
 
@@ -367,7 +444,7 @@ export default function App() {
         })
       });
       showAlert('Visibility Updated', `${product.name} is now ${status ? 'Listed' : 'Unlisted'}.`, 'success');
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleDeleteProduct = (slug: string, name: string) => {
@@ -384,7 +461,7 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ slug })
           });
-        } catch (e) {}
+        } catch (e) { }
         showAlert('Success', 'Outfit deleted.', 'success');
       }
     );
@@ -411,13 +488,19 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reviewData)
       });
+      if (!response.ok) {
+        throw new Error('Server responded with an error status');
+      }
       const json = await response.json();
       if (json?.result?.data) {
         setReviews(prev => prev.map(r => r.id === tempId ? json.result.data : r));
+        showAlert('Review Submitted', 'Customer review added successfully.', 'success');
+      } else {
+        throw new Error('Invalid server payload format');
       }
-      showAlert('Review Submitted', 'Customer review added successfully.', 'success');
-    } catch (err) {
-      showAlert('Sandbox Action', 'Review added to local workspace.', 'success');
+    } catch (err: any) {
+      setReviews(prev => prev.filter(r => r.id !== tempId));
+      showAlert('Error', `Failed to create review: ${err.message || 'Unknown error'}`, 'error');
     }
   };
 
@@ -429,13 +512,29 @@ export default function App() {
 
     try {
       const cleanHost = apiHost.trim().replace(/\/$/, '');
-      await fetch(`${cleanHost}/trpc/reviews.update`, {
+      const response = await fetch(`${cleanHost}/trpc/reviews.update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer jb51-staff-secret-token'
+        },
         body: JSON.stringify({ id: review.id, approved: newApproved })
       });
-      showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
-    } catch (err) {}
+      if (!response.ok) {
+        throw new Error('Server responded with an error status');
+      }
+      const json = await response.json();
+      if (json?.result) {
+        showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
+      } else {
+        throw new Error('Invalid server response format');
+      }
+    } catch (err: any) {
+      setReviews(prev =>
+        prev.map(r => r.id === review.id ? { ...r, approved: review.approved } : r)
+      );
+      showAlert('Error', `Failed to update approval: ${err.message || 'Unknown error'}`, 'error');
+    }
   };
 
   const handleDeleteReview = (review: Review) => {
@@ -444,16 +543,29 @@ export default function App() {
       `Are you sure you want to delete review by "${review.name}"?`,
       'confirm',
       async () => {
-        setReviews(prev => prev.filter(r => r.id !== review.id));
         try {
           const cleanHost = apiHost.trim().replace(/\/$/, '');
-          await fetch(`${cleanHost}/trpc/reviews.delete`, {
+          const response = await fetch(`${cleanHost}/trpc/reviews.delete`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer jb51-staff-secret-token'
+            },
             body: JSON.stringify({ id: review.id })
           });
-        } catch (e) {}
-        showAlert('Success', 'Review deleted.', 'success');
+          if (!response.ok) {
+            throw new Error('Server responded with an error status');
+          }
+          const json = await response.json();
+          if (json?.result) {
+            setReviews(prev => prev.filter(r => r.id !== review.id));
+            showAlert('Success', 'Review deleted.', 'success');
+          } else {
+            throw new Error('Invalid server response format');
+          }
+        } catch (err: any) {
+          showAlert('Error', `Failed to delete review: ${err.message || 'Unknown error'}`, 'error');
+        }
       }
     );
   };
@@ -478,7 +590,7 @@ export default function App() {
   };
 
   const handleResolveInquiry = (id: string, customerName: string) => {
-    setInquiries(prev => 
+    setInquiries(prev =>
       prev.map(inq => inq.id === id ? { ...inq, status: 'Resolved' } : inq)
     );
     showAlert('Inquiry Resolved', `Archived inquiry for ${customerName}`, 'success');
@@ -524,25 +636,25 @@ export default function App() {
   // Background Simulator: Adds a new inquiry every 90 seconds
   useEffect(() => {
     if (!isAuthenticated) return;
-    
+
     let simCount = 0;
     const interval = setInterval(() => {
       if (simCount >= SIMULATED_NEW_INQUIRIES.length) {
         clearInterval(interval);
         return;
       }
-      
+
       const template = SIMULATED_NEW_INQUIRIES[simCount];
       const newInq: Inquiry = {
         ...template,
         id: `inq_sim_${Date.now()}`
       };
-      
+
       setInquiries(prev => [newInq, ...prev]);
       triggerNotification(newInq.customerName, newInq.productName);
       simCount++;
     }, 90000);
-    
+
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
@@ -553,7 +665,7 @@ export default function App() {
       ...template,
       id: `inq_sim_${Date.now()}`
     };
-    
+
     setInquiries(prev => [newInq, ...prev]);
     triggerNotification(newInq.customerName, newInq.productName);
     showAlert('Inquiry Simulated', `New inquiry from ${newInq.customerName} has been simulated. Check device notifications!`, 'success');
@@ -573,7 +685,7 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug: editingSlug, data: payload })
         });
-      } catch (e) {}
+      } catch (e) { }
       showAlert('Outfit Saved', 'Persistence complete.', 'success');
     } else {
       if (products.some(p => p.slug === payload.slug)) {
@@ -588,7 +700,7 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-      } catch (e) {}
+      } catch (e) { }
       showAlert('Outfit Created', 'New item added to catalogue.', 'success');
     }
 
@@ -618,7 +730,7 @@ export default function App() {
       const wlHits = 8 + (seed * 4) % 18;
       const conversion = Math.round(((waHits + igHits) / views) * 100);
       const pipeline = (waHits + igHits) * activeAnalyticsProduct.price;
-      
+
       return { views, waHits, igHits, wlHits, conversion, pipeline };
     } else {
       const totalViews = 1240;
@@ -626,7 +738,7 @@ export default function App() {
       const igHits = 116;
       const wlHits = 142;
       const conversion = Math.round(((waHits + igHits) / totalViews) * 100);
-      
+
       const totalPrice = products.reduce((acc, p) => acc + p.price, 0);
       const avgPrice = products.length > 0 ? totalPrice / products.length : 30000;
       const pipeline = (waHits + igHits) * avgPrice;
@@ -650,7 +762,7 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <LoginScreen 
+      <LoginScreen
         username={username}
         setUsername={setUsername}
         password={password}
@@ -669,169 +781,205 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.appContainer}>
-      <StatusBar style="dark" />
-      
-      {/* App Header Banner */}
-      <View style={styles.appHeader}>
-        <View>
-          <Text style={styles.headerSubtitle}>JB51 Atelier</Text>
-          <Text style={styles.headerTitle}>
-            {activeTab === 'dashboard' 
-              ? 'Overview' 
-              : activeTab === 'catalogue' 
-                ? 'Products List' 
-                : activeTab === 'invoices' 
-                  ? 'Invoice Creator' 
-                  : activeTab === 'reviews' 
-                    ? 'Customer Reviews' 
-                    : 'Performance Analytics'}
-          </Text>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.appContainer}>
+        <StatusBar style="dark" />
+
+        {/* App Header Banner */}
+        <View style={styles.appHeader}>
+          <View>
+            <Text style={styles.headerSubtitle}>JB51 Atelier</Text>
+            <Text style={styles.headerTitle}>
+              {activeTab === 'dashboard'
+                ? 'Overview'
+                : activeTab === 'catalogue'
+                  ? 'Products List'
+                  : activeTab === 'invoices'
+                    ? 'Invoice Creator'
+                    : activeTab === 'reviews'
+                      ? 'Customer Reviews'
+                      : 'Performance Analytics'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setIsAuthenticated(false)}
+            style={styles.logoutBtn}
+            accessibilityLabel="Log out"
+            accessibilityRole="button"
+          >
+            <LogOut size={16} color="#71717a" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          onPress={() => setIsAuthenticated(false)} 
-          style={styles.logoutBtn}
-          accessibilityLabel="Log out"
-          accessibilityRole="button"
-        >
-          <LogOut size={16} color="#71717a" />
-        </TouchableOpacity>
-      </View>
 
-      {/* Screen Router */}
-      <View style={styles.screenView}>
-        {activeTab === 'dashboard' && (
-          <DashboardScreen 
-            stats={stats}
-            inquiries={inquiries}
-            onResolveInquiry={handleResolveInquiry}
-            onSimulateInquiry={handleSimulateNewInquiry}
-          />
-        )}
-        {activeTab === 'catalogue' && (
-          <CatalogScreen 
-            products={products}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            isLoading={isLoading}
-            onAddProduct={triggerAddProduct}
-            onManageCategories={() => setCategoryModalOpen(true)}
-            onToggleStock={handleToggleStock}
-            onUpdateVisibility={handleUpdateVisibility}
-            onEditProduct={triggerEditProduct}
-            onDeleteProduct={handleDeleteProduct}
-          />
-        )}
-        {activeTab === 'analytics' && (
-          <AnalyticsScreen 
-            products={products}
-            selectedAnalyticsSlug={selectedAnalyticsSlug}
-            setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
-            showAnalyticsSelector={showAnalyticsSelector}
-            setShowAnalyticsSelector={setShowAnalyticsSelector}
-            analyticsMetrics={analyticsMetrics}
-            activeAnalyticsProduct={activeAnalyticsProduct}
-          />
-        )}
-        {activeTab === 'invoices' && (
-          <InvoiceScreen 
-            products={products}
-            showAlert={showAlert}
-          />
-        )}
-        {activeTab === 'reviews' && (
-          <ReviewsScreen 
-            reviews={reviews}
-            isLoading={isLoading}
-            onAddReview={handleAddReview}
-            onDeleteReview={handleDeleteReview}
-            showAlert={showAlert}
-          />
-        )}
-      </View>
+        {/* Screen Router */}
+        <View style={styles.screenView}>
+          {activeTab === 'dashboard' && (
+            <DashboardScreen
+              stats={stats}
+              inquiries={inquiries}
+              onResolveInquiry={handleResolveInquiry}
+              onSimulateInquiry={handleSimulateNewInquiry}
+            />
+          )}
+          {activeTab === 'catalogue' && (
+            <CatalogScreen
+              products={products}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isLoading={isLoading}
+              onAddProduct={triggerAddProduct}
+              onManageCategories={() => setCategoryModalOpen(true)}
+              onToggleStock={handleToggleStock}
+              onUpdateVisibility={handleUpdateVisibility}
+              onEditProduct={triggerEditProduct}
+              onDeleteProduct={handleDeleteProduct}
+            />
+          )}
+          {activeTab === 'analytics' && (
+            <AnalyticsScreen
+              products={products}
+              selectedAnalyticsSlug={selectedAnalyticsSlug}
+              setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
+              showAnalyticsSelector={showAnalyticsSelector}
+              setShowAnalyticsSelector={setShowAnalyticsSelector}
+              analyticsMetrics={analyticsMetrics}
+              activeAnalyticsProduct={activeAnalyticsProduct}
+            />
+          )}
+          {activeTab === 'invoices' && (
+            <InvoiceScreen
+              products={products}
+              showAlert={showAlert}
+            />
+          )}
+          {activeTab === 'reviews' && (
+            <ReviewsScreen
+              reviews={reviews}
+              isLoading={isLoading}
+              onAddReview={handleAddReview}
+              onDeleteReview={handleDeleteReview}
+              onToggleApproval={handleToggleReviewApproval}
+              showAlert={showAlert}
+            />
+          )}
+        </View>
 
-      {/* Tabs Menu Footer */}
-      <View style={styles.navigationFooter}>
-        <TouchableOpacity 
-          onPress={() => setActiveTab('dashboard')} 
-          style={[styles.navTab, activeTab === 'dashboard' && styles.activeNavTab]}
-          accessibilityLabel="Overview tab"
-          accessibilityRole="button"
-        >
-          <LayoutDashboard size={18} color={activeTab === 'dashboard' ? '#FF5E36' : '#a1a1aa'} />
-          <Text style={[styles.navTabText, activeTab === 'dashboard' && styles.activeNavTabText]}>Overview</Text>
-        </TouchableOpacity>
+        {/* Tabs Menu Footer */}
+        <View style={styles.navigationFooter}>
+          <Animated.View style={getTabStyle('dashboard')}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('dashboard')}
+              style={styles.tabTouchable}
+              accessibilityLabel="Overview tab"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'dashboard' }}
+            >
+              <LayoutDashboard size={18} color={activeTab === 'dashboard' ? '#FF5E36' : '#a1a1aa'} />
+              <Animated.View style={getTextContainerStyle('dashboard')}>
+                <Animated.Text numberOfLines={1} style={getTextStyle('dashboard')}>
+                  Overview
+                </Animated.Text>
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
 
-        <TouchableOpacity 
-          onPress={() => setActiveTab('catalogue')} 
-          style={[styles.navTab, activeTab === 'catalogue' && styles.activeNavTab]}
-          accessibilityLabel="Catalog tab"
-          accessibilityRole="button"
-        >
-          <Shirt size={18} color={activeTab === 'catalogue' ? '#FF5E36' : '#a1a1aa'} />
-          <Text style={[styles.navTabText, activeTab === 'catalogue' && styles.activeNavTabText]}>Catalog</Text>
-        </TouchableOpacity>
+          <Animated.View style={getTabStyle('catalogue')}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('catalogue')}
+              style={styles.tabTouchable}
+              accessibilityLabel="Catalog tab"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'catalogue' }}
+            >
+              <Shirt size={18} color={activeTab === 'catalogue' ? '#FF5E36' : '#a1a1aa'} />
+              <Animated.View style={getTextContainerStyle('catalogue')}>
+                <Animated.Text numberOfLines={1} style={getTextStyle('catalogue')}>
+                  Catalog
+                </Animated.Text>
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
 
-        <TouchableOpacity 
-          onPress={() => setActiveTab('analytics')} 
-          style={[styles.navTab, activeTab === 'analytics' && styles.activeNavTab]}
-          accessibilityLabel="Analytics tab"
-          accessibilityRole="button"
-        >
-          <BarChart3 size={18} color={activeTab === 'analytics' ? '#FF5E36' : '#a1a1aa'} />
-          <Text style={[styles.navTabText, activeTab === 'analytics' && styles.activeNavTabText]}>Analytics</Text>
-        </TouchableOpacity>
+          <Animated.View style={getTabStyle('analytics')}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('analytics')}
+              style={styles.tabTouchable}
+              accessibilityLabel="Analytics tab"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'analytics' }}
+            >
+              <BarChart3 size={18} color={activeTab === 'analytics' ? '#FF5E36' : '#a1a1aa'} />
+              <Animated.View style={getTextContainerStyle('analytics')}>
+                <Animated.Text numberOfLines={1} style={getTextStyle('analytics')}>
+                  Analytics
+                </Animated.Text>
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
 
-        <TouchableOpacity 
-          onPress={() => setActiveTab('invoices')} 
-          style={[styles.navTab, activeTab === 'invoices' && styles.activeNavTab]}
-          accessibilityLabel="Invoices tab"
-          accessibilityRole="button"
-        >
-          <FileText size={18} color={activeTab === 'invoices' ? '#FF5E36' : '#a1a1aa'} />
-          <Text style={[styles.navTabText, activeTab === 'invoices' && styles.activeNavTabText]}>Invoices</Text>
-        </TouchableOpacity>
+          <Animated.View style={getTabStyle('invoices')}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('invoices')}
+              style={styles.tabTouchable}
+              accessibilityLabel="Invoices tab"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'invoices' }}
+            >
+              <FileText size={18} color={activeTab === 'invoices' ? '#FF5E36' : '#a1a1aa'} />
+              <Animated.View style={getTextContainerStyle('invoices')}>
+                <Animated.Text numberOfLines={1} style={getTextStyle('invoices')}>
+                  Invoices
+                </Animated.Text>
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
 
-        <TouchableOpacity 
-          onPress={() => setActiveTab('reviews')} 
-          style={[styles.navTab, activeTab === 'reviews' && styles.activeNavTab]}
-          accessibilityLabel="Reviews tab"
-          accessibilityRole="button"
-        >
-          <Star size={18} color={activeTab === 'reviews' ? '#FF5E36' : '#a1a1aa'} />
-          <Text style={[styles.navTabText, activeTab === 'reviews' && styles.activeNavTabText]}>Reviews</Text>
-        </TouchableOpacity>
-      </View>
+          <Animated.View style={getTabStyle('reviews')}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('reviews')}
+              style={styles.tabTouchable}
+              accessibilityLabel="Reviews tab"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'reviews' }}
+            >
+              <Star size={18} color={activeTab === 'reviews' ? '#FF5E36' : '#a1a1aa'} />
+              <Animated.View style={getTextContainerStyle('reviews')}>
+                <Animated.Text numberOfLines={1} style={getTextStyle('reviews')}>
+                  Reviews
+                </Animated.Text>
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
 
-      {/* Create / Edit Form Modal */}
-      <ProductFormModal 
-        visible={formModalOpen}
-        isEditing={isEditing}
-        editingSlug={editingSlug}
-        initialProduct={isEditing && editingSlug ? products.find(p => p.slug === editingSlug) || null : null}
-        categories={categories}
-        onClose={() => setFormModalOpen(false)}
-        onSave={handleSaveProduct}
-        onAddNewCategory={handleAddCategory}
-        onDeleteCategory={handleDeleteCategory}
-        showAlert={showAlert}
-      />
+        {/* Create / Edit Form Modal */}
+        <ProductFormModal
+          visible={formModalOpen}
+          isEditing={isEditing}
+          editingSlug={editingSlug}
+          initialProduct={isEditing && editingSlug ? products.find(p => p.slug === editingSlug) || null : null}
+          categories={categories}
+          onClose={() => setFormModalOpen(false)}
+          onSave={handleSaveProduct}
+          onAddNewCategory={handleAddCategory}
+          onDeleteCategory={handleDeleteCategory}
+          showAlert={showAlert}
+        />
 
-      {/* Dedicated Category Manager Modal */}
-      <CategoryManagerModal 
-        visible={categoryModalOpen}
-        categories={categories}
-        products={products}
-        onClose={() => setCategoryModalOpen(false)}
-        onAddCategory={handleAddCategory}
-        onDeleteCategory={handleDeleteCategory}
-        showAlert={showAlert}
-      />
+        {/* Dedicated Category Manager Modal */}
+        <CategoryManagerModal
+          visible={categoryModalOpen}
+          categories={categories}
+          products={products}
+          onClose={() => setCategoryModalOpen(false)}
+          onAddCategory={handleAddCategory}
+          onDeleteCategory={handleDeleteCategory}
+          showAlert={showAlert}
+        />
 
-      <CustomAlert 
-        config={alertConfig} 
-        onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))} 
-      />
+        <CustomAlert
+          config={alertConfig}
+          onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -877,21 +1025,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navigationFooter: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 24 : 16,
+    left: 16,
+    right: 16,
     height: 64,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
+    backgroundColor: '#ffffff', // Clean white background matching rest of the light UI cards
+    borderWidth: 1,
     borderColor: '#e4e4e7',
+    borderRadius: 32, // Fully rounded capsule shape
     flexDirection: 'row',
-    paddingBottom: Platform.OS === 'ios' ? 12 : 0,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06, // soft low-opacity shadow
+    shadowRadius: 16,
+    elevation: 4,
   },
   navTab: {
-    flex: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeNavTab: {
-    borderTopWidth: 2,
-    borderTopColor: '#FF5E36',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebe6', // Soft warm-peach background matching application buttons
+    paddingHorizontal: 16,
+    height: 44,
+    borderRadius: 22,
+  },
+  tabTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
   },
   navTabText: {
     fontSize: 9,
@@ -905,5 +1078,6 @@ const styles = StyleSheet.create({
   },
   screenView: {
     flex: 1,
+    paddingBottom: 96, // gives space so content can scroll above the floating navbar
   },
 });
