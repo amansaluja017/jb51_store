@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type Product } from '@repo/products';
@@ -36,6 +36,60 @@ export function ProductClient({ product }: { product: Product }) {
   const [selectedColor, setSelectedColor] = useState<string>(product.variants[0]?.color || '');
   const [activeImage, setActiveImage] = useState(0);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
+
+  const sizeGuideTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const sizeGuideCloseBtnRef = useRef<HTMLButtonElement | null>(null);
+  const sizeGuideModalRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (showSizeGuide) {
+      setTimeout(() => {
+        if (sizeGuideCloseBtnRef.current) {
+          sizeGuideCloseBtnRef.current.focus();
+        } else if (sizeGuideModalRef.current) {
+          sizeGuideModalRef.current.focus();
+        }
+      }, 50);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setShowSizeGuide(false);
+          return;
+        }
+
+        if (e.key === 'Tab') {
+          if (!sizeGuideModalRef.current) return;
+          const focusableElements = sizeGuideModalRef.current.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusableElements.length === 0) return;
+          const firstElement = focusableElements[0] as HTMLElement;
+          const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+          if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+              lastElement.focus();
+              e.preventDefault();
+            }
+          } else {
+            if (document.activeElement === lastElement) {
+              firstElement.focus();
+              e.preventDefault();
+            }
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      if (sizeGuideTriggerRef.current) {
+        sizeGuideTriggerRef.current.focus();
+      }
+    }
+  }, [showSizeGuide]);
   
   // Magnifier State
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
@@ -119,6 +173,7 @@ export function ProductClient({ product }: { product: Product }) {
 
   return (
     <div className="bg-brand-cream/40 min-h-screen text-brand-charcoal">
+      <div aria-hidden={showSizeGuide}>
       
       {/* 1. Breadcrumbs / Navigation Back Row */}
       <div className="max-w-7xl mx-auto px-6 pt-32 md:pt-36 w-full flex items-center justify-between border-b border-brand-sand/20 pb-4">
@@ -331,6 +386,7 @@ export function ProductClient({ product }: { product: Product }) {
             <div className="flex justify-between items-center mb-3.5">
               <span className="text-[10px] tracking-wider uppercase text-zinc-400 font-bold">Select Size</span>
               <button 
+                ref={sizeGuideTriggerRef}
                 onClick={() => setShowSizeGuide(true)}
                 className="text-[9px] tracking-widest uppercase underline underline-offset-4 text-brand-gold hover:text-brand-maroon font-extrabold transition-colors cursor-pointer"
               >
@@ -554,12 +610,21 @@ export function ProductClient({ product }: { product: Product }) {
         </div>
       </div>
 
+      </div>
+
       {/* Size Guide Modal Overlay */}
       {showSizeGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-charcoal/40 backdrop-blur-sm p-4">
-          <div className="bg-brand-ivory border border-brand-sand rounded-3xl max-w-lg w-full p-6 md:p-8 relative shadow-2xl animate-scale-up pattern-jaali text-brand-brown">
+          <div 
+            ref={sizeGuideModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sizeguide-title"
+            className="bg-brand-ivory border border-brand-sand rounded-3xl max-w-lg w-full p-6 md:p-8 relative shadow-2xl animate-scale-up pattern-jaali text-brand-brown"
+          >
             {/* Close button */}
             <button 
+              ref={sizeGuideCloseBtnRef}
               onClick={() => setShowSizeGuide(false)}
               className="absolute top-4 right-4 text-brand-charcoal hover:text-brand-maroon transition-colors p-2 cursor-pointer"
               aria-label="Close size guide"
@@ -570,7 +635,7 @@ export function ProductClient({ product }: { product: Product }) {
             {/* Header */}
             <div className="text-center mb-6">
               <LotusIcon className="w-8 h-8 text-brand-gold mx-auto mb-2" />
-              <h3 className="font-serif text-xl text-brand-brown tracking-wide font-medium">Bespoke Size Guide</h3>
+              <h3 id="sizeguide-title" className="font-serif text-xl text-brand-brown tracking-wide font-medium">Bespoke Size Guide</h3>
               <p className="text-[9px] text-zinc-400 font-sans tracking-widest uppercase mt-1">Atelier Dimensions</p>
             </div>
 

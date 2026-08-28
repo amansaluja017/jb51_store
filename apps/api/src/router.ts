@@ -3,9 +3,14 @@ import superjson from 'superjson';
 import { ZodError } from 'zod';
 import { z } from 'zod';
 import { productsRouter, reviewsRouter } from '@repo/products/router';
+import * as trpcExpress from '@trpc/server/adapters/express';
 
-export const createTRPCContext = async () => {
-  return {};
+export const createTRPCContext = async ({ req, res }: trpcExpress.CreateExpressContextOptions) => {
+  const authHeader = req?.headers?.authorization;
+  const isStaff = authHeader === 'Bearer jb51-staff-secret-token';
+  return {
+    isStaff,
+  };
 };
 
 const t = initTRPC.context<typeof createTRPCContext>().create({

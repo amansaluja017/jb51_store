@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { ReviewSchema } from './services/validations.js';
 
+function generateUniqueId(): string {
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 10);
+  return `${timestamp}-${randomPart}`;
+}
+
 export type Review = z.infer<typeof ReviewSchema>;
 
 export const MOCK_REVIEWS: Review[] = [
@@ -54,9 +60,9 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
   await new Promise(resolve => setTimeout(resolve, 300));
   const newReview: Review = {
     ...reviewData,
-    id: `rev_${Date.now()}`,
+    id: `rev_${generateUniqueId()}`,
     createdAt: new Date().toISOString(),
-    approved: true, // Default to true so it immediately shows up in mock app
+    approved: false, // Stored as unapproved by default
   };
   MOCK_REVIEWS.unshift(newReview);
   return newReview;

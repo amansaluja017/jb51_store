@@ -56,7 +56,6 @@ export function Navbar() {
   const navLinks = [
     { label: 'Home', href: '/' },
     { label: 'Shop All', href: '/shop' },
-    { label: 'Reviews', href: '/reviews' },
     { label: 'Support', href: '/support' },
   ];
 

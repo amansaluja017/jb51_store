@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  ScrollView, 
-  TextInput, 
-  TouchableOpacity, 
-  Modal, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Modal,
   Platform,
   KeyboardAvoidingView
 } from 'react-native';
@@ -26,7 +26,12 @@ interface InvoiceItem {
 
 interface InvoiceScreenProps {
   products: Product[];
-  showAlert: (title: string, message: string, type?: 'success' | 'error' | 'info') => void;
+  showAlert: (
+    title: string,
+    message: string,
+    type?: 'success' | 'error' | 'info' | 'confirm',
+    onConfirm?: () => void
+  ) => void;
 }
 
 const MOCK_CUSTOMERS = [
@@ -77,6 +82,18 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
     }
   ]);
 
+  const handleDeleteInvoice = (id: string, clientName: string) => {
+    showAlert(
+      'Delete Invoice',
+      `Are you sure you want to delete invoice "${id}" for ${clientName}?`,
+      'confirm',
+      () => {
+        setInvoices(prev => prev.filter(inv => inv.id !== id));
+        showAlert('Success', 'Invoice deleted successfully.', 'success');
+      }
+    );
+  };
+
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
@@ -98,7 +115,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
   const [itemQuantity, setItemQuantity] = useState('1');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -120,7 +137,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
   const activeDiscount = isViewingPast ? viewingInvoice.discount : discount;
   const activePaymentMethod = isViewingPast ? viewingInvoice.paymentMethod : paymentMethod;
   const activeNotes = isViewingPast ? viewingInvoice.notes : notes;
-  
+
   const activeSubtotal = activeItems.reduce((sum: number, item: any) => sum + item.total, 0);
   const activeTaxAmount = (activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100;
   const activeDiscountAmount = parseFloat(activeDiscount) || 0;
@@ -131,7 +148,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
       showAlert('Selection Required', 'Please select a product from the list.', 'error');
       return;
     }
-    
+
     const qty = parseInt(itemQuantity) || 1;
     if (qty <= 0) {
       showAlert('Invalid Quantity', 'Quantity must be at least 1.', 'error');
@@ -168,17 +185,29 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
   };
 
   const generateInvoiceHtml = (inv: any) => {
+    const escapeHtml = (unsafe: any) => {
+      if (unsafe === null || unsafe === undefined) return '';
+      return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
     const invSubtotal = inv.items.reduce((sum: number, item: any) => sum + item.total, 0);
     const invTaxAmount = (invSubtotal * (parseFloat(inv.taxRate) || 0)) / 100;
     const invDiscountAmount = parseFloat(inv.discount) || 0;
     const invTotalAmount = invSubtotal + invTaxAmount - invDiscountAmount;
+
+    const escapedNotes = inv.notes ? escapeHtml(inv.notes).replace(/\r?\n/g, '<br>') : '';
 
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Invoice ${inv.id}</title>
+        <title>Invoice ${escapeHtml(inv.id)}</title>
         <style>
           body {
             font-family: 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif;
@@ -341,17 +370,17 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
               </div>
               <div class="invoice-details">
                 <div class="invoice-title">INVOICE</div>
-                <strong>Invoice #:</strong> ${inv.id}<br>
-                <strong>Date:</strong> ${inv.date}<br>
-                <strong>Payment:</strong> ${inv.paymentMethod}
+                <strong>Invoice #:</strong> ${escapeHtml(inv.id)}<br>
+                <strong>Date:</strong> ${escapeHtml(inv.date)}<br>
+                <strong>Payment:</strong> ${escapeHtml(inv.paymentMethod)}
               </div>
             </div>
             
             <div class="client-block">
               <div class="bill-to">BILL TO</div>
-              <div class="client-name">${inv.clientName}</div>
-              ${inv.clientEmail ? `<div class="client-meta">${inv.clientEmail}</div>` : ''}
-              ${inv.clientPhone ? `<div class="client-meta">${inv.clientPhone}</div>` : ''}
+              <div class="client-name">${escapeHtml(inv.clientName)}</div>
+              ${inv.clientEmail ? `<div class="client-meta">${escapeHtml(inv.clientEmail)}</div>` : ''}
+              ${inv.clientPhone ? `<div class="client-meta">${escapeHtml(inv.clientPhone)}</div>` : ''}
             </div>
             
             <table>
@@ -366,7 +395,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
               <tbody>
                 ${inv.items.map((item: any) => `
                   <tr>
-                    <td>${item.name}</td>
+                    <td>${escapeHtml(item.name)}</td>
                     <td class="text-center">${item.quantity}</td>
                     <td class="text-right">₹${item.price.toLocaleString('en-IN')}</td>
                     <td class="text-right" style="font-weight: 600;">₹${item.total.toLocaleString('en-IN')}</td>
@@ -382,7 +411,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
                   <td class="text-right">₹${invSubtotal.toLocaleString('en-IN')}</td>
                 </tr>
                 <tr>
-                  <td>GST (${inv.taxRate}%):</td>
+                  <td>GST (${escapeHtml(inv.taxRate)}%):</td>
                   <td class="text-right">₹${invTaxAmount.toLocaleString('en-IN')}</td>
                 </tr>
                 ${invDiscountAmount > 0 ? `
@@ -401,7 +430,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
             ${inv.notes ? `
               <div class="notes-box">
                 <strong>Notes/Alterations:</strong><br>
-                ${inv.notes}
+                ${escapedNotes}
               </div>
             ` : ''}
             
@@ -452,7 +481,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
       setIsPreviewOpen(false);
       setIsFormOpen(false);
       showAlert('Success', `Invoice ${invoiceNumber} created and shared.`, 'success');
-      
+
       // Reset form fields
       setClientName('');
       setClientEmail('');
@@ -508,413 +537,423 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
     setIsPreviewOpen(true);
   };
 
-  if (!isFormOpen) {
-    const totalCollected = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const onlineCollected = invoices.filter(inv => inv.paymentMethod === 'Online').reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const cashCollected = invoices.filter(inv => inv.paymentMethod === 'Cash').reduce((sum, inv) => sum + inv.totalAmount, 0);
-
-    return (
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          {/* Header */}
-          <View style={styles.ledgerHeader}>
-            <View>
-              <Text style={styles.ledgerTitle}>Invoice Ledger</Text>
-              <Text style={styles.ledgerSubtitle}>Manage client transactions</Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => {
-                setInvoiceNumber(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
-                setInvoiceDate(new Date().toLocaleDateString('en-IN'));
-                setClientName('');
-                setClientEmail('');
-                setClientPhone('');
-                setInvoiceItems([]);
-                setDiscount('0');
-                setPaymentMethod('Online');
-                setNotes('');
-                setIsFormOpen(true);
-              }}
-              style={styles.newInvoiceButtonHeader}
-              accessibilityLabel="Create a new invoice button"
-              accessibilityRole="button"
-            >
-              <Plus size={14} color="#ffffff" style={{ marginRight: 4 }} />
-              <Text style={styles.newInvoiceButtonTextHeader}>New Invoice</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Stats Summary Grid */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statsCard}>
-              <Text style={styles.statsLabel}>Total Revenue</Text>
-              <Text style={styles.statsValue}>₹{totalCollected.toLocaleString('en-IN')}</Text>
-            </View>
-            <View style={[styles.statsCard, { borderColor: '#e0f2fe' }]}>
-              <Text style={[styles.statsLabel, { color: '#0284c7' }]}>Online Pay</Text>
-              <Text style={[styles.statsValue, { color: '#0284c7' }]}>₹{onlineCollected.toLocaleString('en-IN')}</Text>
-            </View>
-            <View style={[styles.statsCard, { borderColor: '#fef3c7' }]}>
-              <Text style={[styles.statsLabel, { color: '#d97706' }]}>Cash Pay</Text>
-              <Text style={[styles.statsValue, { color: '#d97706' }]}>₹{cashCollected.toLocaleString('en-IN')}</Text>
-            </View>
-          </View>
-
-          {/* Created Invoices Section */}
-          <Text style={styles.sectionHeader}>Created Invoices</Text>
-          {invoices.length === 0 ? (
-            <View style={styles.emptyState}>
-              <FileText size={32} color="#a1a1aa" />
-              <Text style={styles.emptyStateText}>No invoices found</Text>
-              <Text style={styles.emptyStateSub}>Tap "New Invoice" to create one</Text>
-            </View>
-          ) : (
-            invoices.map((inv) => (
-              <TouchableOpacity 
-                key={inv.id} 
-                style={styles.invoiceCard}
-                onPress={() => {
-                  setViewingInvoice(inv);
-                  setIsPreviewOpen(true);
-                }}
-                accessibilityLabel={`Invoice card for customer ${inv.clientName}, amount ₹${inv.totalAmount}`}
-                accessibilityRole="button"
-              >
-                <View style={styles.invoiceCardHeader}>
-                  <Text style={styles.invoiceCardClient}>{inv.clientName}</Text>
-                  <Text style={styles.invoiceCardDate}>{inv.date}</Text>
-                </View>
-                
-                <View style={styles.invoiceCardBody}>
-                  <Text style={styles.invoiceCardId}>{inv.id}</Text>
-                  <Text style={styles.invoiceCardCount}>{inv.items.length} {inv.items.length === 1 ? 'item' : 'items'}</Text>
-                </View>
-
-                {inv.notes ? (
-                  <Text style={styles.invoiceCardNotes} numberOfLines={1}>
-                    Note: {inv.notes}
-                  </Text>
-                ) : null}
-
-                <View style={styles.invoiceCardFooter}>
-                  <Text style={styles.invoiceCardAmount}>₹{inv.totalAmount.toLocaleString('en-IN')}</Text>
-                  <View style={[
-                    styles.badge, 
-                    inv.paymentMethod === 'Online' ? styles.badgeOnline : styles.badgeCash
-                  ]}>
-                    <Text style={inv.paymentMethod === 'Online' ? styles.badgeOnlineText : styles.badgeCashText}>
-                      {inv.paymentMethod}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
-      </View>
-    );
-  }
+  const totalCollected = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+  const onlineCollected = invoices.filter(inv => inv.paymentMethod === 'Online').reduce((sum, inv) => sum + inv.totalAmount, 0);
+  const cashCollected = invoices.filter(inv => inv.paymentMethod === 'Cash').reduce((sum, inv) => sum + inv.totalAmount, 0);
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1 }}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContainer}>
-        {/* Form header Cancel row */}
-        <View style={styles.formHeader}>
-          <TouchableOpacity 
-            onPress={() => setIsFormOpen(false)} 
-            style={styles.formBackButton}
-            accessibilityLabel="Cancel invoice creation and go back to ledger"
-            accessibilityRole="button"
-          >
-            <X size={18} color="#71717a" />
-            <Text style={styles.formBackButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.formTitle}>New Invoice</Text>
-        </View>
-
-        <Text style={styles.sectionHeader}>Customer Details</Text>
-        
-        {/* Bill to Client Information */}
-        <View style={styles.card}>
-          {/* Customer pre-population selection */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Choose Client Profile (Optional)</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setShowCustomerDropdown(!showCustomerDropdown);
-                setShowProductDropdown(false);
-              }} 
-              style={styles.dropdownTrigger}
-              accessibilityLabel="Select client drop-down menu trigger"
-              accessibilityRole="button"
-            >
-              <Text style={styles.dropdownValue}>
-                Select customer profile to autofill...
-              </Text>
-              <ChevronDown size={14} color="#71717a" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Expanded Customer Dropdown List */}
-          {showCustomerDropdown && (
-            <View style={styles.dropdownContainer}>
-              <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-                {MOCK_CUSTOMERS.map((cust, idx) => (
-                  <TouchableOpacity 
-                    key={idx} 
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setClientName(cust.name);
-                      setClientPhone(cust.phone);
-                      setClientEmail(cust.email);
-                      setShowCustomerDropdown(false);
-                    }}
-                    accessibilityLabel={`Choose client profile ${cust.name}`}
-                    accessibilityRole="button"
-                  >
-                    <View>
-                      <Text style={styles.dropdownOptionText}>{cust.name}</Text>
-                      <Text style={{ fontSize: 10, color: '#71717a', marginTop: 2 }}>{cust.phone} | {cust.email}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Customer Name *</Text>
-            <TextInput 
-              placeholder="e.g. Aditi Sharma" 
-              placeholderTextColor="#a1a1aa"
-              value={clientName} 
-              onChangeText={setClientName} 
-              style={styles.textInput}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email Address</Text>
-            <TextInput 
-              placeholder="e.g. aditi@gmail.com" 
-              placeholderTextColor="#a1a1aa"
-              keyboardType="email-address"
-              value={clientEmail} 
-              onChangeText={setClientEmail} 
-              style={styles.textInput}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Phone Number</Text>
-            <TextInput 
-              placeholder="e.g. +91 99887 76655" 
-              placeholderTextColor="#a1a1aa"
-              keyboardType="phone-pad"
-              value={clientPhone} 
-              onChangeText={setClientPhone} 
-              style={styles.textInput}
-            />
-          </View>
-        </View>
-
-        <Text style={styles.sectionHeader}>Select & Add Items</Text>
-        <View style={styles.card}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Choose Product *</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setShowProductDropdown(!showProductDropdown);
-                setShowCustomerDropdown(false);
-              }} 
-              style={styles.dropdownTrigger}
-              accessibilityLabel="Select product from catalog dropdown"
-              accessibilityRole="button"
-            >
-              <Text style={[styles.dropdownValue, !selectedProduct && { color: '#a1a1aa' }]}>
-                {selectedProduct ? `${selectedProduct.name} - ₹${selectedProduct.price.toLocaleString('en-IN')}` : 'Select a product...'}
-              </Text>
-              <ChevronDown size={14} color="#71717a" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Expanded Product Dropdown List */}
-          {showProductDropdown && (
-            <View style={styles.dropdownContainer}>
-              <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-                {products.map(p => (
-                  <TouchableOpacity 
-                    key={p.id} 
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setSelectedProduct(p);
-                      setShowProductDropdown(false);
-                    }}
-                    accessibilityLabel={`Choose product ${p.name}`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.dropdownOptionText}>{p.name}</Text>
-                    <Text style={styles.dropdownOptionPrice}>₹{p.price.toLocaleString('en-IN')}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.inputLabel}>Quantity</Text>
-              <TextInput 
-                keyboardType="number-pad"
-                value={itemQuantity} 
-                onChangeText={setItemQuantity} 
-                style={styles.textInput}
-              />
-            </View>
-            <TouchableOpacity 
-              onPress={handleAddProduct}
-              style={styles.addButton}
-              accessibilityLabel="Add chosen item to invoice"
-              accessibilityRole="button"
-            >
-              <Plus size={16} color="#ffffff" style={{ marginRight: 4 }} />
-              <Text style={styles.addButtonText}>Add Item</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Invoice Itemized List */}
-        {invoiceItems.length > 0 && (
-          <View style={styles.card}>
-            <Text style={[styles.cardTitle, { marginBottom: 12 }]}>Line Items</Text>
-            {invoiceItems.map((item) => (
-              <View key={item.id} style={styles.invoiceItemRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.invoiceItemName}>{item.name}</Text>
-                  <Text style={styles.invoiceItemSub}>
-                    {item.quantity} x ₹{item.price.toLocaleString('en-IN')}
-                  </Text>
-                </View>
-                <View style={styles.invoiceItemRight}>
-                  <Text style={styles.invoiceItemTotal}>₹{item.total.toLocaleString('en-IN')}</Text>
-                  <TouchableOpacity 
-                    onPress={() => handleRemoveItem(item.id)} 
-                    style={styles.deleteBtn}
-                    accessibilityLabel={`Delete ${item.name} item`}
-                    accessibilityRole="button"
-                  >
-                    <Trash2 size={13} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
+      {!isFormOpen ? (
+        <View style={styles.container}>
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            {/* Header */}
+            <View style={styles.ledgerHeader}>
+              <View>
+                <Text style={styles.ledgerTitle}>Invoice Ledger</Text>
+                <Text style={styles.ledgerSubtitle}>Manage client transactions</Text>
               </View>
-            ))}
-          </View>
-        )}
-
-        <Text style={styles.sectionHeader}>Adjustments & Payment</Text>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.inputLabel}>GST / Tax %</Text>
-              <TextInput 
-                keyboardType="numeric"
-                value={taxRate} 
-                onChangeText={setTaxRate} 
-                style={styles.textInput}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Discount (Flat ₹)</Text>
-              <TextInput 
-                keyboardType="numeric"
-                value={discount} 
-                onChangeText={setDiscount} 
-                style={styles.textInput}
-              />
-            </View>
-          </View>
-
-          {/* Payment Method Selector */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Payment Method</Text>
-            <View style={styles.paymentSelector}>
-              <TouchableOpacity 
-                style={[styles.paymentOption, paymentMethod === 'Online' && styles.paymentOptionActive]}
-                onPress={() => setPaymentMethod('Online')}
-                accessibilityLabel="Choose Online payment mode"
+              <TouchableOpacity
+                onPress={() => {
+                  setIsPreviewOpen(false);
+                  setViewingInvoice(null);
+                  setInvoiceNumber(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+                  setInvoiceDate(new Date().toLocaleDateString('en-IN'));
+                  setClientName('');
+                  setClientEmail('');
+                  setClientPhone('');
+                  setInvoiceItems([]);
+                  setDiscount('0');
+                  setPaymentMethod('Online');
+                  setNotes('');
+                  setIsFormOpen(true);
+                }}
+                style={styles.newInvoiceButtonHeader}
+                accessibilityLabel="Create a new invoice button"
                 accessibilityRole="button"
               >
-                <Text style={[styles.paymentOptionText, paymentMethod === 'Online' && styles.paymentOptionTextActive]}>
-                  Online Payment
-                </Text>
+                <Plus size={14} color="#ffffff" style={{ marginRight: 4 }} />
+                <Text style={styles.newInvoiceButtonTextHeader}>New Invoice</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.paymentOption, paymentMethod === 'Cash' && styles.paymentOptionActive]}
-                onPress={() => setPaymentMethod('Cash')}
-                accessibilityLabel="Choose Cash payment mode"
+            </View>
+
+            {/* Stats Summary Grid */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statsCard}>
+                <Text style={styles.statsLabel}>Total Revenue</Text>
+                <Text style={styles.statsValue}>₹{totalCollected.toLocaleString('en-IN')}</Text>
+              </View>
+              <View style={[styles.statsCard, { borderColor: '#e0f2fe' }]}>
+                <Text style={[styles.statsLabel, { color: '#0284c7' }]}>Online Pay</Text>
+                <Text style={[styles.statsValue, { color: '#0284c7' }]}>₹{onlineCollected.toLocaleString('en-IN')}</Text>
+              </View>
+              <View style={[styles.statsCard, { borderColor: '#fef3c7' }]}>
+                <Text style={[styles.statsLabel, { color: '#d97706' }]}>Cash Pay</Text>
+                <Text style={[styles.statsValue, { color: '#d97706' }]}>₹{cashCollected.toLocaleString('en-IN')}</Text>
+              </View>
+            </View>
+
+            {/* Created Invoices Section */}
+            <Text style={styles.sectionHeader}>Created Invoices</Text>
+            {invoices.length === 0 ? (
+              <View style={styles.emptyState}>
+                <FileText size={32} color="#a1a1aa" />
+                <Text style={styles.emptyStateText}>No invoices found</Text>
+                <Text style={styles.emptyStateSub}>Tap "New Invoice" to create one</Text>
+              </View>
+            ) : (
+              invoices.map((inv) => (
+                <TouchableOpacity
+                  key={inv.id}
+                  style={styles.invoiceCard}
+                  onPress={() => {
+                    setViewingInvoice(inv);
+                    setIsPreviewOpen(true);
+                  }}
+                  accessibilityLabel={`Invoice card for customer ${inv.clientName}, amount ₹${inv.totalAmount}`}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.invoiceCardHeader}>
+                    <Text style={styles.invoiceCardClient}>{inv.clientName}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <Text style={styles.invoiceCardDate}>{inv.date}</Text>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteInvoice(inv.id, inv.clientName)}
+                        style={styles.deleteInvoiceBtn}
+                        accessibilityLabel={`Delete invoice ${inv.id}`}
+                        accessibilityRole="button"
+                      >
+                        <Trash2 size={14} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.invoiceCardBody}>
+                    <Text style={styles.invoiceCardId}>{inv.id}</Text>
+                    <Text style={styles.invoiceCardCount}>{inv.items.length} {inv.items.length === 1 ? 'item' : 'items'}</Text>
+                  </View>
+
+                  {inv.notes ? (
+                    <Text style={styles.invoiceCardNotes} numberOfLines={1}>
+                      Note: {inv.notes}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.invoiceCardFooter}>
+                    <Text style={styles.invoiceCardAmount}>₹{inv.totalAmount.toLocaleString('en-IN')}</Text>
+                    <View style={[
+                      styles.badge,
+                      inv.paymentMethod === 'Online' ? styles.badgeOnline : styles.badgeCash
+                    ]}>
+                      <Text style={inv.paymentMethod === 'Online' ? styles.badgeOnlineText : styles.badgeCashText}>
+                        {inv.paymentMethod}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      ) : (
+        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContainer}>
+          {/* Form header Cancel row */}
+          <View style={styles.formHeader}>
+            <TouchableOpacity
+              onPress={() => setIsFormOpen(false)}
+              style={styles.formBackButton}
+              accessibilityLabel="Cancel invoice creation and go back to ledger"
+              accessibilityRole="button"
+            >
+              <X size={18} color="#71717a" />
+              <Text style={styles.formBackButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.formTitle}>New Invoice</Text>
+          </View>
+
+          <Text style={styles.sectionHeader}>Customer Details</Text>
+
+          {/* Bill to Client Information */}
+          <View style={styles.card}>
+            {/* Customer pre-population selection */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Choose Client Profile (Optional)</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowCustomerDropdown(!showCustomerDropdown);
+                  setShowProductDropdown(false);
+                }}
+                style={styles.dropdownTrigger}
+                accessibilityLabel="Select client drop-down menu trigger"
                 accessibilityRole="button"
               >
-                <Text style={[styles.paymentOptionText, paymentMethod === 'Cash' && styles.paymentOptionTextActive]}>
-                  Cash Payment
+                <Text style={styles.dropdownValue}>
+                  Select customer profile to autofill...
                 </Text>
+                <ChevronDown size={14} color="#71717a" />
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Notes Input field */}
-          <View style={[styles.inputGroup, { marginTop: 4 }]}>
-            <Text style={styles.inputLabel}>Notes & Tailoring Customizations</Text>
-            <TextInput 
-              placeholder="e.g. Custom sleeve length adjustments: 22 inches" 
-              placeholderTextColor="#a1a1aa"
-              value={notes} 
-              onChangeText={setNotes} 
-              multiline
-              numberOfLines={3}
-              style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
-            />
-          </View>
-
-          {/* Pricing Calculations Summary */}
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>GST ({taxRate}%)</Text>
-              <Text style={styles.summaryValue}>+ ₹{taxAmount.toLocaleString('en-IN')}</Text>
-            </View>
-            {discountAmount > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Discount</Text>
-                <Text style={[styles.summaryValue, { color: '#22c55e' }]}>- ₹{discountAmount.toLocaleString('en-IN')}</Text>
+            {/* Expanded Customer Dropdown List */}
+            {showCustomerDropdown && (
+              <View style={styles.dropdownContainer}>
+                <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+                  {MOCK_CUSTOMERS.map((cust, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setClientName(cust.name);
+                        setClientPhone(cust.phone);
+                        setClientEmail(cust.email);
+                        setShowCustomerDropdown(false);
+                      }}
+                      accessibilityLabel={`Choose client profile ${cust.name}`}
+                      accessibilityRole="button"
+                    >
+                      <View>
+                        <Text style={styles.dropdownOptionText}>{cust.name}</Text>
+                        <Text style={{ fontSize: 10, color: '#71717a', marginTop: 2 }}>{cust.phone} | {cust.email}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
-            <View style={[styles.summaryRow, styles.grandTotalRow]}>
-              <Text style={styles.grandTotalLabel}>Grand Total</Text>
-              <Text style={styles.grandTotalValue}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Customer Name *</Text>
+              <TextInput
+                placeholder="e.g. Aditi Sharma"
+                placeholderTextColor="#a1a1aa"
+                value={clientName}
+                onChangeText={setClientName}
+                style={styles.textInput}
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                placeholder="e.g. aditi@gmail.com"
+                placeholderTextColor="#a1a1aa"
+                keyboardType="email-address"
+                value={clientEmail}
+                onChangeText={setClientEmail}
+                style={styles.textInput}
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                placeholder="e.g. +91 99887 76655"
+                placeholderTextColor="#a1a1aa"
+                keyboardType="phone-pad"
+                value={clientPhone}
+                onChangeText={setClientPhone}
+                style={styles.textInput}
+              />
             </View>
           </View>
-        </View>
 
-        {/* Generate / Preview Trigger */}
-        <TouchableOpacity 
-          onPress={handleOpenPreview} 
-          style={styles.generateButton}
-          accessibilityLabel="Preview and generate invoice button"
-          accessibilityRole="button"
-        >
-          <FileText size={18} color="#ffffff" style={{ marginRight: 6 }} />
-          <Text style={styles.generateButtonText}>Preview & Generate</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <Text style={styles.sectionHeader}>Select & Add Items</Text>
+          <View style={styles.card}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Choose Product *</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowProductDropdown(!showProductDropdown);
+                  setShowCustomerDropdown(false);
+                }}
+                style={styles.dropdownTrigger}
+                accessibilityLabel="Select product from catalog dropdown"
+                accessibilityRole="button"
+              >
+                <Text style={[styles.dropdownValue, !selectedProduct && { color: '#a1a1aa' }]}>
+                  {selectedProduct ? `${selectedProduct.name} - ₹${selectedProduct.price.toLocaleString('en-IN')}` : 'Select a product...'}
+                </Text>
+                <ChevronDown size={14} color="#71717a" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Expanded Product Dropdown List */}
+            {showProductDropdown && (
+              <View style={styles.dropdownContainer}>
+                <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+                  {products.map(p => (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setSelectedProduct(p);
+                        setShowProductDropdown(false);
+                      }}
+                      accessibilityLabel={`Choose product ${p.name}`}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.dropdownOptionText}>{p.name}</Text>
+                      <Text style={styles.dropdownOptionPrice}>₹{p.price.toLocaleString('en-IN')}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.inputLabel}>Quantity</Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  value={itemQuantity}
+                  onChangeText={setItemQuantity}
+                  style={styles.textInput}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={handleAddProduct}
+                style={styles.addButton}
+                accessibilityLabel="Add chosen item to invoice"
+                accessibilityRole="button"
+              >
+                <Plus size={16} color="#ffffff" style={{ marginRight: 4 }} />
+                <Text style={styles.addButtonText}>Add Item</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Invoice Itemized List */}
+          {invoiceItems.length > 0 && (
+            <View style={styles.card}>
+              <Text style={[styles.cardTitle, { marginBottom: 12 }]}>Line Items</Text>
+              {invoiceItems.map((item) => (
+                <View key={item.id} style={styles.invoiceItemRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.invoiceItemName}>{item.name}</Text>
+                    <Text style={styles.invoiceItemSub}>
+                      {item.quantity} x ₹{item.price.toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                  <View style={styles.invoiceItemRight}>
+                    <Text style={styles.invoiceItemTotal}>₹{item.total.toLocaleString('en-IN')}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveItem(item.id)}
+                      style={styles.deleteBtn}
+                      accessibilityLabel={`Delete ${item.name} item`}
+                      accessibilityRole="button"
+                    >
+                      <Trash2 size={13} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <Text style={styles.sectionHeader}>Adjustments & Payment</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.inputLabel}>GST / Tax %</Text>
+                <TextInput
+                  keyboardType="numeric"
+                  value={taxRate}
+                  onChangeText={setTaxRate}
+                  style={styles.textInput}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Discount (Flat ₹)</Text>
+                <TextInput
+                  keyboardType="numeric"
+                  value={discount}
+                  onChangeText={setDiscount}
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            {/* Payment Method Selector */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Payment Method</Text>
+              <View style={styles.paymentSelector}>
+                <TouchableOpacity
+                  style={[styles.paymentOption, paymentMethod === 'Online' && styles.paymentOptionActive]}
+                  onPress={() => setPaymentMethod('Online')}
+                  accessibilityLabel="Choose Online payment mode"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.paymentOptionText, paymentMethod === 'Online' && styles.paymentOptionTextActive]}>
+                    Online Payment
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.paymentOption, paymentMethod === 'Cash' && styles.paymentOptionActive]}
+                  onPress={() => setPaymentMethod('Cash')}
+                  accessibilityLabel="Choose Cash payment mode"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.paymentOptionText, paymentMethod === 'Cash' && styles.paymentOptionTextActive]}>
+                    Cash Payment
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Notes Input field */}
+            <View style={[styles.inputGroup, { marginTop: 4 }]}>
+              <Text style={styles.inputLabel}>Notes & Tailoring Customizations</Text>
+              <TextInput
+                placeholder="e.g. Custom sleeve length adjustments: 22 inches"
+                placeholderTextColor="#a1a1aa"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={3}
+                style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+              />
+            </View>
+
+            {/* Pricing Calculations Summary */}
+            <View style={styles.summaryBox}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>GST ({taxRate}%)</Text>
+                <Text style={styles.summaryValue}>+ ₹{taxAmount.toLocaleString('en-IN')}</Text>
+              </View>
+              {discountAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Discount</Text>
+                  <Text style={[styles.summaryValue, { color: '#22c55e' }]}>- ₹{discountAmount.toLocaleString('en-IN')}</Text>
+                </View>
+              )}
+              <View style={[styles.summaryRow, styles.grandTotalRow]}>
+                <Text style={styles.grandTotalLabel}>Grand Total</Text>
+                <Text style={styles.grandTotalValue}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Generate / Preview Trigger */}
+          <TouchableOpacity
+            onPress={handleOpenPreview}
+            style={styles.generateButton}
+            accessibilityLabel="Preview and generate invoice button"
+            accessibilityRole="button"
+          >
+            <FileText size={18} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.generateButtonText}>Preview & Generate</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
 
       {/* Invoice Document Modal Preview */}
-      <Modal 
-        visible={isPreviewOpen} 
-        animationType="slide" 
+      <Modal
+        visible={isPreviewOpen}
+        animationType="slide"
         transparent={false}
       >
         <SafeAreaView style={styles.previewContainer}>
@@ -924,11 +963,11 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
               <Text style={styles.previewTitle}>
                 {isViewingPast ? `Invoice ${activeInvNumber}` : 'Preview Invoice'}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   setIsPreviewOpen(false);
                   setViewingInvoice(null);
-                }} 
+                }}
                 style={styles.closeBtn}
                 accessibilityLabel="Close invoice preview modal button"
                 accessibilityRole="button"
@@ -940,10 +979,10 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
             {/* Simulated Paper Invoice Document */}
             <ScrollView style={styles.paperScroll} contentContainerStyle={styles.paperPadding}>
               <View style={styles.paperInvoice}>
-                
+
                 {/* Traditional Atelier Border */}
                 <View style={styles.traditionalBorder} />
-                
+
                 {/* Invoice Header */}
                 <View style={styles.invoiceHeaderRow}>
                   <View>
@@ -1031,8 +1070,8 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
 
             {/* Export Bar */}
             <View style={styles.exportBar}>
-              <TouchableOpacity 
-                onPress={() => isViewingPast ? handleSharePastInvoice(viewingInvoice) : handleExportInvoice()} 
+              <TouchableOpacity
+                onPress={() => isViewingPast ? handleSharePastInvoice(viewingInvoice) : handleExportInvoice()}
                 disabled={isExporting}
                 style={styles.exportBtn}
                 accessibilityLabel={isViewingPast ? "Reshare past invoice PDF" : "Generate and save invoice button"}
@@ -1707,5 +1746,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  deleteInvoiceBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

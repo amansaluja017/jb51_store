@@ -1,4 +1,4 @@
-import { initTRPC } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
 import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviewsData.js';
 import { 
@@ -20,7 +20,21 @@ export interface RouteMeta {
   description?: string;
 }
 
-const t = initTRPC.meta<RouteMeta>().create();
+export interface TRPCContext {
+  isStaff?: boolean;
+}
+
+const t = initTRPC.context<TRPCContext>().meta<RouteMeta>().create();
+
+const staffProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.isStaff) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Staff authorization required',
+    });
+  }
+  return next();
+});
 
 export const productsRouter = t.router({
   getAll: t.procedure
@@ -63,7 +77,10 @@ export const reviewsRouter = t.router({
   getAll: t.procedure
     .meta({ description: 'Fetch all customer reviews' })
     .query(async () => {
-      return await getReviews();
+      const reviews = await getReviews();
+      return reviews
+        .filter(r => r.approved)
+        .map(({ phone, instagramId, ...rest }) => rest);
     }),
   create: t.procedure
     .meta({ description: 'Submit a new customer review' })
@@ -71,13 +88,13 @@ export const reviewsRouter = t.router({
     .mutation(async ({ input }) => {
       return await createReview(input);
     }),
-  update: t.procedure
+  update: staffProcedure
     .meta({ description: 'Update an existing review' })
     .input(UpdateReviewInputSchema)
     .mutation(async ({ input }) => {
       return await updateReview(input.id, { approved: input.approved });
     }),
-  delete: t.procedure
+  delete: staffProcedure
     .meta({ description: 'Delete an existing review' })
     .input(DeleteReviewInputSchema)
     .mutation(async ({ input }) => {

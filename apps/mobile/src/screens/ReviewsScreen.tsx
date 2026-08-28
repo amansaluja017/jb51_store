@@ -11,7 +11,7 @@ import {
   Platform,
   KeyboardAvoidingView
 } from 'react-native';
-import { Star, Trash2, Check, X, Plus, MapPin, Phone, MessageSquare, Video, Image as ImageIcon } from 'lucide-react-native';
+import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon } from 'lucide-react-native';
 import { Review } from '../types';
 
 interface ReviewsScreenProps {
@@ -19,6 +19,7 @@ interface ReviewsScreenProps {
   isLoading: boolean;
   onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => void;
   onDeleteReview: (review: Review) => void;
+  onToggleApproval: (review: Review) => void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
 }
 
@@ -27,6 +28,7 @@ export default function ReviewsScreen({
   isLoading,
   onAddReview,
   onDeleteReview,
+  onToggleApproval,
   showAlert
 }: ReviewsScreenProps) {
   const [formVisible, setFormVisible] = useState(false);
@@ -152,12 +154,6 @@ export default function ReviewsScreen({
                     <Text style={styles.badgeText}>@{rev.instagramId}</Text>
                   </View>
                 )}
-                {rev.phone && (
-                  <View style={styles.badge}>
-                    <Phone size={9} color="#71717a" style={styles.badgeIcon} />
-                    <Text style={styles.badgeText}>{rev.phone}</Text>
-                  </View>
-                )}
                 {rev.image && (
                   <View style={[styles.badge, styles.successBadge]}>
                     <ImageIcon size={9} color="#059669" style={styles.badgeIcon} />
@@ -175,9 +171,30 @@ export default function ReviewsScreen({
               {/* Footer Divider */}
               <View style={styles.cardDivider} />
 
-              {/* Card Actions: Delete button */}
+              {/* Card Actions: Approval toggle & Delete button */}
               <View style={styles.cardActions}>
-                <View />
+                <TouchableOpacity 
+                  onPress={() => onToggleApproval(rev)} 
+                  style={[
+                    styles.statusBtn, 
+                    rev.approved ? styles.approvedBtn : styles.unapprovedBtn
+                  ]}
+                  accessibilityLabel={`${rev.approved ? 'Disapprove' : 'Approve'} review by ${rev.name}`}
+                  accessibilityRole="button"
+                >
+                  {rev.approved ? (
+                    <>
+                      <Check size={10} color="#ffffff" style={styles.btnIcon} />
+                      <Text style={[styles.statusBtnText, styles.approvedBtnText]}>Approved</Text>
+                    </>
+                  ) : (
+                    <>
+                      <X size={10} color="#71717a" style={styles.btnIcon} />
+                      <Text style={[styles.statusBtnText, styles.unapprovedBtnText]}>Approve</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                   onPress={() => onDeleteReview(rev)} 
                   style={styles.deleteBtn}
