@@ -1,5 +1,6 @@
 import { initTRPC } from '@trpc/server';
 import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct } from './data.js';
+import { getReviews, createReview, updateReview, deleteReview } from './reviewsData.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
@@ -9,7 +10,10 @@ import {
   UpdateProductInputSchema,
   UpdateProductOutputSchema,
   DeleteProductInputSchema,
-  DeleteProductOutputSchema
+  DeleteProductOutputSchema,
+  CreateReviewInputSchema,
+  UpdateReviewInputSchema,
+  DeleteReviewInputSchema
 } from './services/validations.js';
 
 export interface RouteMeta {
@@ -54,3 +58,30 @@ export const productsRouter = t.router({
       return await deleteProduct(input.slug);
     }),
 });
+
+export const reviewsRouter = t.router({
+  getAll: t.procedure
+    .meta({ description: 'Fetch all customer reviews' })
+    .query(async () => {
+      return await getReviews();
+    }),
+  create: t.procedure
+    .meta({ description: 'Submit a new customer review' })
+    .input(CreateReviewInputSchema)
+    .mutation(async ({ input }) => {
+      return await createReview(input);
+    }),
+  update: t.procedure
+    .meta({ description: 'Update an existing review' })
+    .input(UpdateReviewInputSchema)
+    .mutation(async ({ input }) => {
+      return await updateReview(input.id, { approved: input.approved });
+    }),
+  delete: t.procedure
+    .meta({ description: 'Delete an existing review' })
+    .input(DeleteReviewInputSchema)
+    .mutation(async ({ input }) => {
+      return await deleteReview(input.id);
+    }),
+});
+

@@ -37,8 +37,10 @@ export function AccordionTrigger({ itemValue, children, className }: any) {
   
   return (
     <button
+      type="button"
       className={cn("flex w-full flex-1 items-center justify-between py-4 font-medium transition-all", className)}
       onClick={() => onValueChange(itemValue)}
+      aria-expanded={isOpen}
     >
       {children}
       <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isOpen && "rotate-180")} />

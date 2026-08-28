@@ -36,3 +36,18 @@ export interface Inquiry {
   email?: string;
   query?: string;
 }
+
+export interface Review {
+  id: string;
+  name: string;
+  message: string;
+  stars: number;
+  image?: string | null;
+  video?: string | null;
+  instagramId?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  createdAt: string;
+  approved?: boolean;
+}
+
