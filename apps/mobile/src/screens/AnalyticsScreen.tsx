@@ -33,6 +33,61 @@ const formatCurrency = (val: number) => {
   return `₹${val.toLocaleString('en-IN')}`;
 };
 
+interface EventLog {
+  type: 'view' | 'inquiry';
+  timestamp: number;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const RECORDED_EVENTS_REGISTRY: Record<string, EventLog[]> = {};
+
+const seedMockEvents = (key: string, seed: number) => {
+  const events: EventLog[] = [];
+  const now = Date.now();
+  
+  const viewsCurrent = 120 + (seed * 8) % 150;
+  const inquiriesCurrent = 15 + (seed * 5) % 32;
+  
+  const growthRate = 5 + (seed * 7) % 35;
+  const viewsPrevious = Math.round(viewsCurrent / (1 + growthRate / 100));
+  const inquiriesPrevious = Math.round(inquiriesCurrent / (1 + growthRate / 100));
+  
+  for (let i = 0; i < viewsCurrent; i++) {
+    events.push({
+      type: 'view',
+      timestamp: now - (i % 7) * MS_PER_DAY - (i * 1000) % MS_PER_DAY
+    });
+  }
+  for (let i = 0; i < viewsPrevious; i++) {
+    events.push({
+      type: 'view',
+      timestamp: now - 7 * MS_PER_DAY - (i % 7) * MS_PER_DAY - (i * 1000) % MS_PER_DAY
+    });
+  }
+  for (let i = 0; i < inquiriesCurrent; i++) {
+    events.push({
+      type: 'inquiry',
+      timestamp: now - (i % 7) * MS_PER_DAY - (i * 1000) % MS_PER_DAY
+    });
+  }
+  for (let i = 0; i < inquiriesPrevious; i++) {
+    events.push({
+      type: 'inquiry',
+      timestamp: now - 7 * MS_PER_DAY - (i % 7) * MS_PER_DAY - (i * 1000) % MS_PER_DAY
+    });
+  }
+  
+  RECORDED_EVENTS_REGISTRY[key] = events;
+};
+
+const getRecordedEventsForProduct = (id: string, slug: string) => {
+  const key = id || slug;
+  if (!RECORDED_EVENTS_REGISTRY[key]) {
+    seedMockEvents(key, slug.length);
+  }
+  return RECORDED_EVENTS_REGISTRY[key];
+};
+
 export default function AnalyticsScreen({
   products,
   selectedAnalyticsSlug,
@@ -104,19 +159,27 @@ export default function AnalyticsScreen({
 
   // Compute product demand metrics dynamically
   const productDemandData = useMemo(() => {
+    const now = Date.now();
+    const WINDOW_CURRENT_START = now - 7 * MS_PER_DAY;
+    const WINDOW_PREVIOUS_START = now - 14 * MS_PER_DAY;
+
     return products.map(product => {
-      const seed = product.slug.length;
-      const views = 120 + (seed * 8) % 150;
-      const waHits = 10 + (seed * 3) % 20;
-      const igHits = 5 + (seed * 2) % 12;
-      const totalInquiries = waHits + igHits;
-      const growthRate = 5 + (seed * 7) % 35; // e.g. +5% to +40%
+      const events = getRecordedEventsForProduct(product.id, product.slug);
+      
+      const currentViews = events.filter(e => e.type === 'view' && e.timestamp >= WINDOW_CURRENT_START && e.timestamp <= now).length;
+      const currentInquiries = events.filter(e => e.type === 'inquiry' && e.timestamp >= WINDOW_CURRENT_START && e.timestamp <= now).length;
+      
+      const previousViews = events.filter(e => e.type === 'view' && e.timestamp >= WINDOW_PREVIOUS_START && e.timestamp < WINDOW_CURRENT_START).length;
+      
+      const growthRate = previousViews > 0 
+        ? Math.round(((currentViews - previousViews) / previousViews) * 100)
+        : currentViews > 0 ? 100 : 0;
       
       return {
         ...product,
-        views,
-        inquiries: totalInquiries,
-        growth: growthRate
+        views: currentViews,
+        inquiries: currentInquiries,
+        growth: Math.max(0, growthRate)
       };
     }).sort((a, b) => b.views - a.views); // Sort by most searched (views)
   }, [products]);

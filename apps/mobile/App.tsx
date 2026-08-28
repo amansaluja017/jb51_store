@@ -614,31 +614,26 @@ export default function App() {
   };
 
   const handleDeleteCategory = (catToDelete: string) => {
+    if (catToDelete === 'Uncategorized') {
+      showAlert('Error', 'The "Uncategorized" category is a system fallback and cannot be deleted.', 'error');
+      return;
+    }
+
     const hasProducts = products.some(p => p.category === catToDelete);
 
-    const performDelete = () => {
-      setCategories(prev => {
-        const filtered = prev.filter(c => c !== catToDelete);
-        if (filtered.length === 0) {
-          return ['Uncategorized'];
-        }
-        return filtered;
-      });
-      // Reassign products to Uncategorized
-      setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: 'Uncategorized' } : p));
-      showAlert('Success', `Category "${catToDelete}" has been deleted.`, 'success');
-    };
+    setCategories(prev => {
+      let filtered = prev.filter(c => c !== catToDelete);
+      if (hasProducts && !filtered.includes('Uncategorized')) {
+        filtered = [...filtered, 'Uncategorized'];
+      }
+      if (filtered.length === 0) {
+        return ['Uncategorized'];
+      }
+      return filtered;
+    });
 
-    if (hasProducts) {
-      showAlert(
-        'Confirm Delete',
-        `The category "${catToDelete}" has products assigned to it. Deleting this category will reassign those products to "Uncategorized". Do you want to proceed?`,
-        'confirm',
-        performDelete
-      );
-    } else {
-      performDelete();
-    }
+    // Reassign products to Uncategorized
+    setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: 'Uncategorized' } : p));
   };
 
   const handleResolveInquiry = (id: string, customerName: string) => {

@@ -24,6 +24,17 @@ interface ReviewsScreenProps {
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
 }
 
+const uploadMediaAsset = async (localUri: string): Promise<string> => {
+  // Simulate network upload delay
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  
+  // Extract filename
+  const filename = localUri.split('/').pop() || 'upload.jpg';
+  
+  // Return a simulated, server-accessible URL
+  return `https://jb51.store/uploads/${filename}`;
+};
+
 export default function ReviewsScreen({
   reviews,
   isLoading,
@@ -86,13 +97,28 @@ export default function ReviewsScreen({
     );
   }, [reviews, searchQuery]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
       showAlert('Required Field', 'Name is required.', 'error');
       return;
     }
     if (!message.trim()) {
       showAlert('Required Field', 'Message is required.', 'error');
+      return;
+    }
+
+    let uploadedImageUrl: string | null = null;
+    let uploadedVideoUrl: string | null = null;
+
+    try {
+      if (image) {
+        uploadedImageUrl = await uploadMediaAsset(image);
+      }
+      if (video) {
+        uploadedVideoUrl = await uploadMediaAsset(video);
+      }
+    } catch (error) {
+      showAlert('Upload Error', 'Failed to upload review media assets. Please try again.', 'error');
       return;
     }
 
@@ -103,8 +129,8 @@ export default function ReviewsScreen({
       location: location.trim() || null,
       instagramId: instagramId.trim() || null,
       phone: phone.trim() || null,
-      image: image || null,
-      video: video || null,
+      image: uploadedImageUrl,
+      video: uploadedVideoUrl,
     });
 
     // Reset Form
@@ -343,7 +369,12 @@ export default function ReviewsScreen({
                     <Text style={styles.mediaSelectedText} numberOfLines={1}>
                       {image.split('/').pop()}
                     </Text>
-                    <TouchableOpacity onPress={() => setImage('')} style={styles.removeMediaBtn}>
+                    <TouchableOpacity
+                      onPress={() => setImage('')}
+                      style={styles.removeMediaBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove selected image"
+                    >
                       <X size={14} color="#dc2626" />
                     </TouchableOpacity>
                   </View>
@@ -363,7 +394,12 @@ export default function ReviewsScreen({
                     <Text style={styles.mediaSelectedText} numberOfLines={1}>
                       {video.split('/').pop()}
                     </Text>
-                    <TouchableOpacity onPress={() => setVideo('')} style={styles.removeMediaBtn}>
+                    <TouchableOpacity
+                      onPress={() => setVideo('')}
+                      style={styles.removeMediaBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove selected video"
+                    >
                       <X size={14} color="#dc2626" />
                     </TouchableOpacity>
                   </View>
