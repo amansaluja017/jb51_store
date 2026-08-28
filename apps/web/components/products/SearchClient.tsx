@@ -93,7 +93,7 @@ export function SearchClient({ query }: Props) {
         ) : matchedProducts.length === 0 ? (
           <div className="text-center py-24 flex flex-col items-center justify-center max-w-md mx-auto">
             <Search className="w-12 h-12 text-[#FF5E36] mb-4 opacity-80" />
-            <h3 className="font-serif text-2xl font-bold mb-3 text-zinc-900">No Ensembles Found</h3>
+            <h2 className="font-serif text-2xl font-bold mb-3 text-zinc-900">No Ensembles Found</h2>
             <p className="text-zinc-500 text-sm max-w-sm mb-8 font-light leading-relaxed">
               We couldn't find any bespoke items matching "{decodedSearchTerm}". Try exploring our collections or resetting your search.
             </p>

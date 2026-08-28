@@ -25,9 +25,9 @@ export function HeritageCraftBanner() {
           <span className="text-[10px] tracking-[0.3em] uppercase text-brand-gold font-bold mb-3 block">
             HERITAGE CRAFT
           </span>
-          <h3 className="font-serif text-3xl md:text-5xl font-light leading-[1.1] mb-6 tracking-tight">
+          <h2 className="font-serif text-3xl md:text-5xl font-light leading-[1.1] mb-6 tracking-tight">
             Sustaining the Craft <br className="hidden md:block"/>of Indian <span className="font-serif italic text-brand-gold">Karigars</span>
-          </h3>
+          </h2>
           <p className="text-brand-cream/80 font-light text-xs md:text-sm leading-relaxed mb-8 max-w-xl">
             Every drape, pleat, and embroidery detail is hand-guided by master artisans who preserve century-old textiles heritage. We partner directly with weaver guilds in Banaras, Lucknow, and Chanderi—bypassing middlemen to ensure fair wages and keep historical Indian loom arts alive.
           </p>

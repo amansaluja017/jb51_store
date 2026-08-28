@@ -22,9 +22,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const syncMutation = api.wishlist.sync.useMutation({
     onError: (err) => {
       console.error('Background wishlist sync failed:', err);
-    },
-    onSuccess: (data) => {
-      console.log('Background wishlist sync successful:', data);
     }
   });
 

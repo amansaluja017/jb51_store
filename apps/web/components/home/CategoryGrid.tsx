@@ -22,7 +22,7 @@ export function CategoryGrid() {
         {/* Occasion Wear */}
         <Link href="/shop?category=occasion-wear" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
           <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
-            <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Occasion Wear" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Occasion Wear" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" />
           </div>
           <div className="p-4 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Occasion Wear</span>
@@ -33,7 +33,7 @@ export function CategoryGrid() {
         {/* Silk Co-ords */}
         <Link href="/shop?category=silk-co-ords" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
           <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
-            <Image src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=600&q=80" alt="Silk Co-ords" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=600&q=80" alt="Silk Co-ords" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" />
           </div>
           <div className="p-4 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Silk Co-ords</span>
@@ -44,7 +44,7 @@ export function CategoryGrid() {
         {/* Velvet Edit */}
         <Link href="/shop?category=velvet-edit" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
           <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
-            <Image src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80" alt="Velvet Edit" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80" alt="Velvet Edit" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" />
           </div>
           <div className="p-4 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Velvet Edit</span>
@@ -55,7 +55,7 @@ export function CategoryGrid() {
         {/* Anarkali Suits */}
         <Link href="/shop?category=anarkali-suits" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
           <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
-            <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Anarkali Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80" alt="Anarkali Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" />
           </div>
           <div className="p-4 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Anarkalis</span>
@@ -66,7 +66,7 @@ export function CategoryGrid() {
         {/* Formal Suits */}
         <Link href="/shop?category=formal-suits" className="group flex flex-col rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100 hover:shadow-lg transition-all duration-500">
           <div className="relative aspect-[4/5] overflow-hidden w-full fabric-reveal">
-            <Image src="https://images.unsplash.com/photo-1620386875077-e322fb810928?auto=format&fit=crop&w=600&q=80" alt="Formal Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+            <Image src="https://images.unsplash.com/photo-1620386875077-e322fb810928?auto=format&fit=crop&w=600&q=80" alt="Formal Suits" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" />
           </div>
           <div className="p-4 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 group-hover:text-[#FF5E36] transition-colors">Formal Suits</span>

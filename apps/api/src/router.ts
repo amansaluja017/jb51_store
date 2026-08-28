@@ -92,9 +92,6 @@ export const appRouter = createTRPCRouter({
     sync: publicProcedure
       .input(z.object({ productIds: z.array(z.string()) }))
       .mutation(async ({ input }) => {
-        // Mock server logging for background sync
-        console.log('--- Background Wishlist Sync ---');
-        console.log('Received productIds:', input.productIds);
         return { success: true, count: input.productIds.length };
       }),
   }),

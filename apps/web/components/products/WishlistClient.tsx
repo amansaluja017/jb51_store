@@ -47,7 +47,7 @@ export function WishlistClient() {
       ) : wishlistedProducts.length === 0 ? (
         <div className="text-center py-24 flex flex-col items-center justify-center">
           <span className="text-4xl text-brand-saffron mb-4">✤</span>
-          <h3 className="font-serif text-2xl mb-4 text-brand-maroon">Your Wishlist is Empty</h3>
+          <h2 className="font-serif text-2xl mb-4 text-brand-maroon">Your Wishlist is Empty</h2>
           <p className="text-brand-brown/60 text-sm max-w-sm mb-8 font-light leading-relaxed">
             Explore our curated collections of premium women's suits, heritage designs, and luxury formalwear to add your favorite pieces.
           </p>

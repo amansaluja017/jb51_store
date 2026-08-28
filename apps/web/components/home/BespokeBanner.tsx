@@ -18,9 +18,9 @@ export function BespokeBanner() {
           <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-3 block">
             ATELIER SERVICE
           </span>
-          <h3 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
+          <h2 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
             The Art <br className="hidden md:block"/>of Custom <span className="font-serif italic text-zinc-300">Drape</span>
-          </h3>
+          </h2>
           <p className="text-zinc-400 font-light text-xs md:text-sm leading-relaxed mb-8">
             Experience the pinnacle of bespoke couture. Our master craftsmen tailor each ensemble to your exact measurements, ensuring a silhouette that flows with effortless grace and timeless sophistication.
           </p>

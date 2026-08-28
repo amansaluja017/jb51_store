@@ -348,9 +348,9 @@ export function ShopClient() {
 
             {/* Column 1: Curation Filters (New Arrivals, Bestsellers) */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
+              <h2 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Curation Drops
-              </h4>
+              </h2>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => handleFilterSelect(null)}
@@ -384,9 +384,9 @@ export function ShopClient() {
 
             {/* Column 2: Size Filter */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
+              <h2 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Filter by Size
-              </h4>
+              </h2>
               <div className="flex flex-wrap gap-2 pt-1">
                 {['XS', 'S', 'M', 'L'].map(size => {
                   const isSelected = selectedSizes.includes(size);
@@ -412,9 +412,9 @@ export function ShopClient() {
 
             {/* Column 3: Price Limit Slider */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
+              <h2 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Price Limit
-              </h4>
+              </h2>
               <div className="flex flex-col gap-3 pt-1">
                 <input
                   type="range"
@@ -436,9 +436,9 @@ export function ShopClient() {
 
             {/* Column 4: Sort Order */}
             <div className="flex flex-col gap-3">
-              <h4 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
+              <h2 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
                 Sort Order
-              </h4>
+              </h2>
               <div className="flex flex-col gap-2">
                 {[
                   { value: "featured", label: "Featured Curation" },

@@ -11,7 +11,7 @@ export function FeatureBadges() {
             <Truck size={18} />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Free Shipping</h4>
+            <p className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Free Shipping</p>
             <p className="text-[10px] text-zinc-400 mt-0.5">On orders over 30,000 INR</p>
           </div>
         </div>
@@ -21,7 +21,7 @@ export function FeatureBadges() {
             <ShieldCheck size={18} />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Secure Payments</h4>
+            <p className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Secure Payments</p>
             <p className="text-[10px] text-zinc-400 mt-0.5">100% encrypted checkout</p>
           </div>
         </div>
@@ -31,7 +31,7 @@ export function FeatureBadges() {
             <RotateCcw size={18} />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Easy Exchange</h4>
+            <p className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Easy Exchange</p>
             <p className="text-[10px] text-zinc-400 mt-0.5">No questions asked 7-day policy</p>
           </div>
         </div>
@@ -41,7 +41,7 @@ export function FeatureBadges() {
             <Sparkles size={18} />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">24/7 Support</h4>
+            <p className="text-xs font-bold text-zinc-950 uppercase tracking-wider">24/7 Support</p>
             <p className="text-[10px] text-zinc-400 mt-0.5">Premium concierge assistance</p>
           </div>
         </div>

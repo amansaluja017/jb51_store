@@ -100,7 +100,7 @@ export function Testimonials() {
 
                 <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
                   <div>
-                    <h4 className="font-bold text-zinc-950">{item.author}</h4>
+                    <span className="block font-bold text-zinc-950">{item.author}</span>
                     <p className="text-[8px] tracking-wider uppercase text-zinc-400 mt-0.5">{item.role}</p>
                   </div>
                   <span className="text-[8px] tracking-widest uppercase font-bold text-[#FF5E36] bg-[#FF5E36]/5 px-2 py-0.5 rounded-full">{item.location}</span>
@@ -133,7 +133,7 @@ export function Testimonials() {
 
                 <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
                   <div>
-                    <h4 className="font-bold text-zinc-950">{item.author}</h4>
+                    <span className="block font-bold text-zinc-950">{item.author}</span>
                     <p className="text-[8px] tracking-wider uppercase text-zinc-400 mt-0.5">{item.role}</p>
                   </div>
                   <span className="text-[8px] tracking-widest uppercase font-bold text-[#FF5E36] bg-[#FF5E36]/5 px-2 py-0.5 rounded-full">{item.location}</span>

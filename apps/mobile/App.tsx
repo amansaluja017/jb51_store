@@ -398,7 +398,6 @@ export default function App() {
 
       setSyncMessage('Successfully synced with server');
     } catch (err) {
-      console.log('Backend unreachable, using local mock sandbox', err);
       setSyncMessage('Server offline - Sandbox active');
       if (reviews.length === 0) {
         setReviews([
@@ -466,7 +465,6 @@ export default function App() {
     } catch (err: any) {
       // Fallback: If network request fails, validate locally using mock admin credentials
       if (username.trim().toLowerCase() === 'admin' && password === 'admin@123') {
-        console.log('Backend unreachable or returned error, logging in with local mock admin credentials');
         setToken('mock-staff-secret-token');
         setIsAuthenticated(true);
         showAlert('Logged in (Sandbox)', 'Backend unreachable or returned error. Logged in using local mock admin credentials.', 'info');
@@ -582,7 +580,6 @@ export default function App() {
         throw new Error('Invalid server payload format');
       }
     } catch (err: any) {
-      console.log('Failed to create review on backend, keeping local review in sandbox', err);
       showAlert('Review Submitted (Mock)', 'Customer review added to local sandbox.', 'success');
     }
   };
@@ -618,7 +615,6 @@ export default function App() {
         throw new Error('Invalid server response format');
       }
     } catch (err: any) {
-      console.log('Failed to update approval on backend, keeping local state in sandbox', err);
       showAlert('Approval Updated (Mock)', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'} in sandbox.`, 'success');
     }
   };
@@ -650,7 +646,6 @@ export default function App() {
             throw new Error('Invalid server response format');
           }
         } catch (err: any) {
-          console.log('Failed to delete review on backend, deleting locally in sandbox', err);
           setReviews(prev => prev.filter(r => r.id !== review.id));
           showAlert('Success (Mock)', 'Review deleted from local sandbox.', 'success');
         }
@@ -698,7 +693,6 @@ export default function App() {
         finalStatus = reqResponse?.status;
       }
       if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for local notification!');
         return;
       }
     }

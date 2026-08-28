@@ -49,7 +49,7 @@ export function Footer() {
 
         {/* Column 2: Collections (col-span-2) */}
         <div className="md:col-span-2">
-          <h4 className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Collections</h4>
+          <p className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Collections</p>
           <ul className="space-y-3.5 text-xs text-zinc-400 font-light">
             <li><Link href="/shop" className="hover:text-white transition-colors">Shop All</Link></li>
             <li><Link href="/shop?category=occasion-wear" className="hover:text-white transition-colors">Occasion Wear</Link></li>
@@ -61,7 +61,7 @@ export function Footer() {
 
         {/* Column 3: Concierge & Support (col-span-2) */}
         <div className="md:col-span-2">
-          <h4 className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Concierge</h4>
+          <p className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Concierge</p>
           <ul className="space-y-3.5 text-xs text-zinc-400 font-light">
             <li><Link href="/support" className="hover:text-white transition-colors">Customer Support</Link></li>
             <li><Link href="/wishlist" className="hover:text-white transition-colors">My Wishlist</Link></li>
@@ -73,7 +73,7 @@ export function Footer() {
 
         {/* Column 4: Newsletter & Socials (col-span-4) */}
         <div className="md:col-span-4">
-          <h4 className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Atelier Newsletter</h4>
+          <p className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Atelier Newsletter</p>
           <p className="text-zinc-400 text-xs font-light leading-relaxed mb-4">
             Subscribe to receive private collection previews, seasonal privileges, and sartorial updates.
           </p>

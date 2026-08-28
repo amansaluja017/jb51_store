@@ -9,7 +9,7 @@ const AccordionContext = React.createContext<{
   onValueChange: (value: string) => void;
 }>({ value: undefined, onValueChange: () => {} });
 
-export function Accordion({ children, className, ...props }: any) {
+export function Accordion({ children, className, collapsible, type, ...props }: any) {
   const [value, setValue] = React.useState<string | undefined>(undefined);
   return (
     <AccordionContext.Provider value={{ value, onValueChange: (val) => setValue(v => v === val ? undefined : val) }}>

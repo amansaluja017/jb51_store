@@ -35,9 +35,9 @@ export function SeasonalPrivilege() {
           <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-3 block">
             SEASONAL PRIVILEGE
           </span>
-          <h3 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
+          <h2 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
             The Festive <br className="hidden md:block"/>Couture <span className="font-serif italic text-zinc-300">Edit</span>
-          </h3>
+          </h2>
           <p className="text-zinc-400 font-light text-xs md:text-sm leading-relaxed mb-8">
             Unlock extraordinary savings on our signature collections. Hand-spun silk, intricate zardozi, and handloom masterpieces designed to make every celebration memorable. Enjoy exclusive atelier pricing for a limited time.
           </p>
