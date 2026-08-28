@@ -13,15 +13,19 @@ import {
   LayoutDashboard, 
   Shirt, 
   BarChart3, 
-  LogOut 
+  FileText,
+  LogOut,
+  Star
 } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 
-import { Product, Inquiry } from './src/types';
+import { Product, Inquiry, Review } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import InvoiceScreen from './src/screens/InvoiceScreen';
+import ReviewsScreen from './src/screens/ReviewsScreen';
 import ProductFormModal from './src/components/ProductFormModal';
 import CategoryManagerModal from './src/components/CategoryManagerModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
@@ -29,7 +33,6 @@ import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
 // Configure notifications handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
@@ -197,7 +200,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'catalogue' | 'analytics'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'>('dashboard');
 
   // Backend Sync Configurations
   const [apiHost, setApiHost] = useState('http://localhost:3001');
@@ -208,6 +211,7 @@ export default function App() {
   // Data States
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [inquiries, setInquiries] = useState<Inquiry[]>(INITIAL_INQUIRIES);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -247,15 +251,50 @@ export default function App() {
     setIsLoading(true);
     try {
       const cleanHost = apiHost.trim().replace(/\/$/, '');
+      
+      // Fetch products
       const response = await fetch(`${cleanHost}/trpc/products.getAll`);
       const json = await response.json();
       if (json?.result?.data) {
         setProducts(json.result.data);
-        setSyncMessage('Successfully synced with server');
       }
+
+      // Fetch reviews
+      const reviewsResponse = await fetch(`${cleanHost}/trpc/reviews.getAll`);
+      const reviewsJson = await reviewsResponse.json();
+      if (reviewsJson?.result?.data) {
+        setReviews(reviewsJson.result.data);
+      }
+      
+      setSyncMessage('Successfully synced with server');
     } catch (err) {
       console.log('Backend unreachable, using local mock sandbox', err);
       setSyncMessage('Server offline - Sandbox active');
+      if (reviews.length === 0) {
+        setReviews([
+          {
+            id: 'rev_1',
+            name: 'Priya Sharma',
+            message: 'The Emerald Banarasi Suit fits like a dream! Absolutely stunning handloom work and premium fabric quality.',
+            stars: 5,
+            location: 'Mumbai',
+            instagramId: 'priya_sharma',
+            phone: '+91 98765 43210',
+            createdAt: new Date().toISOString(),
+            approved: true,
+          },
+          {
+            id: 'rev_2',
+            name: 'Ananya Iyer',
+            message: 'Complimentary custom sizing makes shopping here a breeze. Our Karigar checked measurements over WhatsApp.',
+            stars: 5,
+            location: 'Chennai',
+            instagramId: 'ananya.iyer',
+            createdAt: new Date().toISOString(),
+            approved: true,
+          }
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -347,6 +386,74 @@ export default function App() {
           });
         } catch (e) {}
         showAlert('Success', 'Outfit deleted.', 'success');
+      }
+    );
+  };
+
+  // ----------------------------------------------------
+  // REVIEW MUTATORS
+  // ----------------------------------------------------
+  const handleAddReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => {
+    const tempId = `rev_${Date.now()}`;
+    const newReview: Review = {
+      ...reviewData,
+      id: tempId,
+      createdAt: new Date().toISOString(),
+      approved: true,
+    };
+
+    setReviews(prev => [newReview, ...prev]);
+
+    try {
+      const cleanHost = apiHost.trim().replace(/\/$/, '');
+      const response = await fetch(`${cleanHost}/trpc/reviews.create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reviewData)
+      });
+      const json = await response.json();
+      if (json?.result?.data) {
+        setReviews(prev => prev.map(r => r.id === tempId ? json.result.data : r));
+      }
+      showAlert('Review Submitted', 'Customer review added successfully.', 'success');
+    } catch (err) {
+      showAlert('Sandbox Action', 'Review added to local workspace.', 'success');
+    }
+  };
+
+  const handleToggleReviewApproval = async (review: Review) => {
+    const newApproved = !review.approved;
+    setReviews(prev =>
+      prev.map(r => r.id === review.id ? { ...r, approved: newApproved } : r)
+    );
+
+    try {
+      const cleanHost = apiHost.trim().replace(/\/$/, '');
+      await fetch(`${cleanHost}/trpc/reviews.update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: review.id, approved: newApproved })
+      });
+      showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
+    } catch (err) {}
+  };
+
+  const handleDeleteReview = (review: Review) => {
+    showAlert(
+      'Delete Review',
+      `Are you sure you want to delete review by "${review.name}"?`,
+      'confirm',
+      async () => {
+        setReviews(prev => prev.filter(r => r.id !== review.id));
+        try {
+          const cleanHost = apiHost.trim().replace(/\/$/, '');
+          await fetch(`${cleanHost}/trpc/reviews.delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: review.id })
+          });
+        } catch (e) {}
+        showAlert('Success', 'Review deleted.', 'success');
       }
     );
   };
@@ -570,10 +677,23 @@ export default function App() {
         <View>
           <Text style={styles.headerSubtitle}>JB51 Atelier</Text>
           <Text style={styles.headerTitle}>
-            {activeTab === 'dashboard' ? 'Overview' : activeTab === 'catalogue' ? 'Products List' : 'Performance Analytics'}
+            {activeTab === 'dashboard' 
+              ? 'Overview' 
+              : activeTab === 'catalogue' 
+                ? 'Products List' 
+                : activeTab === 'invoices' 
+                  ? 'Invoice Creator' 
+                  : activeTab === 'reviews' 
+                    ? 'Customer Reviews' 
+                    : 'Performance Analytics'}
           </Text>
         </View>
-        <TouchableOpacity onPress={() => setIsAuthenticated(false)} style={styles.logoutBtn}>
+        <TouchableOpacity 
+          onPress={() => setIsAuthenticated(false)} 
+          style={styles.logoutBtn}
+          accessibilityLabel="Log out"
+          accessibilityRole="button"
+        >
           <LogOut size={16} color="#71717a" />
         </TouchableOpacity>
       </View>
@@ -613,6 +733,21 @@ export default function App() {
             activeAnalyticsProduct={activeAnalyticsProduct}
           />
         )}
+        {activeTab === 'invoices' && (
+          <InvoiceScreen 
+            products={products}
+            showAlert={showAlert}
+          />
+        )}
+        {activeTab === 'reviews' && (
+          <ReviewsScreen 
+            reviews={reviews}
+            isLoading={isLoading}
+            onAddReview={handleAddReview}
+            onDeleteReview={handleDeleteReview}
+            showAlert={showAlert}
+          />
+        )}
       </View>
 
       {/* Tabs Menu Footer */}
@@ -620,6 +755,8 @@ export default function App() {
         <TouchableOpacity 
           onPress={() => setActiveTab('dashboard')} 
           style={[styles.navTab, activeTab === 'dashboard' && styles.activeNavTab]}
+          accessibilityLabel="Overview tab"
+          accessibilityRole="button"
         >
           <LayoutDashboard size={18} color={activeTab === 'dashboard' ? '#FF5E36' : '#a1a1aa'} />
           <Text style={[styles.navTabText, activeTab === 'dashboard' && styles.activeNavTabText]}>Overview</Text>
@@ -628,6 +765,8 @@ export default function App() {
         <TouchableOpacity 
           onPress={() => setActiveTab('catalogue')} 
           style={[styles.navTab, activeTab === 'catalogue' && styles.activeNavTab]}
+          accessibilityLabel="Catalog tab"
+          accessibilityRole="button"
         >
           <Shirt size={18} color={activeTab === 'catalogue' ? '#FF5E36' : '#a1a1aa'} />
           <Text style={[styles.navTabText, activeTab === 'catalogue' && styles.activeNavTabText]}>Catalog</Text>
@@ -636,9 +775,31 @@ export default function App() {
         <TouchableOpacity 
           onPress={() => setActiveTab('analytics')} 
           style={[styles.navTab, activeTab === 'analytics' && styles.activeNavTab]}
+          accessibilityLabel="Analytics tab"
+          accessibilityRole="button"
         >
           <BarChart3 size={18} color={activeTab === 'analytics' ? '#FF5E36' : '#a1a1aa'} />
           <Text style={[styles.navTabText, activeTab === 'analytics' && styles.activeNavTabText]}>Analytics</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={() => setActiveTab('invoices')} 
+          style={[styles.navTab, activeTab === 'invoices' && styles.activeNavTab]}
+          accessibilityLabel="Invoices tab"
+          accessibilityRole="button"
+        >
+          <FileText size={18} color={activeTab === 'invoices' ? '#FF5E36' : '#a1a1aa'} />
+          <Text style={[styles.navTabText, activeTab === 'invoices' && styles.activeNavTabText]}>Invoices</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={() => setActiveTab('reviews')} 
+          style={[styles.navTab, activeTab === 'reviews' && styles.activeNavTab]}
+          accessibilityLabel="Reviews tab"
+          accessibilityRole="button"
+        >
+          <Star size={18} color={activeTab === 'reviews' ? '#FF5E36' : '#a1a1aa'} />
+          <Text style={[styles.navTabText, activeTab === 'reviews' && styles.activeNavTabText]}>Reviews</Text>
         </TouchableOpacity>
       </View>
 

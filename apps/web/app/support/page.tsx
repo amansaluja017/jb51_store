@@ -174,6 +174,7 @@ export default function SupportPage() {
                   type="submit" 
                   disabled={isSubmitting}
                   className="mt-8 w-full bg-brand-maroon hover:bg-brand-burgundy text-brand-cream py-4 text-xs tracking-[0.2em] uppercase transition-colors disabled:opacity-70 flex justify-center items-center h-[52px]"
+                  aria-label={isSubmitting ? "Submitting Inquiry" : "Submit Inquiry"}
                 >
                   {isSubmitting ? (
                     <span className="w-5 h-5 border-2 border-brand-cream/30 border-t-brand-cream rounded-full animate-spin" />

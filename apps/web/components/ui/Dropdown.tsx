@@ -57,6 +57,8 @@ export function Dropdown({
           isOpen && "border-zinc-300 bg-white shadow-sm",
           triggerClassName
         )}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
       >
         <span className="truncate">
           {labelPrefix && (
@@ -113,6 +115,7 @@ export function Dropdown({
                   }}
                   className="text-zinc-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-colors opacity-0 group-hover/item:opacity-100 focus:opacity-100 shrink-0"
                   title="Delete option"
+                  aria-label={`Delete option ${option.label}`}
                 >
                   <X size={12} />
                 </button>

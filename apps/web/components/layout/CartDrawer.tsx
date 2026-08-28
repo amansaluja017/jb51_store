@@ -118,6 +118,7 @@ export function CartDrawer() {
             <button 
               onClick={handleClose}
               className="p-1.5 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors"
+              aria-label="Close cart"
             >
               <X size={20} />
             </button>
@@ -180,6 +181,7 @@ export function CartDrawer() {
                               <button 
                                 onClick={() => removeFromCart(item.id)}
                                 className="text-zinc-300 hover:text-red-500 transition-colors p-1"
+                                aria-label={`Remove ${item.product.name} from cart`}
                               >
                                 <Trash2 size={15} />
                               </button>
@@ -195,6 +197,7 @@ export function CartDrawer() {
                               <button 
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                 className="p-0.5 text-zinc-500 hover:text-zinc-800 transition-colors"
+                                aria-label="Decrease quantity"
                               >
                                 <Minus size={11} />
                               </button>
@@ -202,6 +205,7 @@ export function CartDrawer() {
                               <button 
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 className="p-0.5 text-zinc-500 hover:text-zinc-800 transition-colors"
+                                aria-label="Increase quantity"
                               >
                                 <Plus size={11} />
                               </button>
@@ -467,6 +471,7 @@ export function CartDrawer() {
                     type="button"
                     onClick={() => setStep('cart')}
                     className="flex items-center justify-center p-4 border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-800 transition-all rounded-full bg-white"
+                    aria-label="Go back to cart view"
                   >
                     <ArrowLeft size={16} />
                   </button>
@@ -487,6 +492,7 @@ export function CartDrawer() {
                     type="button"
                     onClick={() => setStep('shipping')}
                     className="flex items-center justify-center p-4 border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:border-zinc-800 transition-all rounded-full bg-white"
+                    aria-label="Go back to shipping details"
                   >
                     <ArrowLeft size={16} />
                   </button>

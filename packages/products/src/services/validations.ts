@@ -47,3 +47,39 @@ export const GetProductBySlugOutputSchema = ProductSchema.nullable();
 export const CreateProductOutputSchema = ProductSchema;
 export const UpdateProductOutputSchema = ProductSchema.nullable();
 export const DeleteProductOutputSchema = z.boolean();
+
+// Review Schemas
+export const ReviewSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, "Name is required"),
+  message: z.string().min(1, "Message is required"),
+  stars: z.number().min(1).max(5),
+  image: z.string().optional().nullable(),
+  video: z.string().optional().nullable(),
+  instagramId: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  createdAt: z.string(),
+  approved: z.boolean().optional(),
+});
+
+export const CreateReviewInputSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  message: z.string().min(1, "Message is required"),
+  stars: z.number().min(1).max(5),
+  image: z.string().optional().nullable(),
+  video: z.string().optional().nullable(),
+  instagramId: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+});
+
+export const UpdateReviewInputSchema = z.object({
+  id: z.string(),
+  approved: z.boolean().optional(),
+});
+
+export const DeleteReviewInputSchema = z.object({
+  id: z.string(),
+});
+

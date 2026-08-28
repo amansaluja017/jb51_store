@@ -250,6 +250,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
             type="button"
             onClick={() => router.back()}
             className="w-10 h-10 rounded-full border border-zinc-200 hover:bg-zinc-50 flex items-center justify-center text-zinc-600 transition-colors"
+            aria-label="Go back"
           >
             <ArrowLeft size={16} />
           </button>
@@ -266,6 +267,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
           type="submit"
           disabled={isSubmitting}
           className="w-full sm:w-auto bg-[#FF5E36] hover:bg-[#FF5E36]/90 text-white rounded-full px-6 py-3 flex items-center justify-center gap-2 text-xs tracking-wider uppercase font-semibold transition-all duration-300 shadow-lg shadow-[#FF5E36]/10 hover:shadow-[#FF5E36]/20 active:scale-[0.98] disabled:opacity-50"
+          aria-label={isSubmitting ? "Saving Changes" : "Save Changes"}
         >
           {isSubmitting ? (
             <>
@@ -499,6 +501,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                     type="button"
                     onClick={() => handleRemoveVariant(idx)}
                     className="w-8 h-8 rounded-lg border border-zinc-250 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors shrink-0"
+                    aria-label={`Remove variant ${idx + 1}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -618,6 +621,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                       type="button"
                       onClick={() => handleRemoveImage(idx)}
                       className="w-8 h-8 rounded-lg border border-zinc-250 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors shrink-0"
+                      aria-label={`Remove image ${idx + 1}`}
                     >
                       <Trash2 size={14} />
                     </button>

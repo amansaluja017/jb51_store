@@ -56,6 +56,7 @@ export function Navbar() {
   const navLinks = [
     { label: 'Home', href: '/' },
     { label: 'Shop All', href: '/shop' },
+    { label: 'Reviews', href: '/reviews' },
     { label: 'Support', href: '/support' },
   ];
 
@@ -113,6 +114,7 @@ export function Navbar() {
                 isTransparent ? "text-white" : "text-zinc-800"
               )}
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open mobile menu"
             >
               <Menu size={20} strokeWidth={1.5} />
             </button>
@@ -193,7 +195,10 @@ export function Navbar() {
             {/* Actions Icons Group */}
             <div className="flex items-center space-x-2 md:space-x-4">
               {/* Search (Mobile only) */}
-              <button className={cn("md:hidden p-2 transition-colors", isTransparent ? "text-white" : "text-zinc-800")}>
+              <button 
+                className={cn("md:hidden p-2 transition-colors", isTransparent ? "text-white" : "text-zinc-800")}
+                aria-label="Search site"
+              >
                 <Search size={18} strokeWidth={1.5} />
               </button>
 
@@ -237,6 +242,7 @@ export function Navbar() {
               <button 
                 onClick={() => setMobileMenuOpen(false)} 
                 className="p-2 rounded-full hover:bg-zinc-100 text-zinc-800 transition-colors"
+                aria-label="Close mobile menu"
               >
                 <X size={20} strokeWidth={1.5} />
               </button>

@@ -115,6 +115,7 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
             e.stopPropagation();
             toggleWishlist(product.id);
           }}
+          aria-label={isLiked ? "Remove from wishlist" : "Add to wishlist"}
         >
           <Heart size={15} className={cn(isLiked && "fill-[#FF5E36]")} />
         </button>
