@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import { Playfair_Display, Plus_Jakarta_Sans, Caveat, Geist } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -44,6 +45,19 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-ZMV3P7PPRH"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-ZMV3P7PPRH');
+          `}
+        </Script>
         <TRPCReactProvider>
           <WishlistProvider>
             <Navbar />
