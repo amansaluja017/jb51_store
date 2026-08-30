@@ -155,7 +155,12 @@ export function ProductClient({ product }: { product: Product }) {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
     const y = ((e.clientY - top) / height) * 100;
-    setZoomPos({ x, y });
+    
+    // Clamp coordinates to keep the 25% lens selector box fully within the image bounds (12.5% padding from edges)
+    const clampedX = Math.max(12.5, Math.min(87.5, x));
+    const clampedY = Math.max(12.5, Math.min(87.5, y));
+    
+    setZoomPos({ x: clampedX, y: clampedY });
     setIsHovering(true);
   };
 
@@ -215,7 +220,7 @@ export function ProductClient({ product }: { product: Product }) {
       <div className="max-w-7xl mx-auto px-6 pt-8 pb-20 w-full flex flex-col lg:flex-row items-start gap-12 lg:gap-16 relative">
         
         {/* Left Column: Asymmetrical Editorial Image Gallery */}
-        <div className="w-full lg:w-3/5 flex flex-col-reverse md:flex-row gap-6 product-animate relative z-10">
+        <div className="w-full lg:w-3/5 flex flex-col-reverse md:flex-row gap-6 product-animate relative z-20">
           
           {/* Thumbnails list */}
           <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto hide-scrollbar md:w-20 shrink-0 select-none pb-2 md:pb-0">
@@ -251,7 +256,7 @@ export function ProductClient({ product }: { product: Product }) {
                 alt={product.name} 
                 fill 
                 priority
-                className={cn("object-cover transition-transform duration-100 ease-out z-10", isHovering ? "scale-150" : "scale-100")} 
+                className={cn("object-cover transition-transform duration-100 ease-out z-10", isHovering ? "scale-150 lg:scale-100" : "scale-100")} 
                 style={{
                   transformOrigin: isHovering ? `${zoomPos.x}% ${zoomPos.y}%` : 'center center'
                 }}
@@ -291,15 +296,16 @@ export function ProductClient({ product }: { product: Product }) {
 
             {/* Side Zoom preview box for larger viewports */}
             {isHovering && (
-              <div className="absolute top-0 left-0 w-full aspect-[3/4] bg-white border border-zinc-200 rounded-3xl overflow-hidden z-50 pointer-events-none hidden lg:block shadow-2xl animate-scale-up">
+              <div className="absolute top-0 left-[calc(100%+32px)] w-[68%] h-[68%] bg-white border border-zinc-200 rounded-3xl overflow-hidden z-50 pointer-events-none hidden lg:block shadow-2xl animate-scale-up">
                 <div className="absolute inset-3.5 border border-zinc-200/40 rounded-2xl pointer-events-none z-20" />
                 <Image 
                   src={product.images[activeImage] || ''} 
                   alt={`${product.name} Zoom View`} 
                   fill 
-                  className="object-cover scale-220"
+                  className="object-cover pointer-events-none"
                   style={{
-                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
+                    transform: 'scale(4)',
+                    transformOrigin: `${((zoomPos.x - 12.5) / 75) * 100}% ${((zoomPos.y - 12.5) / 75) * 100}%`
                   }}
                   sizes="(max-width: 1024px) 100vw, 60vw"
                 />
