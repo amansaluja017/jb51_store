@@ -9,8 +9,9 @@ const parseArgs = () => {
   const args = process.argv.slice(2);
   let email = process.env.ADMIN_EMAIL || 'admin@admin.com';
   let userName = process.env.ADMIN_USERNAME || 'admin';
-  let password = process.env.ADMIN_PASSWORD || 'admin123';
+  let password = process.env.ADMIN_PASSWORD;
 
+  let positionalCount = 0;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--username' || arg === '-u') {
@@ -18,9 +19,15 @@ const parseArgs = () => {
     } else if (arg === '--password' || arg === '-p') {
       password = args[++i] || password;
     } else if (!arg.startsWith('-')) {
-      if (i === 0) userName = arg;
-      if (i === 1) password = arg;
+      if (positionalCount === 0) userName = arg;
+      if (positionalCount === 1) password = arg;
+      positionalCount++;
     }
+  }
+
+  if (!password) {
+    console.error('❌ Error: Admin password must be provided via ADMIN_PASSWORD environment variable or --password / positional argument.');
+    process.exit(1);
   }
 
   return { email, userName, password };

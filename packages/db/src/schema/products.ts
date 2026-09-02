@@ -23,7 +23,7 @@ export const product = pgTable('product', {
   }),
   tags: json('tags').$type<string[]>(),
   features: json('features').$type<Record<string, any> | string[]>(),
-  aditionalImformation: json('aditional_imformation').$type<Record<string, any>>(),
+  additionalInformation: json('additional_information').$type<Record<string, any>>(),
   isBestSeller: boolean('is_best_seller').default(false).notNull(),
   isLatest: boolean('is_latest').default(false).notNull(),
   isFeatured: boolean('is_featured').default(false).notNull(),

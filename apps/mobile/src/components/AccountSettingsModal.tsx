@@ -8,9 +8,7 @@ import {
   Modal, 
   Platform,
   KeyboardAvoidingView,
-  ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, User, Mail, KeyRound, Check, Eye, EyeOff, ShieldCheck } from 'lucide-react-native';
@@ -177,46 +175,46 @@ export default function AccountSettingsModal({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
           style={{ flex: 1 }}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <ScrollView 
-              style={styles.modalBody} 
-              contentContainerStyle={styles.modalScrollPadding}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              
-              {/* TAB 1: PROFILE OVERVIEW */}
-              {activeTab === 'profile' && (
-                <View style={styles.tabContentContainer}>
-                  <View style={styles.profileHeroCard}>
-                    <View style={styles.avatarCircle}>
-                      <Text style={styles.avatarText}>
-                        {(user?.userName || 'A').charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={styles.profileName}>{user?.userName || 'Admin User'}</Text>
-                    <Text style={styles.profileEmail}>{user?.email || 'admin@admin.com'}</Text>
-                    <View style={styles.roleBadge}>
-                      <Text style={styles.roleBadgeText}>{(user?.role || 'admin').toUpperCase()}</Text>
-                    </View>
+          <ScrollView 
+            style={styles.modalBody} 
+            contentContainerStyle={styles.modalScrollPadding}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+          >
+            
+            {/* TAB 1: PROFILE OVERVIEW */}
+            {activeTab === 'profile' && (
+              <View style={styles.tabContentContainer}>
+                <View style={styles.profileHeroCard}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarText}>
+                      {(user?.userName || 'A').charAt(0).toUpperCase()}
+                    </Text>
                   </View>
+                  <Text style={styles.profileName}>{user?.userName || 'Admin User'}</Text>
+                  <Text style={styles.profileEmail}>{user?.email || 'No email provided'}</Text>
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleBadgeText}>{(user?.role || 'admin').toUpperCase()}</Text>
+                  </View>
+                </View>
 
-                  {/* Actions List */}
-                  <View style={styles.sectionCard}>
-                    <Text style={styles.cardHeaderTitle}>Security Actions</Text>
+                {/* Actions List */}
+                <View style={styles.sectionCard}>
+                  <Text style={styles.cardHeaderTitle}>Security Actions</Text>
 
-                    <TouchableOpacity 
-                      onPress={() => setActiveTab('email')}
-                      style={styles.actionRow}
-                    >
-                      <View style={styles.actionIconBox}>
-                        <Mail size={16} color="#09090b" />
-                      </View>
-                      <View style={styles.actionTextBox}>
-                        <Text style={styles.actionTitle}>Change Email</Text>
-                        <Text style={styles.actionSub}>Current: {user?.email || 'admin@admin.com'}</Text>
-                      </View>
-                    </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => setActiveTab('email')}
+                    style={styles.actionRow}
+                  >
+                    <View style={styles.actionIconBox}>
+                      <Mail size={16} color="#09090b" />
+                    </View>
+                    <View style={styles.actionTextBox}>
+                      <Text style={styles.actionTitle}>Change Email</Text>
+                      <Text style={styles.actionSub}>Current: {user?.email || 'No email provided'}</Text>
+                    </View>
+                  </TouchableOpacity>
                     
                     <View style={styles.divider} />
 
@@ -481,7 +479,6 @@ export default function AccountSettingsModal({
               )}
 
             </ScrollView>
-          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
