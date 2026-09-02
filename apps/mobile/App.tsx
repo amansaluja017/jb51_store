@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import superjson from 'superjson';
+import axios from 'axios';
 import {
   StyleSheet,
   Text,
@@ -7,8 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  Animated,
-  ScrollView
+  Animated
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -18,7 +18,8 @@ import {
   BarChart3,
   FileText,
   LogOut,
-  Star
+  Star,
+  User
 } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 
@@ -31,6 +32,7 @@ import InvoiceScreen from './src/screens/InvoiceScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import ProductFormModal from './src/components/ProductFormModal';
 import CategoryManagerModal from './src/components/CategoryManagerModal';
+import AccountSettingsModal from './src/components/AccountSettingsModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
 
 // Configure notifications handler
@@ -237,7 +239,7 @@ const MOCK_REVIEWS: Review[] = [
 export default function App() {
   // Navigation & Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'>('dashboard');
@@ -271,9 +273,14 @@ export default function App() {
   }, [activeTab]);
 
   // Backend Sync Configurations
-  const [apiHost, setApiHost] = useState('http://localhost:3001');
+  const getInitialApiHost = () => {
+    return 'http://10.199.36.189:3001';
+  };
+
+  const [apiHost, setApiHost] = useState(getInitialApiHost);
   const [showConfig, setShowConfig] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [syncMessage, setSyncMessage] = useState('Standby');
 
   // Data States
@@ -287,6 +294,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id?: string; email?: string; userName?: string; role?: string } | null>(null);
   const [simulatedIndex, setSimulatedIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
@@ -313,40 +322,75 @@ export default function App() {
   };
 
   // ----------------------------------------------------
-  // API INTEGRATIONS
+  // API INTEGRATIONS & TRPC CLIENT (Matching Web Signature via Axios)
   // ----------------------------------------------------
+  const trpcRequest = async (
+    path: string,
+    options: { method?: 'GET' | 'POST'; body?: any; requireAuth?: boolean } = {}
+  ) => {
+    const cleanHost = apiHost.trim().replace(/\/$/, '');
+    const url = `${cleanHost}/trpc/${path}`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-trpc-source': 'expo-mobile-react',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const method = options.method || 'GET';
+    console.log(`[tRPC Axios Request] -> ${method} ${url}`);
+
+    try {
+      const response = await axios({
+        method,
+        url,
+        headers,
+        data: method === 'POST' && options.body !== undefined ? { json: options.body } : undefined,
+      });
+
+      const json = response.data;
+
+      if (json?.result?.data) {
+        if (json.result.data.json !== undefined) {
+          try {
+            return superjson.deserialize(json.result.data);
+          } catch {
+            return json.result.data.json;
+          }
+        }
+        return json.result.data;
+      }
+      return json?.result || json;
+    } catch (err: any) {
+      const serverError =
+        err.response?.data?.error?.json?.message ||
+        err.response?.data?.error?.message ||
+        err.message ||
+        `Request failed with status ${err.response?.status}`;
+      console.error(`[tRPC Axios Error] ${path}:`, serverError);
+      throw new Error(serverError);
+    }
+  };
+
   const fetchFromBackend = async () => {
     setIsLoading(true);
     try {
-      const cleanHost = apiHost.trim().replace(/\/$/, '');
-
       // Fetch products
-      const response = await fetch(`${cleanHost}/trpc/products.getAll`);
-      const json = await response.json();
-      if (json?.result?.data) {
-        const decodedProducts = superjson.deserialize(json.result.data) as Product[];
-        setProducts(decodedProducts);
+      const decodedProducts = await trpcRequest('products.getAll');
+      if (Array.isArray(decodedProducts)) {
+        setProducts(decodedProducts as Product[]);
       }
 
-      // Fetch reviews
-      const reviewsUrl = isAuthenticated
-        ? `${cleanHost}/trpc/reviews.getModerationQueue`
-        : `${cleanHost}/trpc/reviews.getAll`;
+      // Fetch reviews using authenticated moderation queue or public endpoint
+      const reviewsPath = isAuthenticated
+        ? 'reviews.getModerationQueue'
+        : 'reviews.getAll';
       
-      const reviewsHeaders: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (isAuthenticated && token) {
-        reviewsHeaders['Authorization'] = `Bearer ${token}`;
-      }
-
-      const reviewsResponse = await fetch(reviewsUrl, {
-        headers: reviewsHeaders
-      });
-      const reviewsJson = await reviewsResponse.json();
-      if (reviewsJson?.result?.data) {
-        const decodedReviews = superjson.deserialize(reviewsJson.result.data) as Review[];
-        setReviews(decodedReviews);
+      const decodedReviews = await trpcRequest(reviewsPath);
+      if (Array.isArray(decodedReviews)) {
+        setReviews(decodedReviews as Review[]);
       }
 
       setSyncMessage('Successfully synced with server');
@@ -395,36 +439,90 @@ export default function App() {
     setIsSyncing(false);
   };
 
-  const handleLogin = async () => {
-    try {
-      const cleanHost = apiHost.trim().replace(/\/$/, '');
-      const response = await fetch(`${cleanHost}/trpc/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username: username.trim(), password })
-      });
-      if (!response.ok) {
-        throw new Error('Invalid credentials');
+  const handleLogin = async (formData?: { username?: string; password?: string }) => {
+    const inputUsername = formData?.username ?? username;
+    const inputPassword = formData?.password ?? password;
+    const identifier = inputUsername.trim();
+
+    console.log('[handleLogin] Triggered!', { identifier, passwordLength: inputPassword.length, apiHost });
+    if (!identifier || !inputPassword) {
+      const msg = 'Please enter both username and password.';
+      if (Platform.OS !== 'web') {
+        Alert.alert('Validation Required', msg);
       }
-      const json = await response.json();
-      if (json?.result?.data?.token) {
-        setToken(json.result.data.token);
+      showAlert('Validation Required', msg, 'error');
+      return;
+    }
+
+    setIsLoggingIn(true);
+    try {
+      const authResult: any = await trpcRequest('auth.login', {
+        method: 'POST',
+        body: { identifier, password: inputPassword },
+      });
+
+      const tokenValue = authResult?.accessToken || authResult?.token;
+      if (tokenValue) {
+        if (authResult?.user?.role && authResult.user.role !== 'admin') {
+          throw new Error('Access denied: Admin privileges required.');
+        }
+        setToken(tokenValue);
+        setCurrentUser(authResult?.user || { userName: identifier, role: 'admin' });
         setIsAuthenticated(true);
+        showAlert('Authentication Successful', `Welcome back ${authResult?.user?.userName || identifier}!`, 'success');
       } else {
-        throw new Error('Invalid credentials');
+        throw new Error('Invalid credentials or missing auth token');
       }
     } catch (err: any) {
-      // Fallback: If network request fails, validate locally using mock admin credentials
-      if (username.trim().toLowerCase() === 'admin' && password === 'admin@123') {
-        setToken('mock-staff-secret-token');
-        setIsAuthenticated(true);
-        showAlert('Logged in (Sandbox)', 'Backend unreachable or returned error. Logged in using local mock admin credentials.', 'info');
-      } else {
-        showAlert('Authentication Error', err.message || 'Invalid admin credentials.', 'error');
+      console.error('[handleLogin Error]:', err);
+      const errorMsg = err.message || 'Invalid admin credentials.';
+      if (Platform.OS !== 'web') {
+        Alert.alert('Authentication Error', errorMsg);
       }
+      showAlert('Authentication Error', errorMsg, 'error');
+    } finally {
+      setIsLoggingIn(false);
     }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    showAlert('Logged Out', 'Your admin session has ended.', 'info');
+  };
+
+  const handleChangeUsername = async (newUserName: string) => {
+    if (!currentUser?.id) {
+      throw new Error('User session ID not found. Please log in again.');
+    }
+    await trpcRequest('auth.changeUsername', {
+      method: 'POST',
+      body: { userId: currentUser.id, newUserName },
+    });
+    setCurrentUser((prev: any) => (prev ? { ...prev, userName: newUserName } : prev));
+    setUsername(newUserName);
+  };
+
+  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+    if (!currentUser?.id) {
+      throw new Error('User session ID not found. Please log in again.');
+    }
+    await trpcRequest('auth.changePassword', {
+      method: 'POST',
+      body: { userId: currentUser.id, currentPassword, newPassword },
+    });
+  };
+
+  const handleChangeEmail = async (newEmail: string) => {
+    if (!currentUser?.id) {
+      throw new Error('User session ID not found. Please log in again.');
+    }
+    await trpcRequest('auth.changeEmail', {
+      method: 'POST',
+      body: { userId: currentUser.id, newEmail },
+    });
+    setCurrentUser((prev: any) => (prev ? { ...prev, email: newEmail } : prev));
   };
 
   // ----------------------------------------------------
@@ -444,14 +542,12 @@ export default function App() {
     );
 
     try {
-      const cleanHost = apiHost.trim().replace(/\/$/, '');
-      await fetch(`${cleanHost}/trpc/products.update`, {
+      await trpcRequest('products.update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           slug: product.slug,
           data: { variants: updatedVariants }
-        })
+        }
       });
       showAlert('Stock Status Updated', `${product.name} is now ${isCurrentlyOOS ? 'In Stock' : 'Out of Stock'}.`, 'success');
     } catch (err) { }
@@ -463,14 +559,12 @@ export default function App() {
     );
 
     try {
-      const cleanHost = apiHost.trim().replace(/\/$/, '');
-      await fetch(`${cleanHost}/trpc/products.update`, {
+      await trpcRequest('products.update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           slug: product.slug,
           data: { isListed: status }
-        })
+        }
       });
       showAlert('Visibility Updated', `${product.name} is now ${status ? 'Listed' : 'Unlisted'}.`, 'success');
     } catch (err) { }
@@ -484,11 +578,9 @@ export default function App() {
       async () => {
         setProducts(prev => prev.filter(p => p.slug !== slug));
         try {
-          const cleanHost = apiHost.trim().replace(/\/$/, '');
-          await fetch(`${cleanHost}/trpc/products.delete`, {
+          await trpcRequest('products.delete', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ slug })
+            body: { slug }
           });
         } catch (e) { }
         showAlert('Success', 'Outfit deleted.', 'success');
@@ -511,26 +603,15 @@ export default function App() {
     setReviews(prev => [newReview, ...prev]);
 
     try {
-      const cleanHost = apiHost.trim().replace(/\/$/, '');
-      const response = await fetch(`${cleanHost}/trpc/reviews.create`, {
+      const decoded: any = await trpcRequest('reviews.create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reviewData)
+        body: reviewData
       });
-      if (!response.ok) {
-        throw new Error('Server responded with an error status');
-      }
-      const json = await response.json();
-      if (json?.result?.data) {
-        const decoded = superjson.deserialize(json.result.data) as Review;
-        if (decoded && decoded.id && decoded.name) {
-          setReviews(prev => prev.map(r => r.id === tempId ? decoded : r));
-          showAlert('Review Submitted', 'Customer review added successfully.', 'success');
-        } else {
-          throw new Error('Invalid decoded review data');
-        }
+      if (decoded && decoded.id && decoded.name) {
+        setReviews(prev => prev.map(r => r.id === tempId ? decoded : r));
+        showAlert('Review Submitted', 'Customer review added successfully.', 'success');
       } else {
-        throw new Error('Invalid server payload format');
+        throw new Error('Invalid decoded review data');
       }
     } catch (err: any) {
       showAlert('Review Submitted (Mock)', 'Customer review added to local sandbox.', 'success');
@@ -544,28 +625,14 @@ export default function App() {
     );
 
     try {
-      const cleanHost = apiHost.trim().replace(/\/$/, '');
-      const response = await fetch(`${cleanHost}/trpc/reviews.update`, {
+      const decoded: any = await trpcRequest('reviews.update', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ id: review.id, approved: newApproved })
+        body: { id: review.id, approved: newApproved }
       });
-      if (!response.ok) {
-        throw new Error('Server responded with an error status');
-      }
-      const json = await response.json();
-      if (json?.result?.data) {
-        const decoded = superjson.deserialize(json.result.data) as Review | null;
-        if (decoded && decoded.id) {
-          showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
-        } else {
-          throw new Error('Unknown review ID or invalid update');
-        }
+      if (decoded && decoded.id) {
+        showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
       } else {
-        throw new Error('Invalid server response format');
+        throw new Error('Unknown review ID or invalid update');
       }
     } catch (err: any) {
       showAlert('Approval Updated (Mock)', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'} in sandbox.`, 'success');
@@ -579,25 +646,12 @@ export default function App() {
       'confirm',
       async () => {
         try {
-          const cleanHost = apiHost.trim().replace(/\/$/, '');
-          const response = await fetch(`${cleanHost}/trpc/reviews.delete`, {
+          await trpcRequest('reviews.delete', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ id: review.id })
+            body: { id: review.id }
           });
-          if (!response.ok) {
-            throw new Error('Server responded with an error status');
-          }
-          const json = await response.json();
-          if (json?.result) {
-            setReviews(prev => prev.filter(r => r.id !== review.id));
-            showAlert('Success', 'Review deleted.', 'success');
-          } else {
-            throw new Error('Invalid server response format');
-          }
+          setReviews(prev => prev.filter(r => r.id !== review.id));
+          showAlert('Success', 'Review deleted.', 'success');
         } catch (err: any) {
           setReviews(prev => prev.filter(r => r.id !== review.id));
           showAlert('Success (Mock)', 'Review deleted from local sandbox.', 'success');
@@ -725,11 +779,9 @@ export default function App() {
     if (isEditing && editingSlug) {
       setProducts(prev => prev.map(p => p.slug === editingSlug ? payload : p));
       try {
-        const cleanHost = apiHost.trim().replace(/\/$/, '');
-        await fetch(`${cleanHost}/trpc/products.update`, {
+        await trpcRequest('products.update', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: editingSlug, data: payload })
+          body: { slug: editingSlug, data: payload }
         });
       } catch (e) { }
       showAlert('Outfit Saved', 'Persistence complete.', 'success');
@@ -740,11 +792,9 @@ export default function App() {
       }
       setProducts(prev => [payload, ...prev]);
       try {
-        const cleanHost = apiHost.trim().replace(/\/$/, '');
-        await fetch(`${cleanHost}/trpc/products.create`, {
+        await trpcRequest('products.create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: payload
         });
       } catch (e) { }
       showAlert('Outfit Created', 'New item added to catalogue.', 'success');
@@ -808,20 +858,27 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <LoginScreen
-        username={username}
-        setUsername={setUsername}
-        password={password}
-        setPassword={setPassword}
-        apiHost={apiHost}
-        setApiHost={setApiHost}
-        showConfig={showConfig}
-        setShowConfig={setShowConfig}
-        isSyncing={isSyncing}
-        syncMessage={syncMessage}
-        onLogin={handleLogin}
-        onManualSync={handleManualSync}
-      />
+      <>
+        <LoginScreen
+          username={username}
+          setUsername={setUsername}
+          password={password}
+          setPassword={setPassword}
+          apiHost={apiHost}
+          setApiHost={setApiHost}
+          showConfig={showConfig}
+          setShowConfig={setShowConfig}
+          isSyncing={isSyncing}
+          syncMessage={syncMessage}
+          isLoggingIn={isLoggingIn}
+          onLogin={handleLogin}
+          onManualSync={handleManualSync}
+        />
+        <CustomAlert
+          config={alertConfig}
+          onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+        />
+      </>
     );
   }
 
@@ -846,17 +903,24 @@ export default function App() {
                       : 'Performance Analytics'}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => {
-              setIsAuthenticated(false);
-              setToken(null);
-            }}
-            style={styles.logoutBtn}
-            accessibilityLabel="Log out"
-            accessibilityRole="button"
-          >
-            <LogOut size={16} color="#71717a" />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              onPress={() => setAccountModalOpen(true)}
+              style={styles.headerActionBtn}
+              accessibilityLabel="Account Settings"
+              accessibilityRole="button"
+            >
+              <User size={18} color="#09090b" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutBtn}
+              accessibilityLabel="Log out"
+              accessibilityRole="button"
+            >
+              <LogOut size={16} color="#71717a" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Screen Router */}
@@ -1215,6 +1279,17 @@ export default function App() {
           showAlert={showAlert}
         />
 
+        {/* Dedicated Account & Security Settings Modal */}
+        <AccountSettingsModal
+          visible={accountModalOpen}
+          user={currentUser}
+          onClose={() => setAccountModalOpen(false)}
+          onChangeUsername={handleChangeUsername}
+          onChangeEmail={handleChangeEmail}
+          onChangePassword={handleChangePassword}
+          showAlert={showAlert}
+        />
+
         <CustomAlert
           config={alertConfig}
           onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
@@ -1253,6 +1328,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#09090b',
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    backgroundColor: '#f4f4f5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutBtn: {
     width: 36,

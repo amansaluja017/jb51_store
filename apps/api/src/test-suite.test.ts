@@ -4,7 +4,7 @@ import { appRouter } from './router.js';
 
 test('Reviews API moderation & creation', async (t) => {
   await t.test('should successfully create a new review', async () => {
-    const caller = appRouter.createCaller({ isStaff: false });
+    const caller = appRouter.createCaller({ isStaff: false, user: null });
     const input = {
       name: 'Test Reviewer',
       message: 'Excellent quality and design!',
@@ -26,7 +26,7 @@ test('Reviews API moderation & creation', async (t) => {
   });
 
   await t.test('should return null when updating a nonexistent review', async () => {
-    const caller = appRouter.createCaller({ isStaff: true });
+    const caller = appRouter.createCaller({ isStaff: true, user: null });
     
     // Call update on a nonexistent id
     const result = await caller.reviews.update({

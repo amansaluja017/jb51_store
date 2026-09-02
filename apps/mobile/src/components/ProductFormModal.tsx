@@ -344,10 +344,15 @@ export default function ProductFormModal({
         </View>
 
         <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
           style={{ flex: 1 }}
         >
-          <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalScrollPadding}>
+          <ScrollView 
+            style={styles.modalBody} 
+            contentContainerStyle={styles.modalScrollPadding}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             
             {/* -------------------- TAB 1: DETAILS -------------------- */}
             {activeTab === 'details' && (
