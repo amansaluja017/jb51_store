@@ -23,6 +23,17 @@ export interface RouteMeta {
 
 const t = initTRPC.context<AuthContext>().meta<RouteMeta>().create();
 
+export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (ctx.isStaff) return next();
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required. Please log in to perform this action.',
+    });
+  }
+  return next();
+});
+
 export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (ctx.isStaff) return next();
   if (!ctx.user) {
@@ -83,12 +94,19 @@ export const authRouter = t.router({
       }
     }),
 
-  changePassword: adminProcedure
-    .meta({ description: 'Change user password (Admin protection)' })
+  changePassword: protectedProcedure
+    .meta({ description: 'Change user password' })
     .input(ChangePasswordInputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const targetUserId = input.userId || ctx.user?.sub;
+      if (!targetUserId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
+      }
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
       try {
-        return await changePassword(input);
+        return await changePassword({ ...input, userId: targetUserId });
       } catch (error: any) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
@@ -97,12 +115,19 @@ export const authRouter = t.router({
       }
     }),
 
-  changeUsername: adminProcedure
-    .meta({ description: 'Change username (Admin protection)' })
+  changeUsername: protectedProcedure
+    .meta({ description: 'Change username' })
     .input(ChangeUsernameInputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const targetUserId = input.userId || ctx.user?.sub;
+      if (!targetUserId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
+      }
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
       try {
-        return await changeUsername(input);
+        return await changeUsername({ ...input, userId: targetUserId });
       } catch (error: any) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
@@ -111,12 +136,19 @@ export const authRouter = t.router({
       }
     }),
 
-  changeEmail: adminProcedure
-    .meta({ description: 'Change email address (Admin protection)' })
+  changeEmail: protectedProcedure
+    .meta({ description: 'Change email address' })
     .input(ChangeEmailInputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const targetUserId = input.userId || ctx.user?.sub;
+      if (!targetUserId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
+      }
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
       try {
-        return await changeEmail(input);
+        return await changeEmail({ ...input, userId: targetUserId });
       } catch (error: any) {
         throw new TRPCError({
           code: 'BAD_REQUEST',

@@ -4,8 +4,25 @@ import { db, token as tokenTable } from '@repo/db';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'jb51-store-jwt-secret-key-super-secure';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'jb51-store-jwt-refresh-secret-key-super-secure';
+import crypto from 'crypto';
+
+const getJwtSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'test') return 'test-jwt-secret-key-12345678901234567890';
+    throw new Error('JWT_SECRET environment variable is missing.');
+  }
+  return secret;
+};
+
+const getJwtRefreshSecret = (): string => {
+  const secret = process.env.JWT_REFRESH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'test') return 'test-jwt-refresh-secret-key-12345678901234567890';
+    throw new Error('JWT_REFRESH_SECRET environment variable is missing.');
+  }
+  return secret;
+};
 
 export interface JwtPayload {
   sub: string;
@@ -15,19 +32,19 @@ export interface JwtPayload {
 }
 
 export const generateAccessToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 };
 
 export const generateRefreshToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '30d' });
+  return jwt.sign(payload, getJwtRefreshSecret(), { expiresIn: '30d' });
 };
 
 export const verifyAccessToken = (token: string): JwtPayload => {
-  return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  return jwt.verify(token, getJwtSecret()) as JwtPayload;
 };
 
 export const verifyRefreshToken = (token: string): JwtPayload => {
-  return jwt.verify(token, JWT_REFRESH_SECRET) as JwtPayload;
+  return jwt.verify(token, getJwtRefreshSecret()) as JwtPayload;
 };
 
 export const generateAuthTokens = async (userData: {
@@ -46,11 +63,16 @@ export const generateAuthTokens = async (userData: {
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
 
-  // Store refresh token in DB for tracking/revocation
+  const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  // Store refresh token hash in DB for tracking/revocation
   await db.insert(tokenTable).values({
     userId: userData.id,
     tokenType: 'refreshToken',
+    tokenHash,
     isRevoked: false,
+    expiresAt,
   });
 
   return {

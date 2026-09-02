@@ -26,7 +26,10 @@ test('Reviews API moderation & creation', async (t) => {
   });
 
   await t.test('should return null when updating a nonexistent review', async () => {
-    const caller = appRouter.createCaller({ isStaff: true, user: null });
+    const caller = appRouter.createCaller({
+      isStaff: true,
+      user: { sub: 'admin-id', role: 'admin', email: 'admin@example.com', userName: 'admin' }
+    });
     
     // Call update on a nonexistent id
     const result = await caller.reviews.update({

@@ -16,13 +16,13 @@ export const LoginInputSchema = z.object({
 });
 
 export const ChangePasswordInputSchema = z.object({
-  userId: z.string().uuid('Invalid user ID'),
+  userId: z.string().uuid('Invalid user ID').optional(),
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'New password must be at least 6 characters long'),
 });
 
 export const ChangeUsernameInputSchema = z.object({
-  userId: z.string().uuid('Invalid user ID'),
+  userId: z.string().uuid('Invalid user ID').optional(),
   newUserName: z
     .string()
     .min(3, 'Username must be at least 3 characters long')
@@ -31,7 +31,7 @@ export const ChangeUsernameInputSchema = z.object({
 });
 
 export const ChangeEmailInputSchema = z.object({
-  userId: z.string().uuid('Invalid user ID'),
+  userId: z.string().uuid('Invalid user ID').optional(),
   newEmail: z.string().email('Invalid email address'),
 });
 

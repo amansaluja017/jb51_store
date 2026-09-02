@@ -7,9 +7,7 @@ import {
   TouchableOpacity, 
   Platform,
   KeyboardAvoidingView,
-  ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, RefreshCw, Eye, EyeOff } from 'lucide-react-native';
@@ -75,136 +73,135 @@ export default function LoginScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent} 
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.loginBox}>
-              {/* Logo */}
-              <Text style={styles.atelierLogo}>JB51</Text>
-              <Text style={styles.atelierSubLogo}>A T E L I E R</Text>
-              
-              <View style={styles.formSpacer} />
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.loginBox}>
+            {/* Logo */}
+            <Text style={styles.atelierLogo}>JB51</Text>
+            <Text style={styles.atelierSubLogo}>A T E L I E R</Text>
+            
+            <View style={styles.formSpacer} />
 
-              {/* Inputs managed by react-hook-form */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Username</Text>
-                <Controller
-                  control={control}
-                  name="username"
-                  rules={{ required: 'Username is required' }}
-                  render={({ field: { onChange, onBlur, value } }) => (
+            {/* Inputs managed by react-hook-form */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Username</Text>
+              <Controller
+                control={control}
+                name="username"
+                rules={{ required: 'Username is required' }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput 
+                    placeholder="Input admin keys..."
+                    placeholderTextColor="#71717a"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={(val) => {
+                      onChange(val);
+                      setUsername(val);
+                    }}
+                    style={[styles.loginInput, errors.username && styles.inputError]}
+                    autoCapitalize="none"
+                  />
+                )}
+              />
+              {errors.username && (
+                <Text style={styles.errorText}>{errors.username.message}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <Controller
+                control={control}
+                name="password"
+                rules={{ required: 'Password is required' }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View style={styles.passwordWrapper}>
                     <TextInput 
-                      placeholder="Input admin keys..."
+                      placeholder="Input access key..."
                       placeholderTextColor="#71717a"
+                      secureTextEntry={!showPassword}
                       value={value}
                       onBlur={onBlur}
                       onChangeText={(val) => {
                         onChange(val);
-                        setUsername(val);
+                        setPassword(val);
                       }}
-                      style={[styles.loginInput, errors.username && styles.inputError]}
+                      style={[styles.loginInput, styles.passwordInput, errors.password && styles.inputError]}
                       autoCapitalize="none"
                     />
-                  )}
-                />
-                {errors.username && (
-                  <Text style={styles.errorText}>{errors.username.message}</Text>
-                )}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Password</Text>
-                <Controller
-                  control={control}
-                  name="password"
-                  rules={{ required: 'Password is required' }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <View style={styles.passwordWrapper}>
-                      <TextInput 
-                        placeholder="Input access key..."
-                        placeholderTextColor="#71717a"
-                        secureTextEntry={!showPassword}
-                        value={value}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setPassword(val);
-                        }}
-                        style={[styles.loginInput, styles.passwordInput, errors.password && styles.inputError]}
-                        autoCapitalize="none"
-                      />
-                      <TouchableOpacity 
-                        onPress={() => setShowPassword(prev => !prev)}
-                        style={styles.eyeBtn}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? (
-                          <EyeOff size={18} color="#a1a1aa" />
-                        ) : (
-                          <Eye size={18} color="#a1a1aa" />
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                />
-                {errors.password && (
-                  <Text style={styles.errorText}>{errors.password.message}</Text>
-                )}
-              </View>
-
-              <TouchableOpacity 
-                onPress={handleSubmit(onSubmit)} 
-                disabled={isLoggingIn}
-                style={[styles.loginBtn, isLoggingIn && { opacity: 0.7 }]}
-              >
-                <Text style={styles.loginBtnText}>
-                  {isLoggingIn ? 'Authenticating...' : 'Authenticate Access'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Configurations toggle */}
-              <TouchableOpacity 
-                onPress={() => setShowConfig(!showConfig)}
-                style={styles.configToggle}
-              >
-                <Settings size={14} color="#71717a" />
-                <Text style={styles.configToggleText}>tRPC Sync Settings</Text>
-              </TouchableOpacity>
-
-              {showConfig && (
-                <View style={styles.configBox}>
-                  <Text style={styles.configTitle}>Backend Server Path</Text>
-                  <TextInput 
-                    value={apiHost}
-                    onChangeText={setApiHost}
-                    style={styles.configInput}
-                    autoCapitalize="none"
-                  />
-                  <View style={styles.presetRow}>
-                    <TouchableOpacity onPress={() => setApiHost('http://10.199.36.189:3001')} style={styles.presetBadge}>
-                      <Text style={styles.presetBadgeText}>LAN (10.199.36.189)</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setApiHost('http://10.0.2.2:3001')} style={styles.presetBadge}>
-                      <Text style={styles.presetBadgeText}>Emulator (10.0.2.2)</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setApiHost('http://localhost:3001')} style={styles.presetBadge}>
-                      <Text style={styles.presetBadgeText}>Localhost</Text>
+                    <TouchableOpacity 
+                      onPress={() => setShowPassword(prev => !prev)}
+                      style={styles.eyeBtn}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={18} color="#a1a1aa" />
+                      ) : (
+                        <Eye size={18} color="#a1a1aa" />
+                      )}
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={onManualSync} style={styles.syncBtn}>
-                    <RefreshCw size={12} color="#fff" />
-                    <Text style={styles.syncBtnText}>{isSyncing ? 'Syncing...' : 'Ping & Sync Now'}</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.syncMessageText}>{syncMessage}</Text>
-                </View>
+                )}
+              />
+              {errors.password && (
+                <Text style={styles.errorText}>{errors.password.message}</Text>
               )}
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+
+            <TouchableOpacity 
+              onPress={handleSubmit(onSubmit)} 
+              disabled={isLoggingIn}
+              style={[styles.loginBtn, isLoggingIn && { opacity: 0.7 }]}
+            >
+              <Text style={styles.loginBtnText}>
+                {isLoggingIn ? 'Authenticating...' : 'Authenticate Access'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Configurations toggle */}
+            <TouchableOpacity 
+              onPress={() => setShowConfig(!showConfig)}
+              style={styles.configToggle}
+            >
+              <Settings size={14} color="#71717a" />
+              <Text style={styles.configToggleText}>tRPC Sync Settings</Text>
+            </TouchableOpacity>
+
+            {showConfig && (
+              <View style={styles.configBox}>
+                <Text style={styles.configTitle}>Backend Server Path</Text>
+                <TextInput 
+                  value={apiHost}
+                  onChangeText={setApiHost}
+                  style={styles.configInput}
+                  autoCapitalize="none"
+                />
+                <View style={styles.presetRow}>
+                  <TouchableOpacity onPress={() => setApiHost('http://10.199.36.189:3001')} style={styles.presetBadge}>
+                    <Text style={styles.presetBadgeText}>LAN (10.199.36.189)</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setApiHost('http://10.0.2.2:3001')} style={styles.presetBadge}>
+                    <Text style={styles.presetBadgeText}>Emulator (10.0.2.2)</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setApiHost('http://localhost:3001')} style={styles.presetBadge}>
+                    <Text style={styles.presetBadgeText}>Localhost</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={onManualSync} style={styles.syncBtn}>
+                  <RefreshCw size={12} color="#fff" />
+                  <Text style={styles.syncBtnText}>{isSyncing ? 'Syncing...' : 'Ping & Sync Now'}</Text>
+                </TouchableOpacity>
+                <Text style={styles.syncMessageText}>{syncMessage}</Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

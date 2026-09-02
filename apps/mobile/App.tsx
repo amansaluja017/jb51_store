@@ -274,7 +274,7 @@ export default function App() {
 
   // Backend Sync Configurations
   const getInitialApiHost = () => {
-    return 'http://10.199.36.189:3001';
+    return process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL || 'http://10.199.36.189:3001';
   };
 
   const [apiHost, setApiHost] = useState(getInitialApiHost);
@@ -347,6 +347,7 @@ export default function App() {
         method,
         url,
         headers,
+        timeout: 10000,
         data: method === 'POST' && options.body !== undefined ? { json: options.body } : undefined,
       });
 
@@ -493,34 +494,25 @@ export default function App() {
   };
 
   const handleChangeUsername = async (newUserName: string) => {
-    if (!currentUser?.id) {
-      throw new Error('User session ID not found. Please log in again.');
-    }
     await trpcRequest('auth.changeUsername', {
       method: 'POST',
-      body: { userId: currentUser.id, newUserName },
+      body: { newUserName },
     });
     setCurrentUser((prev: any) => (prev ? { ...prev, userName: newUserName } : prev));
     setUsername(newUserName);
   };
 
   const handleChangePassword = async (currentPassword: string, newPassword: string) => {
-    if (!currentUser?.id) {
-      throw new Error('User session ID not found. Please log in again.');
-    }
     await trpcRequest('auth.changePassword', {
       method: 'POST',
-      body: { userId: currentUser.id, currentPassword, newPassword },
+      body: { currentPassword, newPassword },
     });
   };
 
   const handleChangeEmail = async (newEmail: string) => {
-    if (!currentUser?.id) {
-      throw new Error('User session ID not found. Please log in again.');
-    }
     await trpcRequest('auth.changeEmail', {
       method: 'POST',
-      body: { userId: currentUser.id, newEmail },
+      body: { newEmail },
     });
     setCurrentUser((prev: any) => (prev ? { ...prev, email: newEmail } : prev));
   };
@@ -537,10 +529,6 @@ export default function App() {
       stock: isCurrentlyOOS ? 10 : 0
     }));
 
-    setProducts(prev =>
-      prev.map(p => p.slug === product.slug ? { ...p, variants: updatedVariants } : p)
-    );
-
     try {
       await trpcRequest('products.update', {
         method: 'POST',
@@ -549,15 +537,16 @@ export default function App() {
           data: { variants: updatedVariants }
         }
       });
+      setProducts(prev =>
+        prev.map(p => p.slug === product.slug ? { ...p, variants: updatedVariants } : p)
+      );
       showAlert('Stock Status Updated', `${product.name} is now ${isCurrentlyOOS ? 'In Stock' : 'Out of Stock'}.`, 'success');
-    } catch (err) { }
+    } catch (err: any) {
+      showAlert('Error', err.message || 'Failed to update stock status', 'error');
+    }
   };
 
   const handleUpdateVisibility = async (product: Product, status: boolean) => {
-    setProducts(prev =>
-      prev.map(p => p.slug === product.slug ? { ...p, isListed: status } : p)
-    );
-
     try {
       await trpcRequest('products.update', {
         method: 'POST',
@@ -566,8 +555,13 @@ export default function App() {
           data: { isListed: status }
         }
       });
+      setProducts(prev =>
+        prev.map(p => p.slug === product.slug ? { ...p, isListed: status } : p)
+      );
       showAlert('Visibility Updated', `${product.name} is now ${status ? 'Listed' : 'Unlisted'}.`, 'success');
-    } catch (err) { }
+    } catch (err: any) {
+      showAlert('Error', err.message || 'Failed to update visibility', 'error');
+    }
   };
 
   const handleDeleteProduct = (slug: string, name: string) => {
@@ -576,14 +570,16 @@ export default function App() {
       `Are you sure you want to delete "${name}"?`,
       'confirm',
       async () => {
-        setProducts(prev => prev.filter(p => p.slug !== slug));
         try {
           await trpcRequest('products.delete', {
             method: 'POST',
             body: { slug }
           });
-        } catch (e) { }
-        showAlert('Success', 'Outfit deleted.', 'success');
+          setProducts(prev => prev.filter(p => p.slug !== slug));
+          showAlert('Success', 'Outfit deleted.', 'success');
+        } catch (e: any) {
+          showAlert('Error', e.message || 'Failed to delete outfit', 'error');
+        }
       }
     );
   };

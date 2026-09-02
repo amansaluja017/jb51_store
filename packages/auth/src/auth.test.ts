@@ -188,9 +188,14 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
 
   await t.test('4. Change Username procedure', async (st) => {
     await st.test('should fail if new username is already taken', async () => {
+      const authCaller = authRouter.createCaller({
+        user: verifyAccessToken(activeAccessToken),
+        isStaff: false,
+      });
+
       await assert.rejects(
         async () => {
-          await caller.changeUsername({
+          await authCaller.changeUsername({
             userId: createdUserId1,
             newUserName: username2,
           });
@@ -204,7 +209,12 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
     });
 
     await st.test('should successfully update username', async () => {
-      const result = await caller.changeUsername({
+      const authCaller = authRouter.createCaller({
+        user: verifyAccessToken(activeAccessToken),
+        isStaff: false,
+      });
+
+      const result = await authCaller.changeUsername({
         userId: createdUserId1,
         newUserName: newUsername1,
       });
@@ -216,9 +226,14 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
 
   await t.test('5. Change Password procedure', async (st) => {
     await st.test('should fail password change if current password is wrong', async () => {
+      const authCaller = authRouter.createCaller({
+        user: verifyAccessToken(activeAccessToken),
+        isStaff: false,
+      });
+
       await assert.rejects(
         async () => {
-          await caller.changePassword({
+          await authCaller.changePassword({
             userId: createdUserId1,
             currentPassword: 'invalid_current_password',
             newPassword: passwordNew,
@@ -233,7 +248,12 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
     });
 
     await st.test('should successfully change password', async () => {
-      const result = await caller.changePassword({
+      const authCaller = authRouter.createCaller({
+        user: verifyAccessToken(activeAccessToken),
+        isStaff: false,
+      });
+
+      const result = await authCaller.changePassword({
         userId: createdUserId1,
         currentPassword: passwordInitial,
         newPassword: passwordNew,
