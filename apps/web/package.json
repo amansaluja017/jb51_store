@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "next build && cp -r public .next/standalone/apps/web/ 2>/dev/null || true && cp -r .next/static .next/standalone/apps/web/.next/ 2>/dev/null || true && ln -sf apps/web/server.js .next/standalone/server.js 2>/dev/null || true",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint .",
     "clean": "rm -rf .next .turbo"
   },
