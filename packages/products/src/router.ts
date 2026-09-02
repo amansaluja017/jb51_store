@@ -21,16 +21,24 @@ export interface RouteMeta {
 }
 
 export interface TRPCContext {
+  user?: { id?: string; email?: string; userName?: string; role?: string } | null;
   isStaff?: boolean;
 }
 
 const t = initTRPC.context<TRPCContext>().meta<RouteMeta>().create();
 
-const staffProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.isStaff) {
+const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (ctx.isStaff) return next();
+  if (!ctx.user) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
-      message: 'Staff authorization required',
+      message: 'Authentication token required',
+    });
+  }
+  if (ctx.user.role !== 'admin') {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Access denied: Admin role required',
     });
   }
   return next();
@@ -50,22 +58,22 @@ export const productsRouter = t.router({
     .query(async ({ input }) => {
       return await getProductBySlug(input.slug);
     }),
-  create: t.procedure
-    .meta({ description: 'Create a new product listing' })
+  create: adminProcedure
+    .meta({ description: 'Create a new product listing (Admin only)' })
     .input(CreateProductInputSchema)
     .output(CreateProductOutputSchema)
     .mutation(async ({ input }) => {
       return await createProduct(input);
     }),
-  update: t.procedure
-    .meta({ description: 'Update an existing product listing' })
+  update: adminProcedure
+    .meta({ description: 'Update an existing product listing (Admin only)' })
     .input(UpdateProductInputSchema)
     .output(UpdateProductOutputSchema)
     .mutation(async ({ input }) => {
       return await updateProduct(input.slug, input.data);
     }),
-  delete: t.procedure
-    .meta({ description: 'Delete an existing product listing' })
+  delete: adminProcedure
+    .meta({ description: 'Delete an existing product listing (Admin only)' })
     .input(DeleteProductInputSchema)
     .output(DeleteProductOutputSchema)
     .mutation(async ({ input }) => {
@@ -82,7 +90,7 @@ export const reviewsRouter = t.router({
         .filter(r => r.approved)
         .map(({ phone, instagramId, ...rest }) => rest);
     }),
-  getModerationQueue: staffProcedure
+  getModerationQueue: adminProcedure
     .meta({ description: 'Fetch all reviews for moderation (including unapproved)' })
     .query(async () => {
       return await getReviews();
@@ -93,17 +101,16 @@ export const reviewsRouter = t.router({
     .mutation(async ({ input }) => {
       return await createReview(input);
     }),
-  update: staffProcedure
+  update: adminProcedure
     .meta({ description: 'Update an existing review' })
     .input(UpdateReviewInputSchema)
     .mutation(async ({ input }) => {
       return await updateReview(input.id, { approved: input.approved });
     }),
-  delete: staffProcedure
+  delete: adminProcedure
     .meta({ description: 'Delete an existing review' })
     .input(DeleteReviewInputSchema)
     .mutation(async ({ input }) => {
       return await deleteReview(input.id);
     }),
 });
-

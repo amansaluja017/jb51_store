@@ -2,6 +2,8 @@ import { initTRPC } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import { z } from 'zod';
+import { authRouter } from '@repo/auth/router';
+import { authenticateToken, JwtPayload } from '@repo/auth';
 import { productsRouter, reviewsRouter } from '@repo/products/router';
 import * as trpcExpress from '@trpc/server/adapters/express';
 
@@ -46,12 +48,21 @@ export function verifyExpiringToken(token: string): boolean {
 
 export const createTRPCContext = async ({ req, res }: trpcExpress.CreateExpressContextOptions) => {
   const authHeader = req?.headers?.authorization;
+  let user: JwtPayload | null = null;
   let isStaff = false;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    isStaff = verifyExpiringToken(token);
+
+  if (authHeader) {
+    user = authenticateToken(authHeader);
+    if (user && user.role === 'admin') {
+      isStaff = true;
+    } else if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim();
+      isStaff = verifyExpiringToken(token);
+    }
   }
+
   return {
+    user,
     isStaff,
   };
 };
@@ -74,6 +85,7 @@ export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
 export const appRouter = createTRPCRouter({
+  auth: authRouter,
   login: publicProcedure
     .input(z.object({ username: z.string(), password: z.string() }))
     .mutation(async ({ input }) => {
