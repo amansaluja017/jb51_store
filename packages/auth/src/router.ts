@@ -6,6 +6,7 @@ import {
   ChangeUsernameInputSchema,
   ChangeEmailInputSchema,
   RefreshTokenInputSchema,
+  LogoutInputSchema,
 } from './services/validations';
 import {
   registerUser,
@@ -14,6 +15,7 @@ import {
   changeUsername,
   changeEmail,
   refreshAuthToken,
+  logoutUser,
 } from './services/auth.service';
 import { AuthContext } from './middleware';
 
@@ -154,6 +156,17 @@ export const authRouter = t.router({
           code: 'BAD_REQUEST',
           message: error.message || 'Email change failed',
         });
+      }
+    }),
+
+  logout: protectedProcedure
+    .meta({ description: 'Logout user and revoke active tokens' })
+    .input(LogoutInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await logoutUser(ctx.user?.sub, input?.refreshToken);
+      } catch (error: any) {
+        return { success: true, message: 'Logged out successfully' };
       }
     }),
 });

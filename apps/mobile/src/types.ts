@@ -20,6 +20,7 @@ export interface Product {
   newArrival?: boolean;
   bestseller?: boolean;
   isListed?: boolean;
+  inStock?: boolean;
   tags?: string[];
 }
 

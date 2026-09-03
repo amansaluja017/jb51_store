@@ -1,6 +1,6 @@
-import { pgTable, uuid, timestamp } from 'drizzle-orm/pg-core';
-import { productStatusEnum } from './enums';
-import { product } from './products';
+import { pgTable, uuid, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { productStatusEnum } from './enums.js';
+import { product } from './products.js';
 
 export const productStatus = pgTable('product_status', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -8,6 +8,7 @@ export const productStatus = pgTable('product_status', {
     .notNull()
     .references(() => product.id, { onDelete: 'cascade' }),
   status: productStatusEnum('status').default('listed').notNull(),
+  inStock: boolean('in_stock').default(true).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 

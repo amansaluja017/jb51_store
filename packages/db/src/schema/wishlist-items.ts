@@ -1,6 +1,6 @@
 import { pgTable, uuid, timestamp } from 'drizzle-orm/pg-core';
-import { wishlist } from './wishlist';
-import { product } from './products';
+import { wishlist } from './wishlist.js';
+import { product } from './products.js';
 
 export const wishlistItems = pgTable('wishlist_items', {
   id: uuid('id').defaultRandom().primaryKey(),

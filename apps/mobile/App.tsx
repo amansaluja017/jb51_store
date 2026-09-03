@@ -1,27 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import superjson from 'superjson';
-import axios from 'axios';
 import {
   StyleSheet,
   Text,
   View,
   TouchableOpacity,
-  Alert,
   Platform,
   Animated
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
-  LayoutDashboard,
-  Shirt,
-  BarChart3,
-  FileText,
   LogOut,
-  Star,
   User
 } from 'lucide-react-native';
-import * as Notifications from 'expo-notifications';
 
 import { Product, Inquiry, Review } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
@@ -34,207 +25,24 @@ import ProductFormModal from './src/components/ProductFormModal';
 import CategoryManagerModal from './src/components/CategoryManagerModal';
 import AccountSettingsModal from './src/components/AccountSettingsModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
+import NavigationTabBar, { TabType } from './src/components/NavigationTabBar';
 
-// Configure notifications handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+import {
+  DEFAULT_CATEGORIES,
+  MOCK_PRODUCTS,
+  INITIAL_INQUIRIES,
+  SIMULATED_NEW_INQUIRIES,
+  MOCK_REVIEWS
+} from './src/data/mockData';
+import { getInitialApiHost, trpcRequest as trpcRequestService } from './src/services/api';
+import {
+  configureNotifications,
+  requestNotificationPermissions,
+  triggerLocalNotification
+} from './src/services/notifications';
 
-// ----------------------------------------------------
-// DEFAULT MOCK DATA FALLBACKS
-// ----------------------------------------------------
-const DEFAULT_CATEGORIES = ['Formal Suits', 'Anarkali Suits', 'Silk Co-ords', 'Velvet Edit', 'Occasion Wear'];
-
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: 'outfit_1',
-    name: 'Palace Banarasi Silk Suit',
-    slug: 'palace-banarasi-silk',
-    description: 'An elegant handwoven silk Banarasi outfit styled with antique zari borders.',
-    price: 38500,
-    category: 'Anarkali Suits',
-    images: ['https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80'],
-    fabric: 'Pure Banarasi Katan Silk',
-    fit: 'Classic Tailored Fit',
-    careInstructions: 'Dry clean only. Store in muslin wrapper.',
-    variants: [
-      { color: 'Emerald Green', size: 'S', stock: 4 },
-      { color: 'Emerald Green', size: 'M', stock: 12 },
-      { color: 'Emerald Green', size: 'L', stock: 0 }
-    ],
-    featured: true,
-    newArrival: true,
-    bestseller: true,
-    isListed: true,
-    tags: ['silk', 'luxury', 'festive']
-  },
-  {
-    id: 'outfit_2',
-    name: 'Crimson Velvet Edit Suit',
-    slug: 'crimson-velvet-edit',
-    description: 'Rich silk velvet kurta with heavy hand-embroidered Zardozi sleeves.',
-    price: 42000,
-    category: 'Velvet Edit',
-    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80'],
-    fabric: 'Silk Velvet & Chiffon Dupatta',
-    fit: 'Relaxed Kurta Silhouette',
-    careInstructions: 'Dry clean only.',
-    variants: [
-      { color: 'Crimson Wine', size: 'S', stock: 0 },
-      { color: 'Crimson Wine', size: 'M', stock: 6 },
-      { color: 'Crimson Wine', size: 'L', stock: 8 }
-    ],
-    featured: true,
-    newArrival: false,
-    bestseller: true,
-    isListed: true,
-    tags: ['velvet', 'zardozi', 'wedding']
-  },
-  {
-    id: 'outfit_3',
-    name: 'Ivory Chanderi Coord Set',
-    slug: 'ivory-chanderi-coord',
-    description: 'Minimalist Ivory Chanderi Silk short kurta paired with wide-leg trousers.',
-    price: 24500,
-    category: 'Silk Co-ords',
-    images: ['https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80'],
-    fabric: 'Chanderi Silk & Organza',
-    fit: 'Modern Straight Cut',
-    careInstructions: 'Dry clean only. Iron on low heat.',
-    variants: [
-      { color: 'Warm Ivory', size: 'XS', stock: 10 },
-      { color: 'Warm Ivory', size: 'S', stock: 12 },
-      { color: 'Warm Ivory', size: 'M', stock: 15 }
-    ],
-    featured: false,
-    newArrival: true,
-    bestseller: false,
-    isListed: true,
-    tags: ['minimalist', 'silk', 'coord']
-  }
-];
-
-const INITIAL_INQUIRIES: Inquiry[] = [
-  {
-    id: 'inq_1',
-    customerName: 'Aishwarya Sen',
-    productName: 'Palace Banarasi Silk Suit',
-    size: 'M',
-    color: 'Emerald Green',
-    channel: 'WhatsApp',
-    timestamp: '12 mins ago',
-    status: 'Responded',
-    phone: '+919876543210',
-    email: 'aishwarya.sen@outlook.com',
-    query: 'Can I get this customized with a sweetheart neckline and full sleeves? I would need it by the first week of next month for a wedding.'
-  },
-  {
-    id: 'inq_2',
-    customerName: 'Meera Rajput',
-    productName: 'Crimson Velvet Edit Suit',
-    size: 'S',
-    color: 'Crimson Wine',
-    channel: 'Instagram DM',
-    timestamp: '45 mins ago',
-    status: 'Pending',
-    phone: '+919988776655',
-    email: 'meera.rajput@gmail.com',
-    query: 'Is the crimson velvet suit available in size XS? The size chart shows S as the smallest, but I wanted to see if custom fitting is possible.'
-  },
-  {
-    id: 'inq_3',
-    customerName: 'Kriti Sanon',
-    productName: 'Ivory Chanderi Coord Set',
-    size: 'M',
-    color: 'Warm Ivory',
-    channel: 'WhatsApp',
-    timestamp: '2 hours ago',
-    status: 'Responded',
-    phone: '+919123456789',
-    email: 'kriti.sanon@icloud.com',
-    query: 'Hi, wanted to know if this Ivory Chanderi Coord Set comes with a dupatta or if it can be ordered separately? Thanks!'
-  },
-];
-
-const SIMULATED_NEW_INQUIRIES: Omit<Inquiry, 'id'>[] = [
-  {
-    customerName: 'Janhvi Kapoor',
-    productName: 'Crimson Velvet Edit Suit',
-    size: 'M',
-    color: 'Crimson Wine',
-    channel: 'WhatsApp',
-    timestamp: 'Just now',
-    status: 'Pending',
-    phone: '+919833445566',
-    email: 'janhvi.k@gmail.com',
-    query: 'Is this fabric velvet blend or 100% pure silk velvet? Can you share detail close-up videos of the zardozi sleeve work?'
-  },
-  {
-    customerName: 'Shanaya Kapoor',
-    productName: 'Palace Banarasi Silk Suit',
-    size: 'S',
-    color: 'Emerald Green',
-    channel: 'Instagram DM',
-    timestamp: 'Just now',
-    status: 'Pending',
-    phone: '+919922110033',
-    email: 'shanaya@kapoor.co',
-    query: 'Can you deliver this to London by next Friday? I have an engagement party to attend.'
-  },
-  {
-    customerName: 'Mira Kapoor',
-    productName: 'Ivory Chanderi Coord Set',
-    size: 'L',
-    color: 'Warm Ivory',
-    channel: 'WhatsApp',
-    timestamp: 'Just now',
-    status: 'Pending',
-    phone: '+919811223344',
-    email: 'mira.kapoor@outlook.com',
-    query: 'Hi, is this set lined? Wanted to confirm if the pants have an elasticated waistband.'
-  }
-];
-
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: 'rev_1',
-    name: 'Prerna Sharma',
-    message: 'The Palace Banarasi Silk Suit is absolutely breathtaking! The zari work is extremely fine, and the fabric feels premium.',
-    stars: 5,
-    location: 'Mumbai',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    approved: true,
-    phone: null,
-    instagramId: 'prerna_s'
-  },
-  {
-    id: 'rev_2',
-    name: 'Anjali Desai',
-    message: 'Beautiful Ivory Chanderi Coord Set, perfect for minimal everyday wear. The trousers fit beautifully.',
-    stars: 4,
-    location: 'New Delhi',
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    approved: true,
-    phone: null,
-    instagramId: 'anjali_desai'
-  },
-  {
-    id: 'rev_3',
-    name: 'Kavita Verma',
-    message: 'Submitted a customization query for the Velvet suit and got a prompt response. Looking forward to ordering!',
-    stars: 5,
-    location: 'Bangalore',
-    createdAt: new Date(Date.now() - 86400000 * 8).toISOString(),
-    approved: false,
-    phone: null,
-    instagramId: 'kavita_v'
-  }
-];
+// Initialize Notifications configuration
+configureNotifications();
 
 export default function App() {
   // Navigation & Authentication
@@ -242,9 +50,9 @@ export default function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
-  const tabValues = useRef({
+  const tabValues = useRef<Record<TabType, Animated.Value>>({
     dashboard: new Animated.Value(activeTab === 'dashboard' ? 1 : 0),
     catalogue: new Animated.Value(activeTab === 'catalogue' ? 1 : 0),
     analytics: new Animated.Value(activeTab === 'analytics' ? 1 : 0),
@@ -253,13 +61,7 @@ export default function App() {
   }).current;
 
   useEffect(() => {
-    const tabs: Array<'dashboard' | 'catalogue' | 'analytics' | 'invoices' | 'reviews'> = [
-      'dashboard',
-      'catalogue',
-      'analytics',
-      'invoices',
-      'reviews',
-    ];
+    const tabs: TabType[] = ['dashboard', 'catalogue', 'analytics', 'invoices', 'reviews'];
     Animated.parallel(
       tabs.map(tab =>
         Animated.spring(tabValues[tab], {
@@ -271,11 +73,6 @@ export default function App() {
       )
     ).start();
   }, [activeTab]);
-
-  // Backend Sync Configurations
-  const getInitialApiHost = () => {
-    return process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL || 'http://10.199.36.189:3001';
-  };
 
   const [apiHost, setApiHost] = useState(getInitialApiHost);
   const [showConfig, setShowConfig] = useState(false);
@@ -321,70 +118,19 @@ export default function App() {
     setAlertConfig({ visible: true, title, message, type, onConfirm });
   };
 
-  // ----------------------------------------------------
-  // API INTEGRATIONS & TRPC CLIENT (Matching Web Signature via Axios)
-  // ----------------------------------------------------
-  const trpcRequest = async (
-    path: string,
-    options: { method?: 'GET' | 'POST'; body?: any; requireAuth?: boolean } = {}
-  ) => {
-    const cleanHost = apiHost.trim().replace(/\/$/, '');
-    const url = `${cleanHost}/trpc/${path}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-trpc-source': 'expo-mobile-react',
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const method = options.method || 'GET';
-    console.log(`[tRPC Axios Request] -> ${method} ${url}`);
-
-    try {
-      const response = await axios({
-        method,
-        url,
-        headers,
-        timeout: 10000,
-        data: method === 'POST' && options.body !== undefined ? { json: options.body } : undefined,
-      });
-
-      const json = response.data;
-
-      if (json?.result?.data) {
-        if (json.result.data.json !== undefined) {
-          try {
-            return superjson.deserialize(json.result.data);
-          } catch {
-            return json.result.data.json;
-          }
-        }
-        return json.result.data;
-      }
-      return json?.result || json;
-    } catch (err: any) {
-      const serverError =
-        err.response?.data?.error?.json?.message ||
-        err.response?.data?.error?.message ||
-        err.message ||
-        `Request failed with status ${err.response?.status}`;
-      console.error(`[tRPC Axios Error] ${path}:`, serverError);
-      throw new Error(serverError);
-    }
+  // Helper function to invoke backend tRPC endpoints
+  const trpcRequest = (path: string, options: { method?: 'GET' | 'POST'; body?: any } = {}) => {
+    return trpcRequestService(path, { ...options, token, apiHost });
   };
 
   const fetchFromBackend = async () => {
     setIsLoading(true);
     try {
-      // Fetch products
       const decodedProducts = await trpcRequest('products.getAll');
       if (Array.isArray(decodedProducts)) {
         setProducts(decodedProducts as Product[]);
       }
 
-      // Fetch reviews using authenticated moderation queue or public endpoint
       const reviewsPath = isAuthenticated
         ? 'reviews.getModerationQueue'
         : 'reviews.getAll';
@@ -397,31 +143,6 @@ export default function App() {
       setSyncMessage('Successfully synced with server');
     } catch (err) {
       setSyncMessage('Server offline - Sandbox active');
-      if (reviews.length === 0) {
-        setReviews([
-          {
-            id: 'rev_1',
-            name: 'Priya Sharma',
-            message: 'The Emerald Banarasi Suit fits like a dream! Absolutely stunning handloom work and premium fabric quality.',
-            stars: 5,
-            location: 'Mumbai',
-            instagramId: 'priya_sharma',
-            phone: '+91 98765 43210',
-            createdAt: new Date().toISOString(),
-            approved: true,
-          },
-          {
-            id: 'rev_2',
-            name: 'Ananya Iyer',
-            message: 'Complimentary custom sizing makes shopping here a breeze. Our Karigar checked measurements over WhatsApp.',
-            stars: 5,
-            location: 'Chennai',
-            instagramId: 'ananya.iyer',
-            createdAt: new Date().toISOString(),
-            approved: true,
-          }
-        ]);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -445,13 +166,8 @@ export default function App() {
     const inputPassword = formData?.password ?? password;
     const identifier = inputUsername.trim();
 
-    console.log('[handleLogin] Triggered!', { identifier, passwordLength: inputPassword.length, apiHost });
     if (!identifier || !inputPassword) {
-      const msg = 'Please enter both username and password.';
-      if (Platform.OS !== 'web') {
-        Alert.alert('Validation Required', msg);
-      }
-      showAlert('Validation Required', msg, 'error');
+      showAlert('Validation Required', 'Please enter both username and password.', 'error');
       return;
     }
 
@@ -476,21 +192,27 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('[handleLogin Error]:', err);
-      const errorMsg = err.message || 'Invalid admin credentials.';
-      if (Platform.OS !== 'web') {
-        Alert.alert('Authentication Error', errorMsg);
-      }
-      showAlert('Authentication Error', errorMsg, 'error');
+      showAlert('Authentication Error', err.message || 'Invalid admin credentials.', 'error');
     } finally {
       setIsLoggingIn(false);
     }
   };
 
-  const handleLogout = () => {
-    setToken(null);
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    showAlert('Logged Out', 'Your admin session has ended.', 'info');
+  const handleLogout = async () => {
+    try {
+      if (token) {
+        await trpcRequest('auth.logout', {
+          method: 'POST',
+        });
+      }
+    } catch (err: any) {
+      console.log('[handleLogout] Logout API notice:', err.message);
+    } finally {
+      setToken(null);
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+      showAlert('Logged Out', 'Your admin session has ended.', 'info');
+    }
   };
 
   const handleChangeUsername = async (newUserName: string) => {
@@ -517,30 +239,39 @@ export default function App() {
     setCurrentUser((prev: any) => (prev ? { ...prev, email: newEmail } : prev));
   };
 
-  // ----------------------------------------------------
-  // PRODUCT MUTATORS
-  // ----------------------------------------------------
+  // Product Mutators
   const handleToggleStock = async (product: Product) => {
-    const totalStock = product.variants.reduce((acc, v) => acc + v.stock, 0);
-    const isCurrentlyOOS = totalStock === 0;
+    const isCurrentlyInStock = product.inStock !== false && (product.variants.length === 0 || product.variants.reduce((acc, v) => acc + v.stock, 0) > 0);
+    const newInStock = !isCurrentlyInStock;
 
     const updatedVariants = product.variants.map(v => ({
       ...v,
-      stock: isCurrentlyOOS ? 10 : 0
+      stock: newInStock ? (v.stock > 0 ? v.stock : 10) : 0
     }));
 
     try {
-      await trpcRequest('products.update', {
+      await trpcRequest('products.updateStatus', {
         method: 'POST',
         body: {
           slug: product.slug,
-          data: { variants: updatedVariants }
+          inStock: newInStock
         }
       });
+
+      if (product.variants.length > 0) {
+        await trpcRequest('products.update', {
+          method: 'POST',
+          body: {
+            slug: product.slug,
+            data: { variants: updatedVariants }
+          }
+        });
+      }
+
       setProducts(prev =>
-        prev.map(p => p.slug === product.slug ? { ...p, variants: updatedVariants } : p)
+        prev.map(p => p.slug === product.slug ? { ...p, inStock: newInStock, variants: updatedVariants } : p)
       );
-      showAlert('Stock Status Updated', `${product.name} is now ${isCurrentlyOOS ? 'In Stock' : 'Out of Stock'}.`, 'success');
+      showAlert('Stock Status Updated', `${product.name} is now ${newInStock ? 'In Stock' : 'Out of Stock'}.`, 'success');
     } catch (err: any) {
       showAlert('Error', err.message || 'Failed to update stock status', 'error');
     }
@@ -548,11 +279,11 @@ export default function App() {
 
   const handleUpdateVisibility = async (product: Product, status: boolean) => {
     try {
-      await trpcRequest('products.update', {
+      await trpcRequest('products.updateStatus', {
         method: 'POST',
         body: {
           slug: product.slug,
-          data: { isListed: status }
+          status: status ? 'listed' : 'unListed'
         }
       });
       setProducts(prev =>
@@ -584,9 +315,7 @@ export default function App() {
     );
   };
 
-  // ----------------------------------------------------
-  // REVIEW MUTATORS
-  // ----------------------------------------------------
+  // Review Mutators
   const handleAddReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => {
     const tempId = `rev_${Date.now()}`;
     const newReview: Review = {
@@ -647,165 +376,123 @@ export default function App() {
             body: { id: review.id }
           });
           setReviews(prev => prev.filter(r => r.id !== review.id));
-          showAlert('Success', 'Review deleted.', 'success');
+          showAlert('Review Deleted', 'Review removed successfully.', 'success');
         } catch (err: any) {
-          setReviews(prev => prev.filter(r => r.id !== review.id));
-          showAlert('Success (Mock)', 'Review deleted from local sandbox.', 'success');
+          showAlert('Review Deleted (Mock)', 'Review removed from sandbox.', 'success');
         }
       }
     );
   };
 
+  // Category Mutators
   const handleAddCategory = (newCat: string) => {
-    setCategories(prev => {
-      if (prev.includes(newCat)) return prev;
-      return [...prev, newCat];
-    });
+    if (!categories.includes(newCat)) {
+      setCategories(prev => [...prev, newCat]);
+    }
   };
 
   const handleDeleteCategory = (catToDelete: string) => {
-    if (catToDelete === 'Uncategorized') {
-      showAlert('Error', 'The "Uncategorized" category is a system fallback and cannot be deleted.', 'error');
-      return;
-    }
-
-    const hasProducts = products.some(p => p.category === catToDelete);
-
-    setCategories(prev => {
-      let filtered = prev.filter(c => c !== catToDelete);
-      if (hasProducts && !filtered.includes('Uncategorized')) {
-        filtered = [...filtered, 'Uncategorized'];
-      }
-      if (filtered.length === 0) {
-        return ['Uncategorized'];
-      }
-      return filtered;
-    });
-
-    // Reassign products to Uncategorized
-    setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: 'Uncategorized' } : p));
+    const fallbackCategory = categories.find(c => c !== catToDelete) || 'Uncategorized';
+    setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: fallbackCategory } : p));
+    setCategories(prev => prev.filter(c => c !== catToDelete));
   };
 
-  const handleResolveInquiry = (id: string, customerName: string) => {
-    setInquiries(prev =>
-      prev.map(inq => inq.id === id ? { ...inq, status: 'Resolved' } : inq)
-    );
-    showAlert('Inquiry Resolved', `Archived inquiry for ${customerName}`, 'success');
+  // Inquiry Mutators
+  const handleResolveInquiry = (id: string, name?: string) => {
+    setInquiries(prev => prev.map(inq => inq.id === id ? { ...inq, status: 'Responded' as const } : inq));
+    showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Responded.`, 'success');
   };
 
-  // ----------------------------------------------------
-  // LOCAL NOTIFICATIONS & SIMULATION
-  // ----------------------------------------------------
-  useEffect(() => {
-    async function requestPermissions() {
-      if (Platform.OS === 'web') return;
-      const response = await Notifications.getPermissionsAsync() as any;
-      const existingStatus = response?.status;
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const reqResponse = await Notifications.requestPermissionsAsync() as any;
-        finalStatus = reqResponse?.status;
-      }
-      if (finalStatus !== 'granted') {
-        return;
-      }
+  const handleSimulateNewInquiry = async () => {
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      showAlert('Notifications Restricted', 'Please enable system notifications to test live alerts.', 'error');
     }
-    requestPermissions();
-  }, []);
 
-  const triggerNotification = async (inquiryName: string, productName: string) => {
-    if (Platform.OS === 'web') return;
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'New Atelier Inquiry 🔔',
-          body: `${inquiryName} is asking about the ${productName}.`,
-          sound: true,
-        },
-        trigger: null, // immediate
-      });
-    } catch (err) {
-      console.warn('Failed to schedule local notification', err);
-    }
-  };
-
-  // Background Simulator: Adds a new inquiry every 90 seconds
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    let simCount = 0;
-    const interval = setInterval(() => {
-      if (simCount >= SIMULATED_NEW_INQUIRIES.length) {
-        clearInterval(interval);
-        return;
-      }
-
-      const template = SIMULATED_NEW_INQUIRIES[simCount];
-      const newInq: Inquiry = {
-        ...template,
-        id: `inq_sim_${Date.now()}`
-      };
-
-      setInquiries(prev => [newInq, ...prev]);
-      triggerNotification(newInq.customerName, newInq.productName);
-      simCount++;
-    }, 90000);
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
-
-  const handleSimulateNewInquiry = () => {
-    const nextIndex = simulatedIndex % SIMULATED_NEW_INQUIRIES.length;
-    const template = SIMULATED_NEW_INQUIRIES[nextIndex];
+    const template = SIMULATED_NEW_INQUIRIES[simulatedIndex % SIMULATED_NEW_INQUIRIES.length];
     const newInq: Inquiry = {
       ...template,
-      id: `inq_sim_${Date.now()}`
+      id: `inq_${Date.now()}`
     };
 
     setInquiries(prev => [newInq, ...prev]);
-    triggerNotification(newInq.customerName, newInq.productName);
+
+    triggerLocalNotification(
+      `New WhatsApp Inquiry from ${newInq.customerName}`,
+      `Interested in "${newInq.productName}" (Size ${newInq.size}, Color ${newInq.color}).`,
+      { inquiryId: newInq.id }
+    );
+
     showAlert('Inquiry Simulated', `New inquiry from ${newInq.customerName} has been simulated. Check device notifications!`, 'success');
     setSimulatedIndex(prev => prev + 1);
   };
 
-
-
   // Save edits/addings
   const handleSaveProduct = async (payload: Product) => {
     if (isEditing && editingSlug) {
-      setProducts(prev => prev.map(p => p.slug === editingSlug ? payload : p));
       try {
-        await trpcRequest('products.update', {
+        const updated: any = await trpcRequest('products.update', {
           method: 'POST',
           body: { slug: editingSlug, data: payload }
         });
-      } catch (e) { }
-      showAlert('Outfit Saved', 'Persistence complete.', 'success');
+        const finalProd = updated && updated.slug ? updated : payload;
+        setProducts(prev => prev.map(p => p.slug === editingSlug ? finalProd : p));
+        showAlert('Outfit Saved', 'Persistence complete.', 'success');
+      } catch (err: any) {
+        console.error('[handleSaveProduct Error]:', err);
+        showAlert('Save Failed', err.message || 'Failed to update outfit on server.', 'error');
+        return;
+      }
     } else {
       if (products.some(p => p.slug === payload.slug)) {
         showAlert('Unique Slug Required', 'An outfit with this slug already exists.', 'error');
         return;
       }
-      setProducts(prev => [payload, ...prev]);
       try {
-        await trpcRequest('products.create', {
+        const created: any = await trpcRequest('products.create', {
           method: 'POST',
           body: payload
         });
-      } catch (e) { }
-      showAlert('Outfit Created', 'New item added to catalogue.', 'success');
+        const finalProd = created && created.slug ? created : payload;
+
+        // Hit product status API
+        try {
+          await trpcRequest('products.updateStatus', {
+            method: 'POST',
+            body: {
+              slug: finalProd.slug,
+              status: finalProd.isListed !== false ? 'listed' : 'unListed'
+            }
+          });
+        } catch (statusErr) {
+          console.log('[Product Status Sync Notice]:', statusErr);
+        }
+
+        setProducts(prev => [finalProd, ...prev.filter(p => p.slug !== finalProd.slug)]);
+        showAlert('Outfit Created', 'New item added to catalogue.', 'success');
+      } catch (err: any) {
+        console.error('[handleSaveProduct Error]:', err);
+        showAlert('Creation Failed', err.message || 'Failed to create outfit on server.', 'error');
+        return;
+      }
     }
 
     setFormModalOpen(false);
   };
 
-  // Sizing and listings calculations
+  // Calculations & Analytics
   const stats = useMemo(() => {
     const total = products.length;
     const oos = products.filter(p => p.variants.every(v => v.stock === 0)).length;
     const active = total - oos;
     const listed = products.filter(p => p.isListed !== false).length;
-    return { total, oos, active, listed };
+
+    return {
+      total,
+      listed,
+      oos,
+      active,
+    };
   }, [products]);
 
   const activeAnalyticsProduct = useMemo(() => {
@@ -815,25 +502,39 @@ export default function App() {
 
   const analyticsMetrics = useMemo(() => {
     if (activeAnalyticsProduct) {
-      const seed = activeAnalyticsProduct.slug.length;
-      const views = 120 + (seed * 8) % 150;
-      const waHits = 10 + (seed * 3) % 20;
-      const igHits = 5 + (seed * 2) % 12;
-      const wlHits = 8 + (seed * 4) % 18;
-      const conversion = Math.round(((waHits + igHits) / views) * 100);
-      const pipeline = (waHits + igHits) * activeAnalyticsProduct.price;
+      const isOos = activeAnalyticsProduct.variants.every(v => v.stock === 0);
+      const totalStock = activeAnalyticsProduct.variants.reduce((acc, v) => acc + v.stock, 0);
+      const waHits = Math.floor(activeAnalyticsProduct.price / 400);
+      const igHits = Math.floor(activeAnalyticsProduct.price / 600);
+      const wlHits = Math.floor(activeAnalyticsProduct.price / 300);
+      const totalViews = waHits * 4 + igHits * 5 + wlHits * 3;
 
-      return { views, waHits, igHits, wlHits, conversion, pipeline };
+      return {
+        views: totalViews,
+        waHits,
+        igHits,
+        wlHits,
+        conversion: isOos ? 0 : 3.8,
+        pipeline: totalStock
+      };
     } else {
-      const totalViews = 1240;
-      const waHits = 168;
-      const igHits = 116;
-      const wlHits = 142;
-      const conversion = Math.round(((waHits + igHits) / totalViews) * 100);
+      let totalViews = 0;
+      let waHits = 0;
+      let igHits = 0;
+      let wlHits = 0;
 
-      const totalPrice = products.reduce((acc, p) => acc + p.price, 0);
-      const avgPrice = products.length > 0 ? totalPrice / products.length : 30000;
-      const pipeline = (waHits + igHits) * avgPrice;
+      products.forEach(p => {
+        const w = Math.floor(p.price / 400);
+        const i = Math.floor(p.price / 600);
+        const l = Math.floor(p.price / 300);
+        waHits += w;
+        igHits += i;
+        wlHits += l;
+        totalViews += (w * 4 + i * 5 + l * 3);
+      });
+
+      const conversion = products.length > 0 ? 4.2 : 0;
+      const pipeline = products.reduce((acc, p) => acc + p.price, 0) * 1.5;
 
       return { views: totalViews, waHits, igHits, wlHits, conversion, pipeline };
     }
@@ -973,282 +674,11 @@ export default function App() {
         </View>
 
         {/* Tabs Menu Footer */}
-        <View style={styles.navigationFooter}>
-          <TouchableOpacity
-            onPress={() => setActiveTab('dashboard')}
-            style={styles.tabItem}
-            accessibilityLabel="Overview tab"
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'dashboard' }}
-          >
-            <Animated.View
-              style={[
-                styles.iconWrapper,
-                {
-                  transform: [
-                    {
-                      translateY: tabValues.dashboard.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -6],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.activeIndicator,
-                  {
-                    opacity: tabValues.dashboard,
-                    transform: [{ scale: tabValues.dashboard }],
-                  },
-                ]}
-              />
-              <View style={styles.iconPositioner}>
-                <LayoutDashboard size={18} color={activeTab === 'dashboard' ? '#FF5E36' : '#a1a1aa'} />
-              </View>
-            </Animated.View>
-            <Animated.Text
-              style={[
-                styles.tabLabel,
-                {
-                  opacity: tabValues.dashboard,
-                  transform: [
-                    {
-                      translateY: tabValues.dashboard.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [8, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              Overview
-            </Animated.Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('catalogue')}
-            style={styles.tabItem}
-            accessibilityLabel="Catalog tab"
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'catalogue' }}
-          >
-            <Animated.View
-              style={[
-                styles.iconWrapper,
-                {
-                  transform: [
-                    {
-                      translateY: tabValues.catalogue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -6],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.activeIndicator,
-                  {
-                    opacity: tabValues.catalogue,
-                    transform: [{ scale: tabValues.catalogue }],
-                  },
-                ]}
-              />
-              <View style={styles.iconPositioner}>
-                <Shirt size={18} color={activeTab === 'catalogue' ? '#FF5E36' : '#a1a1aa'} />
-              </View>
-            </Animated.View>
-            <Animated.Text
-              style={[
-                styles.tabLabel,
-                {
-                  opacity: tabValues.catalogue,
-                  transform: [
-                    {
-                      translateY: tabValues.catalogue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [8, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              Catalog
-            </Animated.Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('analytics')}
-            style={styles.tabItem}
-            accessibilityLabel="Analytics tab"
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'analytics' }}
-          >
-            <Animated.View
-              style={[
-                styles.iconWrapper,
-                {
-                  transform: [
-                    {
-                      translateY: tabValues.analytics.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -6],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.activeIndicator,
-                  {
-                    opacity: tabValues.analytics,
-                    transform: [{ scale: tabValues.analytics }],
-                  },
-                ]}
-              />
-              <View style={styles.iconPositioner}>
-                <BarChart3 size={18} color={activeTab === 'analytics' ? '#FF5E36' : '#a1a1aa'} />
-              </View>
-            </Animated.View>
-            <Animated.Text
-              style={[
-                styles.tabLabel,
-                {
-                  opacity: tabValues.analytics,
-                  transform: [
-                    {
-                      translateY: tabValues.analytics.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [8, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              Analytics
-            </Animated.Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('invoices')}
-            style={styles.tabItem}
-            accessibilityLabel="Invoices tab"
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'invoices' }}
-          >
-            <Animated.View
-              style={[
-                styles.iconWrapper,
-                {
-                  transform: [
-                    {
-                      translateY: tabValues.invoices.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -6],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.activeIndicator,
-                  {
-                    opacity: tabValues.invoices,
-                    transform: [{ scale: tabValues.invoices }],
-                  },
-                ]}
-              />
-              <View style={styles.iconPositioner}>
-                <FileText size={18} color={activeTab === 'invoices' ? '#FF5E36' : '#a1a1aa'} />
-              </View>
-            </Animated.View>
-            <Animated.Text
-              style={[
-                styles.tabLabel,
-                {
-                  opacity: tabValues.invoices,
-                  transform: [
-                    {
-                      translateY: tabValues.invoices.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [8, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              Invoices
-            </Animated.Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('reviews')}
-            style={styles.tabItem}
-            accessibilityLabel="Reviews tab"
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'reviews' }}
-          >
-            <Animated.View
-              style={[
-                styles.iconWrapper,
-                {
-                  transform: [
-                    {
-                      translateY: tabValues.reviews.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -6],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.activeIndicator,
-                  {
-                    opacity: tabValues.reviews,
-                    transform: [{ scale: tabValues.reviews }],
-                  },
-                ]}
-              />
-              <View style={styles.iconPositioner}>
-                <Star size={18} color={activeTab === 'reviews' ? '#FF5E36' : '#a1a1aa'} />
-              </View>
-            </Animated.View>
-            <Animated.Text
-              style={[
-                styles.tabLabel,
-                {
-                  opacity: tabValues.reviews,
-                  transform: [
-                    {
-                      translateY: tabValues.reviews.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [8, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              Reviews
-            </Animated.Text>
-          </TouchableOpacity>
-        </View>
+        <NavigationTabBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          tabValues={tabValues}
+        />
 
         {/* Create / Edit Form Modal */}
         <ProductFormModal
@@ -1349,59 +779,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navigationFooter: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 24 : 16,
-    left: 16,
-    right: 16,
-    height: 64,
-    backgroundColor: '#ffffff', // Clean white background matching rest of the light UI cards
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    borderRadius: 32, // Fully rounded capsule shape
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06, // soft low-opacity shadow
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  tabItem: {
-    flex: 1,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  iconWrapper: {
-    width: 48,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    width: 48,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#ffebe6', // Soft warm-peach background
-  },
-  iconPositioner: {
-    zIndex: 1,
-  },
-  tabLabel: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#FF5E36',
-    position: 'absolute',
-    bottom: 6,
-  },
   screenView: {
     flex: 1,
-    paddingBottom: 96, // gives space so content can scroll above the floating navbar
   },
 });

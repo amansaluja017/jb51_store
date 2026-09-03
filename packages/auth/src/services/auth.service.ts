@@ -267,3 +267,19 @@ export const changeEmail = async (input: ChangeEmailInput) => {
     throw err;
   }
 };
+
+export const logoutUser = async (userId?: string, refreshToken?: string) => {
+  if (refreshToken) {
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await db
+      .update(tokenTable)
+      .set({ isRevoked: true })
+      .where(eq(tokenTable.tokenHash, tokenHash));
+  } else if (userId) {
+    await db
+      .update(tokenTable)
+      .set({ isRevoked: true })
+      .where(eq(tokenTable.userId, userId));
+  }
+  return { success: true, message: 'Logged out successfully' };
+};

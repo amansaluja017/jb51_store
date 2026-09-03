@@ -1,14 +1,14 @@
 import { relations } from 'drizzle-orm';
-import { user } from './users';
-import { token } from './tokens';
-import { category } from './categories';
-import { product } from './products';
-import { productStatus } from './product-status';
-import { reviews } from './reviews';
-import { productAnalytics } from './product-analytics';
-import { invoices } from './invoices';
-import { wishlist } from './wishlist';
-import { wishlistItems } from './wishlist-items';
+import { user } from './users.js';
+import { token } from './tokens.js';
+import { category } from './categories.js';
+import { product } from './products.js';
+import { productStatus } from './product-status.js';
+import { reviews } from './reviews.js';
+import { productAnalytics } from './product-analytics.js';
+import { invoices } from './invoices.js';
+import { wishlist } from './wishlist.js';
+import { wishlistItems } from './wishlist-items.js';
 
 export const userRelations = relations(user, ({ many }) => ({
   tokens: many(token),

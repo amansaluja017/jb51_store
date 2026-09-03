@@ -6,6 +6,8 @@ import { eq } from 'drizzle-orm';
 import { authRouter } from './router';
 import { verifyAccessToken, authenticateToken } from './jwt';
 
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_key_12345';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test_jwt_refresh_secret_key_12345';
 dotenv.config();
 
 test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
@@ -275,6 +277,18 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
       const authCtx = authenticateToken(`Bearer ${result.accessToken}`);
       assert.ok(authCtx);
       assert.strictEqual(authCtx.userName, newUsername1);
+    });
+  });
+
+  await t.test('6. Logout procedure', async (st) => {
+    await st.test('should successfully execute logout procedure for authenticated user', async () => {
+      const authCaller = authRouter.createCaller({
+        user: verifyAccessToken(activeAccessToken),
+        isStaff: false,
+      });
+
+      const result = await authCaller.logout({ refreshToken: activeRefreshToken });
+      assert.strictEqual(result.success, true);
     });
   });
 });

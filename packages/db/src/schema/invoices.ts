@@ -7,9 +7,9 @@ import {
   numeric,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { invoiceModeEnum } from './enums';
-import { product } from './products';
-import { user } from './users';
+import { invoiceModeEnum } from './enums.js';
+import { product } from './products.js';
+import { user } from './users.js';
 
 export const invoices = pgTable('invoices', {
   id: uuid('id').defaultRandom().primaryKey(),

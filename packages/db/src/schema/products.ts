@@ -9,7 +9,7 @@ import {
   boolean,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { category } from './categories';
+import { category } from './categories.js';
 
 export const product = pgTable('product', {
   id: uuid('id').defaultRandom().primaryKey(),

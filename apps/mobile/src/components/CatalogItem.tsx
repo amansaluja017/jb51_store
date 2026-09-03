@@ -23,7 +23,7 @@ export default function CatalogItem({
   onDelete
 }: CatalogItemProps) {
   const totalStock = product.variants.reduce((acc, v) => acc + v.stock, 0);
-  const isOutOfStock = totalStock === 0;
+  const isOutOfStock = product.inStock === false || (product.variants.length > 0 && totalStock === 0);
 
   return (
     <View style={styles.catalogCard}>

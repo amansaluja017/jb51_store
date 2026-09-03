@@ -9,11 +9,18 @@
     ".": "./src/index.ts",
     "./router": "./src/router.ts"
   },
+  "scripts": {
+    "test": "tsx --test src/products.test.ts"
+  },
   "dependencies": {
+    "@repo/db": "workspace:*",
     "@trpc/server": "^11.18.0",
+    "drizzle-orm": "^0.33.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^20.14.9",
+    "tsx": "^4.19.1",
     "typescript": "7.0.2"
   }
 }

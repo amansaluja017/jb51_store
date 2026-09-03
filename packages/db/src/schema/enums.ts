@@ -11,7 +11,7 @@ export const tokenTypeEnum = pgEnum('token_type', [
 export const productStatusEnum = pgEnum('product_status_enum', [
   'listed',
   'unListed',
-  'out_of_stock',
+  'discontinued'
 ]);
 
 export const inqueryTypeEnum = pgEnum('inquery_type', [

@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, text, timestamp } from 'drizzle-orm/pg-core';
-import { inqueryTypeEnum, inqueryStatusEnum } from './enums';
+import { inqueryTypeEnum, inqueryStatusEnum } from './enums.js';
 
 export const inqueries = pgTable('inqueries', {
   id: uuid('id').defaultRandom().primaryKey(),

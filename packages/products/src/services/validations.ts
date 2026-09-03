@@ -7,24 +7,25 @@ export const ProductVariantSchema = z.object({
 });
 
 export const ProductSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   name: z.string(),
   slug: z.string(),
-  description: z.string(),
+  description: z.string().optional().default(''),
   price: z.number(),
   discountPrice: z.number().optional(),
-  category: z.string(),
-  images: z.array(z.string()),
-  fabric: z.string(),
-  fit: z.string(),
-  careInstructions: z.string(),
-  variants: z.array(ProductVariantSchema),
-  featured: z.boolean(),
-  newArrival: z.boolean(),
-  bestseller: z.boolean(),
-  createdAt: z.string(),
-  tags: z.array(z.string()).optional(),
-  isListed: z.boolean().optional(),
+  category: z.string().optional().default('Uncategorized'),
+  images: z.array(z.string()).optional().default([]),
+  fabric: z.string().optional().default(''),
+  fit: z.string().optional().default(''),
+  careInstructions: z.string().optional().default(''),
+  variants: z.array(ProductVariantSchema).optional().default([]),
+  featured: z.boolean().optional().default(false),
+  newArrival: z.boolean().optional().default(false),
+  bestseller: z.boolean().optional().default(false),
+  createdAt: z.string().optional(),
+  tags: z.array(z.string()).optional().default([]),
+  isListed: z.boolean().optional().default(true),
+  inStock: z.boolean().optional().default(true),
 });
 
 // Input Validations
@@ -47,7 +48,31 @@ export const GetProductBySlugOutputSchema = ProductSchema.nullable();
 export const CreateProductOutputSchema = ProductSchema;
 export const UpdateProductOutputSchema = ProductSchema.nullable();
 export const DeleteProductOutputSchema = z.boolean();
+export const ProductStatusEnumSchema = z.enum(['listed', 'unListed', 'discontinued']);
 
+export const GetProductStatusInputSchema = z.object({
+  slug: z.string(),
+});
+
+export const GetProductStatusOutputSchema = z.object({
+  productId: z.string(),
+  status: ProductStatusEnumSchema,
+  inStock: z.boolean(),
+  updatedAt: z.string().optional(),
+}).nullable();
+
+export const UpdateProductStatusInputSchema = z.object({
+  slug: z.string(),
+  status: ProductStatusEnumSchema.optional(),
+  inStock: z.boolean().optional(),
+});
+
+export const UpdateProductStatusOutputSchema = z.object({
+  productId: z.string(),
+  status: ProductStatusEnumSchema,
+  inStock: z.boolean(),
+  updatedAt: z.string().optional(),
+}).nullable();
 // Review Schemas
 export const ReviewSchema = z.object({
   id: z.string(),
