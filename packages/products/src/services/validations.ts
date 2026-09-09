@@ -2,8 +2,10 @@ import { z } from 'zod';
 
 export const ProductVariantSchema = z.object({
   color: z.string(),
-  size: z.string(),
+  size: z.string().optional(),
   stock: z.number(),
+  reservedStock: z.number().optional().default(0),
+  images: z.array(z.string()).optional().default([]),
 });
 
 export const ProductSchema = z.object({
@@ -45,7 +47,10 @@ export const DeleteProductInputSchema = z.object({
 // Output Validations
 export const GetAllProductsOutputSchema = z.array(ProductSchema);
 export const GetProductBySlugOutputSchema = ProductSchema.nullable();
-export const CreateProductOutputSchema = ProductSchema;
+export const CreateProductOutputSchema = ProductSchema.extend({
+  id: z.string(),
+  createdAt: z.string(),
+});
 export const UpdateProductOutputSchema = ProductSchema.nullable();
 export const DeleteProductOutputSchema = z.boolean();
 export const ProductStatusEnumSchema = z.enum(['listed', 'unListed', 'discontinued']);
@@ -65,6 +70,8 @@ export const UpdateProductStatusInputSchema = z.object({
   slug: z.string(),
   status: ProductStatusEnumSchema.optional(),
   inStock: z.boolean().optional(),
+}).refine((data) => data.status !== undefined || data.inStock !== undefined, {
+  message: 'At least one of status or inStock must be provided',
 });
 
 export const UpdateProductStatusOutputSchema = z.object({

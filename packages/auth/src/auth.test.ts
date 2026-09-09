@@ -164,6 +164,8 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
         refreshToken: activeRefreshToken,
       });
 
+      activeAccessToken = result.accessToken;
+      activeRefreshToken = result.refreshToken;
       assert.ok(result.accessToken);
       assert.ok(result.refreshToken);
       assert.strictEqual(result.user.id, createdUserId1);
@@ -289,6 +291,18 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
 
       const result = await authCaller.logout({ refreshToken: activeRefreshToken });
       assert.strictEqual(result.success, true);
+
+      await assert.rejects(
+        async () => {
+          await caller.refreshToken({
+            refreshToken: activeRefreshToken,
+          });
+        },
+        (err: any) => {
+          assert.strictEqual(err.code, 'UNAUTHORIZED');
+          return true;
+        }
+      );
     });
   });
 });

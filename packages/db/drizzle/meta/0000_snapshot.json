@@ -223,8 +223,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "aditional_imformation": {
-          "name": "aditional_imformation",
+        "additional_information": {
+          "name": "additional_information",
           "type": "json",
           "primaryKey": false,
           "notNull": false

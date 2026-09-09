@@ -6,6 +6,7 @@ export const productStatus = pgTable('product_status', {
   id: uuid('id').defaultRandom().primaryKey(),
   productId: uuid('product_id')
     .notNull()
+    .unique()
     .references(() => product.id, { onDelete: 'cascade' }),
   status: productStatusEnum('status').default('listed').notNull(),
   inStock: boolean('in_stock').default(true).notNull(),

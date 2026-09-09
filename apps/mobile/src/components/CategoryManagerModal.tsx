@@ -19,7 +19,7 @@ interface CategoryManagerModalProps {
   products: Product[];
   onClose: () => void;
   onAddCategory: (category: string) => void;
-  onDeleteCategory: (category: string) => void;
+  onDeleteCategory: (category: string, targetCategory?: string) => void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
 }
 
@@ -48,18 +48,18 @@ export default function CategoryManagerModal({
 
   const handleDelete = (cat: string) => {
     const count = products.filter(p => p.category === cat).length;
+    const targetCat = categories.find(c => c !== cat) || 'Uncategorized';
     let message = `Are you sure you want to delete the category "${cat}"?`;
     if (count > 0) {
-      message = `The category "${cat}" is currently assigned to ${count} outfit(s). Deleting it will reassign these outfits to "Uncategorized". Proceed?`;
+      message = `The category "${cat}" is currently assigned to ${count} outfit(s). Deleting it will reassign these outfits to "${targetCat}". Proceed?`;
     }
-    
+
     showAlert(
       'Delete Category',
       message,
       'confirm',
       () => {
-        onDeleteCategory(cat);
-        showAlert('Category Deleted', `"${cat}" has been deleted.`, 'success');
+        onDeleteCategory(cat, targetCat);
       }
     );
   };

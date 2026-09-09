@@ -183,8 +183,8 @@ export default function LoginScreen({
                   autoCapitalize="none"
                 />
                 <View style={styles.presetRow}>
-                  <TouchableOpacity onPress={() => setApiHost('http://10.199.36.189:3001')} style={styles.presetBadge}>
-                    <Text style={styles.presetBadgeText}>LAN (10.199.36.189)</Text>
+                  <TouchableOpacity onPress={() => setApiHost('http://10.220.109.189:3001')} style={styles.presetBadge}>
+                    <Text style={styles.presetBadgeText}>LAN (10.220.109.189)</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setApiHost('http://10.0.2.2:3001')} style={styles.presetBadge}>
                     <Text style={styles.presetBadgeText}>Emulator (10.0.2.2)</Text>

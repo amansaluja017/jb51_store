@@ -16,8 +16,6 @@ export const product = pgTable('product', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   price: numeric('price', { precision: 10, scale: 2 }).notNull(),
-  stockQty: integer('stock_qty').default(0).notNull(),
-  color: varchar('color', { length: 100 }),
   categoryId: uuid('category_id').references(() => category.id, {
     onDelete: 'set null',
   }),

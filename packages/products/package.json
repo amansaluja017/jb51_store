@@ -10,7 +10,8 @@
     "./router": "./src/router.ts"
   },
   "scripts": {
-    "test": "tsx --test src/products.test.ts"
+    "test": "echo \"No unit tests specified\"",
+    "test:integration": "tsx --test src/products.test.ts"
   },
   "dependencies": {
     "@repo/db": "workspace:*",

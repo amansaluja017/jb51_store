@@ -40,7 +40,7 @@ export const RefreshTokenInputSchema = z.object({
 });
 
 export const LogoutInputSchema = z.object({
-  refreshToken: z.string().optional(),
+  refreshToken: z.string().min(1, 'Refresh token is required').optional(),
 }).optional();
 
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;

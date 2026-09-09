@@ -28,3 +28,12 @@ export const inqueryStatusEnum = pgEnum('inquery_status', [
 ]);
 
 export const invoiceModeEnum = pgEnum('invoice_mode', ['cash', 'online']);
+
+export const inventoryTransactionTypeEnum = pgEnum('inventory_transaction_type', [
+  'purchase',
+  'sale',
+  'reservation',
+  'release',
+  'return',
+  'adjustment',
+]);

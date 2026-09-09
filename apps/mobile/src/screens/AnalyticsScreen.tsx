@@ -19,6 +19,7 @@ interface AnalyticsScreenProps {
   showAnalyticsSelector: boolean;
   setShowAnalyticsSelector: (val: boolean) => void;
   analyticsMetrics: {
+    isUnavailable?: boolean;
     views: number;
     waHits: number;
     igHits: number;
@@ -193,6 +194,18 @@ export default function AnalyticsScreen({
     if (productDemandData.length === 0) return null;
     return productDemandData.reduce((prev, current) => (prev.inquiries > current.inquiries) ? prev : current);
   }, [productDemandData]);
+
+  if (analyticsMetrics.isUnavailable) {
+    return (
+      <View style={[styles.tabContent, styles.scrollPadding, { alignItems: 'center', justifyContent: 'center', paddingTop: 60 }]}>
+        <TrendingUp size={48} color="#a1a1aa" />
+        <Text style={[styles.tableTitle, { marginTop: 16, textAlign: 'center' }]}>Analytics Service Unavailable</Text>
+        <Text style={[styles.tableSub, { textAlign: 'center', marginTop: 8, maxWidth: 300 }]}>
+          Real-time metrics endpoint is not connected. Metrics are unavailable.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.tabContent} contentContainerStyle={styles.scrollPadding}>

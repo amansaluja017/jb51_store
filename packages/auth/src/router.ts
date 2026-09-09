@@ -166,7 +166,10 @@ export const authRouter = t.router({
       try {
         return await logoutUser(ctx.user?.sub, input?.refreshToken);
       } catch (error: any) {
-        return { success: true, message: 'Logged out successfully' };
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error.message || 'Logout failed',
+        });
       }
     }),
 });

@@ -14,7 +14,7 @@ import {
   User
 } from 'lucide-react-native';
 
-import { Product, Inquiry, Review } from './src/types';
+import { Product, Inquiry, Review, isProductInStock } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
@@ -241,13 +241,8 @@ export default function App() {
 
   // Product Mutators
   const handleToggleStock = async (product: Product) => {
-    const isCurrentlyInStock = product.inStock !== false && (product.variants.length === 0 || product.variants.reduce((acc, v) => acc + v.stock, 0) > 0);
+    const isCurrentlyInStock = isProductInStock(product);
     const newInStock = !isCurrentlyInStock;
-
-    const updatedVariants = product.variants.map(v => ({
-      ...v,
-      stock: newInStock ? (v.stock > 0 ? v.stock : 10) : 0
-    }));
 
     try {
       await trpcRequest('products.updateStatus', {
@@ -258,21 +253,12 @@ export default function App() {
         }
       });
 
-      if (product.variants.length > 0) {
-        await trpcRequest('products.update', {
-          method: 'POST',
-          body: {
-            slug: product.slug,
-            data: { variants: updatedVariants }
-          }
-        });
-      }
-
       setProducts(prev =>
-        prev.map(p => p.slug === product.slug ? { ...p, inStock: newInStock, variants: updatedVariants } : p)
+        prev.map(p => p.slug === product.slug ? { ...p, inStock: newInStock } : p)
       );
       showAlert('Stock Status Updated', `${product.name} is now ${newInStock ? 'In Stock' : 'Out of Stock'}.`, 'success');
     } catch (err: any) {
+      await fetchFromBackend();
       showAlert('Error', err.message || 'Failed to update stock status', 'error');
     }
   };
@@ -291,6 +277,7 @@ export default function App() {
       );
       showAlert('Visibility Updated', `${product.name} is now ${status ? 'Listed' : 'Unlisted'}.`, 'success');
     } catch (err: any) {
+      await fetchFromBackend();
       showAlert('Error', err.message || 'Failed to update visibility', 'error');
     }
   };
@@ -325,29 +312,24 @@ export default function App() {
       approved: true,
     };
 
-    setReviews(prev => [newReview, ...prev]);
-
     try {
       const decoded: any = await trpcRequest('reviews.create', {
         method: 'POST',
         body: reviewData
       });
       if (decoded && decoded.id && decoded.name) {
-        setReviews(prev => prev.map(r => r.id === tempId ? decoded : r));
+        setReviews(prev => [decoded, ...prev]);
         showAlert('Review Submitted', 'Customer review added successfully.', 'success');
       } else {
-        throw new Error('Invalid decoded review data');
+        throw new Error('Invalid response from server');
       }
     } catch (err: any) {
-      showAlert('Review Submitted (Mock)', 'Customer review added to local sandbox.', 'success');
+      showAlert('Error', err.message || 'Failed to submit review', 'error');
     }
   };
 
   const handleToggleReviewApproval = async (review: Review) => {
     const newApproved = !review.approved;
-    setReviews(prev =>
-      prev.map(r => r.id === review.id ? { ...r, approved: newApproved } : r)
-    );
 
     try {
       const decoded: any = await trpcRequest('reviews.update', {
@@ -355,12 +337,15 @@ export default function App() {
         body: { id: review.id, approved: newApproved }
       });
       if (decoded && decoded.id) {
+        setReviews(prev =>
+          prev.map(r => r.id === review.id ? { ...r, approved: newApproved } : r)
+        );
         showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
       } else {
         throw new Error('Unknown review ID or invalid update');
       }
     } catch (err: any) {
-      showAlert('Approval Updated (Mock)', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'} in sandbox.`, 'success');
+      showAlert('Error', err.message || 'Failed to update review approval', 'error');
     }
   };
 
@@ -378,7 +363,7 @@ export default function App() {
           setReviews(prev => prev.filter(r => r.id !== review.id));
           showAlert('Review Deleted', 'Review removed successfully.', 'success');
         } catch (err: any) {
-          showAlert('Review Deleted (Mock)', 'Review removed from sandbox.', 'success');
+          showAlert('Error', err.message || 'Failed to delete review', 'error');
         }
       }
     );
@@ -391,10 +376,36 @@ export default function App() {
     }
   };
 
-  const handleDeleteCategory = (catToDelete: string) => {
-    const fallbackCategory = categories.find(c => c !== catToDelete) || 'Uncategorized';
-    setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: fallbackCategory } : p));
-    setCategories(prev => prev.filter(c => c !== catToDelete));
+  const handleDeleteCategory = async (catToDelete: string, targetCategory?: string) => {
+    const target = targetCategory || 'Uncategorized';
+    if (!target || target === catToDelete) {
+      showAlert('Error', 'Target category for reassignment is required.', 'error');
+      return;
+    }
+    try {
+      const affectedProducts = products.filter(p => p.category === catToDelete);
+      for (const p of affectedProducts) {
+        await trpcRequest('products.update', {
+          method: 'POST',
+          body: {
+            slug: p.slug,
+            data: { category: target }
+          }
+        });
+      }
+
+      setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: target } : p));
+      setCategories(prev => {
+        const filtered = prev.filter(c => c !== catToDelete);
+        if (target === 'Uncategorized' && !filtered.includes('Uncategorized')) {
+          return [...filtered, 'Uncategorized'];
+        }
+        return filtered;
+      });
+      showAlert('Category Deleted', `Products reassigned to ${target}.`, 'success');
+    } catch (err: any) {
+      showAlert('Error', err.message || 'Failed to reassign product categories', 'error');
+    }
   };
 
   // Inquiry Mutators
@@ -692,6 +703,8 @@ export default function App() {
           onAddNewCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
           showAlert={showAlert}
+          apiHost={apiHost}
+          token={token}
         />
 
         {/* Dedicated Category Manager Modal */}

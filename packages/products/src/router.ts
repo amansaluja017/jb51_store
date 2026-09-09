@@ -87,8 +87,14 @@ export const productsRouter = t.router({
     .meta({ description: 'Fetch product status by product slug' })
     .input(GetProductStatusInputSchema)
     .output(GetProductStatusOutputSchema)
-    .query(async ({ input }) => {
-      return await getProductStatus(input.slug);
+    .query(async ({ ctx, input }) => {
+      const statusData = await getProductStatus(input.slug);
+      if (!statusData) return null;
+      const isAdmin = ctx.user?.role === 'admin' || ctx.isStaff;
+      if (!isAdmin && (statusData.status === 'unListed' || statusData.status === 'discontinued')) {
+        return null;
+      }
+      return statusData;
     }),
   updateStatus: adminProcedure
     .meta({ description: 'Update product status (Admin only)' })
