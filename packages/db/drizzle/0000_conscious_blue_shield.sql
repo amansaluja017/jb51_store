@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS "product" (
 	"category_id" uuid,
 	"tags" json,
 	"features" json,
-	"aditional_imformation" json,
+	"additional_information" json,
 	"is_best_seller" boolean DEFAULT false NOT NULL,
 	"is_latest" boolean DEFAULT false NOT NULL,
 	"is_featured" boolean DEFAULT false NOT NULL,

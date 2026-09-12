@@ -11,9 +11,10 @@
     "./client": "./src/client.ts"
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
+    "build": "tsc",
+    "db:generate": "pnpm build && drizzle-kit generate",
+    "db:migrate": "pnpm build && drizzle-kit migrate",
+    "db:push": "pnpm build && drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from './schema/index';
+import * as schema from './schema/index.js';
 
 export const createDbClient = (connectionString?: string) => {
   const url = connectionString || process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/jb51_store';

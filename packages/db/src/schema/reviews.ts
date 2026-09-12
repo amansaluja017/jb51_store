@@ -7,7 +7,7 @@ import {
   json,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { user } from './users';
+import { user } from './users.js';
 
 export const reviews = pgTable('reviews', {
   id: uuid('id').defaultRandom().primaryKey(),

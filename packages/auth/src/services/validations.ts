@@ -39,9 +39,14 @@ export const RefreshTokenInputSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
+export const LogoutInputSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required').optional(),
+}).optional();
+
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 export type LoginInput = z.infer<typeof LoginInputSchema>;
 export type ChangePasswordInput = z.infer<typeof ChangePasswordInputSchema>;
 export type ChangeUsernameInput = z.infer<typeof ChangeUsernameInputSchema>;
 export type ChangeEmailInput = z.infer<typeof ChangeEmailInputSchema>;
 export type RefreshTokenInput = z.infer<typeof RefreshTokenInputSchema>;
+export type LogoutInput = z.infer<typeof LogoutInputSchema>;

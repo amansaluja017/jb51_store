@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from '@trpc/server';
-import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct } from './data.js';
+import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviewsData.js';
 import { 
   GetAllProductsOutputSchema, 
@@ -11,6 +11,10 @@ import {
   UpdateProductOutputSchema,
   DeleteProductInputSchema,
   DeleteProductOutputSchema,
+  GetProductStatusInputSchema,
+  GetProductStatusOutputSchema,
+  UpdateProductStatusInputSchema,
+  UpdateProductStatusOutputSchema,
   CreateReviewInputSchema,
   UpdateReviewInputSchema,
   DeleteReviewInputSchema
@@ -78,6 +82,26 @@ export const productsRouter = t.router({
     .output(DeleteProductOutputSchema)
     .mutation(async ({ input }) => {
       return await deleteProduct(input.slug);
+    }),
+  getStatus: t.procedure
+    .meta({ description: 'Fetch product status by product slug' })
+    .input(GetProductStatusInputSchema)
+    .output(GetProductStatusOutputSchema)
+    .query(async ({ ctx, input }) => {
+      const statusData = await getProductStatus(input.slug);
+      if (!statusData) return null;
+      const isAdmin = ctx.user?.role === 'admin' || ctx.isStaff;
+      if (!isAdmin && (statusData.status === 'unListed' || statusData.status === 'discontinued')) {
+        return null;
+      }
+      return statusData;
+    }),
+  updateStatus: adminProcedure
+    .meta({ description: 'Update product status (Admin only)' })
+    .input(UpdateProductStatusInputSchema)
+    .output(UpdateProductStatusOutputSchema)
+    .mutation(async ({ input }) => {
+      return await updateProductStatus(input.slug, { status: input.status, inStock: input.inStock });
     }),
 });
 

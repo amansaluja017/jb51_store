@@ -267,3 +267,22 @@ export const changeEmail = async (input: ChangeEmailInput) => {
     throw err;
   }
 };
+
+export const logoutUser = async (userId?: string, refreshToken?: string) => {
+  if (!userId) {
+    throw new Error('User ID is required for logout');
+  }
+  if (refreshToken) {
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await db
+      .update(tokenTable)
+      .set({ isRevoked: true })
+      .where(and(eq(tokenTable.tokenHash, tokenHash), eq(tokenTable.userId, userId)));
+  } else {
+    await db
+      .update(tokenTable)
+      .set({ isRevoked: true })
+      .where(eq(tokenTable.userId, userId));
+  }
+  return { success: true, message: 'Logged out successfully' };
+};

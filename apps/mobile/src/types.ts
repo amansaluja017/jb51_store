@@ -1,7 +1,9 @@
 export interface Variant {
   color: string;
-  size: string;
+  size?: string;
   stock: number;
+  reservedStock?: number;
+  images?: string[];
 }
 
 export interface Product {
@@ -20,8 +22,15 @@ export interface Product {
   newArrival?: boolean;
   bestseller?: boolean;
   isListed?: boolean;
+  inStock?: boolean;
   tags?: string[];
 }
+
+export const isProductInStock = (product: Product): boolean => {
+  if (product.inStock === false) return false;
+  if (!product.variants || product.variants.length === 0) return true;
+  return product.variants.some((v) => v.stock > 0);
+};
 
 export interface Inquiry {
   id: string;

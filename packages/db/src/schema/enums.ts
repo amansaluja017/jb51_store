@@ -11,7 +11,7 @@ export const tokenTypeEnum = pgEnum('token_type', [
 export const productStatusEnum = pgEnum('product_status_enum', [
   'listed',
   'unListed',
-  'out_of_stock',
+  'discontinued'
 ]);
 
 export const inqueryTypeEnum = pgEnum('inquery_type', [
@@ -28,3 +28,12 @@ export const inqueryStatusEnum = pgEnum('inquery_status', [
 ]);
 
 export const invoiceModeEnum = pgEnum('invoice_mode', ['cash', 'online']);
+
+export const inventoryTransactionTypeEnum = pgEnum('inventory_transaction_type', [
+  'purchase',
+  'sale',
+  'reservation',
+  'release',
+  'return',
+  'adjustment',
+]);

@@ -127,3 +127,49 @@ test('Shop Price Range Calculation Regression', async (t) => {
     assert.ok(maxPrice <= maxAvailablePrice, 'maxPrice range value must be within maxAvailablePrice');
   });
 });
+
+test('Product Images & Cloudinary Upload Infrastructure', async (t) => {
+  const { productImages } = await import('@repo/db');
+  const { isCloudinaryConfigured } = await import('./services/cloudinary.js');
+  const uploadRouter = (await import('./routes/upload.js')).default;
+
+  await t.test('product_images table schema has required columns', () => {
+    assert.ok(productImages, 'productImages table should be defined');
+    assert.ok(productImages.id, 'id column should exist');
+    assert.ok(productImages.productId, 'productId column should exist');
+    assert.ok(productImages.url, 'url column should exist');
+    assert.ok(productImages.productVariantId, 'productVariantId column should exist');
+    assert.ok(productImages.orderIndex, 'orderIndex column should exist');
+    assert.ok(productImages.createdAt, 'createdAt column should exist');
+    assert.ok(productImages.updatedAt, 'updatedAt column should exist');
+  });
+
+  await t.test('uploadRouter is exported as an Express Router', () => {
+    assert.ok(uploadRouter, 'uploadRouter should be defined');
+    assert.strictEqual(typeof uploadRouter, 'function', 'Router should be a function middleware');
+  });
+
+  await t.test('isCloudinaryConfigured helper function returns boolean', () => {
+    const configured = isCloudinaryConfigured();
+    assert.strictEqual(typeof configured, 'boolean');
+  });
+
+  await t.test('extractPublicIdFromUrl extracts public_id correctly', async () => {
+    const { extractPublicIdFromUrl } = await import('./services/cloudinary.js');
+    
+    // With version tag
+    const url1 = 'https://res.cloudinary.com/cloudname/image/upload/v1725900000/jb51_store/products/sample_item.jpg';
+    assert.strictEqual(extractPublicIdFromUrl(url1), 'jb51_store/products/sample_item');
+
+    // Without version tag
+    const url2 = 'https://res.cloudinary.com/cloudname/image/upload/jb51_store/products/sample_item2.png';
+    assert.strictEqual(extractPublicIdFromUrl(url2), 'jb51_store/products/sample_item2');
+
+    // With query parameters
+    const url3 = 'https://res.cloudinary.com/cloudname/image/upload/v12345/jb51_store/products/sample_item3.webp?_a=ABC';
+    assert.strictEqual(extractPublicIdFromUrl(url3), 'jb51_store/products/sample_item3');
+
+    // Invalid non-cloudinary URL
+    assert.strictEqual(extractPublicIdFromUrl('https://example.com/photo.jpg'), null);
+  });
+});

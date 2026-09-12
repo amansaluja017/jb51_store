@@ -1,14 +1,18 @@
 import { relations } from 'drizzle-orm';
-import { user } from './users';
-import { token } from './tokens';
-import { category } from './categories';
-import { product } from './products';
-import { productStatus } from './product-status';
-import { reviews } from './reviews';
-import { productAnalytics } from './product-analytics';
-import { invoices } from './invoices';
-import { wishlist } from './wishlist';
-import { wishlistItems } from './wishlist-items';
+import { user } from './users.js';
+import { token } from './tokens.js';
+import { category } from './categories.js';
+import { product } from './products.js';
+import { productStatus } from './product-status.js';
+import { productVariant } from './product-variants.js';
+import { inventry } from './inventory.js';
+import { inventryTransaction } from './inventory-transactions.js';
+import { reviews } from './reviews.js';
+import { productAnalytics } from './product-analytics.js';
+import { invoices } from './invoices.js';
+import { wishlist } from './wishlist.js';
+import { wishlistItems } from './wishlist-items.js';
+import { productImages } from './product-images.js';
 
 export const userRelations = relations(user, ({ many }) => ({
   tokens: many(token),
@@ -40,8 +44,44 @@ export const productRelations = relations(product, ({ one, many }) => ({
     fields: [product.id],
     references: [productAnalytics.productId],
   }),
+  variants: many(productVariant),
+  inventry: many(inventry),
+  inventryTransactions: many(inventryTransaction),
   invoices: many(invoices),
   wishlistItems: many(wishlistItems),
+  images: many(productImages),
+}));
+
+export const productVariantRelations = relations(productVariant, ({ one, many }) => ({
+  product: one(product, {
+    fields: [productVariant.productId],
+    references: [product.id],
+  }),
+  inventry: many(inventry),
+  inventryTransactions: many(inventryTransaction),
+  images: many(productImages),
+}));
+
+export const inventryRelations = relations(inventry, ({ one }) => ({
+  product: one(product, {
+    fields: [inventry.productId],
+    references: [product.id],
+  }),
+  variant: one(productVariant, {
+    fields: [inventry.productVariant],
+    references: [productVariant.id],
+  }),
+}));
+
+export const inventryTransactionRelations = relations(inventryTransaction, ({ one }) => ({
+  product: one(product, {
+    fields: [inventryTransaction.productId],
+    references: [product.id],
+  }),
+  variant: one(productVariant, {
+    fields: [inventryTransaction.productVariant],
+    references: [productVariant.id],
+  }),
 }));
 
 export const productStatusRelations = relations(productStatus, ({ one }) => ({
@@ -88,5 +128,16 @@ export const wishlistItemsRelations = relations(wishlistItems, ({ one }) => ({
   product: one(product, {
     fields: [wishlistItems.productId],
     references: [product.id],
+  }),
+}));
+
+export const productImagesRelations = relations(productImages, ({ one }) => ({
+  product: one(product, {
+    fields: [productImages.productId],
+    references: [product.id],
+  }),
+  variant: one(productVariant, {
+    fields: [productImages.productVariantId],
+    references: [productVariant.id],
   }),
 }));

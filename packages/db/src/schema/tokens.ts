@@ -1,6 +1,6 @@
 import { pgTable, uuid, boolean, timestamp, text } from 'drizzle-orm/pg-core';
-import { tokenTypeEnum } from './enums';
-import { user } from './users';
+import { tokenTypeEnum } from './enums.js';
+import { user } from './users.js';
 
 export const token = pgTable('token', {
   id: uuid('id').defaultRandom().primaryKey(),

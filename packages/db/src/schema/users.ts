@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, text, timestamp } from 'drizzle-orm/pg-core';
-import { userRoleEnum } from './enums';
+import { userRoleEnum } from './enums.js';
 
 export const user = pgTable('user', {
   id: uuid('id').defaultRandom().primaryKey(),
