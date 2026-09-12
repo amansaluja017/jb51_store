@@ -10,9 +10,9 @@ export const inventry = pgTable('inventry', {
   productVariant: uuid('product_variant_id').references(() => productVariant.id, {
     onDelete: 'cascade',
   }),
-  availableStock: integer('available_stock').default(0),
-  reservedStock: integer('reserved_stock').default(0),
-  totalStock: integer('total_stock').default(0),
+  availableStock: integer('available_stock').default(0).notNull(),
+  reservedStock: integer('reserved_stock').default(0).notNull(),
+  totalStock: integer('total_stock').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at')
     .defaultNow()

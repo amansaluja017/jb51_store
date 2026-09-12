@@ -26,14 +26,23 @@ const nextConfig = {
   },
   output: 'standalone',
   transpilePackages: ['motion', '@repo/api', '@repo/products'],
-  webpack: (config, {dev}) => {
+  webpack: (config, { dev, isServer }) => {
     config.resolve.extensionAlias = {
       ...config.resolve.extensionAlias,
       '.js': ['.ts', '.tsx', '.js'],
       '.jsx': ['.tsx', '.jsx']
     };
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        perf_hooks: false,
+      };
+    }
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+    // Do not modify—file watching is disabled to prevent flickering during agent edits.
     if (dev && process.env.DISABLE_HMR === 'true') {
       config.watchOptions = {
         ignored: /.*/,

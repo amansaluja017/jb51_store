@@ -8,6 +8,7 @@ import {
   StyleSheet,
   PanResponder,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Camera,
@@ -27,6 +28,8 @@ interface DraggableItemProps {
   img: string;
   idx: number;
   total: number;
+  isUploading?: boolean;
+  isDeleting?: boolean;
   onMoveLeft: () => void;
   onMoveRight: () => void;
   onRemove: () => void;
@@ -37,6 +40,8 @@ function DraggableItem({
   img,
   idx,
   total,
+  isUploading = false,
+  isDeleting = false,
   onMoveLeft,
   onMoveRight,
   onRemove,
@@ -46,13 +51,17 @@ function DraggableItem({
   const scale = useRef(new Animated.Value(1)).current;
   const [isDraggingState, setIsDraggingState] = useState(false);
 
+  const isBusy = isUploading || isDeleting;
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (isBusy) return false;
         return Math.abs(gestureState.dx) > 10;
       },
       onPanResponderGrant: () => {
+        if (isBusy) return;
         setIsDraggingState(true);
         Animated.spring(scale, {
           toValue: 1.08,
@@ -64,6 +73,7 @@ function DraggableItem({
         useNativeDriver: false,
       }),
       onPanResponderRelease: (_, gestureState) => {
+        if (isBusy) return;
         setIsDraggingState(false);
         const offsetSlots = Math.round(gestureState.dx / SLOT_SIZE);
         const targetIdx = Math.max(0, Math.min(total - 1, idx + offsetSlots));
@@ -126,53 +136,64 @@ function DraggableItem({
         <Text style={styles.orderBadgeText}>{isCover ? 'COVER' : `#${idx + 1}`}</Text>
       </View>
 
-      {/* Top Right: Delete Button */}
-      <TouchableOpacity
-        onPress={onRemove}
-        style={styles.deleteBadge}
-        activeOpacity={0.8}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <X size={12} color="#ffffff" />
-      </TouchableOpacity>
+      {/* Top Right: Delete Button (Hidden while busy) */}
+      {!isBusy && (
+        <TouchableOpacity
+          onPress={onRemove}
+          style={styles.deleteBadge}
+          activeOpacity={0.8}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <X size={12} color="#ffffff" />
+        </TouchableOpacity>
+      )}
 
-      {/* Top Center: Drag Handle indicator */}
-      <View style={styles.dragHandleIndicator}>
-        <GripHorizontal size={14} color="rgba(255,255,255,0.85)" />
-      </View>
+      {/* Top Center: Drag Handle indicator (Hidden while busy) */}
+      {!isBusy && (
+        <View style={styles.dragHandleIndicator}>
+          <GripHorizontal size={14} color="rgba(255,255,255,0.85)" />
+        </View>
+      )}
 
-      {/* Bottom Action Controls: Position & Move Arrows */}
-      <View style={styles.bottomControlsBar}>
-        {/* Left move button */}
-        {idx > 0 ? (
-          <TouchableOpacity
-            onPress={onMoveLeft}
-            style={styles.navArrowBtn}
-            activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <ChevronLeft size={14} color="#ffffff" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 22 }} />
-        )}
+      {/* Bottom Action Controls: Position & Move Arrows (Hidden while busy) */}
+      {!isBusy && (
+        <View style={styles.bottomControlsBar}>
+          {idx > 0 ? (
+            <TouchableOpacity
+              onPress={onMoveLeft}
+              style={styles.navArrowBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <ChevronLeft size={14} color="#ffffff" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 22 }} />
+          )}
 
-        <Text style={styles.positionText}>{idx + 1} of {total}</Text>
+          <Text style={styles.positionText}>{idx + 1} of {total}</Text>
 
-        {/* Right move button */}
-        {idx < total - 1 ? (
-          <TouchableOpacity
-            onPress={onMoveRight}
-            style={styles.navArrowBtn}
-            activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <ChevronRight size={14} color="#ffffff" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 22 }} />
-        )}
-      </View>
+          {idx < total - 1 ? (
+            <TouchableOpacity
+              onPress={onMoveRight}
+              style={styles.navArrowBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <ChevronRight size={14} color="#ffffff" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 22 }} />
+          )}
+        </View>
+      )}
+
+      {/* Loading overlay with ONLY the spinner */}
+      {isBusy && (
+        <View style={styles.spinnerOnlyOverlay}>
+          <ActivityIndicator size="large" color="#ffffff" />
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -182,6 +203,9 @@ export interface DraggableImageListProps {
   onReorder: (newImages: string[]) => void;
   onRemove: (idx: number) => void;
   onAddPress: () => void;
+  uploadingUris?: string[];
+  deletingUris?: string[];
+  isUploading?: boolean;
 }
 
 export default function DraggableImageList({
@@ -189,6 +213,9 @@ export default function DraggableImageList({
   onReorder,
   onRemove,
   onAddPress,
+  uploadingUris = [],
+  deletingUris = [],
+  isUploading = false,
 }: DraggableImageListProps) {
   const handleDragEnd = (fromIdx: number, toIdx: number) => {
     if (fromIdx === toIdx) return;
@@ -236,18 +263,27 @@ export default function DraggableImageList({
         </TouchableOpacity>
 
         {/* Draggable Big Image Tiles */}
-        {images.map((img: string, idx: number) => (
-          <DraggableItem
-            key={`${img}-${idx}`}
-            img={img}
-            idx={idx}
-            total={images.length}
-            onMoveLeft={() => handleMoveLeft(idx)}
-            onMoveRight={() => handleMoveRight(idx)}
-            onRemove={() => onRemove(idx)}
-            onDragEnd={handleDragEnd}
-          />
-        ))}
+        {images.map((img: string, idx: number) => {
+          const isItemUploading =
+            uploadingUris.includes(img) ||
+            ((img.startsWith('file:') || img.startsWith('content:') || img.startsWith('blob:')) && isUploading);
+          const isItemDeleting = deletingUris.includes(img);
+
+          return (
+            <DraggableItem
+              key={`${img}-${idx}`}
+              img={img}
+              idx={idx}
+              total={images.length}
+              isUploading={isItemUploading}
+              isDeleting={isItemDeleting}
+              onMoveLeft={() => handleMoveLeft(idx)}
+              onMoveRight={() => handleMoveRight(idx)}
+              onRemove={() => onRemove(idx)}
+              onDragEnd={handleDragEnd}
+            />
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -330,6 +366,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  spinnerOnlyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+  },
   orderBadge: {
     position: 'absolute',
     top: 6,
@@ -339,6 +382,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 3,
     paddingHorizontal: 7,
+    zIndex: 15,
   },
   coverBadge: {
     backgroundColor: '#FF5E36',
@@ -362,6 +406,7 @@ const styles = StyleSheet.create({
     height: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 15,
   },
   dragHandleIndicator: {
     position: 'absolute',
@@ -371,6 +416,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    zIndex: 15,
   },
   bottomControlsBar: {
     position: 'absolute',
@@ -384,6 +430,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 3,
     paddingHorizontal: 6,
+    zIndex: 15,
   },
   navArrowBtn: {
     width: 22,

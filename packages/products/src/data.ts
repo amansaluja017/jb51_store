@@ -1,9 +1,18 @@
-import { db, product as productTable, productStatus as productStatusTable } from '@repo/db';
-import { eq } from 'drizzle-orm';
+import {
+  db,
+  product as productTable,
+  productStatus as productStatusTable,
+  category as categoryTable,
+  productVariant as productVariantTable,
+  productImages as productImagesTable,
+  inventry as inventryTable
+} from '@repo/db';
+import { eq, inArray, asc } from 'drizzle-orm';
 
 export interface ProductVariant {
+  id?: string;
   color: string;
-  size?: string;
+  hexCode?: string;
   stock: number;
   reservedStock?: number;
   images?: string[];
@@ -14,9 +23,12 @@ export interface Product {
   name: string;
   slug: string;
   description: string;
+  mrp?: number;
+  sellingPrice?: number;
   price: number;
   discountPrice?: number;
   category: string;
+  categoryId?: string;
   images: string[];
   fabric: string;
   fit: string;
@@ -28,6 +40,8 @@ export interface Product {
   createdAt: string;
   tags?: string[];
   isListed?: boolean;
+  status?: 'listed' | 'unListed' | 'discontinued';
+  inStock?: boolean;
 }
 
 export const CATEGORIES = [
@@ -37,6 +51,18 @@ export const CATEGORIES = [
   'Velvet Edit',
   'Occasion Wear'
 ];
+
+export async function getCategories(): Promise<string[]> {
+  try {
+    const dbCategories = await db.select().from(categoryTable);
+    if (dbCategories && dbCategories.length > 0) {
+      return dbCategories.map(c => c.name);
+    }
+  } catch (err) {
+    console.log('[DB getCategories Notice]:', err instanceof Error ? err.message : err);
+  }
+  return [];
+}
 
 function matchesSlug(row: any, slug: string): boolean {
   const feat = (row.features as Record<string, any>) || {};
@@ -48,18 +74,34 @@ function matchesSlug(row: any, slug: string): boolean {
 
 function mapDbToProduct(row: any): Product {
   const features = (row.features as Record<string, any>) || {};
+  const mrp = Number(row.mrp || features.mrp || 0);
+  const sellingPrice = Number(row.sellingPrice || features.sellingPrice || mrp);
+  const price = sellingPrice || mrp;
+  const discountPrice = mrp > sellingPrice ? sellingPrice : undefined;
+
   return {
     id: row.id,
     name: row.name,
     slug: features.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     description: row.description || '',
-    price: Number(row.price),
+    mrp,
+    sellingPrice,
+    price,
+    discountPrice,
     category: features.category || 'Uncategorized',
+    categoryId: row.categoryId || features.categoryId,
     images: features.images || [],
     fabric: features.fabric || '',
     fit: features.fit || '',
     careInstructions: features.careInstructions || '',
-    variants: features.variants || [],
+    variants: (features.variants || []).map((v: any) => ({
+      id: v.id,
+      color: v.color,
+      hexCode: v.hexCode || undefined,
+      stock: v.stock,
+      reservedStock: v.reservedStock,
+      images: v.images,
+    })),
     featured: row.isFeatured ?? false,
     newArrival: row.isLatest ?? false,
     bestseller: row.isBestSeller ?? false,
@@ -106,27 +148,54 @@ async function upsertProductStatus(
   }
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(includeDiscontinued = false): Promise<Product[]> {
   try {
     const dbProducts = await db.select().from(productTable);
     const dbStatuses = await db.select().from(productStatusTable);
+    const dbCategories = await db.select().from(categoryTable);
+    const dbImages = await db.select().from(productImagesTable);
+
     const statusMap = new Map(dbStatuses.map(s => [s.productId, s]));
+    const categoryMap = new Map(dbCategories.map(c => [c.id, c.name]));
+    const imagesMap = new Map<string, string[]>();
+    for (const img of dbImages) {
+      if (img.productId && img.url) {
+        if (!imagesMap.has(img.productId)) imagesMap.set(img.productId, []);
+        imagesMap.get(img.productId)!.push(img.url);
+      }
+    }
 
     if (dbProducts && dbProducts.length > 0) {
       const mapped = dbProducts
         .filter((r: any) => {
+          if (includeDiscontinued) return true;
           const feat = (r.features as Record<string, any>) || {};
+          // Hard-exclude anything flagged as discontinued in features (soft-delete)
+          if (feat.isDiscontinued) return false;
           const status = statusMap.get(r.id);
-          return !feat.isDiscontinued && status?.status !== 'discontinued';
+          // Exclude if status table explicitly marks as discontinued
+          if (status?.status === 'discontinued') return false;
+          // Include everything else (listed or unlisted — admin can see unlisted)
+          return true;
         })
         .map((r: any) => {
+          const feat = (r.features as Record<string, any>) || {};
           const prod = mapDbToProduct(r);
+          if (r.categoryId && categoryMap.has(r.categoryId)) {
+            prod.category = categoryMap.get(r.categoryId)!;
+          }
+          if ((!prod.images || prod.images.length === 0) && imagesMap.has(r.id)) {
+            prod.images = imagesMap.get(r.id)!;
+          }
           const status = statusMap.get(r.id);
           if (status) {
             prod.isListed = status.status === 'listed';
-            (prod as any).inStock = status.inStock ?? true;
+            prod.status = status.status;
+            prod.inStock = status.inStock ?? true;
           } else {
-            (prod as any).inStock = true;
+            prod.isListed = feat.isListed !== false && !feat.isDiscontinued;
+            prod.status = prod.isListed ? 'listed' : 'unListed';
+            prod.inStock = true;
           }
           return prod;
         });
@@ -154,6 +223,62 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     }
 
     const prod = mapDbToProduct(targetRow);
+
+    // Populate actual relational category if available
+    if (targetRow.categoryId) {
+      const [cat] = await db.select().from(categoryTable).where(eq(categoryTable.id, targetRow.categoryId));
+      if (cat) {
+        prod.category = cat.name;
+        prod.categoryId = cat.id;
+      }
+    }
+
+    // Populate relational images if available
+    const relationalImages = await db
+      .select()
+      .from(productImagesTable)
+      .where(eq(productImagesTable.productId, targetRow.id))
+      .orderBy(asc(productImagesTable.orderIndex));
+    if (relationalImages && relationalImages.length > 0) {
+      const mainUrls = relationalImages
+        .filter(img => !img.productVariantId)
+        .map(img => img.url);
+      if (mainUrls.length > 0) {
+        prod.images = mainUrls;
+      } else {
+        prod.images = relationalImages.map(img => img.url);
+      }
+    }
+
+    // Populate relational variants and inventory if available
+    const relationalVariants = await db
+      .select()
+      .from(productVariantTable)
+      .where(eq(productVariantTable.productId, targetRow.id));
+
+    if (relationalVariants && relationalVariants.length > 0) {
+      const inventoryRows = await db
+        .select()
+        .from(inventryTable)
+        .where(eq(inventryTable.productId, targetRow.id));
+      const inventoryByVariant = new Map(inventoryRows.map(inv => [inv.productVariant, inv]));
+
+      prod.variants = relationalVariants.map(v => {
+        const inv = inventoryByVariant.get(v.id);
+        const variantImgs = relationalImages
+          .filter(img => img.productVariantId === v.id)
+          .map(img => img.url);
+        return {
+          id: v.id,
+          color: v.color,
+          hexCode: (v as any).hexCode || undefined,
+          stock: inv ? inv.availableStock : 0,
+          reservedStock: inv ? inv.reservedStock : 0,
+          images: variantImgs,
+        };
+      });
+    }
+
     if (statusRow && statusRow.length > 0) {
       prod.isListed = statusRow[0].status === 'listed';
       (prod as any).inStock = statusRow[0].inStock ?? true;
@@ -165,68 +290,205 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   return null;
 }
 
-export async function createProduct(productInput: Partial<Product> & { name: string; slug: string; price: number }): Promise<Product> {
-  const newProd: Product = {
-    id: productInput.id || Math.random().toString(36).substring(2, 9),
-    name: productInput.name,
-    slug: productInput.slug,
-    description: productInput.description || '',
-    price: productInput.price,
-    category: productInput.category || 'Uncategorized',
-    images: productInput.images || [],
-    fabric: productInput.fabric || '',
-    fit: productInput.fit || '',
-    careInstructions: productInput.careInstructions || '',
-    variants: productInput.variants || [],
-    featured: productInput.featured || false,
-    newArrival: productInput.newArrival || false,
-    bestseller: productInput.bestseller || false,
-    isListed: productInput.isListed !== false,
-    tags: productInput.tags || [],
-    createdAt: productInput.createdAt || new Date().toISOString(),
-  };
+export async function createProduct(productInput: Partial<Product> & { name: string; slug: string; price?: number; mrp?: number; sellingPrice?: number }): Promise<Product> {
+  const name = (productInput.name || '').trim();
+  const slug = (productInput.slug || '').trim();
+  const description = (productInput.description || '').trim();
+  const mrp = Number(productInput.mrp || productInput.price);
+  const sellingPrice = Number(productInput.sellingPrice || productInput.price || mrp);
 
-  try {
-    const createdFromDb = await db.transaction(async (tx: any) => {
-      const [insertedRow] = await tx.insert(productTable).values({
-        name: newProd.name,
-        description: newProd.description,
-        price: newProd.price.toString(),
-        isBestSeller: newProd.bestseller,
-        isLatest: newProd.newArrival,
-        isFeatured: newProd.featured,
-        tags: newProd.tags,
-        features: {
-          slug: newProd.slug,
-          category: newProd.category,
-          images: newProd.images,
-          fabric: newProd.fabric,
-          fit: newProd.fit,
-          careInstructions: newProd.careInstructions,
-          variants: newProd.variants,
-          isListed: newProd.isListed,
-        },
-      }).returning();
+  if (!name) throw new Error('Product name is required');
+  if (!slug) throw new Error('Product slug is required');
+  if (!description) throw new Error('Product description is mandatory for creating the product');
+  if (isNaN(mrp) || mrp <= 0) throw new Error('Product MRP must be greater than 0');
+  if (isNaN(sellingPrice) || sellingPrice <= 0) throw new Error('Product selling price must be greater than 0');
 
-      if (!insertedRow) {
-        throw new Error('Product insertion returned empty result');
-      }
-
-      const initialStatus = newProd.isListed ? 'listed' : 'unListed';
-      await upsertProductStatus(insertedRow.id, { status: initialStatus, inStock: true }, tx);
-
-      return mapDbToProduct(insertedRow);
-    });
-
-    if (createdFromDb) {
-      return createdFromDb;
-    }
-  } catch (err) {
-    console.error('[DB Product Creation Notice]:', err instanceof Error ? err.message : err);
-    throw err;
+  // Images validation: at least 2 images mandatory
+  const rawImages = (productInput.images || []).map(i => i.trim()).filter(i => i !== '');
+  const variantImages = (productInput.variants || []).flatMap(v => (v.images || []).map(img => img.trim()).filter(img => img !== ''));
+  const allImages = Array.from(new Set([...rawImages, ...variantImages]));
+  if (allImages.length < 2) {
+    throw new Error('At least 2 product images are mandatory for creating the product');
   }
 
-  return newProd;
+  // Variants and stock validation: stock mandatory
+  const rawVariants = productInput.variants && productInput.variants.length > 0
+    ? productInput.variants
+    : [{ color: 'Standard', stock: 0 }];
+
+  // Verify stock is valid for all variants
+  for (const v of rawVariants) {
+    if (v.stock === undefined || v.stock === null || isNaN(Number(v.stock)) || Number(v.stock) < 0) {
+      throw new Error(`Stock is mandatory and must be 0 or greater (variant "${v.color || 'Standard'}")`);
+    }
+  }
+
+  // Execute atomic transaction across:
+  // 1. category
+  // 2. product
+  // 3. product_variant
+  // 4. product_images
+  // 5. product_status
+  // 6. inventry
+  const createdFromDb = await db.transaction(async (tx: any) => {
+    // 1. Category resolution
+    let resolvedCategoryId: string | null = productInput.categoryId || null;
+    let resolvedCategoryName: string = (productInput.category || '').trim();
+
+    if (resolvedCategoryId) {
+      const [existingCat] = await tx
+        .select()
+        .from(categoryTable)
+        .where(eq(categoryTable.id, resolvedCategoryId));
+      if (existingCat) {
+        resolvedCategoryName = existingCat.name;
+      } else {
+        resolvedCategoryId = null; // will resolve by name
+      }
+    }
+
+    if (!resolvedCategoryId) {
+      if (!resolvedCategoryName) {
+        resolvedCategoryName = 'Uncategorized';
+      }
+      const [existingCatByName] = await tx
+        .select()
+        .from(categoryTable)
+        .where(eq(categoryTable.name, resolvedCategoryName));
+      if (existingCatByName) {
+        resolvedCategoryId = existingCatByName.id;
+      } else {
+        const [insertedCat] = await tx
+          .insert(categoryTable)
+          .values({ name: resolvedCategoryName })
+          .returning();
+        resolvedCategoryId = insertedCat.id;
+      }
+    }
+
+    if (!resolvedCategoryId) {
+      throw new Error('Valid categoryId is mandatory for creating the product');
+    }
+
+    // 2. Insert into product table
+    const [insertedProduct] = await tx
+      .insert(productTable)
+      .values({
+        name,
+        description,
+        mrp: mrp.toString(),
+        sellingPrice: sellingPrice.toString(),
+        categoryId: resolvedCategoryId,
+        isBestSeller: productInput.bestseller || false,
+        isLatest: productInput.newArrival || false,
+        isFeatured: productInput.featured || false,
+        tags: productInput.tags || [],
+        features: {
+          slug,
+          mrp,
+          sellingPrice,
+          category: resolvedCategoryName,
+          categoryId: resolvedCategoryId,
+          images: allImages,
+          fabric: productInput.fabric || '',
+          fit: productInput.fit || '',
+          careInstructions: productInput.careInstructions || '',
+          variants: rawVariants,
+          isListed: productInput.isListed !== false,
+        },
+      })
+      .returning();
+
+    if (!insertedProduct) {
+      throw new Error('Failed to insert product record');
+    }
+
+    // 3. Insert product variants & 6. Insert inventory
+    const createdVariants: ProductVariant[] = [];
+    let totalStockAcrossVariants = 0;
+
+    for (const v of rawVariants) {
+      const variantColor = (v.color || 'Standard').trim();
+      const variantHex = (v.hexCode || '').trim() || null;
+      const variantStock = Math.max(0, Math.floor(Number(v.stock) || 0));
+      const variantReservedStock = Math.max(0, Math.floor(Number(v.reservedStock) || 0));
+      totalStockAcrossVariants += variantStock;
+
+      const [insertedVariant] = await tx
+        .insert(productVariantTable)
+        .values({
+          productId: insertedProduct.id,
+          color: variantColor,
+          hexCode: variantHex,
+        })
+        .returning();
+
+      // 6. Insert into inventry
+      await tx.insert(inventryTable).values({
+        productId: insertedProduct.id,
+        productVariant: insertedVariant.id,
+        availableStock: variantStock,
+        reservedStock: variantReservedStock,
+        totalStock: variantStock + variantReservedStock,
+      });
+
+      // Insert variant-specific images if any
+      const variantSpecificImages = (v.images || []).map(img => img.trim()).filter(img => img !== '');
+      for (let order = 0; order < variantSpecificImages.length; order++) {
+        await tx.insert(productImagesTable).values({
+          productId: insertedProduct.id,
+          productVariantId: insertedVariant.id,
+          url: variantSpecificImages[order],
+          orderIndex: order,
+        });
+      }
+
+      createdVariants.push({
+        id: insertedVariant.id,
+        color: variantColor,
+        hexCode: variantHex || undefined,
+        stock: variantStock,
+        reservedStock: variantReservedStock,
+        images: variantSpecificImages,
+      });
+    }
+
+    // 4. Insert main product images (at least 2 images)
+    for (let order = 0; order < allImages.length; order++) {
+      await tx.insert(productImagesTable).values({
+        productId: insertedProduct.id,
+        productVariantId: null,
+        url: allImages[order],
+        orderIndex: order,
+      });
+    }
+
+    // 5. Insert product status
+    const initialStatus = productInput.isListed !== false ? 'listed' : 'unListed';
+    const hasStock = totalStockAcrossVariants > 0;
+    await tx
+      .insert(productStatusTable)
+      .values({
+        productId: insertedProduct.id,
+        status: initialStatus,
+        inStock: hasStock,
+      })
+      .onConflictDoUpdate({
+        target: productStatusTable.productId,
+        set: { status: initialStatus, inStock: hasStock },
+      });
+
+    const result = mapDbToProduct(insertedProduct);
+    result.category = resolvedCategoryName;
+    result.categoryId = resolvedCategoryId;
+    result.images = allImages;
+    result.variants = createdVariants;
+    result.isListed = initialStatus === 'listed';
+    (result as any).inStock = hasStock;
+    return result;
+  });
+
+  return createdFromDb;
 }
 
 export async function updateProduct(slug: string, updatedData: Partial<Product>): Promise<Product | null> {
@@ -236,6 +498,7 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
 
     if (targetRow) {
       const currentFeat = (targetRow.features as Record<string, any>) || {};
+      const priceFallback = updatedData.price !== undefined ? updatedData.price : undefined;
       const updatedFeat = {
         ...currentFeat,
         slug: updatedData.slug !== undefined ? updatedData.slug : (currentFeat.slug || slug),
@@ -246,20 +509,46 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
         careInstructions: updatedData.careInstructions !== undefined ? updatedData.careInstructions : currentFeat.careInstructions,
         variants: updatedData.variants !== undefined ? updatedData.variants : currentFeat.variants,
         isListed: updatedData.isListed !== undefined ? updatedData.isListed : currentFeat.isListed,
+        mrp: updatedData.mrp !== undefined ? updatedData.mrp : (priceFallback !== undefined ? priceFallback : currentFeat.mrp),
+        sellingPrice: updatedData.sellingPrice !== undefined ? updatedData.sellingPrice : (priceFallback !== undefined ? priceFallback : currentFeat.sellingPrice),
       };
 
       return await db.transaction(async (tx: any) => {
+        let resolvedCategoryId: string | undefined = undefined;
+        if (updatedData.categoryId) {
+          resolvedCategoryId = updatedData.categoryId;
+        } else if (updatedData.category) {
+          const [existingCat] = await tx
+            .select()
+            .from(categoryTable)
+            .where(eq(categoryTable.name, updatedData.category.trim()));
+          if (existingCat) {
+            resolvedCategoryId = existingCat.id;
+          } else {
+            const [insertedCat] = await tx
+              .insert(categoryTable)
+              .values({ name: updatedData.category.trim() })
+              .returning();
+            resolvedCategoryId = insertedCat.id;
+          }
+        }
+
+        const effectiveMrp = updatedData.mrp !== undefined ? updatedData.mrp : (priceFallback !== undefined ? priceFallback : targetRow.mrp);
+        const effectiveSellingPrice = updatedData.sellingPrice !== undefined ? updatedData.sellingPrice : (priceFallback !== undefined ? priceFallback : targetRow.sellingPrice);
+
         const [updatedRow] = await tx
           .update(productTable)
           .set({
             name: updatedData.name !== undefined ? updatedData.name : targetRow.name,
             description: updatedData.description !== undefined ? updatedData.description : targetRow.description,
-            price: updatedData.price !== undefined ? updatedData.price.toString() : targetRow.price,
+            mrp: effectiveMrp !== undefined ? effectiveMrp.toString() : targetRow.mrp,
+            sellingPrice: effectiveSellingPrice !== undefined ? effectiveSellingPrice.toString() : targetRow.sellingPrice,
             isBestSeller: updatedData.bestseller !== undefined ? updatedData.bestseller : targetRow.isBestSeller,
             isLatest: updatedData.newArrival !== undefined ? updatedData.newArrival : targetRow.isLatest,
             isFeatured: updatedData.featured !== undefined ? updatedData.featured : targetRow.isFeatured,
             tags: updatedData.tags !== undefined ? updatedData.tags : (targetRow.tags as string[]),
             features: updatedFeat,
+            ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
           })
           .where(eq(productTable.id, targetRow.id))
           .returning();

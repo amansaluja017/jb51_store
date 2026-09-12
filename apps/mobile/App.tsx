@@ -11,34 +11,32 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   LogOut,
-  User
+  User,
+  MessageCircle,
 } from 'lucide-react-native';
 
-import { Product, Inquiry, Review, isProductInStock } from './src/types';
+import { Product, Variant, Inquiry, Review, isProductInStock } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
+import InventoryScreen from './src/screens/InventoryScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import InvoiceScreen from './src/screens/InvoiceScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import ProductFormModal from './src/components/ProductFormModal';
+import ProductDetailsModal from './src/components/ProductDetailsModal';
 import CategoryManagerModal from './src/components/CategoryManagerModal';
 import AccountSettingsModal from './src/components/AccountSettingsModal';
+import InquiriesModal from './src/components/InquiriesModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
 import NavigationTabBar, { TabType } from './src/components/NavigationTabBar';
 
 import {
-  DEFAULT_CATEGORIES,
-  MOCK_PRODUCTS,
-  INITIAL_INQUIRIES,
-  SIMULATED_NEW_INQUIRIES,
   MOCK_REVIEWS
 } from './src/data/mockData';
 import { getInitialApiHost, trpcRequest as trpcRequestService } from './src/services/api';
 import {
-  configureNotifications,
-  requestNotificationPermissions,
-  triggerLocalNotification
+  configureNotifications
 } from './src/services/notifications';
 
 // Initialize Notifications configuration
@@ -55,13 +53,14 @@ export default function App() {
   const tabValues = useRef<Record<TabType, Animated.Value>>({
     dashboard: new Animated.Value(activeTab === 'dashboard' ? 1 : 0),
     catalogue: new Animated.Value(activeTab === 'catalogue' ? 1 : 0),
+    inventory: new Animated.Value(activeTab === 'inventory' ? 1 : 0),
     analytics: new Animated.Value(activeTab === 'analytics' ? 1 : 0),
     invoices: new Animated.Value(activeTab === 'invoices' ? 1 : 0),
     reviews: new Animated.Value(activeTab === 'reviews' ? 1 : 0),
   }).current;
 
   useEffect(() => {
-    const tabs: TabType[] = ['dashboard', 'catalogue', 'analytics', 'invoices', 'reviews'];
+    const tabs: TabType[] = ['dashboard', 'catalogue', 'inventory', 'analytics', 'invoices', 'reviews'];
     Animated.parallel(
       tabs.map(tab =>
         Animated.spring(tabValues[tab], {
@@ -81,21 +80,33 @@ export default function App() {
   const [syncMessage, setSyncMessage] = useState('Standby');
 
   // Data States
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [inquiries, setInquiries] = useState<Inquiry[]>(INITIAL_INQUIRIES);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Search & Modals
   const [searchQuery, setSearchQuery] = useState('');
   const [formModalOpen, setFormModalOpen] = useState(false);
+  const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [inquiriesModalOpen, setInquiriesModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id?: string; email?: string; userName?: string; role?: string } | null>(null);
-  const [simulatedIndex, setSimulatedIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
+
+  const pendingInquiriesCount = useMemo(
+    () => inquiries.filter(i => i.status !== 'Resolved').length,
+    [inquiries]
+  );
+
+  const activeDetailsProduct = useMemo(() => {
+    if (!selectedProductDetails) return null;
+    return products.find(p => p.slug === selectedProductDetails.slug) || selectedProductDetails;
+  }, [products, selectedProductDetails]);
 
   // Analytics selections
   const [selectedAnalyticsSlug, setSelectedAnalyticsSlug] = useState<string>('all');
@@ -123,19 +134,42 @@ export default function App() {
     return trpcRequestService(path, { ...options, token, apiHost });
   };
 
-  const fetchFromBackend = async () => {
-    setIsLoading(true);
+  const fetchFromBackend = async (isRefresh = false) => {
+    if (!isRefresh) {
+      setIsLoading(true);
+    }
     try {
-      const decodedProducts = await trpcRequest('products.getAll');
+      const [decodedProducts, decodedCategories] = await Promise.all([
+        trpcRequest('products.getAll'),
+        trpcRequest('products.getCategories').catch(() => null),
+      ]);
+
       if (Array.isArray(decodedProducts)) {
         setProducts(decodedProducts as Product[]);
+
+        const productCategories = Array.from(
+          new Set(
+            decodedProducts
+              .map((p: any) => p.category?.trim())
+              .filter(Boolean)
+          )
+        ) as string[];
+
+        if (Array.isArray(decodedCategories) && decodedCategories.length > 0) {
+          const combined = Array.from(new Set([...decodedCategories, ...productCategories]));
+          setCategories(combined);
+        } else if (productCategories.length > 0) {
+          setCategories(productCategories);
+        }
+      } else if (Array.isArray(decodedCategories) && decodedCategories.length > 0) {
+        setCategories(decodedCategories as string[]);
       }
 
       const reviewsPath = isAuthenticated
         ? 'reviews.getModerationQueue'
         : 'reviews.getAll';
       
-      const decodedReviews = await trpcRequest(reviewsPath);
+      const decodedReviews = await trpcRequest(reviewsPath).catch(() => null);
       if (Array.isArray(decodedReviews)) {
         setReviews(decodedReviews as Review[]);
       }
@@ -144,10 +178,18 @@ export default function App() {
     } catch (err) {
       setSyncMessage('Server offline - Sandbox active');
     } finally {
-      setIsLoading(false);
+      if (!isRefresh) {
+        setIsLoading(false);
+      }
     }
   };
 
+  // Fetch catalogue and categories on initial mount
+  useEffect(() => {
+    fetchFromBackend();
+  }, []);
+
+  // Re-fetch when authentication changes
   useEffect(() => {
     if (isAuthenticated) {
       fetchFromBackend();
@@ -159,6 +201,18 @@ export default function App() {
     setSyncMessage('Pinging tRPC server...');
     await fetchFromBackend();
     setIsSyncing(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchFromBackend(true),
+        new Promise(resolve => setTimeout(resolve, 600))
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleLogin = async (formData?: { username?: string; password?: string }) => {
@@ -263,22 +317,69 @@ export default function App() {
     }
   };
 
-  const handleUpdateVisibility = async (product: Product, status: boolean) => {
+  const handleUpdateInventory = async (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => {
+    const totalVariantStock = updatedVariants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+    const newInStock = forceInStock !== undefined ? forceInStock : (product.inStock === false ? false : totalVariantStock > 0);
+
     try {
-      await trpcRequest('products.updateStatus', {
+      const updatedProductData = {
+        ...product,
+        variants: updatedVariants,
+        inStock: newInStock,
+      };
+
+      await trpcRequest('products.update', {
         method: 'POST',
         body: {
           slug: product.slug,
-          status: status ? 'listed' : 'unListed'
+          data: updatedProductData,
         }
       });
+
+      if (product.inStock !== newInStock) {
+        try {
+          await trpcRequest('products.updateStatus', {
+            method: 'POST',
+            body: { slug: product.slug, inStock: newInStock }
+          });
+        } catch (statusErr) {
+          console.log('[Stock Status Sync Notice]:', statusErr);
+        }
+      }
+
       setProducts(prev =>
-        prev.map(p => p.slug === product.slug ? { ...p, isListed: status } : p)
+        prev.map(p =>
+          p.slug === product.slug
+            ? { ...p, variants: updatedVariants, inStock: newInStock }
+            : p
+        )
       );
-      showAlert('Visibility Updated', `${product.name} is now ${status ? 'Listed' : 'Unlisted'}.`, 'success');
+      showAlert('Inventory Updated', `Stock updated for ${product.name}.`, 'success');
+    } catch (err: any) {
+      console.error('[handleUpdateInventory Error]:', err);
+      await fetchFromBackend();
+      showAlert('Error', err.message || 'Failed to update inventory', 'error');
+      throw err;
+    }
+  };
+
+  const handleUpdateVisibility = async (product: Product, status: 'listed' | 'unListed') => {
+    try {
+      await trpcRequest('products.updateStatus', {
+        method: 'POST',
+        body: { slug: product.slug, status }
+      });
+      setProducts(prev =>
+        prev.map(p =>
+          p.slug === product.slug
+            ? { ...p, status, isListed: status === 'listed' }
+            : p
+        )
+      );
+      showAlert('Status Updated', `${product.name} is now ${status === 'listed' ? 'Listed' : 'Unlisted'}.`, 'success');
     } catch (err: any) {
       await fetchFromBackend();
-      showAlert('Error', err.message || 'Failed to update visibility', 'error');
+      showAlert('Error', err.message || 'Failed to update status', 'error');
     }
   };
 
@@ -414,30 +515,6 @@ export default function App() {
     showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Responded.`, 'success');
   };
 
-  const handleSimulateNewInquiry = async () => {
-    const granted = await requestNotificationPermissions();
-    if (!granted) {
-      showAlert('Notifications Restricted', 'Please enable system notifications to test live alerts.', 'error');
-    }
-
-    const template = SIMULATED_NEW_INQUIRIES[simulatedIndex % SIMULATED_NEW_INQUIRIES.length];
-    const newInq: Inquiry = {
-      ...template,
-      id: `inq_${Date.now()}`
-    };
-
-    setInquiries(prev => [newInq, ...prev]);
-
-    triggerLocalNotification(
-      `New WhatsApp Inquiry from ${newInq.customerName}`,
-      `Interested in "${newInq.productName}" (Size ${newInq.size}, Color ${newInq.color}).`,
-      { inquiryId: newInq.id }
-    );
-
-    showAlert('Inquiry Simulated', `New inquiry from ${newInq.customerName} has been simulated. Check device notifications!`, 'success');
-    setSimulatedIndex(prev => prev + 1);
-  };
-
   // Save edits/addings
   const handleSaveProduct = async (payload: Product) => {
     if (isEditing && editingSlug) {
@@ -494,7 +571,7 @@ export default function App() {
   // Calculations & Analytics
   const stats = useMemo(() => {
     const total = products.length;
-    const oos = products.filter(p => p.variants.every(v => v.stock === 0)).length;
+    const oos = products.filter(p => !isProductInStock(p)).length;
     const active = total - oos;
     const listed = products.filter(p => p.isListed !== false).length;
 
@@ -512,44 +589,17 @@ export default function App() {
   }, [products, selectedAnalyticsSlug]);
 
   const analyticsMetrics = useMemo(() => {
-    if (activeAnalyticsProduct) {
-      const isOos = activeAnalyticsProduct.variants.every(v => v.stock === 0);
-      const totalStock = activeAnalyticsProduct.variants.reduce((acc, v) => acc + v.stock, 0);
-      const waHits = Math.floor(activeAnalyticsProduct.price / 400);
-      const igHits = Math.floor(activeAnalyticsProduct.price / 600);
-      const wlHits = Math.floor(activeAnalyticsProduct.price / 300);
-      const totalViews = waHits * 4 + igHits * 5 + wlHits * 3;
-
-      return {
-        views: totalViews,
-        waHits,
-        igHits,
-        wlHits,
-        conversion: isOos ? 0 : 3.8,
-        pipeline: totalStock
-      };
-    } else {
-      let totalViews = 0;
-      let waHits = 0;
-      let igHits = 0;
-      let wlHits = 0;
-
-      products.forEach(p => {
-        const w = Math.floor(p.price / 400);
-        const i = Math.floor(p.price / 600);
-        const l = Math.floor(p.price / 300);
-        waHits += w;
-        igHits += i;
-        wlHits += l;
-        totalViews += (w * 4 + i * 5 + l * 3);
-      });
-
-      const conversion = products.length > 0 ? 4.2 : 0;
-      const pipeline = products.reduce((acc, p) => acc + p.price, 0) * 1.5;
-
-      return { views: totalViews, waHits, igHits, wlHits, conversion, pipeline };
-    }
-  }, [products, activeAnalyticsProduct]);
+    // When analytics endpoint is not connected, mark as unavailable rather than displaying fabricated metrics
+    return {
+      isUnavailable: true,
+      views: 0,
+      waHits: 0,
+      igHits: 0,
+      wlHits: 0,
+      conversion: 0,
+      pipeline: 0,
+    };
+  }, []);
 
   // Open forms triggers
   const triggerAddProduct = () => {
@@ -566,7 +616,7 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <>
+      <SafeAreaProvider>
         <LoginScreen
           username={username}
           setUsername={setUsername}
@@ -586,7 +636,7 @@ export default function App() {
           config={alertConfig}
           onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
         />
-      </>
+      </SafeAreaProvider>
     );
   }
 
@@ -597,21 +647,38 @@ export default function App() {
 
         {/* App Header Banner */}
         <View style={styles.appHeader}>
-          <View>
+          <View style={styles.headerTitleWrapper}>
             <Text style={styles.headerSubtitle}>JB51 Atelier</Text>
-            <Text style={styles.headerTitle}>
-              {activeTab === 'dashboard'
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+              {activeTab === 'dashboard' || activeTab === 'analytics'
                 ? 'Overview'
                 : activeTab === 'catalogue'
                   ? 'Products List'
-                  : activeTab === 'invoices'
-                    ? 'Invoice Creator'
-                    : activeTab === 'reviews'
-                      ? 'Customer Reviews'
-                      : 'Performance Analytics'}
+                  : activeTab === 'inventory'
+                    ? 'Inventory'
+                    : activeTab === 'invoices'
+                      ? 'Invoice Creator'
+                      : 'Customer Reviews'}
             </Text>
           </View>
           <View style={styles.headerRightActions}>
+            {/* Customer Inquiries Header Button */}
+            <TouchableOpacity
+              onPress={() => setInquiriesModalOpen(true)}
+              style={[styles.headerActionBtn, pendingInquiriesCount > 0 && styles.headerActionBtnActive]}
+              accessibilityLabel="Customer Inquiries"
+              accessibilityRole="button"
+            >
+              <MessageCircle size={17} color={pendingInquiriesCount > 0 ? '#FF5E36' : '#09090b'} />
+              {pendingInquiriesCount > 0 && (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>
+                    {pendingInquiriesCount > 9 ? '9+' : pendingInquiriesCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() => setAccountModalOpen(true)}
               style={styles.headerActionBtn}
@@ -633,49 +700,68 @@ export default function App() {
 
         {/* Screen Router */}
         <View style={styles.screenView}>
-          {activeTab === 'dashboard' && (
+          {(activeTab === 'dashboard' || activeTab === 'analytics') && (
             <DashboardScreen
               stats={stats}
-              inquiries={inquiries}
-              onResolveInquiry={handleResolveInquiry}
-              onSimulateInquiry={handleSimulateNewInquiry}
+              products={products}
+              analyticsMetrics={analyticsMetrics}
+              activeAnalyticsProduct={activeAnalyticsProduct}
+              selectedAnalyticsSlug={selectedAnalyticsSlug}
+              setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
+              showAnalyticsSelector={showAnalyticsSelector}
+              setShowAnalyticsSelector={setShowAnalyticsSelector}
+              isLoading={isLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              onNavigateToTab={(tab) => setActiveTab(tab)}
             />
           )}
           {activeTab === 'catalogue' && (
             <CatalogScreen
               products={products}
+              categories={categories}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               isLoading={isLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
               onAddProduct={triggerAddProduct}
               onManageCategories={() => setCategoryModalOpen(true)}
               onToggleStock={handleToggleStock}
               onUpdateVisibility={handleUpdateVisibility}
               onEditProduct={triggerEditProduct}
               onDeleteProduct={handleDeleteProduct}
+              onViewProductDetails={(prod) => setSelectedProductDetails(prod)}
             />
           )}
-          {activeTab === 'analytics' && (
-            <AnalyticsScreen
+          {activeTab === 'inventory' && (
+            <InventoryScreen
               products={products}
-              selectedAnalyticsSlug={selectedAnalyticsSlug}
-              setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
-              showAnalyticsSelector={showAnalyticsSelector}
-              setShowAnalyticsSelector={setShowAnalyticsSelector}
-              analyticsMetrics={analyticsMetrics}
-              activeAnalyticsProduct={activeAnalyticsProduct}
+              categories={categories}
+              isLoading={isLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              onToggleStock={handleToggleStock}
+              onUpdateInventory={handleUpdateInventory}
+              onViewProductDetails={(prod) => setSelectedProductDetails(prod)}
+              showAlert={showAlert}
             />
           )}
           {activeTab === 'invoices' && (
             <InvoiceScreen
               products={products}
               showAlert={showAlert}
+              isLoading={isLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
             />
           )}
           {activeTab === 'reviews' && (
             <ReviewsScreen
               reviews={reviews}
               isLoading={isLoading}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
               onAddReview={handleAddReview}
               onDeleteReview={handleDeleteReview}
               onToggleApproval={handleToggleReviewApproval}
@@ -689,6 +775,19 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           tabValues={tabValues}
+        />
+
+        {/* Product Details Overview Modal */}
+        <ProductDetailsModal
+          visible={!!activeDetailsProduct}
+          product={activeDetailsProduct}
+          onClose={() => setSelectedProductDetails(null)}
+          onEdit={(prod) => {
+            setSelectedProductDetails(null);
+            triggerEditProduct(prod);
+          }}
+          onToggleStock={handleToggleStock}
+          onUpdateVisibility={handleUpdateVisibility}
         />
 
         {/* Create / Edit Form Modal */}
@@ -729,6 +828,14 @@ export default function App() {
           showAlert={showAlert}
         />
 
+        {/* Dedicated Customer Inquiries Modal */}
+        <InquiriesModal
+          visible={inquiriesModalOpen}
+          onClose={() => setInquiriesModalOpen(false)}
+          inquiries={inquiries}
+          onResolveInquiry={handleResolveInquiry}
+        />
+
         <CustomAlert
           config={alertConfig}
           onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
@@ -744,15 +851,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
   appHeader: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: Platform.OS === 'android' ? 40 : 16,
-    paddingBottom: 16,
+    paddingBottom: 14,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerTitleWrapper: {
+    flex: 1,
+    marginRight: 10,
+    justifyContent: 'center',
   },
   headerSubtitle: {
     fontSize: 8,
@@ -772,6 +884,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
   headerActionBtn: {
     width: 36,
@@ -782,6 +895,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f4f5',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  headerActionBtnActive: {
+    backgroundColor: '#fff0ed',
+    borderColor: '#ffd6cc',
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF5E36',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+  },
+  headerBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#ffffff',
   },
   logoutBtn: {
     width: 36,
@@ -794,5 +931,6 @@ const styles = StyleSheet.create({
   },
   screenView: {
     flex: 1,
+    paddingBottom: Platform.OS === 'ios' ? 88 : 78,
   },
 });

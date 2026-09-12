@@ -8,13 +8,28 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileText, Trash2, Plus, Printer, X, ChevronDown } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { useForm, Controller } from 'react-hook-form';
+import { InvoiceSkeleton } from '../components/SkeletonLoader';
 import { Product } from '../types';
+
+export interface InvoiceFormValues {
+  invoiceNumber: string;
+  invoiceDate: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  taxRate: string;
+  discount: string;
+  paymentMethod: 'Cash' | 'Online';
+  notes: string;
+}
 
 interface InvoiceItem {
   id: string;
@@ -32,6 +47,9 @@ interface InvoiceScreenProps {
     type?: 'success' | 'error' | 'info' | 'confirm',
     onConfirm?: () => void
   ) => void;
+  isLoading?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 const MOCK_CUSTOMERS = [
@@ -43,7 +61,7 @@ const MOCK_CUSTOMERS = [
   { name: 'Mira Kapoor', phone: '+91 94123 45678', email: 'mira.kapoor@gmail.com' },
 ];
 
-export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProps) {
+export default function InvoiceScreen({ products, showAlert, isLoading, refreshing, onRefresh }: InvoiceScreenProps) {
   // Past invoices list
   const [invoices, setInvoices] = useState<any[]>([
     {
@@ -98,17 +116,23 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
 
-  // Invoice form state
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [invoiceDate, setInvoiceDate] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
+  // Invoice form state using react-hook-form
+  const { control, handleSubmit, reset, setValue, watch } = useForm<InvoiceFormValues>({
+    defaultValues: {
+      invoiceNumber: '',
+      invoiceDate: '',
+      clientName: '',
+      clientEmail: '',
+      clientPhone: '',
+      taxRate: '12',
+      discount: '0',
+      paymentMethod: 'Online',
+      notes: '',
+    },
+  });
+
+  const formValues = watch();
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
-  const [taxRate, setTaxRate] = useState('12'); // default 12% GST
-  const [discount, setDiscount] = useState('0');
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Online'>('Online');
-  const [notes, setNotes] = useState('');
 
   // Dropdown states
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -121,22 +145,22 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
 
   // Current calculations
   const subtotal = invoiceItems.reduce((sum, item) => sum + item.total, 0);
-  const taxAmount = (subtotal * (parseFloat(taxRate) || 0)) / 100;
-  const discountAmount = parseFloat(discount) || 0;
+  const taxAmount = (subtotal * (parseFloat(formValues.taxRate) || 0)) / 100;
+  const discountAmount = parseFloat(formValues.discount) || 0;
   const totalAmount = subtotal + taxAmount - discountAmount;
 
   // Resolve dynamic preview data
   const isViewingPast = viewingInvoice !== null;
-  const activeInvNumber = isViewingPast ? viewingInvoice.id : invoiceNumber;
-  const activeInvDate = isViewingPast ? viewingInvoice.date : invoiceDate;
-  const activeClientName = isViewingPast ? viewingInvoice.clientName : clientName;
-  const activeClientEmail = isViewingPast ? viewingInvoice.clientEmail : clientEmail;
-  const activeClientPhone = isViewingPast ? viewingInvoice.clientPhone : clientPhone;
+  const activeInvNumber = isViewingPast ? viewingInvoice.id : formValues.invoiceNumber;
+  const activeInvDate = isViewingPast ? viewingInvoice.date : formValues.invoiceDate;
+  const activeClientName = isViewingPast ? viewingInvoice.clientName : formValues.clientName;
+  const activeClientEmail = isViewingPast ? viewingInvoice.clientEmail : formValues.clientEmail;
+  const activeClientPhone = isViewingPast ? viewingInvoice.clientPhone : formValues.clientPhone;
   const activeItems = isViewingPast ? viewingInvoice.items : invoiceItems;
-  const activeTaxRate = isViewingPast ? viewingInvoice.taxRate : taxRate;
-  const activeDiscount = isViewingPast ? viewingInvoice.discount : discount;
-  const activePaymentMethod = isViewingPast ? viewingInvoice.paymentMethod : paymentMethod;
-  const activeNotes = isViewingPast ? viewingInvoice.notes : notes;
+  const activeTaxRate = isViewingPast ? viewingInvoice.taxRate : formValues.taxRate;
+  const activeDiscount = isViewingPast ? viewingInvoice.discount : formValues.discount;
+  const activePaymentMethod = isViewingPast ? viewingInvoice.paymentMethod : formValues.paymentMethod;
+  const activeNotes = isViewingPast ? viewingInvoice.notes : formValues.notes;
 
   const activeSubtotal = activeItems.reduce((sum: number, item: any) => sum + item.total, 0);
   const activeTaxAmount = (activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100;
@@ -449,19 +473,19 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
     setIsExporting(true);
     try {
       const newInvoice = {
-        id: invoiceNumber,
-        clientName,
-        clientEmail,
-        clientPhone,
-        date: invoiceDate,
-        items: [...invoiceItems],
+        id: formValues.invoiceNumber,
+        clientName: formValues.clientName.trim(),
+        clientPhone: formValues.clientPhone.trim(),
+        clientEmail: formValues.clientEmail.trim(),
+        date: formValues.invoiceDate,
+        items: invoiceItems,
         subtotal,
-        taxRate,
+        taxRate: formValues.taxRate,
         taxAmount,
         discount: discountAmount,
         totalAmount,
-        paymentMethod,
-        notes
+        paymentMethod: formValues.paymentMethod,
+        notes: formValues.notes.trim()
       };
 
       const html = generateInvoiceHtml(newInvoice);
@@ -470,7 +494,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Share Invoice ${invoiceNumber}`,
+          dialogTitle: `Share Invoice ${formValues.invoiceNumber}`,
           UTI: 'com.adobe.pdf'
         });
       } else {
@@ -480,16 +504,11 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
       setInvoices(prev => [newInvoice, ...prev]);
       setIsPreviewOpen(false);
       setIsFormOpen(false);
-      showAlert('Success', `Invoice ${invoiceNumber} created and shared.`, 'success');
+      showAlert('Success', `Invoice ${formValues.invoiceNumber} created and shared.`, 'success');
 
       // Reset form fields
-      setClientName('');
-      setClientEmail('');
-      setClientPhone('');
+      reset();
       setInvoiceItems([]);
-      setDiscount('0');
-      setPaymentMethod('Online');
-      setNotes('');
     } catch (error) {
       console.error(error);
       showAlert('Error', 'Failed to generate and share invoice PDF.', 'error');
@@ -525,8 +544,8 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
     }
   };
 
-  const handleOpenPreview = () => {
-    if (!clientName) {
+  const onPreviewSubmit = (data: InvoiceFormValues) => {
+    if (!data.clientName.trim()) {
       showAlert('Input Required', 'Please enter the customer name.', 'error');
       return;
     }
@@ -541,6 +560,30 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
   const onlineCollected = invoices.filter(inv => inv.paymentMethod === 'Online').reduce((sum, inv) => sum + inv.totalAmount, 0);
   const cashCollected = invoices.filter(inv => inv.paymentMethod === 'Cash').reduce((sum, inv) => sum + inv.totalAmount, 0);
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          alwaysBounceVertical={true}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={!!refreshing}
+                onRefresh={onRefresh}
+                tintColor="#FF5E36"
+                colors={['#FF5E36']}
+                progressBackgroundColor="#ffffff"
+              />
+            ) : undefined
+          }
+        >
+          <InvoiceSkeleton />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -548,7 +591,21 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
     >
       {!isFormOpen ? (
         <View style={styles.container}>
-          <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            alwaysBounceVertical={true}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl
+                  refreshing={!!refreshing}
+                  onRefresh={onRefresh}
+                  tintColor="#FF5E36"
+                  colors={['#FF5E36']}
+                  progressBackgroundColor="#ffffff"
+                />
+              ) : undefined
+            }
+          >
             {/* Header */}
             <View style={styles.ledgerHeader}>
               <View>
@@ -559,15 +616,18 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
                 onPress={() => {
                   setIsPreviewOpen(false);
                   setViewingInvoice(null);
-                  setInvoiceNumber(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
-                  setInvoiceDate(new Date().toLocaleDateString('en-IN'));
-                  setClientName('');
-                  setClientEmail('');
-                  setClientPhone('');
+                  reset({
+                    invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                    invoiceDate: new Date().toLocaleDateString('en-IN'),
+                    clientName: '',
+                    clientEmail: '',
+                    clientPhone: '',
+                    taxRate: '12',
+                    discount: '0',
+                    paymentMethod: 'Online',
+                    notes: '',
+                  });
                   setInvoiceItems([]);
-                  setDiscount('0');
-                  setPaymentMethod('Online');
-                  setNotes('');
                   setIsFormOpen(true);
                 }}
                 style={styles.newInvoiceButtonHeader}
@@ -705,9 +765,9 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
                       key={idx}
                       style={styles.dropdownOption}
                       onPress={() => {
-                        setClientName(cust.name);
-                        setClientPhone(cust.phone);
-                        setClientEmail(cust.email);
+                        setValue('clientName', cust.name, { shouldDirty: true });
+                        setValue('clientPhone', cust.phone, { shouldDirty: true });
+                        setValue('clientEmail', cust.email, { shouldDirty: true });
                         setShowCustomerDropdown(false);
                       }}
                       accessibilityLabel={`Choose client profile ${cust.name}`}
@@ -725,34 +785,56 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Customer Name *</Text>
-              <TextInput
-                placeholder="e.g. Aditi Sharma"
-                placeholderTextColor="#a1a1aa"
-                value={clientName}
-                onChangeText={setClientName}
-                style={styles.textInput}
+              <Controller
+                control={control}
+                name="clientName"
+                rules={{ required: 'Customer name is required' }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    placeholder="e.g. Aditi Sharma"
+                    placeholderTextColor="#a1a1aa"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    style={styles.textInput}
+                  />
+                )}
               />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
-              <TextInput
-                placeholder="e.g. aditi@gmail.com"
-                placeholderTextColor="#a1a1aa"
-                keyboardType="email-address"
-                value={clientEmail}
-                onChangeText={setClientEmail}
-                style={styles.textInput}
+              <Controller
+                control={control}
+                name="clientEmail"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    placeholder="e.g. aditi@gmail.com"
+                    placeholderTextColor="#a1a1aa"
+                    keyboardType="email-address"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    style={styles.textInput}
+                  />
+                )}
               />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Phone Number</Text>
-              <TextInput
-                placeholder="e.g. +91 99887 76655"
-                placeholderTextColor="#a1a1aa"
-                keyboardType="phone-pad"
-                value={clientPhone}
-                onChangeText={setClientPhone}
-                style={styles.textInput}
+              <Controller
+                control={control}
+                name="clientPhone"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    placeholder="e.g. +91 99887 76655"
+                    placeholderTextColor="#a1a1aa"
+                    keyboardType="phone-pad"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    style={styles.textInput}
+                  />
+                )}
               />
             </View>
           </View>
@@ -855,20 +937,34 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.inputLabel}>GST / Tax %</Text>
-                <TextInput
-                  keyboardType="numeric"
-                  value={taxRate}
-                  onChangeText={setTaxRate}
-                  style={styles.textInput}
+                <Controller
+                  control={control}
+                  name="taxRate"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      keyboardType="numeric"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.textInput}
+                    />
+                  )}
                 />
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.inputLabel}>Discount (Flat ₹)</Text>
-                <TextInput
-                  keyboardType="numeric"
-                  value={discount}
-                  onChangeText={setDiscount}
-                  style={styles.textInput}
+                <Controller
+                  control={control}
+                  name="discount"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      keyboardType="numeric"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.textInput}
+                    />
+                  )}
                 />
               </View>
             </View>
@@ -878,22 +974,22 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
               <Text style={styles.inputLabel}>Payment Method</Text>
               <View style={styles.paymentSelector}>
                 <TouchableOpacity
-                  style={[styles.paymentOption, paymentMethod === 'Online' && styles.paymentOptionActive]}
-                  onPress={() => setPaymentMethod('Online')}
+                  style={[styles.paymentOption, formValues.paymentMethod === 'Online' && styles.paymentOptionActive]}
+                  onPress={() => setValue('paymentMethod', 'Online', { shouldDirty: true })}
                   accessibilityLabel="Choose Online payment mode"
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.paymentOptionText, paymentMethod === 'Online' && styles.paymentOptionTextActive]}>
+                  <Text style={[styles.paymentOptionText, formValues.paymentMethod === 'Online' && styles.paymentOptionTextActive]}>
                     Online Payment
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.paymentOption, paymentMethod === 'Cash' && styles.paymentOptionActive]}
-                  onPress={() => setPaymentMethod('Cash')}
+                  style={[styles.paymentOption, formValues.paymentMethod === 'Cash' && styles.paymentOptionActive]}
+                  onPress={() => setValue('paymentMethod', 'Cash', { shouldDirty: true })}
                   accessibilityLabel="Choose Cash payment mode"
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.paymentOptionText, paymentMethod === 'Cash' && styles.paymentOptionTextActive]}>
+                  <Text style={[styles.paymentOptionText, formValues.paymentMethod === 'Cash' && styles.paymentOptionTextActive]}>
                     Cash Payment
                   </Text>
                 </TouchableOpacity>
@@ -903,31 +999,41 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
             {/* Notes Input field */}
             <View style={[styles.inputGroup, { marginTop: 4 }]}>
               <Text style={styles.inputLabel}>Notes & Tailoring Customizations</Text>
-              <TextInput
-                placeholder="e.g. Custom sleeve length adjustments: 22 inches"
-                placeholderTextColor="#a1a1aa"
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={3}
-                style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    placeholder="e.g. Custom sleeve length adjustments: 22 inches"
+                    placeholderTextColor="#a1a1aa"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    multiline
+                    numberOfLines={3}
+                    style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+                  />
+                )}
               />
             </View>
+          </View>
 
-            {/* Pricing Calculations Summary */}
+          {/* Pricing Calculation Summary Sheet */}
+          <View style={styles.card}>
+            <Text style={[styles.cardTitle, { marginBottom: 12 }]}>Billing Summary</Text>
             <View style={styles.summaryBox}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
                 <Text style={styles.summaryValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>GST ({taxRate}%)</Text>
-                <Text style={styles.summaryValue}>+ ₹{taxAmount.toLocaleString('en-IN')}</Text>
+                <Text style={styles.summaryLabel}>GST ({formValues.taxRate || 0}%)</Text>
+                <Text style={styles.summaryValue}>₹{taxAmount.toLocaleString('en-IN')}</Text>
               </View>
               {discountAmount > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Discount</Text>
-                  <Text style={[styles.summaryValue, { color: '#22c55e' }]}>- ₹{discountAmount.toLocaleString('en-IN')}</Text>
+                  <Text style={[styles.summaryValue, { color: '#16a34a' }]}>-₹{discountAmount.toLocaleString('en-IN')}</Text>
                 </View>
               )}
               <View style={[styles.summaryRow, styles.grandTotalRow]}>
@@ -939,7 +1045,7 @@ export default function InvoiceScreen({ products, showAlert }: InvoiceScreenProp
 
           {/* Generate / Preview Trigger */}
           <TouchableOpacity
-            onPress={handleOpenPreview}
+            onPress={handleSubmit(onPreviewSubmit)}
             style={styles.generateButton}
             accessibilityLabel="Preview and generate invoice button"
             accessibilityRole="button"

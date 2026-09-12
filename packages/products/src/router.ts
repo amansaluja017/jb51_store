@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from '@trpc/server';
-import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus } from './data.js';
+import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviewsData.js';
 import { 
   GetAllProductsOutputSchema, 
@@ -102,6 +102,11 @@ export const productsRouter = t.router({
     .output(UpdateProductStatusOutputSchema)
     .mutation(async ({ input }) => {
       return await updateProductStatus(input.slug, { status: input.status, inStock: input.inStock });
+    }),
+  getCategories: t.procedure
+    .meta({ description: 'Fetch all product categories' })
+    .query(async () => {
+      return await getCategories();
     }),
 });
 

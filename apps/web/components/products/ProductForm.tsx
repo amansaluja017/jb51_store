@@ -1,12 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Loader2, ImageOff, Check } from 'lucide-react';
 import { type Product, type ProductVariant } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { toast } from 'sonner';
 import { Dropdown } from '@/components/ui/Dropdown';
+
+export interface FormVariant {
+  id?: string;
+  color: string;
+  hexCode?: string;
+  stock: number | string;
+  reservedStock?: number;
+  images?: string[];
+}
 
 interface ProductFormProps {
   initialData?: Product | null;
@@ -21,33 +30,39 @@ const CATEGORIES = [
   'Occasion Wear'
 ];
 
-const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Custom'].map(sz => ({ value: sz, label: sz }));
 
 export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const router = useRouter();
 
   // Custom categories state
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('jb51_custom_categories');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    return [];
+  });
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
-  useEffect(() => {
-    const saved = localStorage.getItem('jb51_custom_categories');
-    if (saved) {
-      try {
-        setCustomCategories(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
+  const allCategories = useMemo(() => {
+    const list = [...CATEGORIES, ...customCategories];
+    if (initialData?.category && !list.includes(initialData.category)) {
+      list.push(initialData.category);
     }
-  }, []);
+    return list;
+  }, [customCategories, initialData]);
 
-  const allCategories = [...CATEGORIES, ...customCategories];
-  if (initialData?.category && !allCategories.includes(initialData.category)) {
-    allCategories.push(initialData.category);
-  }
-
-  const categoryOptions = allCategories.map(cat => ({ value: cat, label: cat }));
+  const categoryOptions = useMemo(
+    () => allCategories.map(cat => ({ value: cat, label: cat })),
+    [allCategories]
+  );
 
   const handleCreateCategory = () => {
     const trimmed = newCategoryInput.trim();
@@ -94,9 +109,11 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
 
   // Primary fields
   const [name, setName] = useState(initialData?.name || '');
+  const [autoSlug, setAutoSlug] = useState(!initialData?.slug);
   const [slug, setSlug] = useState(initialData?.slug || '');
   const [description, setDescription] = useState(initialData?.description || '');
-  const [price, setPrice] = useState(initialData?.price || 0);
+  const [mrp, setMrp] = useState<number | string>(initialData?.mrp ?? (initialData?.price ?? ''));
+  const [sellingPrice, setSellingPrice] = useState<number | string>(initialData?.sellingPrice ?? (initialData?.discountPrice ?? (initialData?.price ?? '')));
   const [category, setCategory] = useState(initialData?.category || CATEGORIES[0]);
   const [fabric, setFabric] = useState(initialData?.fabric || '');
   const [fit, setFit] = useState(initialData?.fit || '');
@@ -106,33 +123,67 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const [bestseller, setBestseller] = useState(initialData?.bestseller || false);
   const [isListed, setIsListed] = useState(initialData?.isListed !== false);
 
-  // Array fields
-  const [images, setImages] = useState<string[]>(initialData?.images || ['']);
+  // Array fields (at least 2 images default for creation)
+  const [images, setImages] = useState<string[]>(() => {
+    if (initialData?.images && initialData.images.length > 0) {
+      return initialData.images;
+    }
+    return ['', ''];
+  });
   const [tagsInput, setTagsInput] = useState(initialData?.tags?.join(', ') || '');
   
   // Variants fields
-  const [variants, setVariants] = useState<ProductVariant[]>(
-    initialData?.variants || [{ color: '', size: 'M', stock: 10 }]
+  const [variants, setVariants] = useState<FormVariant[]>(
+    initialData?.variants && initialData.variants.length > 0
+      ? initialData.variants.map(v => ({ ...v }))
+      : [{ color: '', stock: 10 }]
   );
 
-  // Auto slug generation
-  const [autoSlug, setAutoSlug] = useState(!initialData?.slug);
-
+  // Sync if initialData is provided/updated asynchronously
+  const prevInitialIdRef = useRef<string | undefined>(initialData?.id);
   useEffect(() => {
+    if (initialData && initialData.id !== prevInitialIdRef.current) {
+      prevInitialIdRef.current = initialData.id;
+      setName(initialData.name || '');
+      setSlug(initialData.slug || '');
+      setDescription(initialData.description || '');
+      setMrp(initialData.mrp ?? (initialData.price ?? ''));
+      setSellingPrice(initialData.sellingPrice ?? (initialData.discountPrice ?? (initialData.price ?? '')));
+      setCategory(initialData.category || CATEGORIES[0]);
+      setFabric(initialData.fabric || '');
+      setFit(initialData.fit || '');
+      setCareInstructions(initialData.careInstructions || '');
+      setFeatured(initialData.featured || false);
+      setNewArrival(initialData.newArrival || false);
+      setBestseller(initialData.bestseller || false);
+      setIsListed(initialData.isListed !== false);
+      setImages(initialData.images && initialData.images.length > 0 ? initialData.images : ['', '']);
+      setTagsInput(initialData.tags?.join(', ') || '');
+      setVariants(
+        initialData.variants && initialData.variants.length > 0
+          ? initialData.variants.map(v => ({ ...v }))
+          : [{ color: '', stock: 10 }]
+      );
+      setAutoSlug(false);
+    }
+  }, [initialData]);
+
+  const handleNameChange = (val: string) => {
+    setName(val);
     if (autoSlug && !isEdit) {
-      const generated = name
+      const generated = val
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
       setSlug(generated);
     }
-  }, [name, autoSlug, isEdit]);
+  };
 
   // tRPC Mutations
   const createMutation = api.products.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (newProduct) => {
       toast.success('Outfit created successfully.');
-      router.push('/admin/products');
+      router.push(newProduct?.slug ? `/product/${newProduct.slug}` : '/shop');
       router.refresh();
     },
     onError: (err) => {
@@ -141,9 +192,9 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   });
 
   const updateMutation = api.products.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (updatedProduct) => {
       toast.success('Outfit updated successfully.');
-      router.push('/admin/products');
+      router.push(updatedProduct?.slug ? `/product/${updatedProduct.slug}` : '/shop');
       router.refresh();
     },
     onError: (err) => {
@@ -156,22 +207,86 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!slug) {
+    if (!name.trim()) {
+      toast.error('Outfit name is required.');
+      return;
+    }
+
+    if (!slug.trim()) {
       toast.error('Slug is required.');
       return;
     }
 
-    const cleanedImages = images.filter(img => img.trim() !== '');
-    if (cleanedImages.length === 0) {
-      toast.error('Please provide at least one product image.');
+    const mrpNum = Number(mrp);
+    if (isNaN(mrpNum) || mrpNum <= 0) {
+      toast.error('Please enter a valid MRP (Maximum Retail Price) greater than 0.');
       return;
     }
 
-    const cleanedVariants = variants.filter(v => v.color.trim() !== '');
-    if (cleanedVariants.length === 0) {
+    const sellingPriceNum = Number(sellingPrice);
+    if (isNaN(sellingPriceNum) || sellingPriceNum <= 0) {
+      toast.error('Please enter a valid Selling Price greater than 0.');
+      return;
+    }
+
+    if (sellingPriceNum > mrpNum) {
+      toast.error('Selling price cannot exceed MRP.');
+      return;
+    }
+
+    if (!category.trim()) {
+      toast.error('Product category is mandatory.');
+      return;
+    }
+
+    if (!description.trim()) {
+      toast.error('Product description is mandatory.');
+      return;
+    }
+
+    const cleanedImages = images.map(img => img.trim()).filter(img => img !== '');
+    if (cleanedImages.length < 2) {
+      toast.error('Please provide at least 2 product images.');
+      return;
+    }
+
+    if (variants.length === 0) {
       toast.error('Please configure at least one variant.');
       return;
     }
+
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
+      if (!v.color.trim()) {
+        toast.error(`Please specify a shade/color for variant ${i + 1}.`);
+        return;
+      }
+      const stockNum = Number(v.stock);
+      if (isNaN(stockNum) || stockNum < 0) {
+        toast.error(`Stock for variant "${v.color.trim()}" must be 0 or greater.`);
+        return;
+      }
+    }
+
+    // Check for duplicate variant colors
+    const seenColors = new Set<string>();
+    for (const v of variants) {
+      const lower = v.color.trim().toLowerCase();
+      if (seenColors.has(lower)) {
+        toast.error(`Duplicate variant shade "${v.color.trim()}". Each variant must have a unique shade.`);
+        return;
+      }
+      seenColors.add(lower);
+    }
+
+    const cleanedVariants = variants.map(v => ({
+      id: v.id,
+      color: v.color.trim(),
+      hexCode: v.hexCode?.trim() || undefined,
+      stock: Math.floor(Number(v.stock)) || 0,
+      reservedStock: v.reservedStock || 0,
+      images: v.images || [],
+    }));
 
     const tags = tagsInput
       .split(',')
@@ -179,16 +294,19 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
       .filter(t => t !== '');
 
     const payload = {
-      id: initialData?.id || Math.random().toString(36).substring(2, 9),
-      name,
-      slug,
-      description,
-      price: Number(price),
-      category,
+      ...(initialData?.id ? { id: initialData.id } : {}),
+      name: name.trim(),
+      slug: slug.trim(),
+      description: description.trim(),
+      price: sellingPriceNum,
+      mrp: mrpNum,
+      sellingPrice: sellingPriceNum,
+      discountPrice: mrpNum > sellingPriceNum ? sellingPriceNum : undefined,
+      category: category.trim(),
       images: cleanedImages,
-      fabric,
-      fit,
-      careInstructions,
+      fabric: fabric.trim(),
+      fit: fit.trim(),
+      careInstructions: careInstructions.trim(),
       variants: cleanedVariants,
       featured,
       newArrival,
@@ -213,7 +331,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const handleRemoveImage = (index: number) => {
     const next = [...images];
     next.splice(index, 1);
-    setImages(next.length === 0 ? [''] : next);
+    setImages(next.length === 0 ? ['', ''] : next);
   };
   const handleImageChange = (index: number, val: string) => {
     const next = [...images];
@@ -223,17 +341,17 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
 
   // Variant helpers
   const handleAddVariant = () => {
-    setVariants([...variants, { color: '', size: 'M', stock: 10 }]);
+    setVariants([...variants, { color: '', stock: 10 }]);
   };
   const handleRemoveVariant = (index: number) => {
     const next = [...variants];
     next.splice(index, 1);
-    setVariants(next.length === 0 ? [{ color: '', size: 'M', stock: 10 }] : next);
+    setVariants(next.length === 0 ? [{ color: '', stock: 10 }] : next);
   };
-  const handleVariantChange = <K extends keyof ProductVariant>(
+  const handleVariantChange = <K extends keyof FormVariant>(
     index: number,
     key: K,
-    val: ProductVariant[K]
+    val: FormVariant[K]
   ) => {
     const next = [...variants];
     next[index] = { ...next[index], [key]: val };
@@ -295,7 +413,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="e.g. Ivory Chanderi Silk Co-ord Set"
                   className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
                   required
@@ -341,17 +459,53 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Price (INR) *</label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(Number(e.target.value))}
-                  placeholder="16800"
-                  className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
-                  min="0"
-                  required
-                />
+                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">MRP (INR) *</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold">₹</span>
+                  <input
+                    type="number"
+                    value={mrp}
+                    onChange={(e) => setMrp(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="24999"
+                    className="w-full pl-8 pr-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
+                    min="0"
+                    required
+                  />
+                </div>
               </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Selling Price (INR) *</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold">₹</span>
+                  <input
+                    type="number"
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="18999"
+                    className="w-full pl-8 pr-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {Boolean(Number(mrp) > 0 && Number(sellingPrice) > 0) && (
+              <div className="flex items-center gap-2 -mt-2">
+                {Number(sellingPrice) <= Number(mrp) ? (
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5">
+                    {Number(mrp) > Number(sellingPrice)
+                      ? `${Math.round(((Number(mrp) - Number(sellingPrice)) / Number(mrp)) * 100)}% OFF • Customer saves ₹${(Number(mrp) - Number(sellingPrice)).toLocaleString('en-IN')}`
+                      : 'No discount (Selling at full MRP)'}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-200">
+                    ⚠️ Selling price cannot exceed MRP
+                  </span>
+                )}
+              </div>
+            )}
 
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
@@ -403,7 +557,6 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                   />
                 )}
               </div>
-            </div>
           </div>
 
           {/* Section: Fabric specs */}
@@ -449,7 +602,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
           {/* Section: Sizing and Color variants */}
           <div className="bg-white border border-zinc-200/80 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
             <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
-              <h2 className="font-serif text-lg font-bold text-zinc-900">Stock & Sizing Variants</h2>
+              <h2 className="font-serif text-lg font-bold text-zinc-900">Stock & Shade Variants</h2>
               <button
                 type="button"
                 onClick={handleAddVariant}
@@ -462,8 +615,8 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
             <div className="space-y-4">
               {variants.map((variant, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row items-end sm:items-center gap-4 p-4 bg-zinc-50/50 rounded-2xl border border-zinc-100">
-                  <div className="flex-1 w-full grid grid-cols-3 gap-3">
-                    <div className="flex flex-col gap-1.5 col-span-1.5">
+                  <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="flex flex-col gap-1.5">
                       <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Shade/Color *</label>
                       <input
                         type="text"
@@ -474,23 +627,32 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                         required
                       />
                     </div>
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Size *</label>
-                      <Dropdown
-                        options={SIZE_OPTIONS}
-                        value={variant.size}
-                        onChange={(val) => handleVariantChange(idx, 'size', val)}
-                        className="w-full"
-                        triggerClassName="rounded-lg px-3 py-2 border border-zinc-200 bg-white text-xs font-semibold text-zinc-800 hover:bg-white text-left shadow-none focus:border-zinc-400"
-                        menuClassName="left-0 origin-top min-w-[120px]"
-                      />
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Color HEX</label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          value={variant.hexCode || ''}
+                          onChange={(e) => handleVariantChange(idx, 'hexCode', e.target.value)}
+                          placeholder="#E2D4C0"
+                          maxLength={9}
+                          className="w-full pl-7 pr-3 py-2 border border-zinc-200 bg-white focus:border-zinc-400 rounded-lg outline-none text-xs font-semibold text-zinc-800 uppercase font-mono"
+                        />
+                        <div
+                          className="absolute left-2 w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-xs"
+                          style={{ backgroundColor: variant.hexCode?.startsWith('#') ? variant.hexCode : '#e4e4e7' }}
+                        />
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Stock *</label>
                       <input
                         type="number"
                         value={variant.stock}
-                        onChange={(e) => handleVariantChange(idx, 'stock', Number(e.target.value))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleVariantChange(idx, 'stock', val === '' ? '' : Math.max(0, parseInt(val, 10) || 0));
+                        }}
                         className="px-3 py-2 border border-zinc-200 bg-white focus:border-zinc-400 rounded-lg outline-none text-xs font-semibold text-zinc-800"
                         min="0"
                         required
@@ -500,7 +662,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                   <button
                     type="button"
                     onClick={() => handleRemoveVariant(idx)}
-                    className="w-8 h-8 rounded-lg border border-zinc-250 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors shrink-0"
+                    className="w-8 h-8 rounded-lg border border-zinc-200 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors shrink-0"
                     aria-label={`Remove variant ${idx + 1}`}
                   >
                     <Trash2 size={14} />
@@ -529,7 +691,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 />
                 <div>
                   <span className="text-xs font-bold text-zinc-700 group-hover:text-zinc-950 transition-colors">New Arrival</span>
-                  <span className="text-[10px] text-zinc-400 font-light block mt-0.5">Show in the "New Arrivals" section</span>
+                  <span className="text-[10px] text-zinc-400 font-light block mt-0.5">Show in the &quot;New Arrivals&quot; section</span>
                 </div>
               </label>
 
@@ -587,7 +749,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
               />
               <span className="text-[9px] text-zinc-400 font-light">
-                Tags match recommended "Similar Outfits" grids algorithmically.
+                Tags match recommended &quot;Similar Outfits&quot; grids algorithmically.
               </span>
             </div>
           </div>
@@ -615,7 +777,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                       onChange={(e) => handleImageChange(idx, e.target.value)}
                       placeholder="https://images.unsplash.com/..."
                       className="flex-1 px-3 py-2 border border-zinc-200 focus:border-zinc-400 rounded-lg outline-none text-[10px] font-semibold text-zinc-800 transition-colors"
-                      required
+                      required={idx < 2}
                     />
                     <button
                       type="button"
@@ -630,6 +792,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                   {/* Thumbnail Preview */}
                   {image.trim().startsWith('http') ? (
                     <div className="relative w-full aspect-[4/3] bg-zinc-50 border border-zinc-100 rounded-2xl overflow-hidden shadow-inner group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
                         src={image} 
                         alt={`Preview ${idx + 1}`} 

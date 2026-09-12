@@ -1,14 +1,19 @@
+import 'dotenv/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { Readable } from 'stream';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+export const configureCloudinary = () => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+};
+
+configureCloudinary();
 
 export const isCloudinaryConfigured = (): boolean => {
+  configureCloudinary();
   return Boolean(
     process.env.CLOUDINARY_URL ||
       (process.env.CLOUDINARY_CLOUD_NAME &&
@@ -42,6 +47,7 @@ export const uploadBufferToCloudinary = async (
       {
         folder,
         resource_type: resourceType,
+        timeout: 60000,
       },
       (error, result: UploadApiResponse | undefined) => {
         if (error || !result) {
@@ -58,24 +64,31 @@ export const uploadBufferToCloudinary = async (
       }
     );
 
-    const readable = new Readable();
-    readable._read = () => {};
-    readable.push(buffer);
-    readable.push(null);
-    readable.pipe(uploadStream);
+    uploadStream.end(buffer);
   });
 };
 
 export const extractPublicIdFromUrl = (url: string): string | null => {
   try {
-    const cleanUrl = url.split('?')[0];
+    const cleanUrl = url.split('?')[0].split('#')[0];
     const marker = '/image/upload/';
     const index = cleanUrl.indexOf(marker);
-    if (index === -1) return null;
+    if (index === -1) {
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        return cleanUrl;
+      }
+      return null;
+    }
 
     let pathAfterUpload = cleanUrl.substring(index + marker.length);
-    // Remove version tag like v123456789/
-    pathAfterUpload = pathAfterUpload.replace(/^v\d+\//, '');
+    const versionMatch = pathAfterUpload.match(/(?:^|\/)v\d+\/(.+)$/);
+    if (versionMatch) {
+      pathAfterUpload = versionMatch[1];
+    } else {
+      pathAfterUpload = pathAfterUpload.replace(/^([a-z]{1,2}_[^/]+\/)+/, '');
+      pathAfterUpload = pathAfterUpload.replace(/^v\d+\//, '');
+    }
+
     // Remove file extension
     const lastDotIndex = pathAfterUpload.lastIndexOf('.');
     if (lastDotIndex !== -1) {

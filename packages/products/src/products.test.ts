@@ -63,6 +63,10 @@ describe('Products Router API Integration Tests', () => {
     await adminCaller.create({
       name: 'Emerald Banarasi Suit',
       slug,
+      description: 'Handcrafted banarasi silk suit',
+      category: 'Anarkali Suits',
+      images: ['https://example.com/eb1.jpg', 'https://example.com/eb2.jpg'],
+      variants: [{ color: 'Emerald Green', stock: 10 }],
       price: 24500,
     });
 
@@ -79,6 +83,10 @@ describe('Products Router API Integration Tests', () => {
         await unauthCaller.create({
           name: 'Unauthorized Suit',
           slug: unauthSlug,
+          description: 'A suit created without auth',
+          category: 'Formal Suits',
+          images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+          variants: [{ color: 'Blue', stock: 10 }],
           price: 5000,
         });
       },
@@ -92,6 +100,10 @@ describe('Products Router API Integration Tests', () => {
         await nonAdminCaller.create({
           name: 'Forbidden Suit',
           slug: forbiddenSlug,
+          description: 'A forbidden suit',
+          category: 'Formal Suits',
+          images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+          variants: [{ color: 'Red', stock: 5 }],
           price: 5000,
         });
       },
@@ -108,11 +120,11 @@ describe('Products Router API Integration Tests', () => {
       description: 'A test royal silk suit for unit testing.',
       price: 29900,
       category: 'Occasion Wear',
-      variants: [{ color: 'Royal Blue', size: 'M', stock: 15 }],
+      variants: [{ color: 'Royal Blue', stock: 15 }],
       fabric: 'Pure Silk',
       fit: 'Regular',
       careInstructions: 'Dry clean only',
-      images: ['https://example.com/test.jpg'],
+      images: ['https://example.com/test1.jpg', 'https://example.com/test2.jpg'],
     });
 
     assert.strictEqual(newProduct.slug, slug);
@@ -171,12 +183,15 @@ describe('Products Router API Integration Tests', () => {
 
   it('8. should successfully fetch and update product status via status procedures', async () => {
     const adminCaller = productsRouter.createCaller(adminContext);
-    const unauthCaller = productsRouter.createCaller(unauthContext);
     const slug = getRunSlug('status-test-suit');
 
     await adminCaller.create({
       name: 'Status Test Suit',
       slug,
+      description: 'Status test suit description',
+      category: 'Formal Suits',
+      images: ['https://example.com/s1.jpg', 'https://example.com/s2.jpg'],
+      variants: [{ color: 'Black', stock: 10 }],
       price: 15000,
     });
 
@@ -200,5 +215,90 @@ describe('Products Router API Integration Tests', () => {
     await adminCaller.delete({ slug });
     const discontinuedRes = await adminCaller.getStatus({ slug });
     assert.strictEqual(discontinuedRes?.status, 'discontinued');
+  });
+
+  it('9. should reject product creation when mandatory fields (description, category, images < 2, stock) are invalid', async () => {
+    const caller = productsRouter.createCaller(adminContext);
+
+    // Test missing description
+    await assert.rejects(
+      async () => {
+        await caller.create({
+          name: 'Missing Desc',
+          slug: getRunSlug('missing-desc'),
+          description: '',
+          price: 1000,
+          category: 'Formal Suits',
+          images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+          variants: [{ color: 'Black', stock: 5 }],
+        });
+      },
+      (err: any) => err.code === 'BAD_REQUEST'
+    );
+
+    // Test images < 2
+    await assert.rejects(
+      async () => {
+        await caller.create({
+          name: 'One Image',
+          slug: getRunSlug('one-image'),
+          description: 'Valid description',
+          price: 1000,
+          category: 'Formal Suits',
+          images: ['https://example.com/1.jpg'],
+          variants: [{ color: 'Black', stock: 5 }],
+        });
+      },
+      (err: any) => err.code === 'BAD_REQUEST'
+    );
+
+    // Test missing variants / stock
+    await assert.rejects(
+      async () => {
+        await caller.create({
+          name: 'No Variants',
+          slug: getRunSlug('no-variants'),
+          description: 'Valid description',
+          price: 1000,
+          category: 'Formal Suits',
+          images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+          variants: [],
+        });
+      },
+      (err: any) => err.code === 'BAD_REQUEST'
+    );
+  });
+
+  it('10. should create product, variants, images, status, and inventry in atomic transaction', async () => {
+    const caller = productsRouter.createCaller(adminContext);
+    const slug = getRunSlug('atomic-transaction-suit');
+
+    const created = await caller.create({
+      name: 'Atomic Transaction Suit',
+      slug,
+      description: 'Verifying complete multi-table transaction insertion',
+      price: 19999,
+      category: 'Anarkali Suits',
+      images: [
+        'https://example.com/atomic1.jpg',
+        'https://example.com/atomic2.jpg'
+      ],
+      variants: [
+        { color: 'Emerald Green', stock: 12, reservedStock: 2 },
+        { color: 'Ruby Red', stock: 8, reservedStock: 0 }
+      ],
+    });
+
+    assert.strictEqual(created.slug, slug);
+    assert.strictEqual(created.variants.length, 2);
+    assert.strictEqual(created.images.length, 2);
+    assert.strictEqual(created.inStock, true);
+
+    // Verify retrieval includes populated relational data
+    const retrieved = await caller.getBySlug({ slug });
+    assert.notStrictEqual(retrieved, null);
+    assert.strictEqual(retrieved?.category, 'Anarkali Suits');
+    assert.strictEqual(retrieved?.variants.length, 2);
+    assert.strictEqual(retrieved?.images.length >= 2, true);
   });
 });

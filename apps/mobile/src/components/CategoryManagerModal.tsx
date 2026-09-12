@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -11,7 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Plus, Trash2, Tag } from 'lucide-react-native';
+import { useForm, Controller } from 'react-hook-form';
 import { Product } from '../types';
+
+interface CategoryFormValues {
+  name: string;
+}
 
 interface CategoryManagerModalProps {
   visible: boolean;
@@ -32,17 +37,24 @@ export default function CategoryManagerModal({
   onDeleteCategory,
   showAlert
 }: CategoryManagerModalProps) {
-  const [newCatInput, setNewCatInput] = useState('');
+  const { control, handleSubmit, reset } = useForm<CategoryFormValues>({
+    defaultValues: {
+      name: '',
+    },
+  });
 
-  const handleAdd = () => {
-    const trimmed = newCatInput.trim();
-    if (!trimmed) return;
+  const onSubmit = (data: CategoryFormValues) => {
+    const trimmed = data.name.trim();
+    if (!trimmed) {
+      showAlert('Category Name Required', 'Please provide a non-empty category name.', 'error');
+      return;
+    }
     if (categories.includes(trimmed)) {
       showAlert('Duplicate Category', 'This category already exists.', 'error');
       return;
     }
     onAddCategory(trimmed);
-    setNewCatInput('');
+    reset({ name: '' });
     showAlert('Category Created', `"${trimmed}" has been added to categories.`, 'success');
   };
 
@@ -85,14 +97,22 @@ export default function CategoryManagerModal({
             <Text style={styles.sectionSubtitle}>Create a new collection category to group garments and outfits.</Text>
             
             <View style={styles.inputRow}>
-              <TextInput
-                placeholder="e.g. Linen Co-ords"
-                value={newCatInput}
-                onChangeText={setNewCatInput}
-                style={styles.textInput}
-                placeholderTextColor="#a1a1aa"
+              <Controller
+                control={control}
+                name="name"
+                rules={{ required: 'Category name is required' }}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    placeholder="e.g. Linen Co-ords"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    style={styles.textInput}
+                    placeholderTextColor="#a1a1aa"
+                  />
+                )}
               />
-              <TouchableOpacity onPress={handleAdd} style={styles.addBtn} activeOpacity={0.8}>
+              <TouchableOpacity onPress={handleSubmit(onSubmit)} style={styles.addBtn} activeOpacity={0.8}>
                 <Plus size={16} color="#ffffff" />
                 <Text style={styles.addBtnText}>Create</Text>
               </TouchableOpacity>

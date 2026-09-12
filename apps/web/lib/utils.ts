@@ -14,13 +14,19 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
-export function generateWhatsAppMessage(product: Product, size: string, color: string, url: string): string {
+export function generateWhatsAppMessage(product: Product, color: string, url: string, size?: string): string {
+  const sizeLine = size ? `Size: ${size}\n` : '';
+  const sellingPrice = product.sellingPrice ?? product.discountPrice ?? product.price;
+  const mrp = product.mrp ?? (product.discountPrice ? product.price : undefined);
+  const priceDisplay = mrp && mrp > sellingPrice
+    ? `${formatPrice(sellingPrice)} (MRP: ${formatPrice(mrp)})`
+    : formatPrice(sellingPrice);
+
   const message = `Hi! I'm interested in this product:
 
 Product: ${product.name}
-Price: ${formatPrice(product.price)}
-Size: ${size || 'Not selected'}
-Color: ${color || 'Not selected'}
+Price: ${priceDisplay}
+${sizeLine}Color: ${color || 'Not selected'}
 
 Product Link:
 ${url}
@@ -30,12 +36,18 @@ Could you please share availability and ordering details?`;
   return encodeURIComponent(message);
 }
 
-export function generateInstagramMessage(product: Product, size: string, color: string, url: string): string {
+export function generateInstagramMessage(product: Product, color: string, url: string, size?: string): string {
+  const sizeLine = size ? `Size: ${size}\n` : '';
+  const sellingPrice = product.sellingPrice ?? product.discountPrice ?? product.price;
+  const mrp = product.mrp ?? (product.discountPrice ? product.price : undefined);
+  const priceDisplay = mrp && mrp > sellingPrice
+    ? `${formatPrice(sellingPrice)} (MRP: ${formatPrice(mrp)})`
+    : formatPrice(sellingPrice);
+
   return `Hi! I'm interested in this product:
 Product: ${product.name}
-Price: ${formatPrice(product.price)}
-Size: ${size || 'Not selected'}
-Color: ${color || 'Not selected'}
+Price: ${priceDisplay}
+${sizeLine}Color: ${color || 'Not selected'}
 Link: ${url}`;
 }
 

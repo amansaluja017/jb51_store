@@ -1,11 +1,9 @@
-import * as dotenv from 'dotenv';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter, createTRPCContext } from './router.js';
 import uploadRouter from './routes/upload.js';
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
