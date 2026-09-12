@@ -3,13 +3,21 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { type Product, CATEGORIES } from '@repo/products';
+import { type Product } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import gsap from 'gsap';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+
+export const CATEGORIES = [
+  'Formal Suits',
+  'Anarkali Suits',
+  'Silk Co-ords',
+  'Velvet Edit',
+  'Occasion Wear'
+];
 
 // Beautiful luxury Indian lotus icon motif
 const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
@@ -39,14 +47,24 @@ export function ShopClient() {
   
   // Interactive Filters state
   const [sortBy, setSortBy] = useState<string>('featured');
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<number>(35000); // Max product price
   const [hasSetInitialMax, setHasSetInitialMax] = useState(false);
+
+  // Dynamic categories derived from boutique defaults and live product catalogue
+  const dynamicCategories = Array.from(
+    new Set([...CATEGORIES, ...products.map(p => p.category).filter(Boolean)])
+  );
+
+  const slugifyCategory = (cat: string) =>
+    cat.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
 
   const listedProductsOnly = products.filter(p => p.isListed !== false);
   const maxAvailablePrice = listedProductsOnly.length > 0 
     ? Math.max(...listedProductsOnly.map(p => p.price)) 
     : 35000;
+
+  const availableColors = Array.from(new Set(listedProductsOnly.flatMap(p => p.variants.map(v => v.color)).filter(Boolean))).slice(0, 8);
 
   useEffect(() => {
     if (listedProductsOnly.length > 0 && !hasSetInitialMax) {
@@ -78,7 +96,7 @@ export function ShopClient() {
         { y: 0, opacity: 1, duration: 0.5, stagger: 0.03, ease: 'power3.out' }
       );
     }
-  }, [loading, activeCategory, activeFilter, sortBy, selectedSizes, priceRange]);
+  }, [loading, activeCategory, activeFilter, sortBy, selectedColors, priceRange]);
 
   const handleCategorySelect = (catSlug: string | null) => {
     if (catSlug) {
@@ -96,9 +114,9 @@ export function ShopClient() {
     }
   };
 
-  const toggleSize = (size: string) => {
-    setSelectedSizes(prev => 
-      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+  const toggleColor = (color: string) => {
+    setSelectedColors(prev => 
+      prev.includes(color) ? prev.filter(c => c !== color) : [...prev, color]
     );
   };
 
@@ -114,14 +132,14 @@ export function ShopClient() {
   
   if (activeCategory) {
     filteredProducts = filteredProducts.filter(
-      p => p.category.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-') === activeCategory
+      p => slugifyCategory(p.category) === activeCategory
     );
   }
 
-  // 2. Interactive size filters
-  if (selectedSizes.length > 0) {
+  // 2. Interactive color filters
+  if (selectedColors.length > 0) {
     filteredProducts = filteredProducts.filter(p => 
-      p.variants.some(v => selectedSizes.includes(v.size) && v.stock > 0)
+      p.variants.some(v => selectedColors.includes(v.color) && v.stock > 0)
     );
   }
 
@@ -133,9 +151,18 @@ export function ShopClient() {
     filteredProducts.sort((a, b) => a.price - b.price);
   } else if (sortBy === 'price-high-low') {
     filteredProducts.sort((a, b) => b.price - a.price);
-  } else if (sortBy === 'newest') {
+  } else if (sortBy === 'latest' || sortBy === 'newest') {
     filteredProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
+
+  const clearFilters = () => {
+    setActiveCategory(null);
+    setActiveFilter(null);
+    setSortBy('featured');
+    setSelectedColors([]);
+    setPriceRange(maxAvailablePrice);
+    router.push('/shop');
+  };
 
   // Calculate product counts
   const totalCount = listedProductsOnly.length;
@@ -146,7 +173,7 @@ export function ShopClient() {
     router.push('/shop');
     setActiveCategory(null);
     setActiveFilter(null);
-    setSelectedSizes([]);
+    setSelectedColors([]);
     setPriceRange(maxAvailablePrice);
     setSortBy('featured');
   };
@@ -213,7 +240,7 @@ export function ShopClient() {
               </div>
               <div className="border-l border-zinc-200/80 pl-8">
                 <span className="block text-2xl font-serif font-bold text-zinc-900">
-                  {CATEGORIES.length}
+                  {dynamicCategories.length}
                 </span>
                 <span className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold">
                   Collections
@@ -221,10 +248,10 @@ export function ShopClient() {
               </div>
               <div className="border-l border-zinc-200/80 pl-8">
                 <span className="block text-2xl font-serif font-bold text-zinc-900">
-                  XS - L
+                  100%
                 </span>
                 <span className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold">
-                  Size Range
+                  Custom Fit
                 </span>
               </div>
             </div>
@@ -284,8 +311,8 @@ export function ShopClient() {
           >
             All Collections
           </button>
-          {CATEGORIES.map(cat => {
-            const catSlug = cat.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
+          {dynamicCategories.map(cat => {
+            const catSlug = slugifyCategory(cat);
             const isActive = activeCategory === catSlug;
             return (
               <button
@@ -304,8 +331,8 @@ export function ShopClient() {
           })}
         </div>
 
-        {/* Stats and Refinement Bar */}
-        <div className="flex justify-between items-center gap-4 py-3 border-b border-zinc-100 mb-8 select-none">
+        {/* Toolbar Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6 border-y border-zinc-200 mb-8">
           {/* Stats */}
           <div className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-500">
             Showing <span className="text-[#FF5E36] font-extrabold">{filteredProducts.length}</span> bespoke creations
@@ -314,7 +341,7 @@ export function ShopClient() {
           {/* Controls */}
           <div className="flex items-center gap-4">
             {/* Clear filters if active */}
-            {(activeFilter || selectedSizes.length > 0 || priceRange < maxAvailablePrice || sortBy !== 'featured') && (
+            {(activeFilter || selectedColors.length > 0 || priceRange < maxAvailablePrice || sortBy !== 'featured') && (
               <button
                 onClick={resetAllFilters}
                 className="text-[9px] tracking-widest uppercase underline underline-offset-4 text-[#FF5E36] hover:text-[#E04D27] font-extrabold transition-colors cursor-pointer"
@@ -382,28 +409,28 @@ export function ShopClient() {
               </div>
             </div>
 
-            {/* Column 2: Size Filter */}
+            {/* Column 2: Color Filter */}
             <div className="flex flex-col gap-3">
               <h2 className="text-[9px] tracking-[0.25em] uppercase font-bold text-[#FF5E36] border-b border-zinc-200 pb-2">
-                Filter by Size
+                Filter by Color
               </h2>
               <div className="flex flex-wrap gap-2 pt-1">
-                {['XS', 'S', 'M', 'L'].map(size => {
-                  const isSelected = selectedSizes.includes(size);
+                {availableColors.map(color => {
+                  const isSelected = selectedColors.includes(color);
                   return (
                     <button
-                      key={size}
-                      onClick={() => toggleSize(size)}
+                      key={color}
+                      onClick={() => toggleColor(color)}
                       className={cn(
-                        "w-9 h-9 text-[10px] font-bold rounded-xl border transition-all cursor-pointer",
+                        "px-2.5 py-1.5 text-[10px] font-bold rounded-xl border transition-all cursor-pointer",
                         isSelected
                           ? "bg-[#FF5E36] text-white border-[#FF5E36] shadow-sm"
                           : "border-zinc-200 text-zinc-600 hover:border-[#FF5E36] bg-white/50"
                       )}
                       aria-pressed={isSelected}
-                      aria-label={`Filter by size ${size}`}
+                      aria-label={`Filter by color ${color}`}
                     >
-                      {size}
+                      {color}
                     </button>
                   );
                 })}
@@ -418,8 +445,8 @@ export function ShopClient() {
               <div className="flex flex-col gap-3 pt-1">
                 <input
                   type="range"
-                  min={10000}
-                  max={maxAvailablePrice}
+                  min={0}
+                  max={Math.max(1000, maxAvailablePrice)}
                   step={1000}
                   value={priceRange}
                   onChange={(e) => setPriceRange(Number(e.target.value))}

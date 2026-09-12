@@ -6,10 +6,12 @@ import {
   ScrollView, 
   TouchableOpacity,
   Platform,
-  Image
+  Image,
+  RefreshControl
 } from 'react-native';
 import { ChevronDown, Eye, MessageCircle, Send, Percent, TrendingUp, Search, Flame, Award } from 'lucide-react-native';
 import SVGChart from '../components/SVGChart';
+import { AnalyticsSkeleton } from '../components/SkeletonLoader';
 import { Product } from '../types';
 
 interface AnalyticsScreenProps {
@@ -28,6 +30,9 @@ interface AnalyticsScreenProps {
     pipeline: number;
   };
   activeAnalyticsProduct: Product | null;
+  isLoading?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 const formatCurrency = (val: number) => {
@@ -96,7 +101,10 @@ export default function AnalyticsScreen({
   showAnalyticsSelector,
   setShowAnalyticsSelector,
   analyticsMetrics,
-  activeAnalyticsProduct
+  activeAnalyticsProduct,
+  isLoading,
+  refreshing,
+  onRefresh
 }: AnalyticsScreenProps) {
   
   // Active metric for charting
@@ -195,20 +203,73 @@ export default function AnalyticsScreen({
     return productDemandData.reduce((prev, current) => (prev.inquiries > current.inquiries) ? prev : current);
   }, [productDemandData]);
 
+  if (isLoading) {
+    return (
+      <ScrollView 
+        style={styles.tabContent} 
+        contentContainerStyle={styles.scrollPadding}
+        alwaysBounceVertical={true}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF5E36"
+              colors={['#FF5E36']}
+              progressBackgroundColor="#ffffff"
+            />
+          ) : undefined
+        }
+      >
+        <AnalyticsSkeleton />
+      </ScrollView>
+    );
+  }
+
   if (analyticsMetrics.isUnavailable) {
     return (
-      <View style={[styles.tabContent, styles.scrollPadding, { alignItems: 'center', justifyContent: 'center', paddingTop: 60 }]}>
+      <ScrollView 
+        style={styles.tabContent} 
+        contentContainerStyle={[styles.scrollPadding, { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }]}
+        alwaysBounceVertical={true}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF5E36"
+              colors={['#FF5E36']}
+              progressBackgroundColor="#ffffff"
+            />
+          ) : undefined
+        }
+      >
         <TrendingUp size={48} color="#a1a1aa" />
         <Text style={[styles.tableTitle, { marginTop: 16, textAlign: 'center' }]}>Analytics Service Unavailable</Text>
         <Text style={[styles.tableSub, { textAlign: 'center', marginTop: 8, maxWidth: 300 }]}>
-          Real-time metrics endpoint is not connected. Metrics are unavailable.
+          Real-time metrics endpoint is not connected. Metrics are unavailable. Pull down to retry.
         </Text>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.tabContent} contentContainerStyle={styles.scrollPadding}>
+    <ScrollView 
+      style={styles.tabContent} 
+      contentContainerStyle={styles.scrollPadding}
+      alwaysBounceVertical={true}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FF5E36"
+            colors={['#FF5E36']}
+            progressBackgroundColor="#ffffff"
+          />
+        ) : undefined
+      }
+    >
       {/* Selector Toggle */}
       <View style={styles.selectorContainer}>
         <Text style={styles.selectorLabel}>Outfit Focus:</Text>

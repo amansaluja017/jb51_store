@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, Platform } from 'react-native';
+import { StyleSheet, Text, View, Platform, TouchableOpacity } from 'react-native';
 
 interface MetricCardProps {
   icon: React.ReactNode;
@@ -7,6 +7,7 @@ interface MetricCardProps {
   label: string;
   badgeText: string;
   badgeStyle?: 'default' | 'alert' | 'stable';
+  onPress?: () => void;
 }
 
 export default function MetricCard({ 
@@ -14,7 +15,8 @@ export default function MetricCard({
   value, 
   label, 
   badgeText, 
-  badgeStyle = 'default' 
+  badgeStyle = 'default',
+  onPress,
 }: MetricCardProps) {
   const getBadgeStyle = () => {
     if (badgeStyle === 'alert') return [styles.trendBadge, styles.alertBadge];
@@ -22,8 +24,8 @@ export default function MetricCard({
     return styles.trendBadge;
   };
 
-  return (
-    <View style={styles.metricCard}>
+  const Content = (
+    <>
       <View style={styles.cardHeader}>
         <View style={styles.iconBox}>
           {icon}
@@ -32,6 +34,26 @@ export default function MetricCard({
       </View>
       <Text style={styles.cardValue}>{value}</Text>
       <Text style={styles.cardLabel}>{label}</Text>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        style={styles.metricCard}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${value}`}
+      >
+        {Content}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={styles.metricCard}>
+      {Content}
     </View>
   );
 }

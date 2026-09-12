@@ -5,16 +5,16 @@ import { type Product } from '@repo/products';
 import { toast } from 'sonner';
 
 export interface CartItem {
-  id: string; // generated as `productId-size-color`
+  id: string; // generated as `productId-color`
   product: Product;
-  size: string;
+  size?: string;
   color: string;
   quantity: number;
 }
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product, size: string, color: string, quantity?: number) => void;
+  addToCart: (product: Product, color: string, quantity?: number, size?: string) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -54,8 +54,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [cartItems, isInitialized]);
 
-  const addToCart = (product: Product, size: string, color: string, quantity = 1) => {
-    const itemId = `${product.id}-${size}-${color}`;
+  const addToCart = (product: Product, color: string, quantity = 1, size?: string) => {
+    const itemId = `${product.id}-${color}${size ? '-' + size : ''}`;
     
     setCartItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(item => item.id === itemId);
@@ -66,7 +66,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const newQty = newItems[existingItemIndex].quantity + quantity;
         
         // Check stock limit if variants have stock limits
-        const matchingVariant = product.variants.find(v => v.size === size && v.color === color);
+        const matchingVariant = product.variants.find(v => v.color === color);
         if (matchingVariant && newQty > matchingVariant.stock) {
           toast.error(`Only ${matchingVariant.stock} items available in stock.`);
           return prevItems;
@@ -77,7 +77,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return newItems;
       } else {
         // Item does not exist, add new item
-        const matchingVariant = product.variants.find(v => v.size === size && v.color === color);
+        const matchingVariant = product.variants.find(v => v.color === color);
         if (matchingVariant && quantity > matchingVariant.stock) {
           toast.error(`Only ${matchingVariant.stock} items available in stock.`);
           return prevItems;
@@ -113,7 +113,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return prevItems.map(item => {
         if (item.id === cartItemId) {
           // Check stock
-          const matchingVariant = item.product.variants.find(v => v.size === item.size && v.color === item.color);
+          const matchingVariant = item.product.variants.find(v => v.color === item.color);
           if (matchingVariant && quantity > matchingVariant.stock) {
             toast.error(`Only ${matchingVariant.stock} items available in stock.`);
             return item;

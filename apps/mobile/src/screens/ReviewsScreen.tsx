@@ -6,18 +6,34 @@ import {
   ScrollView, 
   TextInput, 
   TouchableOpacity, 
-  ActivityIndicator,
-  Modal,
-  Platform,
-  KeyboardAvoidingView
+  ActivityIndicator, 
+  Modal, 
+  Platform, 
+  KeyboardAvoidingView, 
+  RefreshControl 
 } from 'react-native';
 import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useForm, Controller } from 'react-hook-form';
+import { ReviewsSkeleton } from '../components/SkeletonLoader';
 import { Review } from '../types';
+
+export interface ReviewFormValues {
+  name: string;
+  message: string;
+  stars: number;
+  location: string;
+  instagramId: string;
+  phone: string;
+  image: string;
+  video: string;
+}
 
 interface ReviewsScreenProps {
   reviews: Review[];
   isLoading: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => void;
   onDeleteReview: (review: Review) => void;
   onToggleApproval: (review: Review) => void;
@@ -38,6 +54,8 @@ const uploadMediaAsset = async (localUri: string): Promise<string> => {
 export default function ReviewsScreen({
   reviews,
   isLoading,
+  refreshing,
+  onRefresh,
   onAddReview,
   onDeleteReview,
   onToggleApproval,
@@ -46,15 +64,22 @@ export default function ReviewsScreen({
   const [formVisible, setFormVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Form Field States
-  const [name, setName] = useState('');
-  const [message, setMessage] = useState('');
-  const [stars, setStars] = useState(5);
-  const [location, setLocation] = useState('');
-  const [instagramId, setInstagramId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [image, setImage] = useState('');
-  const [video, setVideo] = useState('');
+  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ReviewFormValues>({
+    defaultValues: {
+      name: '',
+      message: '',
+      stars: 5,
+      location: '',
+      instagramId: '',
+      phone: '',
+      image: '',
+      video: '',
+    },
+  });
+
+  const selectedStars = watch('stars');
+  const selectedImage = watch('image');
+  const selectedVideo = watch('video');
 
   const pickImage = async () => {
     try {
@@ -65,7 +90,7 @@ export default function ReviewsScreen({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImage(result.assets[0].uri);
+        setValue('image', result.assets[0].uri, { shouldDirty: true, shouldValidate: true });
       }
     } catch (error) {
       showAlert('Error', 'Failed to pick image from device.', 'error');
@@ -81,7 +106,7 @@ export default function ReviewsScreen({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setVideo(result.assets[0].uri);
+        setValue('video', result.assets[0].uri, { shouldDirty: true, shouldValidate: true });
       }
     } catch (error) {
       showAlert('Error', 'Failed to pick video from device.', 'error');
@@ -97,25 +122,16 @@ export default function ReviewsScreen({
     );
   }, [reviews, searchQuery]);
 
-  const handleSubmit = async () => {
-    if (!name.trim()) {
-      showAlert('Required Field', 'Name is required.', 'error');
-      return;
-    }
-    if (!message.trim()) {
-      showAlert('Required Field', 'Message is required.', 'error');
-      return;
-    }
-
+  const onFormSubmit = async (data: ReviewFormValues) => {
     let uploadedImageUrl: string | null = null;
     let uploadedVideoUrl: string | null = null;
 
     try {
-      if (image) {
-        uploadedImageUrl = await uploadMediaAsset(image);
+      if (data.image) {
+        uploadedImageUrl = await uploadMediaAsset(data.image);
       }
-      if (video) {
-        uploadedVideoUrl = await uploadMediaAsset(video);
+      if (data.video) {
+        uploadedVideoUrl = await uploadMediaAsset(data.video);
       }
     } catch (error) {
       showAlert('Upload Error', 'Failed to upload review media assets. Please try again.', 'error');
@@ -123,25 +139,17 @@ export default function ReviewsScreen({
     }
 
     onAddReview({
-      name: name.trim(),
-      message: message.trim(),
-      stars,
-      location: location.trim() || null,
-      instagramId: instagramId.trim() || null,
-      phone: phone.trim() || null,
+      name: data.name.trim(),
+      message: data.message.trim(),
+      stars: data.stars,
+      location: data.location.trim() || null,
+      instagramId: data.instagramId.trim() || null,
+      phone: data.phone.trim() || null,
       image: uploadedImageUrl,
       video: uploadedVideoUrl,
     });
 
-    // Reset Form
-    setName('');
-    setMessage('');
-    setStars(5);
-    setLocation('');
-    setInstagramId('');
-    setPhone('');
-    setImage('');
-    setVideo('');
+    reset();
     setFormVisible(false);
   };
 
@@ -170,9 +178,23 @@ export default function ReviewsScreen({
       </View>
 
       {/* Reviews List */}
-      <ScrollView contentContainerStyle={styles.scrollPadding}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollPadding}
+        alwaysBounceVertical={true}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF5E36"
+              colors={['#FF5E36']}
+              progressBackgroundColor="#ffffff"
+            />
+          ) : undefined
+        }
+      >
         {isLoading ? (
-          <ActivityIndicator size="large" color="#FF5E36" style={styles.loader} />
+          <ReviewsSkeleton />
         ) : filteredReviews.length === 0 ? (
           <Text style={styles.emptyLabel}>No reviews found.</Text>
         ) : (
@@ -280,15 +302,15 @@ export default function ReviewsScreen({
                   {[1, 2, 3, 4, 5].map((s) => (
                     <TouchableOpacity 
                       key={s} 
-                      onPress={() => setStars(s)}
+                      onPress={() => setValue('stars', s, { shouldDirty: true })}
                       style={styles.starSelectBtn}
                       accessibilityLabel={`${s} Star${s > 1 ? 's' : ''}`}
                       accessibilityRole="button"
                     >
                       <Star 
                         size={24} 
-                        color={s <= stars ? '#eab308' : '#e4e4e7'} 
-                        fill={s <= stars ? '#eab308' : 'none'} 
+                        color={s <= selectedStars ? '#eab308' : '#e4e4e7'} 
+                        fill={s <= selectedStars ? '#eab308' : 'none'} 
                       />
                     </TouchableOpacity>
                   ))}
@@ -298,26 +320,42 @@ export default function ReviewsScreen({
               {/* Name input */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Customer Name <Text style={styles.requiredAsterisk}>*</Text></Text>
-                <TextInput
-                  placeholder="e.g. Priya Sharma"
-                  placeholderTextColor="#a1a1aa"
-                  value={name}
-                  onChangeText={setName}
-                  style={styles.formInput}
+                <Controller
+                  control={control}
+                  name="name"
+                  rules={{ required: 'Customer name is required' }}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. Priya Sharma"
+                      placeholderTextColor="#a1a1aa"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.formInput}
+                    />
+                  )}
                 />
               </View>
 
               {/* Message input */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Review Message <Text style={styles.requiredAsterisk}>*</Text></Text>
-                <TextInput
-                  placeholder="Review message detailing product quality, custom fits, and tailoring experience."
-                  placeholderTextColor="#a1a1aa"
-                  value={message}
-                  onChangeText={setMessage}
-                  multiline
-                  numberOfLines={4}
-                  style={[styles.formInput, styles.textArea]}
+                <Controller
+                  control={control}
+                  name="message"
+                  rules={{ required: 'Review message is required' }}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="Review message detailing product quality, custom fits, and tailoring experience."
+                      placeholderTextColor="#a1a1aa"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      multiline
+                      numberOfLines={4}
+                      style={[styles.formInput, styles.textArea]}
+                    />
+                  )}
                 />
               </View>
 
@@ -326,51 +364,72 @@ export default function ReviewsScreen({
               {/* Location */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Location</Text>
-                <TextInput
-                  placeholder="e.g. Mumbai"
-                  placeholderTextColor="#a1a1aa"
-                  value={location}
-                  onChangeText={setLocation}
-                  style={styles.formInput}
+                <Controller
+                  control={control}
+                  name="location"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. Mumbai"
+                      placeholderTextColor="#a1a1aa"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.formInput}
+                    />
+                  )}
                 />
               </View>
 
               {/* Instagram ID */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Instagram ID</Text>
-                <TextInput
-                  placeholder="e.g. priya_sharma"
-                  placeholderTextColor="#a1a1aa"
-                  value={instagramId}
-                  onChangeText={setInstagramId}
-                  style={styles.formInput}
-                  autoCapitalize="none"
+                <Controller
+                  control={control}
+                  name="instagramId"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. priya_sharma"
+                      placeholderTextColor="#a1a1aa"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.formInput}
+                      autoCapitalize="none"
+                    />
+                  )}
                 />
               </View>
 
               {/* Phone */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Phone Number</Text>
-                <TextInput
-                  placeholder="e.g. +91 98765 43210"
-                  placeholderTextColor="#a1a1aa"
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  style={styles.formInput}
+                <Controller
+                  control={control}
+                  name="phone"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. +91 98765 43210"
+                      placeholderTextColor="#a1a1aa"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      keyboardType="phone-pad"
+                      style={styles.formInput}
+                    />
+                  )}
                 />
               </View>
 
               {/* Image Picker */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Review Image</Text>
-                {image ? (
+                {selectedImage ? (
                   <View style={styles.mediaPreviewContainer}>
                     <Text style={styles.mediaSelectedText} numberOfLines={1}>
-                      {image.split('/').pop()}
+                      {selectedImage.split('/').pop()}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => setImage('')}
+                      onPress={() => setValue('image', '', { shouldDirty: true })}
                       style={styles.removeMediaBtn}
                       accessibilityRole="button"
                       accessibilityLabel="Remove selected image"
@@ -389,13 +448,13 @@ export default function ReviewsScreen({
               {/* Video Picker */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Review Video</Text>
-                {video ? (
+                {selectedVideo ? (
                   <View style={styles.mediaPreviewContainer}>
                     <Text style={styles.mediaSelectedText} numberOfLines={1}>
-                      {video.split('/').pop()}
+                      {selectedVideo.split('/').pop()}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => setVideo('')}
+                      onPress={() => setValue('video', '', { shouldDirty: true })}
                       style={styles.removeMediaBtn}
                       accessibilityRole="button"
                       accessibilityLabel="Remove selected video"
@@ -415,7 +474,7 @@ export default function ReviewsScreen({
             {/* Modal Actions */}
             <View style={styles.modalFooter}>
               <TouchableOpacity 
-                onPress={() => setFormVisible(false)} 
+                onPress={() => { reset(); setFormVisible(false); }} 
                 style={styles.cancelBtn}
                 accessibilityLabel="Cancel submission"
                 accessibilityRole="button"
@@ -423,7 +482,7 @@ export default function ReviewsScreen({
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={handleSubmit} 
+                onPress={handleSubmit(onFormSubmit)} 
                 style={styles.saveBtn}
                 accessibilityLabel="Submit review"
                 accessibilityRole="button"

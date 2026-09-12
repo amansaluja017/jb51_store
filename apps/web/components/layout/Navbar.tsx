@@ -76,11 +76,13 @@ export function Navbar() {
   }, [mobileMenuOpen]);
 
   // Close mobile menu and search on route change
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMobileMenuOpen(false);
     setShowMobileSearch(false);
     setSearchQuery('');
-  }, [pathname]);
+  }
 
   // Disable body scroll when mobile menu is open
   useEffect(() => {
@@ -249,11 +251,14 @@ export function Navbar() {
                           <div className="text-xs font-semibold text-zinc-900 truncate">{p.name}</div>
                           <div className="text-[9px] text-zinc-450 uppercase tracking-wider">{p.fabric || 'Premium Fabric'}</div>
                         </div>
-                        <div className="text-xs font-bold text-[#FF5E36]">
-                          {p.discountPrice ? (
-                            <span>{formatPrice(p.discountPrice)}</span>
-                          ) : (
-                            <span>{formatPrice(p.price)}</span>
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-[#FF5E36]">
+                            {formatPrice(p.sellingPrice ?? p.discountPrice ?? p.price)}
+                          </div>
+                          {Boolean(p.mrp && p.mrp > (p.sellingPrice ?? p.discountPrice ?? p.price)) && (
+                            <div className="text-[9px] line-through text-zinc-400">
+                              {formatPrice(p.mrp!)}
+                            </div>
                           )}
                         </div>
                       </Link>
@@ -271,7 +276,7 @@ export function Navbar() {
                   </div>
                 ) : (
                   <div className="text-xs text-zinc-500 py-3 text-center font-light">
-                    No bespoke creations found for "{searchQuery}"
+                    No bespoke creations found for &quot;{searchQuery}&quot;
                   </div>
                 )}
               </div>
@@ -448,11 +453,14 @@ export function Navbar() {
                         <div className="text-xs font-semibold text-zinc-900 truncate">{p.name}</div>
                         <div className="text-[8px] text-zinc-400 uppercase tracking-wider">{p.fabric || 'Premium Fabric'}</div>
                       </div>
-                      <div className="text-xs font-bold text-[#FF5E36]">
-                        {p.discountPrice ? (
-                          <span>{formatPrice(p.discountPrice)}</span>
-                        ) : (
-                          <span>{formatPrice(p.price)}</span>
+                      <div className="text-right">
+                        <div className="text-xs font-bold text-[#FF5E36]">
+                          {formatPrice(p.sellingPrice ?? p.discountPrice ?? p.price)}
+                        </div>
+                        {Boolean(p.mrp && p.mrp > (p.sellingPrice ?? p.discountPrice ?? p.price)) && (
+                          <div className="text-[9px] line-through text-zinc-400">
+                            {formatPrice(p.mrp!)}
+                          </div>
                         )}
                       </div>
                     </Link>
@@ -473,7 +481,7 @@ export function Navbar() {
                 </div>
               ) : (
                 <div className="text-xs text-zinc-500 py-3 text-center font-light">
-                  No bespoke creations found for "{searchQuery}"
+                  No bespoke creations found for &quot;{searchQuery}&quot;
                 </div>
               )}
             </div>

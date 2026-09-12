@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type Product } from '@repo/products';
@@ -8,7 +8,7 @@ import { formatPrice, cn, generateWhatsAppMessage, generateInstagramMessage, WHA
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import gsap from 'gsap';
 import { toast } from 'sonner';
-import { Heart, MessageCircle, Instagram, Sparkles, ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { Heart, MessageCircle, Instagram, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
@@ -47,75 +47,21 @@ const getColorHex = (colorName: string) => {
 };
 
 export function ProductClient({ product }: { product: Product }) {
-  const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>(product.variants[0]?.color || '');
   const [activeImage, setActiveImage] = useState(0);
-  const [showSizeGuide, setShowSizeGuide] = useState(false);
 
-  const sizeGuideTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const sizeGuideCloseBtnRef = useRef<HTMLButtonElement | null>(null);
-  const sizeGuideModalRef = useRef<HTMLDivElement | null>(null);
-  const hasOpenedRef = useRef(false);
-
-  useEffect(() => {
-    if (showSizeGuide) {
-      hasOpenedRef.current = true;
-      setTimeout(() => {
-        if (sizeGuideCloseBtnRef.current) {
-          sizeGuideCloseBtnRef.current.focus();
-        } else if (sizeGuideModalRef.current) {
-          sizeGuideModalRef.current.focus();
-        }
-      }, 50);
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          setShowSizeGuide(false);
-          return;
-        }
-
-        if (e.key === 'Tab') {
-          if (!sizeGuideModalRef.current) return;
-          const focusableElements = sizeGuideModalRef.current.querySelectorAll(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          );
-          if (focusableElements.length === 0) return;
-          const firstElement = focusableElements[0] as HTMLElement;
-          const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
-
-          if (e.shiftKey) {
-            if (document.activeElement === firstElement) {
-              lastElement.focus();
-              e.preventDefault();
-            }
-          } else {
-            if (document.activeElement === lastElement) {
-              firstElement.focus();
-              e.preventDefault();
-            }
-          }
-        }
-      };
-
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    } else {
-      if (hasOpenedRef.current) {
-        if (sizeGuideTriggerRef.current) {
-          sizeGuideTriggerRef.current.focus();
-        }
-      }
-    }
-  }, [showSizeGuide]);
-  
   // Magnifier State
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isHovering, setIsHovering] = useState(false);
 
   const { isInWishlist, toggleWishlist } = useWishlist();
   const isLiked = isInWishlist(product.id);
+
+  const sellingPrice = product.sellingPrice ?? product.discountPrice ?? product.price;
+  const mrp = product.mrp ?? (product.discountPrice ? product.price : undefined);
+  const hasDiscount = Boolean(mrp && mrp > sellingPrice);
+  const discountPercent = hasDiscount ? Math.round(((mrp! - sellingPrice) / mrp!) * 100) : 0;
+  const savedAmount = hasDiscount ? mrp! - sellingPrice : 0;
 
   // Fetch and filter similar products using tags
   const { data: products = [], isLoading: loading } = api.products.getAll.useQuery();
@@ -140,9 +86,8 @@ export function ProductClient({ product }: { product: Product }) {
 
   const similarProducts = [...similarProductsByTag, ...fallbackCategoryProducts, ...fallbackAllProducts].slice(0, 4);
 
-  // Extract unique colors and sizes
+  // Extract unique colors
   const colors = Array.from(new Set(product.variants.map(v => v.color)));
-  const sizes = Array.from(new Set(product.variants.map(v => v.size)));
 
   useEffect(() => {
     gsap.fromTo('.product-animate',
@@ -169,20 +114,12 @@ export function ProductClient({ product }: { product: Product }) {
   };
 
   const handleWhatsAppInquiry = () => {
-    if (!selectedSize) {
-      toast.error("Please select a size first");
-      return;
-    }
-    const message = generateWhatsAppMessage(product, selectedSize, selectedColor, window.location.href);
+    const message = generateWhatsAppMessage(product, selectedColor, window.location.href);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
   const handleInstagramInquiry = () => {
-    if (!selectedSize) {
-      toast.error("Please select a size first");
-      return;
-    }
-    const message = generateInstagramMessage(product, selectedSize, selectedColor, window.location.href);
+    const message = generateInstagramMessage(product, selectedColor, window.location.href);
     navigator.clipboard.writeText(message);
     toast.success("Product details copied to clipboard!");
     setTimeout(() => {
@@ -190,14 +127,14 @@ export function ProductClient({ product }: { product: Product }) {
     }, 1000);
   };
 
-  // Get current stock count for selected combination
-  const selectedVariant = product.variants.find(v => v.size === selectedSize && v.color === selectedColor);
+  // Get current stock count for selected shade
+  const selectedVariant = product.variants.find(v => v.color === selectedColor) || product.variants[0];
   const currentStock = selectedVariant ? selectedVariant.stock : 0;
-  const isSelectedOutOfStock = !!selectedSize && currentStock === 0;
+  const isSelectedOutOfStock = currentStock === 0;
 
   return (
     <div className="bg-white min-h-screen text-zinc-800">
-      <div aria-hidden={showSizeGuide}>
+      <div>
       
       {/* 1. Breadcrumbs / Navigation Back Row */}
       <div className="max-w-7xl mx-auto px-6 pt-32 md:pt-36 w-full flex items-center justify-between border-b border-zinc-100 pb-4">
@@ -341,17 +278,17 @@ export function ProductClient({ product }: { product: Product }) {
           </div>
 
           {/* Pricing Block */}
-          <div className="flex items-baseline gap-3 mt-1 mb-5">
-            {product.discountPrice ? (
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-serif text-zinc-900 font-light">{formatPrice(product.discountPrice)}</span>
-                <span className="text-sm line-through text-zinc-400 font-light">{formatPrice(product.price)}</span>
-                <span className="text-[9px] font-bold text-[#FF5E36] uppercase tracking-wider bg-[#FF5E36]/5 px-2 py-0.5 rounded-md ml-1 border border-[#FF5E36]/10">
-                  Save {(100 - (product.discountPrice / product.price) * 100).toFixed(0)}%
+          <div className="flex items-baseline gap-3 mt-1 mb-5 flex-wrap">
+            {hasDiscount ? (
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className="text-3xl font-serif text-zinc-900 font-light">{formatPrice(sellingPrice)}</span>
+                <span className="text-base line-through text-zinc-400 font-light">{formatPrice(mrp!)}</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                  Save {discountPercent}% (₹{savedAmount.toLocaleString('en-IN')})
                 </span>
               </div>
             ) : (
-              <span className="text-3xl font-serif text-zinc-900 font-light">{formatPrice(product.price)}</span>
+              <span className="text-3xl font-serif text-zinc-900 font-light">{formatPrice(sellingPrice)}</span>
             )}
             <span className="text-[9px] text-zinc-400 tracking-wider uppercase block font-medium font-sans">
               (Includes Complimentary Sizing & Taxes)
@@ -380,10 +317,7 @@ export function ProductClient({ product }: { product: Product }) {
                 return (
                   <button
                     key={color}
-                    onClick={() => {
-                      setSelectedColor(color);
-                      setSelectedSize(''); // Reset size on shade change
-                    }}
+                    onClick={() => setSelectedColor(color)}
                     className="group relative flex items-center justify-center cursor-pointer select-none"
                     title={color}
                   >
@@ -402,55 +336,17 @@ export function ProductClient({ product }: { product: Product }) {
                 );
               })}
             </div>
-          </div>
 
-          {/* Size Selection Grid */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-3.5">
-              <span className="text-[10px] tracking-wider uppercase text-zinc-400 font-bold">Select Size</span>
-              <button 
-                ref={sizeGuideTriggerRef}
-                onClick={() => setShowSizeGuide(true)}
-                className="text-[9px] tracking-widest uppercase underline underline-offset-4 text-[#FF5E36] hover:text-[#E04D27] font-extrabold transition-colors cursor-pointer"
-              >
-                Atelier Size Guide
-              </button>
+            {/* Selected Shade Stock indicator */}
+            <div className="mt-3 text-[9px] uppercase font-bold tracking-wider">
+              {isSelectedOutOfStock ? (
+                <span className="text-[#FF5E36]">Out of Stock - Custom Order Available</span>
+              ) : currentStock <= 3 ? (
+                <span className="text-rose-600">Only {currentStock} atelier tailoring slots left!</span>
+              ) : (
+                <span className="text-emerald-600">Tailoring slots open ({currentStock} available)</span>
+              )}
             </div>
-            <div className="flex flex-wrap gap-2.5">
-              {sizes.map(size => {
-                const isAvailable = product.variants.some(v => v.size === size && v.color === selectedColor && v.stock > 0);
-                return (
-                  <button
-                    key={size}
-                    disabled={!isAvailable}
-                    onClick={() => setSelectedSize(size)}
-                    className={cn(
-                      "w-12 h-12 shrink-0 border rounded-full flex items-center justify-center text-xs transition-all duration-300 font-bold cursor-pointer",
-                      selectedSize === size 
-                        ? 'border-zinc-900 bg-zinc-900 text-white shadow-md' 
-                        : isAvailable 
-                          ? 'border-zinc-200 text-zinc-800 hover:border-zinc-800 hover:bg-white bg-zinc-50' 
-                          : 'opacity-20 cursor-not-allowed border-zinc-100 bg-zinc-100 line-through text-zinc-400'
-                    )}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Selected size Stock indicator */}
-            {selectedSize && (
-              <div className="mt-3 text-[9px] uppercase font-bold tracking-wider">
-                {isSelectedOutOfStock ? (
-                  <span className="text-[#FF5E36]">Out of Stock - Custom Order Available</span>
-                ) : currentStock <= 3 ? (
-                  <span className="text-rose-600">Only {currentStock} atelier tailoring slots left!</span>
-                ) : (
-                  <span className="text-emerald-600">Tailoring slots open</span>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Actions & Concierge Inquiry Buttons - Redesigned side-by-side grid to prevent stretching and overflow */}
@@ -506,7 +402,7 @@ export function ProductClient({ product }: { product: Product }) {
                 Bespoke Fitting & Alterations
               </h2>
               <p className="text-[11px] text-zinc-650 leading-relaxed mb-3.5 font-light">
-                Each suit is cut individually. We offer complimentary adjustments to sleeves, necklines, and length. Choose your closest size, and our concierge team will reach out on WhatsApp to verify your exact dimensions.
+                Each suit is cut individually. We offer complimentary adjustments to sleeves, necklines, and length. Choose your preferred shade, and our concierge team will reach out on WhatsApp to verify your exact dimensions.
               </p>
               <button 
                 onClick={handleWhatsAppInquiry}
@@ -595,95 +491,6 @@ export function ProductClient({ product }: { product: Product }) {
       </div>
 
       </div>
-
-      {/* Size Guide Modal Overlay */}
-      {showSizeGuide && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/60 backdrop-blur-sm p-4">
-          <div 
-            ref={sizeGuideModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sizeguide-title"
-            className="bg-white border border-zinc-200 rounded-3xl max-w-lg w-full p-6 md:p-8 relative shadow-2xl animate-scale-up pattern-jaali text-zinc-800"
-          >
-            {/* Close button */}
-            <button 
-              ref={sizeGuideCloseBtnRef}
-              onClick={() => setShowSizeGuide(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-[#FF5E36] transition-colors p-2 cursor-pointer"
-              aria-label="Close size guide"
-            >
-              <X size={20} />
-            </button>
-
-            {/* Header */}
-            <div className="text-center mb-6">
-              <LotusIcon className="w-8 h-8 text-[#FF5E36] mx-auto mb-2" />
-              <h3 id="sizeguide-title" className="font-serif text-xl text-zinc-900 tracking-wide font-medium">Bespoke Size Guide</h3>
-              <p className="text-[9px] text-zinc-400 font-sans tracking-widest uppercase mt-1">Atelier Dimensions</p>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto border border-zinc-200 rounded-2xl bg-white mb-6">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-800 font-semibold uppercase tracking-wider text-[9px]">
-                    <th className="p-3">Size</th>
-                    <th className="p-3">Chest (in)</th>
-                    <th className="p-3">Waist (in)</th>
-                    <th className="p-3">Hips (in)</th>
-                    <th className="p-3">Shoulder (in)</th>
-                  </tr>
-                </thead>
-                <tbody className="text-zinc-650 font-light">
-                  <tr className="border-b border-zinc-100">
-                    <td className="p-3 font-semibold text-zinc-800">XS</td>
-                    <td className="p-3">32"</td>
-                    <td className="p-3">26"</td>
-                    <td className="p-3">35"</td>
-                    <td className="p-3">13.5"</td>
-                  </tr>
-                  <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                    <td className="p-3 font-semibold text-zinc-800">S</td>
-                    <td className="p-3">34"</td>
-                    <td className="p-3">28"</td>
-                    <td className="p-3">37"</td>
-                    <td className="p-3">14.0"</td>
-                  </tr>
-                  <tr className="border-b border-zinc-100">
-                    <td className="p-3 font-semibold text-zinc-800">M</td>
-                    <td className="p-3">36"</td>
-                    <td className="p-3">30"</td>
-                    <td className="p-3">39"</td>
-                    <td className="p-3">14.5"</td>
-                  </tr>
-                  <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                    <td className="p-3 font-semibold text-zinc-800">L</td>
-                    <td className="p-3">38"</td>
-                    <td className="p-3">32"</td>
-                    <td className="p-3">41"</td>
-                    <td className="p-3">15.0"</td>
-                  </tr>
-                  <tr className="border-b border-zinc-100">
-                    <td className="p-3 font-semibold text-zinc-800">XL</td>
-                    <td className="p-3">40"</td>
-                    <td className="p-3">34"</td>
-                    <td className="p-3">43"</td>
-                    <td className="p-3">15.5"</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Custom fit callout */}
-            <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 text-[11px] leading-relaxed text-zinc-650 text-center font-light">
-              <span className="font-semibold text-[#FF5E36] uppercase tracking-wider block mb-1">✦ Custom Sizing is Complimentary ✦</span>
-              If your measurements fall between standard sizes or you prefer custom kurta/sleeve lengths, select your closest size. Our concierge will contact you on WhatsApp/Email to confirm your profile before tailoring begins.
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

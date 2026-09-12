@@ -1,21 +1,34 @@
 import { z } from 'zod';
 
 export const ProductVariantSchema = z.object({
-  color: z.string(),
-  size: z.string().optional(),
-  stock: z.number(),
-  reservedStock: z.number().optional().default(0),
+  id: z.string().optional(),
+  color: z.string().min(1, 'Variant color is required'),
+  hexCode: z.string().optional(),
+  stock: z.number().int().min(0, 'Stock must be 0 or greater'),
+  reservedStock: z.number().int().min(0).optional().default(0),
+  images: z.array(z.string()).optional().default([]),
+});
+
+export const CreateProductVariantSchema = z.object({
+  id: z.string().optional(),
+  color: z.string().min(1, 'Color is mandatory for every variant'),
+  hexCode: z.string().optional(),
+  stock: z.number().int().min(1, 'Stock must be greater than 0'),
+  reservedStock: z.number().int().min(0).optional().default(0),
   images: z.array(z.string()).optional().default([]),
 });
 
 export const ProductSchema = z.object({
-  id: z.string().optional(),
+  id: z.string(),
   name: z.string(),
   slug: z.string(),
   description: z.string().optional().default(''),
+  mrp: z.number().optional(),
+  sellingPrice: z.number().optional(),
   price: z.number(),
   discountPrice: z.number().optional(),
   category: z.string().optional().default('Uncategorized'),
+  categoryId: z.string().optional(),
   images: z.array(z.string()).optional().default([]),
   fabric: z.string().optional().default(''),
   fit: z.string().optional().default(''),
@@ -24,9 +37,10 @@ export const ProductSchema = z.object({
   featured: z.boolean().optional().default(false),
   newArrival: z.boolean().optional().default(false),
   bestseller: z.boolean().optional().default(false),
-  createdAt: z.string().optional(),
+  createdAt: z.string(),
   tags: z.array(z.string()).optional().default([]),
   isListed: z.boolean().optional().default(true),
+  status: z.enum(['listed', 'unListed', 'discontinued']).optional().default('listed'),
   inStock: z.boolean().optional().default(true),
 });
 
@@ -35,7 +49,23 @@ export const GetAllProductsInputSchema = z.void();
 export const GetProductBySlugInputSchema = z.object({
   slug: z.string(),
 });
-export const CreateProductInputSchema = ProductSchema;
+export const CreateProductInputSchema = ProductSchema.omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Product name is required'),
+  slug: z.string().min(1, 'Product slug is required'),
+  description: z.string().min(1, 'Product description is required'),
+  mrp: z.number().positive('MRP must be greater than 0').optional(),
+  sellingPrice: z.number().positive('Selling price must be greater than 0').optional(),
+  price: z.number().optional(),
+  category: z.string().min(1, 'Category is required'),
+  categoryId: z.string().uuid().optional(),
+  images: z.array(z.string().min(1)).min(2, 'At least 2 product images are required'),
+  variants: z.array(CreateProductVariantSchema).min(1, 'At least one variant with stock is required'),
+  createdAt: z.string().optional(),
+});
 export const UpdateProductInputSchema = z.object({
   slug: z.string(),
   data: ProductSchema.partial(),

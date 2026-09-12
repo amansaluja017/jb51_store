@@ -14,11 +14,14 @@ import { category } from './categories.js';
 export const product = pgTable('product', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  price: numeric('price', { precision: 10, scale: 2 }).notNull(),
-  categoryId: uuid('category_id').references(() => category.id, {
-    onDelete: 'set null',
-  }),
+  description: text('description').notNull(),
+  mrp: numeric('mrp', { precision: 10, scale: 2 }).notNull(),
+  sellingPrice: numeric('selling_price', { precision: 10, scale: 2 }).notNull(),
+  categoryId: uuid('category_id')
+    .references(() => category.id, {
+      onDelete: 'cascade',
+    })
+    .notNull(),
   tags: json('tags').$type<string[]>(),
   features: json('features').$type<Record<string, any> | string[]>(),
   additionalInformation: json('additional_information').$type<Record<string, any>>(),

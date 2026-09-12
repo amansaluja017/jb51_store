@@ -1,8 +1,13 @@
 import axios from 'axios';
 import superjson from 'superjson';
+import { Platform } from 'react-native';
 
 export const getInitialApiHost = () => {
-  return process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL || 'http://10.59.233.189:3001';
+  const host = process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL;
+  if (!host) {
+    throw new Error('API host is not configured. Please set EXPO_PUBLIC_API_HOST or EXPO_PUBLIC_API_URL.');
+  }
+  return host;
 };
 
 export const trpcRequest = async (
@@ -46,11 +51,15 @@ export const trpcRequest = async (
     }
     return json?.result || json;
   } catch (err: any) {
+    const statusFallback = err.response?.status
+      ? `Request failed with status ${err.response.status}`
+      : undefined;
     const serverError =
       err.response?.data?.error?.json?.message ||
       err.response?.data?.error?.message ||
+      statusFallback ||
       err.message ||
-      `Request failed with status ${err.response?.status}`;
+      'Unknown error';
     console.error(`[tRPC Axios Error] ${path}:`, serverError);
     throw new Error(serverError);
   }
@@ -89,11 +98,27 @@ export const uploadProductImage = async (
   const ext = match ? match[1].toLowerCase() : 'jpeg';
   const type = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-  formData.append('file', {
-    uri: fileUri,
-    name: filename,
-    type,
-  } as any);
+  if (Platform.OS === 'web' || fileUri.startsWith('blob:') || fileUri.startsWith('data:')) {
+    try {
+      const blobRes = await fetch(fileUri);
+      const blob = await blobRes.blob();
+      formData.append('file', blob, filename);
+    } catch (blobErr) {
+      console.warn('[uploadProductImage] Failed to convert URI to Blob on Web:', blobErr);
+      formData.append('file', {
+        uri: fileUri,
+        name: filename,
+        type,
+      } as any);
+    }
+  } else {
+    // Native React Native mobile (iOS / Android)
+    formData.append('file', {
+      uri: fileUri,
+      name: filename,
+      type,
+    } as any);
+  }
 
   if (options?.productId) {
     formData.append('productId', options.productId);
@@ -115,19 +140,26 @@ export const uploadProductImage = async (
   console.log(`[Image Upload Request] -> POST ${url} (${filename})`);
 
   try {
-    const response = await axios.post(url, formData, {
+    const response = await axios.post<UploadImageResult>(url, formData, {
       headers,
-      timeout: 30000,
+      transformRequest: (data) => data,
     });
-    return response.data;
+
+    const data = response.data;
+
+    if (!data) {
+      throw new Error('Received empty response from upload server.');
+    }
+
+    return data;
   } catch (err: any) {
-    const serverError =
+    const errorMsg =
       err.response?.data?.error ||
       err.response?.data?.message ||
       err.message ||
       'Failed to upload image to server.';
-    console.error('[Image Upload Error]:', serverError);
-    throw new Error(serverError);
+    console.error('[Image Upload Error]:', errorMsg);
+    throw new Error(errorMsg);
   }
 };
 
@@ -173,13 +205,20 @@ export const deleteProductImageByUrl = async (
   options?: { apiHost?: string; token?: string | null }
 ) => {
   const host = (options?.apiHost || getInitialApiHost()).trim().replace(/\/$/, '');
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
   if (options?.token) {
     headers['Authorization'] = `Bearer ${options.token}`;
   }
-  const response = await axios.delete(`${host}/api/upload`, {
-    params: { url },
-    headers,
-  });
-  return response.data;
+  try {
+    const response = await axios.delete(`${host}/api/upload`, {
+      params: { url },
+      headers,
+    });
+    return response.data;
+  } catch (err: any) {
+    console.warn('[deleteProductImageByUrl Error]:', err?.message || err);
+    return null;
+  }
 };

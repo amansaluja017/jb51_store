@@ -7,6 +7,7 @@ export const productVariant = pgTable('product_variant', {
     onDelete: 'cascade',
   }),
   color: varchar('color', {length: 100}).notNull(),
+  hexCode: varchar('hex_code', {length: 50}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at')
     .defaultNow()

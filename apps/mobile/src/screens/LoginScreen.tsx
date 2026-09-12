@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   Platform,
   KeyboardAvoidingView,
-  ScrollView
+  ScrollView,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, RefreshCw, Eye, EyeOff } from 'lucide-react-native';
@@ -78,6 +79,16 @@ export default function LoginScreen({
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={isSyncing}
+              onRefresh={onManualSync}
+              tintColor="#FF5E36"
+              colors={['#FF5E36']}
+              progressBackgroundColor="#18181b"
+            />
+          }
         >
           <View style={styles.loginBox}>
             {/* Logo */}

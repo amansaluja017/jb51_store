@@ -22,6 +22,11 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
   const { isInWishlist, toggleWishlist } = useWishlist();
   const isLiked = isInWishlist(product.id);
 
+  const sellingPrice = product.sellingPrice ?? product.discountPrice ?? product.price;
+  const mrp = product.mrp ?? (product.discountPrice ? product.price : undefined);
+  const hasDiscount = Boolean(mrp && mrp > sellingPrice);
+  const discountPercent = hasDiscount ? Math.round(((mrp! - sellingPrice) / mrp!) * 100) : 0;
+
   useEffect(() => {
     if (!cardRef.current || !imageRef.current) return;
 
@@ -53,23 +58,21 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
     <div
       ref={cardRef}
       className={cn(
-        "group relative flex flex-col cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300 w-full h-full",
-        isDark 
-          ? "bg-zinc-900/40 border-zinc-800/60 hover:border-zinc-700/80 shadow-md hover:shadow-xl" 
-          : "bg-white border-zinc-100 hover:border-zinc-200 shadow-sm hover:shadow-lg"
+        "group relative flex flex-col justify-between overflow-hidden rounded-xl transition-all duration-500",
+        isDark
+          ? "bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700"
+          : "bg-white border border-zinc-150 hover:shadow-xl hover:shadow-black/5 hover:border-zinc-300",
+        featured ? "md:col-span-2 md:row-span-2" : ""
       )}
     >
-      {/* Product Image Container */}
-      <Link 
-        href={`/product/${product.slug}`} 
-        className={cn(
-          "block relative overflow-hidden bg-zinc-50",
-          featured ? "aspect-[4/5] md:aspect-[3/4]" : "aspect-[3/4]"
-        )}
+      {/* Media Container */}
+      <Link
+        href={`/product/${product.slug}`}
+        className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100 block cursor-pointer"
       >
         <Image
           ref={imageRef}
-          src={product.images[0]}
+          src={product.images[0] || '/placeholder.jpg'}
           alt={product.name}
           fill
           className="object-cover transition-opacity duration-500 group-hover:opacity-0"
@@ -90,6 +93,11 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
 
         {/* Badges */}
         <div className="absolute top-3.5 left-3.5 flex flex-col gap-1.5 z-10">
+          {hasDiscount && (
+            <span className="text-[8px] md:text-[9px] tracking-wider uppercase text-white font-bold bg-emerald-600 px-2.5 py-1 rounded-full shadow-sm">
+              {discountPercent}% OFF
+            </span>
+          )}
           {product.newArrival && (
             <span className="text-[8px] md:text-[9px] tracking-wider uppercase text-white font-bold bg-[#FF5E36] px-2.5 py-1 rounded-full shadow-sm">
               NEW
@@ -163,17 +171,20 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
         {/* Price & Add to Cart Action */}
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100/50">
           <div className="flex flex-col">
-            {product.discountPrice ? (
-              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                <span className="text-[10px] sm:text-xs line-through text-zinc-400">{formatPrice(product.price)}</span>
-                <span className="text-xs sm:text-sm font-bold text-[#FF5E36]">{formatPrice(product.discountPrice)}</span>
+            {hasDiscount ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-[#FF5E36]">{formatPrice(sellingPrice)}</span>
+                <span className="text-[10px] sm:text-xs line-through text-zinc-400">{formatPrice(mrp!)}</span>
+                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  {discountPercent}% OFF
+                </span>
               </div>
             ) : (
               <span className={cn(
                 "text-xs sm:text-sm font-bold",
                 isDark ? "text-white" : "text-zinc-900"
               )}>
-                {formatPrice(product.price)}
+                {formatPrice(sellingPrice)}
               </span>
             )}
           </div>

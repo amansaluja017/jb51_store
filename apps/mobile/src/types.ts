@@ -1,5 +1,6 @@
 export interface Variant {
   color: string;
+  hexCode?: string;
   size?: string;
   stock: number;
   reservedStock?: number;
@@ -11,7 +12,10 @@ export interface Product {
   name: string;
   slug: string;
   description?: string;
+  mrp: number;
+  sellingPrice: number;
   price: number;
+  discountPrice?: number;
   category: string;
   images: string[];
   fabric?: string;
@@ -22,14 +26,16 @@ export interface Product {
   newArrival?: boolean;
   bestseller?: boolean;
   isListed?: boolean;
+  status?: 'listed' | 'unListed' | 'discontinued';
   inStock?: boolean;
   tags?: string[];
+  createdAt?: string;
 }
 
 export const isProductInStock = (product: Product): boolean => {
   if (product.inStock === false) return false;
   if (!product.variants || product.variants.length === 0) return true;
-  return product.variants.some((v) => v.stock > 0);
+  return product.variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) > 0;
 };
 
 export interface Inquiry {
