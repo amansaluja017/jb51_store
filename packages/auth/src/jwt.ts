@@ -27,8 +27,9 @@ const getJwtRefreshSecret = (): string => {
 export interface JwtPayload {
   sub: string;
   email: string;
+  name?: string;
   userName: string;
-  role: 'customer' | 'admin';
+  role: 'customer' | 'admin' | 'seller';
 }
 
 export const generateAccessToken = (payload: JwtPayload): string => {
@@ -50,13 +51,16 @@ export const verifyRefreshToken = (token: string): JwtPayload => {
 export const generateAuthTokens = async (userData: {
   id: string;
   email: string;
-  userName: string;
-  role: 'customer' | 'admin';
+  name?: string;
+  userName?: string;
+  role: 'customer' | 'admin' | 'seller';
 }) => {
+  const nameStr = userData.name || userData.userName || userData.email.split('@')[0];
   const payload: JwtPayload = {
     sub: userData.id,
     email: userData.email,
-    userName: userData.userName,
+    name: nameStr,
+    userName: nameStr,
     role: userData.role,
   };
 

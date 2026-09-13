@@ -56,7 +56,7 @@ export const requireAuth = () => {
 /**
  * Express Middleware for enforcing role-based access control
  */
-export const requireRole = (allowedRoles: Array<'admin' | 'customer'>) => {
+export const requireRole = (allowedRoles: Array<'admin' | 'customer' | 'seller'>) => {
   return (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
     const authHeader = req.headers.authorization;
     const user = authenticateToken(authHeader);
@@ -79,7 +79,7 @@ export const requireAdmin = requireRole(['admin']);
 /**
  * tRPC Middleware helper to enforce role access on tRPC procedures
  */
-export const createRoleMiddleware = (allowedRoles: Array<'admin' | 'customer'>) => {
+export const createRoleMiddleware = (allowedRoles: Array<'admin' | 'customer' | 'seller'>) => {
   return async ({ ctx, next }: { ctx: AuthContext; next: () => Promise<any> }) => {
     if (ctx.isStaff && allowedRoles.includes('admin')) {
       return next();

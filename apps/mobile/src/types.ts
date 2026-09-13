@@ -66,3 +66,23 @@ export interface Review {
   approved?: boolean;
 }
 
+export interface InventoryTransaction {
+  id: string;
+  productId: string;
+  productVariantId?: string | null;
+  type: 'sale' | 'purchase';
+  quantity: number;
+  unitPrice?: string | number | null;
+  totalAmount?: string | number | null;
+  notes?: string | null;
+  createdAt: string;
+  productName?: string | null;
+  variantColor?: string | null;
+  variantHex?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  sellerName?: string | null;
+  sellerEmail?: string | null;
+}
+

@@ -14,10 +14,14 @@ import { wishlist } from './wishlist.js';
 import { wishlistItems } from './wishlist-items.js';
 import { productImages } from './product-images.js';
 
+import { customerDetails } from './customer-details.js';
+
 export const userRelations = relations(user, ({ many }) => ({
   tokens: many(token),
   reviews: many(reviews),
   invoices: many(invoices),
+  customerDetails: many(customerDetails),
+  inventryTransactions: many(inventryTransaction),
 }));
 
 export const tokenRelations = relations(token, ({ one }) => ({
@@ -82,6 +86,22 @@ export const inventryTransactionRelations = relations(inventryTransaction, ({ on
     fields: [inventryTransaction.productVariant],
     references: [productVariant.id],
   }),
+  customer: one(customerDetails, {
+    fields: [inventryTransaction.customerId],
+    references: [customerDetails.id],
+  }),
+  user: one(user, {
+    fields: [inventryTransaction.userId],
+    references: [user.id],
+  }),
+}));
+
+export const customerDetailsRelations = relations(customerDetails, ({ one, many }) => ({
+  user: one(user, {
+    fields: [customerDetails.userId],
+    references: [user.id],
+  }),
+  transactions: many(inventryTransaction),
 }));
 
 export const productStatusRelations = relations(productStatus, ({ one }) => ({
