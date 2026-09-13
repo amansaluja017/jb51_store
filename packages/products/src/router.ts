@@ -1,6 +1,8 @@
 import { initTRPC, TRPCError } from '@trpc/server';
+import { z } from 'zod';
 import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviewsData.js';
+import { recordInventoryTransaction, getInventoryTransactions } from './inventory.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
@@ -141,5 +143,42 @@ export const reviewsRouter = t.router({
     .input(DeleteReviewInputSchema)
     .mutation(async ({ input }) => {
       return await deleteReview(input.id);
+    }),
+});
+
+export const inventoryRouter = t.router({
+  recordTransaction: adminProcedure
+    .meta({ description: 'Record an inventory transaction (Sell or Purchase) with customer/supplier details' })
+    .input(
+      z.object({
+        productId: z.string(),
+        productVariantId: z.string().optional().nullable(),
+        type: z.enum(['sale', 'purchase']),
+        quantity: z.number().int().positive(),
+        name: z.string().min(1, 'Name is required'),
+        phoneNumber: z.string().optional().nullable(),
+        email: z.string().optional().nullable(),
+        address: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        unitPrice: z.number().optional().nullable(),
+        totalAmount: z.number().optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await recordInventoryTransaction(input);
+    }),
+
+  getTransactions: adminProcedure
+    .meta({ description: 'Fetch recent inventory transactions' })
+    .input(
+      z
+        .object({
+          productId: z.string().optional(),
+          limit: z.number().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      return await getInventoryTransactions(input);
     }),
 });

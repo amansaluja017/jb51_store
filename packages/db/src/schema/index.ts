@@ -1,5 +1,6 @@
 export * from './enums.js';
 export * from './users.js';
+export * from './customer-details.js';
 export * from './tokens.js';
 export * from './categories.js';
 export * from './products.js';

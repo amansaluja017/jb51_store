@@ -13,7 +13,10 @@ import type {
 
 export const sanitizeUser = (rawUser: typeof user.$inferSelect) => {
   const { password, ...sanitized } = rawUser;
-  return sanitized;
+  return {
+    ...sanitized,
+    userName: (sanitized as any).name || (sanitized as any).userName,
+  };
 };
 
 export const registerUser = async (input: RegisterInput) => {
@@ -26,10 +29,11 @@ export const registerUser = async (input: RegisterInput) => {
     throw new Error('A user with this email address already exists');
   }
 
+  const desiredName = (input as any).name || input.userName;
   const existingUserName = await db
     .select()
     .from(user)
-    .where(eq(user.userName, input.userName));
+    .where(eq(user.name, desiredName));
 
   if (existingUserName.length > 0) {
     throw new Error('A user with this username already exists');
@@ -42,7 +46,7 @@ export const registerUser = async (input: RegisterInput) => {
       .insert(user)
       .values({
         email: input.email.toLowerCase(),
-        userName: input.userName,
+        name: desiredName,
         password: hashedPassword,
         role: 'customer',
       })
@@ -52,6 +56,7 @@ export const registerUser = async (input: RegisterInput) => {
     const tokens = await generateAuthTokens({
       id: sanitized.id,
       email: sanitized.email,
+      name: sanitized.name,
       userName: sanitized.userName,
       role: sanitized.role,
     });
@@ -84,7 +89,7 @@ export const loginUser = async (input: LoginInput) => {
     .where(
       or(
         eq(user.email, identifierLower),
-        eq(user.userName, input.identifier)
+        eq(user.name, input.identifier)
       )
     );
 
@@ -204,7 +209,7 @@ export const changeUsername = async (input: ChangeUsernameInput) => {
   const [existingUser] = await db
     .select()
     .from(user)
-    .where(eq(user.userName, input.newUserName));
+    .where(eq(user.name, input.newUserName));
 
   if (existingUser && existingUser.id !== input.userId) {
     throw new Error('Username is already taken');
@@ -214,7 +219,7 @@ export const changeUsername = async (input: ChangeUsernameInput) => {
     const [updatedUser] = await db
       .update(user)
       .set({
-        userName: input.newUserName,
+        name: input.newUserName,
         updatedAt: new Date(),
       })
       .where(eq(user.id, input.userId!))

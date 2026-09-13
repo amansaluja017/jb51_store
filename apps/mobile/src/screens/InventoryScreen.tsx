@@ -31,9 +31,14 @@ import {
   Sparkles,
   Lock,
   ChevronRight,
+  TrendingDown,
+  TrendingUp,
+  History,
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
-import { Product, Variant, isProductInStock } from '../types';
+import { Product, Variant, InventoryTransaction, isProductInStock } from '../types';
+import InventoryTransactionModal from '../components/InventoryTransactionModal';
+import InventoryHistoryModal from '../components/InventoryHistoryModal';
 
 interface InventoryScreenProps {
   products: Product[];
@@ -43,6 +48,21 @@ interface InventoryScreenProps {
   onRefresh?: () => void;
   onToggleStock: (product: Product) => void;
   onUpdateInventory: (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => Promise<void>;
+  onRecordTransaction?: (data: {
+    productId: string;
+    productVariantId?: string | null;
+    type: 'sale' | 'purchase';
+    quantity: number;
+    name: string;
+    phoneNumber?: string;
+    email?: string;
+    notes?: string;
+    unitPrice?: number;
+    totalAmount?: number;
+  }) => Promise<void>;
+  transactions?: InventoryTransaction[];
+  isLoadingTransactions?: boolean;
+  onFetchTransactions?: () => Promise<void>;
   onViewProductDetails?: (product: Product) => void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
 }
@@ -83,6 +103,10 @@ export default function InventoryScreen({
   onRefresh,
   onToggleStock,
   onUpdateInventory,
+  onRecordTransaction,
+  transactions = [],
+  isLoadingTransactions = false,
+  onFetchTransactions,
   onViewProductDetails,
   showAlert,
 }: InventoryScreenProps) {
@@ -90,6 +114,12 @@ export default function InventoryScreen({
   const [activeFilter, setActiveFilter] = useState<StockFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   
+  // Transaction & History Modal States
+  const [txModalOpen, setTxModalOpen] = useState(false);
+  const [txModalProduct, setTxModalProduct] = useState<Product | null>(null);
+  const [txModalVariantIdx, setTxModalVariantIdx] = useState<number>(0);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
   // Local pending variant stock edits: { [productSlug]: Variant[] }
   const [pendingStockEdits, setPendingStockEdits] = useState<Record<string, Variant[]>>({});
   const [savingSlugs, setSavingSlugs] = useState<Record<string, boolean>>({});
@@ -342,6 +372,39 @@ export default function InventoryScreen({
           ) : undefined
         }
       >
+        {/* Top Quick Actions: Sell/Purchase Stock and Transaction History */}
+        <View style={styles.topActionsRow}>
+          <TouchableOpacity
+            onPress={() => {
+              setTxModalProduct(null);
+              setTxModalVariantIdx(0);
+              setTxModalOpen(true);
+            }}
+            style={styles.recordStockBtn}
+            activeOpacity={0.8}
+          >
+            <Plus size={15} color="#ffffff" />
+            <Text style={styles.recordStockBtnText}>Sell / Purchase Stock</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              onFetchTransactions?.();
+              setHistoryModalOpen(true);
+            }}
+            style={styles.historyBtn}
+            activeOpacity={0.8}
+          >
+            <History size={15} color="#18181b" />
+            <Text style={styles.historyBtnText}>History</Text>
+            {transactions.length > 0 && (
+              <View style={styles.historyBadge}>
+                <Text style={styles.historyBadgeText}>{transactions.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {/* KPI Metrics Dashboard Card */}
         <View style={styles.metricsContainer}>
           <View style={styles.metricsHeaderRow}>
@@ -623,6 +686,19 @@ export default function InventoryScreen({
                       </View>
                       <View style={styles.quickAddRow}>
                         <TouchableOpacity
+                          onPress={() => {
+                            setTxModalProduct(product);
+                            setTxModalVariantIdx(0);
+                            setTxModalOpen(true);
+                          }}
+                          style={styles.cardTxBtn}
+                          activeOpacity={0.7}
+                        >
+                          <TrendingDown size={11} color="#ffffff" />
+                          <Text style={styles.cardTxBtnText}>Sell / Buy</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                           onPress={() => handleBatchAddStock(product, 5)}
                           style={styles.quickAddBtn}
                           activeOpacity={0.7}
@@ -848,6 +924,30 @@ export default function InventoryScreen({
           </View>
         )}
       </ScrollView>
+
+      {/* Inventory Transaction Form Modal (Sell / Purchase) */}
+      <InventoryTransactionModal
+        visible={txModalOpen}
+        onClose={() => setTxModalOpen(false)}
+        products={products}
+        initialProduct={txModalProduct}
+        initialVariantIndex={txModalVariantIdx}
+        onSubmitTransaction={async (data) => {
+          if (onRecordTransaction) {
+            await onRecordTransaction(data);
+          }
+        }}
+        showAlert={showAlert}
+      />
+
+      {/* Admin Inventory Transaction History Modal */}
+      <InventoryHistoryModal
+        visible={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        transactions={transactions}
+        isLoading={isLoadingTransactions}
+        onRefresh={() => onFetchTransactions?.()}
+      />
     </View>
   );
 }
@@ -1636,4 +1736,80 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
+  topActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  recordStockBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF5E36',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    gap: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FF5E36',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  recordStockBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: -0.2,
+  },
+  historyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    gap: 6,
+  },
+  historyBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#18181b',
+  },
+  historyBadge: {
+    backgroundColor: '#FF5E36',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  historyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  cardTxBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#18181b',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 6,
+    gap: 4,
+  },
+  cardTxBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
 });
+

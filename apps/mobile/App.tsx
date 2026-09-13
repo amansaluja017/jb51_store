@@ -15,7 +15,7 @@ import {
   MessageCircle,
 } from 'lucide-react-native';
 
-import { Product, Variant, Inquiry, Review, isProductInStock } from './src/types';
+import { Product, Variant, Inquiry, Review, InventoryTransaction, isProductInStock } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
@@ -45,10 +45,13 @@ configureNotifications();
 export default function App() {
   // Navigation & Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
   const tabValues = useRef<Record<TabType, Animated.Value>>({
     dashboard: new Animated.Value(activeTab === 'dashboard' ? 1 : 0),
@@ -174,6 +177,13 @@ export default function App() {
         setReviews(decodedReviews as Review[]);
       }
 
+      if (isAuthenticated) {
+        const decodedTxs = await trpcRequest('inventory.getTransactions').catch(() => null);
+        if (Array.isArray(decodedTxs)) {
+          setTransactions(decodedTxs as InventoryTransaction[]);
+        }
+      }
+
       setSyncMessage('Successfully synced with server');
     } catch (err) {
       setSyncMessage('Server offline - Sandbox active');
@@ -215,13 +225,13 @@ export default function App() {
     }
   };
 
-  const handleLogin = async (formData?: { username?: string; password?: string }) => {
-    const inputUsername = formData?.username ?? username;
+  const handleLogin = async (formData?: { email?: string; username?: string; password?: string }) => {
+    const inputIdentifier = formData?.email ?? formData?.username ?? email ?? username;
     const inputPassword = formData?.password ?? password;
-    const identifier = inputUsername.trim();
+    const identifier = inputIdentifier.trim();
 
     if (!identifier || !inputPassword) {
-      showAlert('Validation Required', 'Please enter both username and password.', 'error');
+      showAlert('Validation Required', 'Please enter both email and password.', 'error');
       return;
     }
 
@@ -240,7 +250,7 @@ export default function App() {
         setToken(tokenValue);
         setCurrentUser(authResult?.user || { userName: identifier, role: 'admin' });
         setIsAuthenticated(true);
-        showAlert('Authentication Successful', `Welcome back ${authResult?.user?.userName || identifier}!`, 'success');
+        showAlert('Authentication Successful', `Welcome back ${authResult?.user?.name || authResult?.user?.userName || identifier}!`, 'success');
       } else {
         throw new Error('Invalid credentials or missing auth token');
       }
@@ -359,6 +369,53 @@ export default function App() {
       console.error('[handleUpdateInventory Error]:', err);
       await fetchFromBackend();
       showAlert('Error', err.message || 'Failed to update inventory', 'error');
+      throw err;
+    }
+  };
+
+  const handleFetchTransactions = async () => {
+    try {
+      setIsLoadingTransactions(true);
+      const res = await trpcRequest('inventory.getTransactions');
+      if (Array.isArray(res)) {
+        setTransactions(res as InventoryTransaction[]);
+      }
+    } catch (err: any) {
+      console.error('[handleFetchTransactions Error]:', err);
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  };
+
+  const handleRecordTransaction = async (data: {
+    productId: string;
+    productVariantId?: string | null;
+    type: 'sale' | 'purchase';
+    quantity: number;
+    name: string;
+    phoneNumber?: string;
+    email?: string;
+    notes?: string;
+    unitPrice?: number;
+    totalAmount?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('inventory.recordTransaction', {
+        method: 'POST',
+        body: data,
+      });
+
+      showAlert(
+        data.type === 'sale' ? 'Sale Recorded' : 'Purchase Recorded',
+        `${data.type === 'sale' ? 'Sold' : 'Purchased'} ${data.quantity} unit${data.quantity > 1 ? 's' : ''} of ${res?.productName || 'product'} for ${data.name}. Stock updated!`,
+        'success'
+      );
+
+      await fetchFromBackend(true);
+      await handleFetchTransactions();
+    } catch (err: any) {
+      console.error('[handleRecordTransaction Error]:', err);
+      showAlert('Transaction Error', err.message || 'Failed to record inventory transaction', 'error');
       throw err;
     }
   };
@@ -618,6 +675,8 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <LoginScreen
+          email={email}
+          setEmail={setEmail}
           username={username}
           setUsername={setUsername}
           password={password}
@@ -743,6 +802,10 @@ export default function App() {
               onRefresh={handleRefresh}
               onToggleStock={handleToggleStock}
               onUpdateInventory={handleUpdateInventory}
+              onRecordTransaction={handleRecordTransaction}
+              transactions={transactions}
+              isLoadingTransactions={isLoadingTransactions}
+              onFetchTransactions={handleFetchTransactions}
               onViewProductDetails={(prod) => setSelectedProductDetails(prod)}
               showAlert={showAlert}
             />

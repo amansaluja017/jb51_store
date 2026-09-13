@@ -4,7 +4,7 @@ import { ZodError } from 'zod';
 import { z } from 'zod';
 import { authRouter } from '@repo/auth/router';
 import { authenticateToken, JwtPayload } from '@repo/auth';
-import { productsRouter, reviewsRouter } from '@repo/products/router';
+import { productsRouter, reviewsRouter, inventoryRouter } from '@repo/products/router';
 import * as trpcExpress from '@trpc/server/adapters/express';
 
 export const createTRPCContext = async ({ req, res }: trpcExpress.CreateExpressContextOptions) => {
@@ -46,6 +46,7 @@ export const appRouter = createTRPCRouter({
   auth: authRouter,
   products: productsRouter,
   reviews: reviewsRouter,
+  inventory: inventoryRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),

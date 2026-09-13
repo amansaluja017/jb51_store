@@ -40,7 +40,7 @@ export const createAdmin = async () => {
   console.log(`👤 Target Username: ${userName}`);
 
   try {
-    const existingUsers = await db.select().from(user).where(eq(user.userName, userName));
+    const existingUsers = await db.select().from(user).where(eq(user.name, userName));
     const hashedPassword = await hashPassword(password);
 
     if (existingUsers.length > 0) {
@@ -57,13 +57,13 @@ export const createAdmin = async () => {
 
       console.log(`\n✅ Admin user updated successfully!`);
       console.log(`   ID: ${updatedUser[0].id}`);
-      console.log(`   Username: ${updatedUser[0].userName}`);
+      console.log(`   Username: ${updatedUser[0].name}`);
       console.log(`   Role: ${updatedUser[0].role}`);
     } else {
       const newUser = await db
         .insert(user)
         .values({
-          userName,
+          name: userName,
           email,
           password: hashedPassword,
           role: 'admin',
@@ -72,7 +72,7 @@ export const createAdmin = async () => {
 
       console.log(`\n🎉 Admin user created successfully!`);
       console.log(`   ID: ${newUser[0].id}`);
-      console.log(`   Username: ${newUser[0].userName}`);
+      console.log(`   Username: ${newUser[0].name}`);
       console.log(`   Role: ${newUser[0].role}`);
     }
   } catch (error) {

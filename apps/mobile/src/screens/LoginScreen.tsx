@@ -16,13 +16,15 @@ import { StatusBar } from 'expo-status-bar';
 import { useForm, Controller } from 'react-hook-form';
 
 export interface LoginFormValues {
-  username: string;
+  email: string;
   password: string;
 }
 
 interface LoginScreenProps {
-  username: string;
-  setUsername: (val: string) => void;
+  email?: string;
+  setEmail?: (val: string) => void;
+  username?: string;
+  setUsername?: (val: string) => void;
   password: string;
   setPassword: (val: string) => void;
   apiHost: string;
@@ -37,6 +39,8 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({
+  email,
+  setEmail,
   username,
   setUsername,
   password,
@@ -53,15 +57,18 @@ export default function LoginScreen({
 }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
 
+  const initialEmail = email || username || '';
+
   const { control, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     defaultValues: {
-      username: username || '',
+      email: initialEmail,
       password: password || '',
     }
   });
 
   const onSubmit = (data: LoginFormValues) => {
-    setUsername(data.username);
+    setEmail?.(data.email);
+    setUsername?.(data.email);
     setPassword(data.password);
     onLogin(data);
   };
@@ -99,28 +106,37 @@ export default function LoginScreen({
 
             {/* Inputs managed by react-hook-form */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Username</Text>
+              <Text style={styles.inputLabel}>Email Address</Text>
               <Controller
                 control={control}
-                name="username"
-                rules={{ required: 'Username is required' }}
+                name="email"
+                rules={{ 
+                  required: 'Email is required',
+                  pattern: {
+                    value: /\S+@\S+\.\S+/,
+                    message: 'Please enter a valid email address'
+                  }
+                }}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput 
-                    placeholder="Input admin keys..."
+                    placeholder="admin@jb51.com"
                     placeholderTextColor="#71717a"
                     value={value}
                     onBlur={onBlur}
+                    keyboardType="email-address"
+                    autoCorrect={false}
                     onChangeText={(val) => {
                       onChange(val);
-                      setUsername(val);
+                      setEmail?.(val);
+                      setUsername?.(val);
                     }}
-                    style={[styles.loginInput, errors.username && styles.inputError]}
+                    style={[styles.loginInput, errors.email && styles.inputError]}
                     autoCapitalize="none"
                   />
                 )}
               />
-              {errors.username && (
-                <Text style={styles.errorText}>{errors.username.message}</Text>
+              {errors.email && (
+                <Text style={styles.errorText}>{errors.email.message}</Text>
               )}
             </View>
 
