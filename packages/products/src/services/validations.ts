@@ -134,6 +134,8 @@ export const CreateReviewInputSchema = z.object({
   instagramId: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   location: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  approved: z.boolean().optional(),
 });
 
 export const UpdateReviewInputSchema = z.object({

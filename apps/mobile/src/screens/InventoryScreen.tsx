@@ -31,13 +31,10 @@ import {
   Sparkles,
   Lock,
   ChevronRight,
-  TrendingDown,
-  TrendingUp,
   History,
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
 import { Product, Variant, InventoryTransaction, isProductInStock } from '../types';
-import InventoryTransactionModal from '../components/InventoryTransactionModal';
 import InventoryHistoryModal from '../components/InventoryHistoryModal';
 
 interface InventoryScreenProps {
@@ -114,11 +111,13 @@ export default function InventoryScreen({
   const [activeFilter, setActiveFilter] = useState<StockFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   
-  // Transaction & History Modal States
-  const [txModalOpen, setTxModalOpen] = useState(false);
-  const [txModalProduct, setTxModalProduct] = useState<Product | null>(null);
-  const [txModalVariantIdx, setTxModalVariantIdx] = useState<number>(0);
+  // History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
+  // Fetch transactions on mount
+  React.useEffect(() => {
+    onFetchTransactions?.();
+  }, []);
 
   // Local pending variant stock edits: { [productSlug]: Variant[] }
   const [pendingStockEdits, setPendingStockEdits] = useState<Record<string, Variant[]>>({});
@@ -306,6 +305,8 @@ export default function InventoryScreen({
         delete next[product.slug];
         return next;
       });
+      // Refresh transactions history immediately
+      await onFetchTransactions?.();
     } catch (err: any) {
       console.error('[Inventory Update Error]:', err);
     } finally {
@@ -372,21 +373,8 @@ export default function InventoryScreen({
           ) : undefined
         }
       >
-        {/* Top Quick Actions: Sell/Purchase Stock and Transaction History */}
+        {/* Top Quick Actions: Transaction History */}
         <View style={styles.topActionsRow}>
-          <TouchableOpacity
-            onPress={() => {
-              setTxModalProduct(null);
-              setTxModalVariantIdx(0);
-              setTxModalOpen(true);
-            }}
-            style={styles.recordStockBtn}
-            activeOpacity={0.8}
-          >
-            <Plus size={15} color="#ffffff" />
-            <Text style={styles.recordStockBtnText}>Sell / Purchase Stock</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             onPress={() => {
               onFetchTransactions?.();
@@ -675,29 +663,19 @@ export default function InventoryScreen({
                   {/* Variants Management Section */}
                   <View style={styles.variantsSection}>
                     <View style={styles.variantsHeader}>
-                      <View style={styles.variantsHeaderLeft}>
-                        <Layers size={13} color="#FF5E36" />
-                        <View>
-                          <Text style={styles.variantsHeaderTitle}>Variants & Stock Matrix</Text>
-                          <Text style={styles.variantsHeaderSubtitle}>
-                            {totalCurrentStock} available • {totalCurrentReserved} reserved
-                          </Text>
+                      <View style={styles.variantsHeaderTop}>
+                        <View style={styles.variantsHeaderLeft}>
+                          <Layers size={13} color="#FF5E36" />
+                          <View>
+                            <Text style={styles.variantsHeaderTitle}>Variants & Stock Matrix</Text>
+                            <Text style={styles.variantsHeaderSubtitle}>
+                              {totalCurrentStock} available • {totalCurrentReserved} reserved
+                            </Text>
+                          </View>
                         </View>
                       </View>
-                      <View style={styles.quickAddRow}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            setTxModalProduct(product);
-                            setTxModalVariantIdx(0);
-                            setTxModalOpen(true);
-                          }}
-                          style={styles.cardTxBtn}
-                          activeOpacity={0.7}
-                        >
-                          <TrendingDown size={11} color="#ffffff" />
-                          <Text style={styles.cardTxBtnText}>Sell / Buy</Text>
-                        </TouchableOpacity>
 
+                      <View style={styles.quickAddRow}>
                         <TouchableOpacity
                           onPress={() => handleBatchAddStock(product, 5)}
                           style={styles.quickAddBtn}
@@ -719,7 +697,7 @@ export default function InventoryScreen({
                             activeOpacity={0.7}
                           >
                             <RotateCcw size={10} color="#c2410c" />
-                            <Text style={styles.clearReservedBtnText}>Clear Holds</Text>
+                            <Text style={styles.clearReservedBtnText}>Clear Holds ({totalCurrentReserved})</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -925,20 +903,6 @@ export default function InventoryScreen({
         )}
       </ScrollView>
 
-      {/* Inventory Transaction Form Modal (Sell / Purchase) */}
-      <InventoryTransactionModal
-        visible={txModalOpen}
-        onClose={() => setTxModalOpen(false)}
-        products={products}
-        initialProduct={txModalProduct}
-        initialVariantIndex={txModalVariantIdx}
-        onSubmitTransaction={async (data) => {
-          if (onRecordTransaction) {
-            await onRecordTransaction(data);
-          }
-        }}
-        showAlert={showAlert}
-      />
 
       {/* Admin Inventory Transaction History Modal */}
       <InventoryHistoryModal
@@ -1385,15 +1349,19 @@ const styles = StyleSheet.create({
     borderTopColor: '#f4f4f5',
   },
   variantsHeader: {
+    marginBottom: 10,
+    gap: 8,
+  },
+  variantsHeaderTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
   },
   variantsHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
+    flex: 1,
   },
   variantsHeaderTitle: {
     fontSize: 11,
@@ -1411,11 +1379,12 @@ const styles = StyleSheet.create({
   quickAddRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
   },
   quickAddBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
     borderRadius: 6,
     backgroundColor: '#f4f4f5',
     borderWidth: 1,
@@ -1429,9 +1398,9 @@ const styles = StyleSheet.create({
   clearReservedBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
     borderRadius: 6,
     backgroundColor: '#fff7ed',
     borderWidth: 1,
@@ -1739,36 +1708,8 @@ const styles = StyleSheet.create({
   topActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     marginBottom: 12,
-    gap: 10,
-  },
-  recordStockBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF5E36',
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    gap: 6,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#FF5E36',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  recordStockBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#ffffff',
-    letterSpacing: -0.2,
   },
   historyBtn: {
     flexDirection: 'row',
@@ -1797,19 +1738,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
-  cardTxBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#18181b',
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
-    borderRadius: 6,
-    gap: 4,
-  },
-  cardTxBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
 });
-

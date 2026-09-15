@@ -15,7 +15,7 @@ import {
   MessageCircle,
 } from 'lucide-react-native';
 
-import { Product, Variant, Inquiry, Review, InventoryTransaction, isProductInStock } from './src/types';
+import { Product, Variant, Inquiry, Review, InventoryTransaction, Customer, Invoice, Order, isProductInStock } from './src/types';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
@@ -31,9 +31,6 @@ import InquiriesModal from './src/components/InquiriesModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
 import NavigationTabBar, { TabType } from './src/components/NavigationTabBar';
 
-import {
-  MOCK_REVIEWS
-} from './src/data/mockData';
 import { getInitialApiHost, trpcRequest as trpcRequestService } from './src/services/api';
 import {
   configureNotifications
@@ -84,8 +81,15 @@ export default function App() {
 
   // Data States
   const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -177,11 +181,24 @@ export default function App() {
         setReviews(decodedReviews as Review[]);
       }
 
-      if (isAuthenticated) {
-        const decodedTxs = await trpcRequest('inventory.getTransactions').catch(() => null);
-        if (Array.isArray(decodedTxs)) {
-          setTransactions(decodedTxs as InventoryTransaction[]);
-        }
+      const decodedTxs = await trpcRequest('inventory.getTransactions').catch(() => null);
+      if (Array.isArray(decodedTxs)) {
+        setTransactions(decodedTxs as InventoryTransaction[]);
+      }
+
+      const decodedCusts = await trpcRequest('customers.getAll').catch(() => null);
+      if (Array.isArray(decodedCusts)) {
+        setCustomers(decodedCusts as Customer[]);
+      }
+
+      const decodedInvs = await trpcRequest('invoices.getAll').catch(() => null);
+      if (Array.isArray(decodedInvs)) {
+        setInvoices(decodedInvs as Invoice[]);
+      }
+
+      const decodedOrders = await trpcRequest('orders.getAll').catch(() => null);
+      if (Array.isArray(decodedOrders)) {
+        setOrders(decodedOrders as Order[]);
       }
 
       setSyncMessage('Successfully synced with server');
@@ -364,6 +381,7 @@ export default function App() {
             : p
         )
       );
+      await handleFetchTransactions();
       showAlert('Inventory Updated', `Stock updated for ${product.name}.`, 'success');
     } catch (err: any) {
       console.error('[handleUpdateInventory Error]:', err);
@@ -416,6 +434,131 @@ export default function App() {
     } catch (err: any) {
       console.error('[handleRecordTransaction Error]:', err);
       showAlert('Transaction Error', err.message || 'Failed to record inventory transaction', 'error');
+      throw err;
+    }
+  };
+
+  const handleFetchCustomers = async () => {
+    setIsLoadingCustomers(true);
+    try {
+      const res = await trpcRequest('customers.getAll');
+      if (Array.isArray(res)) {
+        setCustomers(res as Customer[]);
+      }
+    } catch (err: any) {
+      console.error('[handleFetchCustomers Error]:', err);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  const handleCreateCustomer = async (data: {
+    name: string;
+    phoneNumber?: string;
+    email?: string;
+    address?: string;
+  }) => {
+    try {
+      const res: any = await trpcRequest('customers.create', {
+        method: 'POST',
+        body: data,
+      });
+      const newCust = res as Customer;
+      setCustomers(prev => [newCust, ...prev]);
+      showAlert('Customer Added', `Customer "${data.name}" added successfully.`, 'success');
+      return newCust;
+    } catch (err: any) {
+      console.error('[handleCreateCustomer Error]:', err);
+      showAlert('Error Adding Customer', err.message || 'Failed to create customer', 'error');
+      throw err;
+    }
+  };
+
+  const handleFetchReviews = async () => {
+    setIsLoadingReviews(true);
+    try {
+      const res =
+        (await trpcRequest('reviews.getModerationQueue').catch(() => null)) ||
+        (await trpcRequest('reviews.getAll').catch(() => null));
+      if (Array.isArray(res)) {
+        setReviews(res as Review[]);
+      }
+    } catch (err: any) {
+      console.error('[handleFetchReviews Error]:', err);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
+  const handleFetchInvoices = async () => {
+    setIsLoadingInvoices(true);
+    try {
+      const res = await trpcRequest('invoices.getAll');
+      if (Array.isArray(res)) {
+        setInvoices(res as Invoice[]);
+      }
+    } catch (err: any) {
+      console.error('[handleFetchInvoices Error]:', err);
+    } finally {
+      setIsLoadingInvoices(false);
+    }
+  };
+
+  const handleCreateOrder = async (orderData: any) => {
+    try {
+      const res: any = await trpcRequest('orders.create', {
+        method: 'POST',
+        body: orderData,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleCreateOrder Error]:', err);
+      showAlert('Order Error', err.message || 'Failed to create order', 'error');
+      throw err;
+    }
+  };
+
+  const handleFetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const res = await trpcRequest('orders.getAll');
+      if (Array.isArray(res)) {
+        setOrders(res as Order[]);
+      }
+    } catch (err: any) {
+      console.error('[handleFetchOrders Error]:', err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const handleCreateInvoice = async (invoiceData: any) => {
+    try {
+      const res: any = await trpcRequest('invoices.create', {
+        method: 'POST',
+        body: invoiceData,
+      });
+      const newInv = res as Invoice;
+      setInvoices(prev => [newInv, ...prev]);
+      return newInv;
+    } catch (err: any) {
+      console.error('[handleCreateInvoice Error]:', err);
+      showAlert('Invoice Error', err.message || 'Failed to create invoice', 'error');
+      throw err;
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string, label: string) => {
+    try {
+      await trpcRequest('invoices.delete', {
+        method: 'POST',
+        body: { id },
+      });
+      setInvoices(prev => prev.filter(inv => inv.id !== id));
+      showAlert('Invoice Deleted', `Invoice "${label}" deleted successfully.`, 'success');
+    } catch (err: any) {
+      console.error('[handleDeleteInvoice Error]:', err);
+      showAlert('Error Deleting Invoice', err.message || 'Failed to delete invoice', 'error');
       throw err;
     }
   };
@@ -813,22 +956,35 @@ export default function App() {
           {activeTab === 'invoices' && (
             <InvoiceScreen
               products={products}
+              customers={customers}
+              invoices={invoices}
+              orders={orders}
               showAlert={showAlert}
-              isLoading={isLoading}
+              isLoading={isLoading || isLoadingInvoices || isLoadingOrders}
               refreshing={refreshing}
               onRefresh={handleRefresh}
+              onFetchCustomers={handleFetchCustomers}
+              onCreateCustomer={handleCreateCustomer}
+              onFetchInvoices={handleFetchInvoices}
+              onFetchOrders={handleFetchOrders}
+              onCreateOrder={handleCreateOrder}
+              onCreateInvoice={handleCreateInvoice}
+              onDeleteInvoice={handleDeleteInvoice}
+              onRecordTransaction={handleRecordTransaction}
             />
           )}
           {activeTab === 'reviews' && (
             <ReviewsScreen
               reviews={reviews}
-              isLoading={isLoading}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
+              isLoading={isLoading || isLoadingReviews}
+              refreshing={refreshing || isLoadingReviews}
+              onRefresh={handleFetchReviews}
               onAddReview={handleAddReview}
               onDeleteReview={handleDeleteReview}
               onToggleApproval={handleToggleReviewApproval}
               showAlert={showAlert}
+              token={token}
+              apiHost={apiHost}
             />
           )}
         </View>

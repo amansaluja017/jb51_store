@@ -5,9 +5,10 @@ import {
   category as categoryTable,
   productVariant as productVariantTable,
   productImages as productImagesTable,
-  inventry as inventryTable
+  inventry as inventryTable,
+  inventryTransaction as inventryTransactionTable
 } from '@repo/db';
-import { eq, inArray, asc } from 'drizzle-orm';
+import { eq, inArray, asc, and } from 'drizzle-orm';
 
 export interface ProductVariant {
   id?: string;
@@ -154,6 +155,8 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
     const dbStatuses = await db.select().from(productStatusTable);
     const dbCategories = await db.select().from(categoryTable);
     const dbImages = await db.select().from(productImagesTable);
+    const dbInventory = await db.select().from(inventryTable);
+    const dbVariants = await db.select().from(productVariantTable);
 
     const statusMap = new Map(dbStatuses.map(s => [s.productId, s]));
     const categoryMap = new Map(dbCategories.map(c => [c.id, c.name]));
@@ -187,6 +190,38 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
           if ((!prod.images || prod.images.length === 0) && imagesMap.has(r.id)) {
             prod.images = imagesMap.get(r.id)!;
           }
+
+          // Take available and reserved stock from inventry table
+          const prodVariants = dbVariants.filter(v => v.productId === r.id);
+          const prodInventory = dbInventory.filter(inv => inv.productId === r.id);
+          const inventoryByVariant = new Map(prodInventory.map(inv => [inv.productVariant, inv]));
+
+          if (prodVariants && prodVariants.length > 0) {
+            prod.variants = prodVariants.map(v => {
+              const inv = inventoryByVariant.get(v.id);
+              const variantImgs = dbImages
+                .filter(img => img.productId === r.id && img.productVariantId === v.id)
+                .map(img => img.url);
+              return {
+                id: v.id,
+                color: v.color,
+                hexCode: (v as any).hexCode || undefined,
+                stock: inv ? inv.availableStock : 0,
+                reservedStock: inv ? inv.reservedStock : 0,
+                images: variantImgs.length > 0 ? variantImgs : (prod.images || []),
+              };
+            });
+          } else if (prod.variants && prod.variants.length > 0) {
+            prod.variants = prod.variants.map((v: any) => {
+              const inv = inventoryByVariant.get(v.id) || (prodInventory.length === 1 ? prodInventory[0] : undefined);
+              return {
+                ...v,
+                stock: inv ? inv.availableStock : (v.stock ?? 0),
+                reservedStock: inv ? inv.reservedStock : (v.reservedStock ?? 0),
+              };
+            });
+          }
+
           const status = statusMap.get(r.id);
           if (status) {
             prod.isListed = status.status === 'listed';
@@ -552,6 +587,97 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
           })
           .where(eq(productTable.id, targetRow.id))
           .returning();
+
+        // Synchronize variants, inventry table, and log transactions
+        if (updatedData.variants && Array.isArray(updatedData.variants)) {
+          let totalAvailStock = 0;
+          for (const v of updatedData.variants) {
+            const avail = Math.max(0, Number(v.stock) || 0);
+            const reserved = Math.max(0, Number(v.reservedStock) || 0);
+            const total = avail + reserved;
+            totalAvailStock += avail;
+
+            let variantId = v.id;
+            if (!variantId) {
+              const [existingV] = await tx
+                .select()
+                .from(productVariantTable)
+                .where(
+                  and(
+                    eq(productVariantTable.productId, targetRow.id),
+                    eq(productVariantTable.color, v.color)
+                  )
+                );
+              if (existingV) {
+                variantId = existingV.id;
+              } else {
+                const [newV] = await tx
+                  .insert(productVariantTable)
+                  .values({
+                    productId: targetRow.id,
+                    color: v.color,
+                    hexCode: v.hexCode || null,
+                  })
+                  .returning();
+                variantId = newV.id;
+              }
+            }
+
+            const invRows = await tx
+              .select()
+              .from(inventryTable)
+              .where(
+                variantId
+                  ? and(
+                      eq(inventryTable.productId, targetRow.id),
+                      eq(inventryTable.productVariant, variantId)
+                    )
+                  : eq(inventryTable.productId, targetRow.id)
+              );
+
+            const prevInv = invRows.length > 0 ? invRows[0] : null;
+            const prevAvail = prevInv ? prevInv.availableStock : 0;
+            const prevReserved = prevInv ? prevInv.reservedStock : 0;
+
+            if (prevInv) {
+              await tx
+                .update(inventryTable)
+                .set({
+                  availableStock: avail,
+                  reservedStock: reserved,
+                  totalStock: total,
+                  updatedAt: new Date(),
+                })
+                .where(eq(inventryTable.id, prevInv.id));
+            } else {
+              await tx.insert(inventryTable).values({
+                productId: targetRow.id,
+                productVariant: variantId || null,
+                availableStock: avail,
+                reservedStock: reserved,
+                totalStock: total,
+              });
+            }
+
+            // If stock changed, record transaction history log
+            if (prevAvail !== avail || prevReserved !== reserved) {
+              const diffAvail = avail - prevAvail;
+              const diffReserved = reserved - prevReserved;
+              const note = `Inventory update for ${v.color || 'item'}: Available ${prevAvail} -> ${avail} (${diffAvail >= 0 ? '+' : ''}${diffAvail}), Reserved ${prevReserved} -> ${reserved} (${diffReserved >= 0 ? '+' : ''}${diffReserved})`;
+
+              await tx.insert(inventryTransactionTable).values({
+                productId: targetRow.id,
+                productVariant: variantId || null,
+                type: 'adjustment',
+                quantity: Math.abs(diffAvail) || Math.abs(diffReserved) || 1,
+                notes: note,
+              });
+            }
+          }
+
+          const inStock = updatedData.inStock !== undefined ? updatedData.inStock : totalAvailStock > 0;
+          await upsertProductStatus(targetRow.id, { inStock }, tx);
+        }
 
         if (updatedRow) {
           if (updatedData.isListed !== undefined) {

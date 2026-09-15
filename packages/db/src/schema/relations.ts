@@ -10,6 +10,8 @@ import { inventryTransaction } from './inventory-transactions.js';
 import { reviews } from './reviews.js';
 import { productAnalytics } from './product-analytics.js';
 import { invoices } from './invoices.js';
+import { orders } from './orders.js';
+import { orderItems } from './order-items.js';
 import { wishlist } from './wishlist.js';
 import { wishlistItems } from './wishlist-items.js';
 import { productImages } from './product-images.js';
@@ -20,6 +22,7 @@ export const userRelations = relations(user, ({ many }) => ({
   tokens: many(token),
   reviews: many(reviews),
   invoices: many(invoices),
+  orders: many(orders),
   customerDetails: many(customerDetails),
   inventryTransactions: many(inventryTransaction),
 }));
@@ -52,6 +55,7 @@ export const productRelations = relations(product, ({ one, many }) => ({
   inventry: many(inventry),
   inventryTransactions: many(inventryTransaction),
   invoices: many(invoices),
+  orderItems: many(orderItems),
   wishlistItems: many(wishlistItems),
   images: many(productImages),
 }));
@@ -63,6 +67,7 @@ export const productVariantRelations = relations(productVariant, ({ one, many })
   }),
   inventry: many(inventry),
   inventryTransactions: many(inventryTransaction),
+  orderItems: many(orderItems),
   images: many(productImages),
 }));
 
@@ -102,6 +107,8 @@ export const customerDetailsRelations = relations(customerDetails, ({ one, many 
     references: [user.id],
   }),
   transactions: many(inventryTransaction),
+  orders: many(orders),
+  invoices: many(invoices),
 }));
 
 export const productStatusRelations = relations(productStatus, ({ one }) => ({
@@ -125,6 +132,34 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  user: one(user, {
+    fields: [orders.userId],
+    references: [user.id],
+  }),
+  customer: one(customerDetails, {
+    fields: [orders.customerId],
+    references: [customerDetails.id],
+  }),
+  invoices: many(invoices),
+  items: many(orderItems),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id],
+  }),
+  product: one(product, {
+    fields: [orderItems.productId],
+    references: [product.id],
+  }),
+  variant: one(productVariant, {
+    fields: [orderItems.productVariantId],
+    references: [productVariant.id],
+  }),
+}));
+
 export const invoicesRelations = relations(invoices, ({ one }) => ({
   user: one(user, {
     fields: [invoices.userId],
@@ -133,6 +168,14 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
   product: one(product, {
     fields: [invoices.productId],
     references: [product.id],
+  }),
+  order: one(orders, {
+    fields: [invoices.orderId],
+    references: [orders.id],
+  }),
+  customer: one(customerDetails, {
+    fields: [invoices.customerId],
+    references: [customerDetails.id],
   }),
 }));
 

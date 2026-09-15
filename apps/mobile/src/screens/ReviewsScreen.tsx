@@ -10,13 +10,15 @@ import {
   Modal, 
   Platform, 
   KeyboardAvoidingView, 
-  RefreshControl 
+  RefreshControl,
+  Image 
 } from 'react-native';
-import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon } from 'lucide-react-native';
+import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Mail, Clock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, Controller } from 'react-hook-form';
 import { ReviewsSkeleton } from '../components/SkeletonLoader';
 import { Review } from '../types';
+import { uploadProductImage } from '../services/api';
 
 export interface ReviewFormValues {
   name: string;
@@ -25,6 +27,7 @@ export interface ReviewFormValues {
   location: string;
   instagramId: string;
   phone: string;
+  email: string;
   image: string;
   video: string;
 }
@@ -34,21 +37,25 @@ interface ReviewsScreenProps {
   isLoading: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
-  onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => void;
+  onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'> & { email?: string | null; approved?: boolean }) => void;
   onDeleteReview: (review: Review) => void;
   onToggleApproval: (review: Review) => void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
+  token?: string | null;
+  apiHost?: string;
 }
 
-const uploadMediaAsset = async (localUri: string): Promise<string> => {
-  // Simulate network upload delay
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  
-  // Extract filename
-  const filename = localUri.split('/').pop() || 'upload.jpg';
-  
-  // Return a simulated, server-accessible URL
-  return `https://jb51.store/uploads/${filename}`;
+const uploadMediaAsset = async (localUri: string, options?: { token?: string | null; apiHost?: string }): Promise<string> => {
+  if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
+    return localUri;
+  }
+  try {
+    const res = await uploadProductImage(localUri, options);
+    if (res?.url) return res.url;
+  } catch (e) {
+    console.warn('Image upload failed, using local URI fallback:', e);
+  }
+  return localUri;
 };
 
 export default function ReviewsScreen({
@@ -59,10 +66,13 @@ export default function ReviewsScreen({
   onAddReview,
   onDeleteReview,
   onToggleApproval,
-  showAlert
+  showAlert,
+  token,
+  apiHost,
 }: ReviewsScreenProps) {
   const [formVisible, setFormVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'approved' | 'pending'>('all');
 
   const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ReviewFormValues>({
     defaultValues: {
@@ -72,6 +82,7 @@ export default function ReviewsScreen({
       location: '',
       instagramId: '',
       phone: '',
+      email: '',
       image: '',
       video: '',
     },
@@ -113,14 +124,30 @@ export default function ReviewsScreen({
     }
   };
 
-  // Filter reviews by name or message
+  const approvedCount = useMemo(() => reviews.filter(r => r.approved).length, [reviews]);
+  const pendingCount = useMemo(() => reviews.filter(r => !r.approved).length, [reviews]);
+
+  // Filter reviews by activeFilter, search query across name, message, location, and instagramId
   const filteredReviews = useMemo(() => {
-    return reviews.filter(rev => 
-      rev.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rev.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (rev.location && rev.location.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [reviews, searchQuery]);
+    return reviews.filter(rev => {
+      const matchesFilter =
+        activeFilter === 'all' ||
+        (activeFilter === 'approved' && rev.approved) ||
+        (activeFilter === 'pending' && !rev.approved);
+      if (!matchesFilter) return false;
+
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+
+      return (
+        rev.name.toLowerCase().includes(q) ||
+        rev.message.toLowerCase().includes(q) ||
+        (rev.location && rev.location.toLowerCase().includes(q)) ||
+        (rev.phone && rev.phone.toLowerCase().includes(q)) ||
+        (rev.instagramId && rev.instagramId.toLowerCase().includes(q))
+      );
+    });
+  }, [reviews, searchQuery, activeFilter]);
 
   const onFormSubmit = async (data: ReviewFormValues) => {
     let uploadedImageUrl: string | null = null;
@@ -128,10 +155,10 @@ export default function ReviewsScreen({
 
     try {
       if (data.image) {
-        uploadedImageUrl = await uploadMediaAsset(data.image);
+        uploadedImageUrl = await uploadMediaAsset(data.image, { token, apiHost });
       }
       if (data.video) {
-        uploadedVideoUrl = await uploadMediaAsset(data.video);
+        uploadedVideoUrl = await uploadMediaAsset(data.video, { token, apiHost });
       }
     } catch (error) {
       showAlert('Upload Error', 'Failed to upload review media assets. Please try again.', 'error');
@@ -145,8 +172,10 @@ export default function ReviewsScreen({
       location: data.location.trim() || null,
       instagramId: data.instagramId.trim() || null,
       phone: data.phone.trim() || null,
+      email: data.email.trim() || null,
       image: uploadedImageUrl,
       video: uploadedVideoUrl,
+      approved: true,
     });
 
     reset();
@@ -177,6 +206,34 @@ export default function ReviewsScreen({
         </TouchableOpacity>
       </View>
 
+      {/* Filter Tabs Chips */}
+      <View style={styles.filterTabsRow}>
+        <TouchableOpacity
+          onPress={() => setActiveFilter('all')}
+          style={[styles.filterChip, activeFilter === 'all' && styles.filterChipActive]}
+        >
+          <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>
+            All ({reviews.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveFilter('approved')}
+          style={[styles.filterChip, activeFilter === 'approved' && styles.filterChipActive]}
+        >
+          <Text style={[styles.filterChipText, activeFilter === 'approved' && styles.filterChipTextActive]}>
+            Approved ({approvedCount})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveFilter('pending')}
+          style={[styles.filterChip, activeFilter === 'pending' && styles.filterChipActive]}
+        >
+          <Text style={[styles.filterChipText, activeFilter === 'pending' && styles.filterChipTextActive]}>
+            Pending ({pendingCount})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Reviews List */}
       <ScrollView 
         contentContainerStyle={styles.scrollPadding}
@@ -196,26 +253,47 @@ export default function ReviewsScreen({
         {isLoading ? (
           <ReviewsSkeleton />
         ) : filteredReviews.length === 0 ? (
-          <Text style={styles.emptyLabel}>No reviews found.</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No Reviews Found</Text>
+            <Text style={styles.emptySubtitle}>
+              {reviews.length === 0 
+                ? "No reviews in the database yet. Tap '+ Add Review' to submit a review."
+                : "No reviews match your filter or search query."}
+            </Text>
+          </View>
         ) : (
           filteredReviews.map(rev => (
             <View key={rev.id} style={styles.reviewCard}>
               {/* Header: Name & Stars */}
               <View style={styles.cardHeader}>
-                <View>
+                <View style={styles.headerLeft}>
                   <Text style={styles.reviewerName}>{rev.name}</Text>
-                  {rev.location && (
-                    <View style={styles.metaRow}>
-                      <MapPin size={10} color="#71717a" style={styles.metaIcon} />
-                      <Text style={styles.metaText}>{rev.location}</Text>
-                    </View>
-                  )}
+                  <View style={styles.metaRow}>
+                    {rev.location ? (
+                      <View style={styles.metaItem}>
+                        <MapPin size={10} color="#71717a" style={styles.metaIcon} />
+                        <Text style={styles.metaText}>{rev.location}</Text>
+                      </View>
+                    ) : null}
+                    {rev.createdAt ? (
+                      <View style={[styles.metaItem, { marginLeft: rev.location ? 8 : 0 }]}>
+                        <Clock size={10} color="#a1a1aa" style={styles.metaIcon} />
+                        <Text style={styles.dateText}>
+                          {new Date(rev.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
                 <View style={styles.starRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
                     <Star 
                       key={s} 
-                      size={11} 
+                      size={12} 
                       color={s <= rev.stars ? '#eab308' : '#e4e4e7'} 
                       fill={s <= rev.stars ? '#eab308' : 'none'} 
                       style={styles.starIcon}
@@ -227,33 +305,64 @@ export default function ReviewsScreen({
               {/* Message */}
               <Text style={styles.reviewMessage}>"{rev.message}"</Text>
 
+              {/* Image Preview if available */}
+              {rev.image ? (
+                <View style={styles.imageThumbnailContainer}>
+                  <Image source={{ uri: rev.image }} style={styles.imageThumbnail} resizeMode="cover" />
+                </View>
+              ) : null}
+
               {/* Optional Badges / Attachments Indicators */}
               <View style={styles.attachmentsRow}>
-                {rev.instagramId && (
+                {rev.phone ? (
+                  <View style={styles.badge}>
+                    <Phone size={9} color="#71717a" style={styles.badgeIcon} />
+                    <Text style={styles.badgeText}>{rev.phone}</Text>
+                  </View>
+                ) : null}
+                {rev.instagramId ? (
                   <View style={styles.badge}>
                     <MessageSquare size={9} color="#71717a" style={styles.badgeIcon} />
                     <Text style={styles.badgeText}>@{rev.instagramId}</Text>
                   </View>
-                )}
-                {rev.image && (
-                  <View style={[styles.badge, styles.successBadge]}>
-                    <ImageIcon size={9} color="#059669" style={styles.badgeIcon} />
-                    <Text style={[styles.badgeText, styles.successBadgeText]}>Image Attached</Text>
-                  </View>
-                )}
-                {rev.video && (
+                ) : null}
+                {rev.video ? (
                   <View style={[styles.badge, styles.successBadge]}>
                     <Video size={9} color="#059669" style={styles.badgeIcon} />
                     <Text style={[styles.badgeText, styles.successBadgeText]}>Video Attached</Text>
                   </View>
-                )}
+                ) : null}
               </View>
 
               {/* Footer Divider */}
               <View style={styles.cardDivider} />
 
-              {/* Card Actions: Delete button */}
+              {/* Card Actions: Toggle Approval & Delete */}
               <View style={styles.cardActions}>
+                <TouchableOpacity
+                  onPress={() => onToggleApproval(rev)}
+                  style={[
+                    styles.statusBtn,
+                    rev.approved ? styles.approvedBtn : styles.unapprovedBtn,
+                  ]}
+                  accessibilityLabel={`Toggle approval status: currently ${rev.approved ? 'Approved' : 'Pending'}`}
+                  accessibilityRole="button"
+                >
+                  {rev.approved ? (
+                    <Check size={11} color="#ffffff" style={styles.btnIcon} />
+                  ) : (
+                    <Clock size={11} color="#71717a" style={styles.btnIcon} />
+                  )}
+                  <Text
+                    style={[
+                      styles.statusBtnText,
+                      rev.approved ? styles.approvedBtnText : styles.unapprovedBtnText,
+                    ]}
+                  >
+                    {rev.approved ? 'Approved' : 'Pending'}
+                  </Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                   onPress={() => onDeleteReview(rev)} 
                   style={styles.deleteBtn}
@@ -420,6 +529,27 @@ export default function ReviewsScreen({
                 />
               </View>
 
+              {/* Email */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>Email Address</Text>
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. customer@example.com"
+                      placeholderTextColor="#a1a1aa"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      style={styles.formInput}
+                    />
+                  )}
+                />
+              </View>
+
               {/* Image Picker */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Review Image</Text>
@@ -541,12 +671,59 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  filterTabsRow: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  filterChipActive: {
+    backgroundColor: '#FF5E36',
+    borderColor: '#FF5E36',
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#71717a',
+  },
+  filterChipTextActive: {
+    color: '#ffffff',
+  },
   scrollPadding: {
     padding: 20,
     paddingBottom: 40,
   },
   loader: {
     marginTop: 40,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#09090b',
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: '#71717a',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   emptyLabel: {
     fontSize: 12,
@@ -636,6 +813,31 @@ const styles = StyleSheet.create({
   successBadgeText: {
     color: '#065f46',
   },
+  headerLeft: {
+    flex: 1,
+    marginRight: 10,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 10,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  imageThumbnailContainer: {
+    marginBottom: 12,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#f4f4f5',
+    maxHeight: 180,
+  },
+  imageThumbnail: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+  },
   cardDivider: {
     height: 1,
     backgroundColor: '#f4f4f5',
@@ -643,7 +845,7 @@ const styles = StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   statusBtn: {

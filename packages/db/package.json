@@ -15,7 +15,7 @@
     "db:generate": "pnpm build && drizzle-kit generate",
     "db:migrate": "pnpm build && drizzle-kit migrate",
     "db:push": "pnpm build && drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "pnpm build && drizzle-kit studio"
   },
   "dependencies": {
     "drizzle-orm": "^0.33.0",

@@ -70,8 +70,11 @@ export interface InventoryTransaction {
   id: string;
   productId: string;
   productVariantId?: string | null;
-  type: 'sale' | 'purchase';
+  type: 'sale' | 'purchase' | 'adjustment' | 'reservation' | 'release' | 'return' | string;
   quantity: number;
+  availableStock?: number | null;
+  reservedStock?: number | null;
+  totalStock?: number | null;
   unitPrice?: string | number | null;
   totalAmount?: string | number | null;
   notes?: string | null;
@@ -86,3 +89,72 @@ export interface InventoryTransaction {
   sellerEmail?: string | null;
 }
 
+export interface Customer {
+  id: string;
+  userId?: string | null;
+  name: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+  address?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber?: string;
+  orderId?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
+  phoneNumber?: string | null;
+  email?: string | null;
+  address?: string | null;
+  productId?: string | null;
+  userId?: string | null;
+  quantity?: number;
+  mode?: 'cash' | 'online';
+  subtotal?: string | number | null;
+  gst?: string | number | null;
+  discount?: string | number | null;
+  totalAmount?: string | number | null;
+  finalAmount?: string | number | null;
+  items?: any[];
+  notes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  orderNumber?: string | null;
+}
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  productId?: string | null;
+  productVariantId?: string | null;
+  productName: string;
+  variantColor?: string | null;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  createdAt?: string;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  customerId?: string | null;
+  userId?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  customerAddress?: string | null;
+  status: string;
+  paymentMethod: string;
+  subtotal?: string | number | null;
+  gst?: string | number | null;
+  discount?: string | number | null;
+  totalAmount: string | number;
+  items: OrderItem[];
+  notes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}

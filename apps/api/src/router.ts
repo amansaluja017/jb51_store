@@ -4,7 +4,15 @@ import { ZodError } from 'zod';
 import { z } from 'zod';
 import { authRouter } from '@repo/auth/router';
 import { authenticateToken, JwtPayload } from '@repo/auth';
-import { productsRouter, reviewsRouter, inventoryRouter } from '@repo/products/router';
+import {
+  productsRouter,
+  reviewsRouter,
+  inventoryRouter,
+  customersRouter,
+  ordersRouter,
+  invoicesRouter,
+} from '@repo/products/router';
+export type { ReviewItem } from '@repo/products';
 import * as trpcExpress from '@trpc/server/adapters/express';
 
 export const createTRPCContext = async ({ req, res }: trpcExpress.CreateExpressContextOptions) => {
@@ -47,6 +55,9 @@ export const appRouter = createTRPCRouter({
   products: productsRouter,
   reviews: reviewsRouter,
   inventory: inventoryRouter,
+  customers: customersRouter,
+  orders: ordersRouter,
+  invoices: invoicesRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),

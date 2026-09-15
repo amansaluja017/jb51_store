@@ -247,9 +247,48 @@ export async function getInventoryTransactions(options?: { productId?: string; l
     .orderBy(desc(inventryTransactionTable.createdAt))
     .limit(limit);
 
-  if (options?.productId) {
-    return await query.where(eq(inventryTransactionTable.productId, options.productId));
-  }
+  const txs = options?.productId
+    ? await query.where(eq(inventryTransactionTable.productId, options.productId))
+    : await query;
 
-  return await query;
+  // Retrieve current inventory records to attach available and reserved stock
+  const allInventory = await db.select().from(inventryTable);
+  const allVariants = await db.select().from(productVariantTable);
+
+  return txs.map(tx => {
+    let avail = 0;
+    let reserved = 0;
+    let total = 0;
+
+    if (tx.productVariantId) {
+      const inv = allInventory.find(
+        i => i.productId === tx.productId && i.productVariant === tx.productVariantId
+      );
+      if (inv) {
+        avail = inv.availableStock ?? 0;
+        reserved = inv.reservedStock ?? 0;
+        total = inv.totalStock ?? 0;
+      }
+    } else if (tx.productId) {
+      const prodInvs = allInventory.filter(i => i.productId === tx.productId);
+      avail = prodInvs.reduce((sum, i) => sum + (i.availableStock || 0), 0);
+      reserved = prodInvs.reduce((sum, i) => sum + (i.reservedStock || 0), 0);
+      total = prodInvs.reduce((sum, i) => sum + (i.totalStock || 0), 0);
+
+      if (!tx.variantColor) {
+        const firstVar = allVariants.find(v => v.productId === tx.productId);
+        if (firstVar) {
+          tx.variantColor = firstVar.color;
+          tx.variantHex = (firstVar as any).hexCode || null;
+        }
+      }
+    }
+
+    return {
+      ...tx,
+      availableStock: avail,
+      reservedStock: reserved,
+      totalStock: total,
+    };
+  });
 }

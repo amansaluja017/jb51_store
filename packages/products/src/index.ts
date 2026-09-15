@@ -1,3 +1,6 @@
 export * from './data.js';
-export * from './reviewsData.js';
+export * from './reviews.js';
 export * from './inventory.js';
+export * from './customers.js';
+export * from './orders.js';
+export * from './invoices.js';
