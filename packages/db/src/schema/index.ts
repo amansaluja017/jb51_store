@@ -13,6 +13,8 @@ export * from './reviews.js';
 export * from './analytics.js';
 export * from './product-analytics.js';
 export * from './invoices.js';
+export * from './orders.js';
+export * from './order-items.js';
 export * from './wishlist.js';
 export * from './wishlist-items.js';
 export * from './product-images.js';

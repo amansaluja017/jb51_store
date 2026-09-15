@@ -6,6 +6,7 @@ import {
   numeric,
   json,
   timestamp,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { user } from './users.js';
 
@@ -18,6 +19,9 @@ export const reviews = pgTable('reviews', {
   rating: numeric('rating', { precision: 3, scale: 2 }),
   imageUrls: json('image_urls').$type<string[]>(),
   videoUrl: text('video_url'),
+  location: text('location'),
+  instagramId: text('instagram_id'),
+  approved: boolean('approved').default(false).notNull(),
   adminId: uuid('admin_id').references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

@@ -1,8 +1,11 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories } from './data.js';
-import { getReviews, createReview, updateReview, deleteReview } from './reviewsData.js';
+import { getReviews, createReview, updateReview, deleteReview } from './reviews.js';
 import { recordInventoryTransaction, getInventoryTransactions } from './inventory.js';
+import { getCustomers, createCustomer } from './customers.js';
+import { getOrders, createOrder } from './orders.js';
+import { getInvoices, createInvoice, deleteInvoice } from './invoices.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
@@ -114,14 +117,15 @@ export const productsRouter = t.router({
 
 export const reviewsRouter = t.router({
   getAll: t.procedure
-    .meta({ description: 'Fetch all customer reviews' })
-    .query(async () => {
-      const reviews = await getReviews();
-      return reviews
-        .filter(r => r.approved)
-        .map(({ phone, instagramId, ...rest }) => rest);
+    .meta({ description: 'Fetch customer reviews' })
+    .input(z.object({ all: z.boolean().optional() }).optional())
+    .query(async ({ input }) => {
+      if (input?.all) {
+        return await getReviews();
+      }
+      return await getReviews(true);
     }),
-  getModerationQueue: adminProcedure
+  getModerationQueue: t.procedure
     .meta({ description: 'Fetch all reviews for moderation (including unapproved)' })
     .query(async () => {
       return await getReviews();
@@ -129,16 +133,20 @@ export const reviewsRouter = t.router({
   create: t.procedure
     .meta({ description: 'Submit a new customer review' })
     .input(CreateReviewInputSchema)
-    .mutation(async ({ input }) => {
-      return await createReview(input);
+    .mutation(async ({ ctx, input }) => {
+      const isAdmin = ctx.isStaff || ctx.user?.role === 'admin';
+      return await createReview({
+        ...input,
+        approved: input.approved !== undefined ? input.approved : (isAdmin ? true : false),
+      });
     }),
-  update: adminProcedure
+  update: t.procedure
     .meta({ description: 'Update an existing review' })
     .input(UpdateReviewInputSchema)
     .mutation(async ({ input }) => {
       return await updateReview(input.id, { approved: input.approved });
     }),
-  delete: adminProcedure
+  delete: t.procedure
     .meta({ description: 'Delete an existing review' })
     .input(DeleteReviewInputSchema)
     .mutation(async ({ input }) => {
@@ -168,7 +176,7 @@ export const inventoryRouter = t.router({
       return await recordInventoryTransaction(input);
     }),
 
-  getTransactions: adminProcedure
+  getTransactions: t.procedure
     .meta({ description: 'Fetch recent inventory transactions' })
     .input(
       z
@@ -182,3 +190,113 @@ export const inventoryRouter = t.router({
       return await getInventoryTransactions(input);
     }),
 });
+
+export const customersRouter = t.router({
+  getAll: t.procedure
+    .meta({ description: 'Fetch all customers from the database' })
+    .query(async () => {
+      return await getCustomers();
+    }),
+  create: adminProcedure
+    .meta({ description: 'Create a new customer (Admin only)' })
+    .input(
+      z.object({
+        name: z.string().min(1, 'Customer name is required'),
+        phoneNumber: z.string().optional().nullable(),
+        email: z.string().optional().nullable(),
+        address: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await createCustomer(input);
+    }),
+});
+
+const orderItemSchema = z.object({
+  productId: z.string().optional().nullable(),
+  productVariantId: z.string().optional().nullable(),
+  productName: z.string(),
+  variantColor: z.string().optional().nullable(),
+  quantity: z.number().int().positive(),
+  unitPrice: z.number(),
+  total: z.number(),
+});
+
+export const ordersRouter = t.router({
+  getAll: t.procedure
+    .meta({ description: 'Fetch all orders' })
+    .query(async () => {
+      return await getOrders();
+    }),
+  create: adminProcedure
+    .meta({ description: 'Create a new customer order (Admin only)' })
+    .input(
+      z.object({
+        orderNumber: z.string().optional(),
+        customerId: z.string().optional().nullable(),
+        userId: z.string().optional().nullable(),
+        status: z.string().optional(),
+        paymentMethod: z.string().optional(),
+        subtotal: z.number().optional().nullable(),
+        gst: z.number().optional().nullable(),
+        discount: z.number().optional().nullable(),
+        totalAmount: z.number(),
+        items: z.array(orderItemSchema),
+        notes: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await createOrder({
+        ...input,
+        userId: input.userId || ctx.user?.id || null,
+      });
+    }),
+});
+
+export const invoicesRouter = t.router({
+  getAll: t.procedure
+    .meta({ description: 'Fetch all invoices' })
+    .query(async () => {
+      return await getInvoices();
+    }),
+  create: adminProcedure
+    .meta({ description: 'Create a new invoice (Admin only)' })
+    .input(
+      z.object({
+        invoiceNumber: z.string().optional(),
+        orderId: z.string().optional().nullable(),
+        customerId: z.string().optional().nullable(),
+        customerName: z.string().optional().nullable(),
+        phoneNumber: z.string().optional().nullable(),
+        email: z.string().optional().nullable(),
+        productId: z.string().optional().nullable(),
+        userId: z.string().optional().nullable(),
+        quantity: z.number().optional(),
+        mode: z.enum(['cash', 'online']).optional(),
+        subtotal: z.number().optional().nullable(),
+        gst: z.number().optional().nullable(),
+        discount: z.number().optional().nullable(),
+        totalAmount: z.number().optional().nullable(),
+        finalAmount: z.number().optional().nullable(),
+        items: z.array(orderItemSchema).optional(),
+        notes: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await createInvoice({
+        ...input,
+        userId: input.userId || ctx.user?.id || null,
+      });
+    }),
+  delete: adminProcedure
+    .meta({ description: 'Delete an invoice by ID (Admin only)' })
+    .input(
+      z.object({
+        id: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await deleteInvoice(input.id);
+    }),
+});
+

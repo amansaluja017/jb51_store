@@ -26,6 +26,7 @@ import {
   FileText,
   Clock,
   RotateCw,
+  Lock,
 } from 'lucide-react-native';
 import { InventoryTransaction } from '../types';
 
@@ -37,7 +38,7 @@ interface InventoryHistoryModalProps {
   onRefresh: () => void;
 }
 
-type FilterType = 'all' | 'sale' | 'purchase';
+type FilterType = 'all' | 'sale' | 'purchase' | 'adjustment';
 
 const formatTimestamp = (isoString?: string) => {
   if (!isoString) return '';
@@ -64,8 +65,14 @@ export default function InventoryHistoryModal({
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      if (filterType !== 'all' && t.type !== filterType) {
-        return false;
+      if (filterType !== 'all') {
+        if (filterType === 'adjustment') {
+          if (t.type !== 'adjustment' && t.type !== 'reservation' && t.type !== 'release') {
+            return false;
+          }
+        } else if (t.type !== filterType) {
+          return false;
+        }
       }
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
@@ -89,6 +96,7 @@ export default function InventoryHistoryModal({
   const stats = useMemo(() => {
     let salesCount = 0;
     let purchasesCount = 0;
+    let adjustmentsCount = 0;
     let totalSoldUnits = 0;
     let totalPurchasedUnits = 0;
 
@@ -100,10 +108,12 @@ export default function InventoryHistoryModal({
       } else if (t.type === 'purchase') {
         purchasesCount++;
         totalPurchasedUnits += q;
+      } else {
+        adjustmentsCount++;
       }
     });
 
-    return { salesCount, purchasesCount, totalSoldUnits, totalPurchasedUnits };
+    return { salesCount, purchasesCount, adjustmentsCount, totalSoldUnits, totalPurchasedUnits };
   }, [transactions]);
 
   return (
@@ -115,9 +125,9 @@ export default function InventoryHistoryModal({
             <View style={styles.headerTitleRow}>
               <History size={18} color="#FF5E36" />
               <View>
-                <Text style={styles.headerTitle}>Inventory Transaction Log</Text>
+                <Text style={styles.headerTitle}>Inventory History & Ledger</Text>
                 <Text style={styles.headerSubtitle}>
-                  {transactions.length} recorded movement{transactions.length === 1 ? '' : 's'} in database
+                  {transactions.length} movement{transactions.length === 1 ? '' : 's'} recorded in database
                 </Text>
               </View>
             </View>
@@ -135,12 +145,17 @@ export default function InventoryHistoryModal({
           <View style={styles.statsBanner}>
             <View style={styles.statBox}>
               <Text style={styles.statVal}>{stats.salesCount}</Text>
-              <Text style={styles.statLabel}>Sales ({stats.totalSoldUnits} units)</Text>
+              <Text style={styles.statLabel}>Sales ({stats.totalSoldUnits}u)</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
               <Text style={styles.statVal}>{stats.purchasesCount}</Text>
-              <Text style={styles.statLabel}>Purchases ({stats.totalPurchasedUnits} units)</Text>
+              <Text style={styles.statLabel}>Purchases ({stats.totalPurchasedUnits}u)</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statVal}>{stats.adjustmentsCount}</Text>
+              <Text style={styles.statLabel}>Adjustments</Text>
             </View>
           </View>
 
@@ -191,6 +206,16 @@ export default function InventoryHistoryModal({
                   Purchases
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setFilterType('adjustment')}
+                style={[styles.filterPill, filterType === 'adjustment' && styles.filterPillAdjustmentActive]}
+              >
+                <RotateCw size={12} color={filterType === 'adjustment' ? '#ffffff' : '#d97706'} />
+                <Text style={[styles.filterPillText, filterType === 'adjustment' && styles.filterPillTextActive]}>
+                  Adjustments
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -218,22 +243,45 @@ export default function InventoryHistoryModal({
             ) : (
               filteredTransactions.map(tx => {
                 const isSale = tx.type === 'sale';
-                const party = isSale ? (tx.customerName || 'Walk-in Customer') : (tx.sellerName || 'Supplier');
-                const contact = isSale ? tx.customerPhone : tx.sellerEmail;
+                const isPurchase = tx.type === 'purchase';
+                const isAdjustment = !isSale && !isPurchase;
+
+                const party = isSale
+                  ? (tx.customerName || 'Walk-in Customer')
+                  : isPurchase
+                  ? (tx.sellerName || 'Supplier')
+                  : 'Stock Adjustment / Admin Sync';
+                const contact = isSale ? tx.customerPhone : isPurchase ? tx.sellerEmail : null;
                 const totalAmt = tx.totalAmount ? `₹${Number(tx.totalAmount).toLocaleString('en-IN')}` : null;
 
                 return (
                   <View key={tx.id} style={styles.card}>
                     {/* Top Row: Type badge and Date */}
                     <View style={styles.cardTopRow}>
-                      <View style={[styles.badge, isSale ? styles.badgeSale : styles.badgePurchase]}>
+                      <View
+                        style={[
+                          styles.badge,
+                          isSale ? styles.badgeSale : isPurchase ? styles.badgePurchase : styles.badgeAdjustment,
+                        ]}
+                      >
                         {isSale ? (
                           <TrendingDown size={11} color="#ef4444" style={{ marginRight: 4 }} />
-                        ) : (
+                        ) : isPurchase ? (
                           <TrendingUp size={11} color="#10b981" style={{ marginRight: 4 }} />
+                        ) : (
+                          <RotateCw size={11} color="#d97706" style={{ marginRight: 4 }} />
                         )}
-                        <Text style={[styles.badgeText, isSale ? styles.badgeTextSale : styles.badgeTextPurchase]}>
-                          {isSale ? 'SALE' : 'PURCHASE'}
+                        <Text
+                          style={[
+                            styles.badgeText,
+                            isSale
+                              ? styles.badgeTextSale
+                              : isPurchase
+                              ? styles.badgeTextPurchase
+                              : styles.badgeTextAdjustment,
+                          ]}
+                        >
+                          {isSale ? 'SALE' : isPurchase ? 'PURCHASE' : (tx.type || 'ADJUSTMENT').toUpperCase()}
                         </Text>
                       </View>
 
@@ -260,10 +308,34 @@ export default function InventoryHistoryModal({
                       </View>
 
                       <View style={styles.quantityWrap}>
-                        <Text style={[styles.qtyText, isSale ? styles.qtyTextSale : styles.qtyTextPurchase]}>
-                          {isSale ? `-${tx.quantity}` : `+${tx.quantity}`} units
+                        <Text
+                          style={[
+                            styles.qtyText,
+                            isSale ? styles.qtyTextSale : isPurchase ? styles.qtyTextPurchase : styles.qtyTextAdjustment,
+                          ]}
+                        >
+                          {isSale ? `-${tx.quantity}` : isPurchase ? `+${tx.quantity}` : `±${tx.quantity}`} units
                         </Text>
                         {totalAmt && <Text style={styles.amountText}>{totalAmt}</Text>}
+                      </View>
+                    </View>
+
+                    {/* Stock Position: Available & Reserved Stock */}
+                    <View style={styles.stockLevelRow}>
+                      <View style={styles.stockPillAvail}>
+                        <Package size={11} color="#047857" />
+                        <Text style={styles.stockPillAvailLabel}>Available:</Text>
+                        <Text style={styles.stockPillAvailVal}>
+                          {tx.availableStock !== undefined && tx.availableStock !== null ? `${tx.availableStock} units` : '—'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.stockPillReserved}>
+                        <Lock size={11} color="#c2410c" />
+                        <Text style={styles.stockPillReservedLabel}>Reserved:</Text>
+                        <Text style={styles.stockPillReservedVal}>
+                          {tx.reservedStock !== undefined && tx.reservedStock !== null ? `${tx.reservedStock} units` : '0 units'}
+                        </Text>
                       </View>
                     </View>
 
@@ -438,6 +510,9 @@ const styles = StyleSheet.create({
   filterPillPurchaseActive: {
     backgroundColor: '#10b981',
   },
+  filterPillAdjustmentActive: {
+    backgroundColor: '#d97706',
+  },
   filterPillText: {
     fontSize: 12,
     fontWeight: '600',
@@ -477,6 +552,9 @@ const styles = StyleSheet.create({
   badgePurchase: {
     backgroundColor: '#ecfdf5',
   },
+  badgeAdjustment: {
+    backgroundColor: '#fffbeb',
+  },
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
@@ -487,6 +565,9 @@ const styles = StyleSheet.create({
   },
   badgeTextPurchase: {
     color: '#10b981',
+  },
+  badgeTextAdjustment: {
+    color: '#d97706',
   },
   timeRow: {
     flexDirection: 'row',
@@ -537,11 +618,56 @@ const styles = StyleSheet.create({
   qtyTextPurchase: {
     color: '#10b981',
   },
+  qtyTextAdjustment: {
+    color: '#d97706',
+  },
   amountText: {
     fontSize: 11,
     fontWeight: '600',
     color: '#52525b',
     marginTop: 1,
+  },
+  stockLevelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f4f4f5',
+  },
+  stockPillAvail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stockPillAvailLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  stockPillAvailVal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  stockPillReserved: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+  },
+  stockPillReservedLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  stockPillReservedVal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#c2410c',
   },
   partyRow: {
     flexDirection: 'row',

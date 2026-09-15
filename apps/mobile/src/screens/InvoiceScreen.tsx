@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,15 +9,32 @@ import {
   Modal,
   Platform,
   KeyboardAvoidingView,
-  RefreshControl
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FileText, Trash2, Plus, Printer, X, ChevronDown } from 'lucide-react-native';
+import {
+  FileText,
+  Trash2,
+  Plus,
+  Printer,
+  X,
+  ChevronDown,
+  UserPlus,
+  Search,
+  Check,
+  User,
+  ShoppingBag,
+  Layers,
+  PackageCheck,
+  Receipt,
+  Eye,
+} from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useForm, Controller } from 'react-hook-form';
 import { InvoiceSkeleton } from '../components/SkeletonLoader';
-import { Product } from '../types';
+import { Product, Variant, Customer, Invoice, Order, OrderItem } from '../types';
 
 export interface InvoiceFormValues {
   invoiceNumber: string;
@@ -25,15 +42,19 @@ export interface InvoiceFormValues {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
+  clientAddress: string;
   taxRate: string;
   discount: string;
   paymentMethod: 'Cash' | 'Online';
   notes: string;
 }
 
-interface InvoiceItem {
+export interface InvoiceItem {
   id: string;
+  productId: string;
+  productVariantId?: string | null;
   name: string;
+  variantColor?: string | null;
   price: number;
   quantity: number;
   total: number;
@@ -41,6 +62,9 @@ interface InvoiceItem {
 
 interface InvoiceScreenProps {
   products: Product[];
+  customers: Customer[];
+  invoices: Invoice[];
+  orders: Order[];
   showAlert: (
     title: string,
     message: string,
@@ -50,80 +74,83 @@ interface InvoiceScreenProps {
   isLoading?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  onFetchCustomers: () => Promise<void>;
+  onCreateCustomer: (data: {
+    name: string;
+    phoneNumber?: string;
+    email?: string;
+    address?: string;
+  }) => Promise<Customer>;
+  onFetchInvoices: () => Promise<void>;
+  onFetchOrders: () => Promise<void>;
+  onCreateOrder: (orderData: any) => Promise<any>;
+  onCreateInvoice: (invoiceData: any) => Promise<any>;
+  onDeleteInvoice: (id: string, label: string) => Promise<void>;
+  onRecordTransaction: (txData: any) => Promise<void>;
 }
 
-const MOCK_CUSTOMERS = [
-  { name: 'Aishwarya Sen', phone: '+91 98123 45678', email: 'aishwarya.sen@gmail.com' },
-  { name: 'Meera Rajput', phone: '+91 99123 45678', email: 'meera.rajput@gmail.com' },
-  { name: 'Kriti Sanon', phone: '+91 97123 45678', email: 'kriti.sanon@gmail.com' },
-  { name: 'Janhvi Kapoor', phone: '+91 96123 45678', email: 'janhvi.kapoor@gmail.com' },
-  { name: 'Shanaya Kapoor', phone: '+91 95123 45678', email: 'shanaya.kapoor@gmail.com' },
-  { name: 'Mira Kapoor', phone: '+91 94123 45678', email: 'mira.kapoor@gmail.com' },
-];
-
-export default function InvoiceScreen({ products, showAlert, isLoading, refreshing, onRefresh }: InvoiceScreenProps) {
-  // Past invoices list
-  const [invoices, setInvoices] = useState<any[]>([
-    {
-      id: 'INV-2026-8942',
-      clientName: 'Aishwarya Sen',
-      clientPhone: '+91 98123 45678',
-      clientEmail: 'aishwarya.sen@gmail.com',
-      date: '28/08/2026',
-      items: [
-        { id: '1', name: 'Ivory Chanderi Silk Co-ord Set', price: 16800, quantity: 1, total: 16800 }
-      ],
-      subtotal: 16800,
-      taxRate: '12',
-      taxAmount: 2016,
-      discount: 1000,
-      totalAmount: 17816,
-      paymentMethod: 'Online',
-      notes: 'Custom sleeve tailoring adjustments requested.'
-    },
-    {
-      id: 'INV-2026-4219',
-      clientName: 'Mira Kapoor',
-      clientPhone: '+91 94123 45678',
-      clientEmail: 'mira.kapoor@gmail.com',
-      date: '25/08/2026',
-      items: [
-        { id: '2', name: 'Velvet Nehru Jacket', price: 12500, quantity: 1, total: 12500 }
-      ],
-      subtotal: 12500,
-      taxRate: '12',
-      taxAmount: 1500,
-      discount: 0,
-      totalAmount: 14000,
-      paymentMethod: 'Cash',
-      notes: 'Collected cash at the Baner studio.'
-    }
-  ]);
-
-  const handleDeleteInvoice = (id: string, clientName: string) => {
-    showAlert(
-      'Delete Invoice',
-      `Are you sure you want to delete invoice "${id}" for ${clientName}?`,
-      'confirm',
-      () => {
-        setInvoices(prev => prev.filter(inv => inv.id !== id));
-        showAlert('Success', 'Invoice deleted successfully.', 'success');
-      }
-    );
-  };
-
+export default function InvoiceScreen({
+  products,
+  customers,
+  invoices,
+  orders,
+  showAlert,
+  isLoading,
+  refreshing,
+  onRefresh,
+  onFetchCustomers,
+  onCreateCustomer,
+  onFetchInvoices,
+  onFetchOrders,
+  onCreateOrder,
+  onCreateInvoice,
+  onDeleteInvoice,
+  onRecordTransaction,
+}: InvoiceScreenProps) {
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Active Ledger Tab: Invoices vs Order History
+  const [activeLedgerTab, setActiveLedgerTab] = useState<'invoices' | 'orders'>('invoices');
+
+  // Search filter for past invoices & orders in Ledger
+  const [searchFilter, setSearchFilter] = useState('');
+
+  // Selected Order for detail view modal
+  const [selectedOrderModal, setSelectedOrderModal] = useState<Order | null>(null);
+
+  // Customer selection & creation state
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+
+  // Product & Variant selection state
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [itemPrice, setItemPrice] = useState('');
+  const [itemQuantity, setItemQuantity] = useState('1');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
 
   // Invoice form state using react-hook-form
-  const { control, handleSubmit, reset, setValue, watch } = useForm<InvoiceFormValues>({
+  const { control, reset, setValue, watch } = useForm<InvoiceFormValues>({
     defaultValues: {
       invoiceNumber: '',
       invoiceDate: '',
       clientName: '',
       clientEmail: '',
       clientPhone: '',
+      clientAddress: '',
       taxRate: '12',
       discount: '0',
       paymentMethod: 'Online',
@@ -134,42 +161,226 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
   const formValues = watch();
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
 
-  // Dropdown states
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [itemQuantity, setItemQuantity] = useState('1');
-  const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-
   // Current calculations
   const subtotal = invoiceItems.reduce((sum, item) => sum + item.total, 0);
-  const taxAmount = (subtotal * (parseFloat(formValues.taxRate) || 0)) / 100;
+  const taxRateNum = parseFloat(formValues.taxRate) || 0;
+  const taxAmount = Math.round((subtotal * taxRateNum) / 100);
   const discountAmount = parseFloat(formValues.discount) || 0;
-  const totalAmount = subtotal + taxAmount - discountAmount;
+  const totalAmount = Math.max(0, subtotal + taxAmount - discountAmount);
 
-  // Resolve dynamic preview data
-  const isViewingPast = viewingInvoice !== null;
-  const activeInvNumber = isViewingPast ? viewingInvoice.id : formValues.invoiceNumber;
-  const activeInvDate = isViewingPast ? viewingInvoice.date : formValues.invoiceDate;
-  const activeClientName = isViewingPast ? viewingInvoice.clientName : formValues.clientName;
-  const activeClientEmail = isViewingPast ? viewingInvoice.clientEmail : formValues.clientEmail;
-  const activeClientPhone = isViewingPast ? viewingInvoice.clientPhone : formValues.clientPhone;
-  const activeItems = isViewingPast ? viewingInvoice.items : invoiceItems;
-  const activeTaxRate = isViewingPast ? viewingInvoice.taxRate : formValues.taxRate;
-  const activeDiscount = isViewingPast ? viewingInvoice.discount : formValues.discount;
-  const activePaymentMethod = isViewingPast ? viewingInvoice.paymentMethod : formValues.paymentMethod;
-  const activeNotes = isViewingPast ? viewingInvoice.notes : formValues.notes;
+  // Filtered customers for dropdown
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearchQuery.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.phoneNumber && c.phoneNumber.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q))
+    );
+  }, [customers, customerSearchQuery]);
 
-  const activeSubtotal = activeItems.reduce((sum: number, item: any) => sum + item.total, 0);
-  const activeTaxAmount = (activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100;
+  // Filtered products for dropdown
+  const filteredProducts = useMemo(() => {
+    const q = productSearchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => p.name.toLowerCase().includes(q));
+  }, [products, productSearchQuery]);
+
+  // Filtered invoices for ledger
+  const filteredInvoices = useMemo(() => {
+    const q = searchFilter.trim().toLowerCase();
+    if (!q) return invoices;
+    return invoices.filter((inv) => {
+      const num = (inv.invoiceNumber || inv.id || '').toLowerCase();
+      const name = (inv.customerName || '').toLowerCase();
+      const phone = (inv.phoneNumber || '').toLowerCase();
+      return num.includes(q) || name.includes(q) || phone.includes(q);
+    });
+  }, [invoices, searchFilter]);
+
+  // Filtered orders for order history
+  const filteredOrders = useMemo(() => {
+    const q = searchFilter.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((ord) => {
+      const num = (ord.orderNumber || ord.id || '').toLowerCase();
+      const name = (ord.customerName || '').toLowerCase();
+      const phone = (ord.customerPhone || '').toLowerCase();
+      const itemMatch = ord.items?.some((it) =>
+        (it.productName || '').toLowerCase().includes(q)
+      );
+      return num.includes(q) || name.includes(q) || phone.includes(q) || itemMatch;
+    });
+  }, [orders, searchFilter]);
+
+  // Normalized viewing invoice helper
+  const resolvedInvoice = useMemo(() => {
+    if (!viewingInvoice) return null;
+    const isCash =
+      (viewingInvoice.mode || viewingInvoice.paymentMethod || 'cash').toLowerCase() ===
+      'cash';
+    const paymentMethod = isCash ? 'Cash' : 'Online';
+    const finalAmt = Number(
+      viewingInvoice.finalAmount ?? viewingInvoice.totalAmount ?? 0
+    );
+    const sub = Number(viewingInvoice.subtotal ?? finalAmt);
+    const gstRate = viewingInvoice.gst
+      ? String(viewingInvoice.gst)
+      : viewingInvoice.taxRate
+        ? String(viewingInvoice.taxRate)
+        : '0';
+    const disc = Number(viewingInvoice.discount ?? 0);
+    const dateStr = viewingInvoice.createdAt
+      ? new Date(viewingInvoice.createdAt).toLocaleDateString('en-IN')
+      : viewingInvoice.date || new Date().toLocaleDateString('en-IN');
+    const items = Array.isArray(viewingInvoice.items)
+      ? viewingInvoice.items.map((it: any) => ({
+          id: it.id || it.productId || Math.random().toString(),
+          productId: it.productId,
+          productVariantId: it.productVariantId,
+          name: it.name || it.productName || 'Product',
+          variantColor: it.variantColor,
+          price: Number(it.price || it.unitPrice || 0),
+          quantity: Number(it.quantity || 1),
+          total: Number(
+            it.total ||
+              Number(it.price || it.unitPrice || 0) * Number(it.quantity || 1)
+          ),
+        }))
+      : [];
+
+    return {
+      ...viewingInvoice,
+      id: viewingInvoice.invoiceNumber || viewingInvoice.id,
+      realId: viewingInvoice.id,
+      clientName:
+        viewingInvoice.customerName ||
+        viewingInvoice.clientName ||
+        'Walk-in Customer',
+      clientPhone: viewingInvoice.phoneNumber || viewingInvoice.clientPhone || '',
+      clientEmail: viewingInvoice.email || viewingInvoice.clientEmail || '',
+      clientAddress:
+        viewingInvoice.address || viewingInvoice.clientAddress || '',
+      date: dateStr,
+      items,
+      subtotal: sub,
+      taxRate: gstRate,
+      taxAmount: Math.round((sub * (parseFloat(gstRate) || 0)) / 100),
+      discount: disc,
+      totalAmount: finalAmt,
+      paymentMethod,
+      notes: viewingInvoice.notes || '',
+    };
+  }, [viewingInvoice]);
+
+  // Preview data resolution
+  const isViewingPast = resolvedInvoice !== null;
+  const activeInvNumber = isViewingPast
+    ? resolvedInvoice.id
+    : formValues.invoiceNumber;
+  const activeInvDate = isViewingPast
+    ? resolvedInvoice.date
+    : formValues.invoiceDate;
+  const activeClientName = isViewingPast
+    ? resolvedInvoice.clientName
+    : formValues.clientName;
+  const activeClientEmail = isViewingPast
+    ? resolvedInvoice.clientEmail
+    : formValues.clientEmail;
+  const activeClientPhone = isViewingPast
+    ? resolvedInvoice.clientPhone
+    : formValues.clientPhone;
+  const activeClientAddress = isViewingPast
+    ? resolvedInvoice.clientAddress
+    : formValues.clientAddress;
+  const activeItems = isViewingPast ? resolvedInvoice.items : invoiceItems;
+  const activeTaxRate = isViewingPast
+    ? resolvedInvoice.taxRate
+    : formValues.taxRate;
+  const activeDiscount = isViewingPast
+    ? resolvedInvoice.discount
+    : formValues.discount;
+  const activePaymentMethod = isViewingPast
+    ? resolvedInvoice.paymentMethod
+    : formValues.paymentMethod;
+  const activeNotes = isViewingPast
+    ? resolvedInvoice.notes
+    : formValues.notes;
+
+  const activeSubtotal = activeItems.reduce(
+    (sum: number, item: any) => sum + item.total,
+    0
+  );
+  const activeTaxAmount = Math.round(
+    (activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100
+  );
   const activeDiscountAmount = parseFloat(activeDiscount) || 0;
-  const activeTotalAmount = activeSubtotal + activeTaxAmount - activeDiscountAmount;
+  const activeTotalAmount = Math.max(
+    0,
+    activeSubtotal + activeTaxAmount - activeDiscountAmount
+  );
 
+  // Handle selecting a customer from dropdown
+  const handleSelectCustomer = (cust: Customer) => {
+    setSelectedCustomerId(cust.id);
+    setValue('clientName', cust.name, { shouldDirty: true });
+    setValue('clientPhone', cust.phoneNumber || '', { shouldDirty: true });
+    setValue('clientEmail', cust.email || '', { shouldDirty: true });
+    setValue('clientAddress', cust.address || '', { shouldDirty: true });
+    setShowCustomerDropdown(false);
+  };
+
+  // Handle manual customer creation
+  const handleSaveNewCustomer = async () => {
+    const trimmedName = newCustomerName.trim();
+    if (!trimmedName) {
+      showAlert('Name Required', 'Please enter customer name.', 'error');
+      return;
+    }
+
+    setIsSavingCustomer(true);
+    try {
+      const created = await onCreateCustomer({
+        name: trimmedName,
+        phoneNumber: newCustomerPhone.trim() || undefined,
+        email: newCustomerEmail.trim() || undefined,
+        address: newCustomerAddress.trim() || undefined,
+      });
+
+      // Auto-select newly created customer
+      handleSelectCustomer(created);
+      setIsAddCustomerModalOpen(false);
+      setNewCustomerName('');
+      setNewCustomerPhone('');
+      setNewCustomerEmail('');
+      setNewCustomerAddress('');
+    } catch (err: any) {
+      // Alert already handled in parent
+    } finally {
+      setIsSavingCustomer(false);
+    }
+  };
+
+  // Handle product selection
+  const handleSelectProduct = (prod: Product) => {
+    setSelectedProduct(prod);
+    const initialPrice = prod.sellingPrice || prod.price;
+    setItemPrice(String(initialPrice));
+    setItemQuantity('1');
+
+    if (prod.variants && prod.variants.length > 0) {
+      setSelectedVariant(prod.variants[0] || null);
+    } else {
+      setSelectedVariant(null);
+    }
+    setShowProductDropdown(false);
+  };
+
+  // Handle adding line item
   const handleAddProduct = () => {
     if (!selectedProduct) {
-      showAlert('Selection Required', 'Please select a product from the list.', 'error');
+      showAlert('Selection Required', 'Please select a product from the catalog.', 'error');
       return;
     }
 
@@ -179,52 +390,83 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
       return;
     }
 
-    const existingIndex = invoiceItems.findIndex(item => item.id === selectedProduct.id);
+    const price = parseFloat(itemPrice) || selectedProduct.sellingPrice || selectedProduct.price;
+    const variantColor = selectedVariant?.color || null;
+    const variantId = (selectedVariant as any)?.id || null;
+
+    const itemName = variantColor
+      ? `${selectedProduct.name} (${variantColor})`
+      : selectedProduct.name;
+
+    const existingIndex = invoiceItems.findIndex(
+      (it) =>
+        it.productId === selectedProduct.id &&
+        it.variantColor === variantColor
+    );
+
     if (existingIndex > -1) {
       const updated = [...invoiceItems];
-      const currentItem = updated[existingIndex]!;
-      currentItem.quantity += qty;
-      currentItem.total = currentItem.quantity * currentItem.price;
+      const existing = updated[existingIndex]!;
+      existing.quantity += qty;
+      existing.total = existing.quantity * existing.price;
       setInvoiceItems(updated);
     } else {
-      setInvoiceItems(prev => [
+      setInvoiceItems((prev) => [
         ...prev,
         {
-          id: selectedProduct.id,
-          name: selectedProduct.name,
-          price: selectedProduct.price,
+          id: `item_${Date.now()}_${Math.random().toString().slice(2, 6)}`,
+          productId: selectedProduct.id,
+          productVariantId: variantId,
+          name: itemName,
+          variantColor,
+          price,
           quantity: qty,
-          total: qty * selectedProduct.price
-        }
+          total: qty * price,
+        },
       ]);
     }
 
     setSelectedProduct(null);
+    setSelectedVariant(null);
+    setItemPrice('');
     setItemQuantity('1');
-    showAlert('Success', 'Item added to the invoice list.', 'success');
+    showAlert('Item Added', `${itemName} added to invoice.`, 'success');
   };
 
   const handleRemoveItem = (id: string) => {
-    setInvoiceItems(prev => prev.filter(item => item.id !== id));
+    setInvoiceItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const generateInvoiceHtml = (inv: any) => {
+  // Generate HTML for invoice PDF
+  const generateInvoiceHtml = (inv: {
+    id: string;
+    clientName: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    clientAddress?: string;
+    date: string;
+    items: InvoiceItem[];
+    subtotal: number;
+    taxRate: string;
+    taxAmount: number;
+    discount: number;
+    totalAmount: number;
+    paymentMethod: string;
+    notes?: string;
+  }) => {
     const escapeHtml = (unsafe: any) => {
       if (unsafe === null || unsafe === undefined) return '';
       return String(unsafe)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     };
 
-    const invSubtotal = inv.items.reduce((sum: number, item: any) => sum + item.total, 0);
-    const invTaxAmount = (invSubtotal * (parseFloat(inv.taxRate) || 0)) / 100;
-    const invDiscountAmount = parseFloat(inv.discount) || 0;
-    const invTotalAmount = invSubtotal + invTaxAmount - invDiscountAmount;
-
-    const escapedNotes = inv.notes ? escapeHtml(inv.notes).replace(/\r?\n/g, '<br>') : '';
+    const escapedNotes = inv.notes
+      ? escapeHtml(inv.notes).replace(/\r?\n/g, '<br>')
+      : '';
 
     return `
       <!DOCTYPE html>
@@ -235,17 +477,19 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
         <style>
           body {
             font-family: 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif;
-            color: #333;
-            padding: 30px;
+            color: #18181b;
+            padding: 36px;
             line-height: 1.4;
+            background-color: #fff;
           }
           .invoice-box {
             max-width: 800px;
             margin: auto;
-            border: 1px solid #eee;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e4e4e7;
             position: relative;
             background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
           }
           .top-border {
             height: 6px;
@@ -253,129 +497,130 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             width: 100%;
           }
           .content-box {
-            padding: 30px;
+            padding: 36px;
           }
           .header {
             display: flex;
             justify-content: space-between;
-            border-bottom: 1px solid #f0f0f0;
-            padding-bottom: 20px;
-            margin-bottom: 25px;
+            border-bottom: 2px solid #f4f4f5;
+            padding-bottom: 24px;
+            margin-bottom: 28px;
           }
           .brand-title {
-            font-size: 26px;
-            font-weight: bold;
+            font-size: 28px;
+            font-weight: 800;
             letter-spacing: 2px;
             margin: 0;
             color: #18181b;
           }
           .brand-subtitle {
             font-size: 8px;
-            font-weight: bold;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 3px;
             color: #FF5E36;
-            margin: 2px 0 15px 0;
+            margin: 3px 0 12px 0;
           }
           .brand-details {
             font-size: 11px;
             color: #71717a;
+            line-height: 16px;
           }
           .invoice-details {
             text-align: right;
             font-size: 12px;
+            line-height: 20px;
           }
           .invoice-title {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 900;
             color: #18181b;
-            margin: 0 0 10px 0;
+            letter-spacing: 1px;
+            margin: 0 0 8px 0;
           }
           .client-block {
             margin-bottom: 30px;
+            padding: 16px 20px;
+            background-color: #fafafa;
+            border-radius: 6px;
+            border-left: 3px solid #FF5E36;
           }
           .bill-to {
             font-size: 10px;
-            font-weight: bold;
+            font-weight: 700;
             color: #71717a;
+            text-transform: uppercase;
             letter-spacing: 1.5px;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
           }
           .client-name {
-            font-size: 15px;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 700;
             color: #18181b;
-            margin: 0;
           }
           .client-meta {
-            font-size: 11px;
+            font-size: 12px;
             color: #52525b;
-            margin: 2px 0;
+            margin-top: 2px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
           }
           th {
-            border-bottom: 2px solid #18181b;
-            padding: 10px;
-            text-align: left;
+            background-color: #fafafa;
+            color: #52525b;
             font-size: 11px;
-            font-weight: bold;
-            color: #18181b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 12px;
+            border-bottom: 2px solid #e4e4e7;
+            text-align: left;
           }
           td {
-            border-bottom: 1px solid #f0f0f0;
-            padding: 12px 10px;
+            padding: 12px;
+            border-bottom: 1px solid #f4f4f5;
             font-size: 12px;
           }
-          .text-right {
-            text-align: right;
-          }
-          .text-center {
-            text-align: center;
-          }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
           .totals-table {
-            width: 50%;
+            width: 320px;
             margin-left: auto;
-            margin-bottom: 40px;
+            margin-top: 12px;
           }
           .totals-table td {
-            border-bottom: none;
-            padding: 6px 10px;
+            padding: 6px 12px;
+            border: none;
+            font-size: 12px;
           }
           .grand-total-row td {
-            border-top: 1px solid #e4e4e7;
-            font-weight: bold;
+            border-top: 2px solid #18181b;
             font-size: 14px;
-            padding-top: 12px;
+            padding-top: 10px;
           }
           .grand-total-val {
             color: #FF5E36;
+            font-size: 16px;
           }
           .notes-box {
-            border-top: 1px solid #f0f0f0;
-            padding-top: 15px;
-            margin-top: 20px;
-            font-size: 11px;
+            margin-top: 24px;
+            padding: 14px 18px;
+            background-color: #fafafa;
+            border-radius: 6px;
+            font-size: 12px;
             color: #52525b;
+            border: 1px solid #f4f4f5;
           }
           .footer {
-            border-top: 1px solid #f0f0f0;
-            padding-top: 20px;
+            margin-top: 36px;
+            padding-top: 16px;
+            border-top: 1px solid #f4f4f5;
             text-align: center;
-            margin-top: 30px;
-          }
-          .thank-you {
             font-size: 11px;
-            font-style: italic;
-            color: #71717a;
-          }
-          .system-tag {
-            font-size: 8px;
             color: #a1a1aa;
-            margin-top: 8px;
           }
         </style>
       </head>
@@ -386,45 +631,50 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             <div class="header">
               <div>
                 <h1 class="brand-title">JB51</h1>
-                <div class="brand-subtitle">EST. 1951</div>
+                <div class="brand-subtitle">EST. 1951 - ATELIER</div>
                 <div class="brand-details">
                   Chandni Chowk, New Delhi, India<br>
-                  atelier@jb51.store
+                  atelier@jb51.store | +91 98100 00051
                 </div>
               </div>
               <div class="invoice-details">
                 <div class="invoice-title">INVOICE</div>
                 <strong>Invoice #:</strong> ${escapeHtml(inv.id)}<br>
                 <strong>Date:</strong> ${escapeHtml(inv.date)}<br>
-                <strong>Payment:</strong> ${escapeHtml(inv.paymentMethod)}
+                <strong>Payment Mode:</strong> ${escapeHtml(inv.paymentMethod)}
               </div>
             </div>
             
             <div class="client-block">
               <div class="bill-to">BILL TO</div>
               <div class="client-name">${escapeHtml(inv.clientName)}</div>
-              ${inv.clientEmail ? `<div class="client-meta">${escapeHtml(inv.clientEmail)}</div>` : ''}
-              ${inv.clientPhone ? `<div class="client-meta">${escapeHtml(inv.clientPhone)}</div>` : ''}
+              ${inv.clientPhone ? `<div class="client-meta">Phone: ${escapeHtml(inv.clientPhone)}</div>` : ''}
+              ${inv.clientEmail ? `<div class="client-meta">Email: ${escapeHtml(inv.clientEmail)}</div>` : ''}
+              ${inv.clientAddress ? `<div class="client-meta">Address: ${escapeHtml(inv.clientAddress)}</div>` : ''}
             </div>
             
             <table>
               <thead>
                 <tr>
                   <th>Description</th>
-                  <th class="text-center" style="width: 80px;">Qty</th>
-                  <th class="text-right" style="width: 120px;">Rate</th>
+                  <th class="text-center" style="width: 70px;">Qty</th>
+                  <th class="text-right" style="width: 110px;">Rate</th>
                   <th class="text-right" style="width: 120px;">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                ${inv.items.map((item: any) => `
+                ${inv.items
+                  .map(
+                    (item: any) => `
                   <tr>
                     <td>${escapeHtml(item.name)}</td>
                     <td class="text-center">${item.quantity}</td>
-                    <td class="text-right">₹${item.price.toLocaleString('en-IN')}</td>
-                    <td class="text-right" style="font-weight: 600;">₹${item.total.toLocaleString('en-IN')}</td>
+                    <td class="text-right">&#8377;${item.price.toLocaleString('en-IN')}</td>
+                    <td class="text-right" style="font-weight: 700;">&#8377;${item.total.toLocaleString('en-IN')}</td>
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join('')}
               </tbody>
             </table>
             
@@ -432,35 +682,42 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
               <tbody>
                 <tr>
                   <td>Subtotal:</td>
-                  <td class="text-right">₹${invSubtotal.toLocaleString('en-IN')}</td>
+                  <td class="text-right">&#8377;${inv.subtotal.toLocaleString('en-IN')}</td>
                 </tr>
                 <tr>
                   <td>GST (${escapeHtml(inv.taxRate)}%):</td>
-                  <td class="text-right">₹${invTaxAmount.toLocaleString('en-IN')}</td>
+                  <td class="text-right">&#8377;${inv.taxAmount.toLocaleString('en-IN')}</td>
                 </tr>
-                ${invDiscountAmount > 0 ? `
+                ${
+                  inv.discount > 0
+                    ? `
                   <tr>
                     <td>Discount:</td>
-                    <td class="text-right" style="color: #22c55e;">- ₹${invDiscountAmount.toLocaleString('en-IN')}</td>
+                    <td class="text-right" style="color: #16a34a;">- &#8377;${inv.discount.toLocaleString('en-IN')}</td>
                   </tr>
-                ` : ''}
+                `
+                    : ''
+                }
                 <tr class="grand-total-row">
-                  <td><strong>Total Amount:</strong></td>
-                  <td class="text-right"><strong class="grand-total-val">₹${invTotalAmount.toLocaleString('en-IN')}</strong></td>
+                  <td><strong>Grand Total:</strong></td>
+                  <td class="text-right"><strong class="grand-total-val">&#8377;${inv.totalAmount.toLocaleString('en-IN')}</strong></td>
                 </tr>
               </tbody>
             </table>
 
-            ${inv.notes ? `
+            ${
+              inv.notes
+                ? `
               <div class="notes-box">
-                <strong>Notes/Alterations:</strong><br>
+                <strong>Notes / Instructions:</strong><br>
                 ${escapedNotes}
               </div>
-            ` : ''}
+            `
+                : ''
+            }
             
             <div class="footer">
-              <div class="thank-you">Thank you for your business at JB51.</div>
-              <div class="system-tag">Invoice Engine Powered by React Invoice Generator Protocol</div>
+              Thank you for shopping with JB51. All rights reserved.
             </div>
           </div>
         </div>
@@ -469,15 +726,99 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
     `;
   };
 
-  const handleExportInvoice = async () => {
-    setIsExporting(true);
+  // Complete end-to-end invoice creation flow
+  const handleCreateAndShareInvoice = async () => {
+    const clientName = formValues.clientName.trim();
+    if (!clientName) {
+      showAlert('Customer Required', 'Please enter or select a customer.', 'error');
+      return;
+    }
+    if (invoiceItems.length === 0) {
+      showAlert('Items Required', 'Please add at least one item to the invoice.', 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const newInvoice = {
-        id: formValues.invoiceNumber,
-        clientName: formValues.clientName.trim(),
+      const invNumber =
+        formValues.invoiceNumber ||
+        `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const orderNumber = invNumber.replace('INV', 'ORD');
+
+      // 1. Create Order in DB (items saved to order_items table)
+      const orderPayload = {
+        orderNumber,
+        customerId: selectedCustomerId || null,
+        status: 'confirmed',
+        paymentMethod: formValues.paymentMethod.toLowerCase(),
+        subtotal,
+        gst: taxAmount,
+        discount: discountAmount,
+        totalAmount,
+        items: invoiceItems.map((item) => ({
+          productId: item.productId,
+          productVariantId: item.productVariantId || null,
+          productName: item.name,
+          variantColor: item.variantColor || null,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          total: item.total,
+        })),
+        notes: formValues.notes.trim() || null,
+      };
+
+      const createdOrder = await onCreateOrder(orderPayload);
+
+      // 2. Record inventory deduction for each line item
+      for (const item of invoiceItems) {
+        try {
+          await onRecordTransaction({
+            productId: item.productId,
+            productVariantId: item.productVariantId || null,
+            type: 'sale',
+            quantity: item.quantity,
+            name: clientName,
+            phoneNumber: formValues.clientPhone.trim() || undefined,
+            email: formValues.clientEmail.trim() || undefined,
+            address: formValues.clientAddress.trim() || undefined,
+            unitPrice: item.price,
+            totalAmount: item.total,
+            notes: `Invoice sale (${invNumber})`,
+          });
+        } catch (invErr) {
+          console.warn(`[Inventory deduction notice]:`, invErr);
+        }
+      }
+
+      // 3. Create Invoice in DB
+      const invoicePayload = {
+        invoiceNumber: invNumber,
+        orderId: createdOrder?.id || null,
+        customerId: selectedCustomerId || null,
+        customerName: clientName,
+        phoneNumber: formValues.clientPhone.trim() || null,
+        email: formValues.clientEmail.trim() || null,
+        subtotal,
+        gst: taxAmount,
+        discount: discountAmount,
+        totalAmount,
+        finalAmount: totalAmount,
+        mode: (formValues.paymentMethod.toLowerCase() === 'cash' ? 'cash' : 'online') as 'cash' | 'online',
+        items: invoiceItems,
+        notes: formValues.notes.trim() || null,
+      };
+
+      await onCreateInvoice(invoicePayload);
+
+      // 4. Generate & Share PDF
+      const pdfData = {
+        id: invNumber,
+        clientName,
         clientPhone: formValues.clientPhone.trim(),
         clientEmail: formValues.clientEmail.trim(),
-        date: formValues.invoiceDate,
+        clientAddress: formValues.clientAddress.trim(),
+        date: formValues.invoiceDate || new Date().toLocaleDateString('en-IN'),
         items: invoiceItems,
         subtotal,
         taxRate: formValues.taxRate,
@@ -485,38 +826,47 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
         discount: discountAmount,
         totalAmount,
         paymentMethod: formValues.paymentMethod,
-        notes: formValues.notes.trim()
+        notes: formValues.notes.trim(),
       };
 
-      const html = generateInvoiceHtml(newInvoice);
+      const html = generateInvoiceHtml(pdfData);
       const { uri } = await Print.printToFileAsync({ html });
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Share Invoice ${formValues.invoiceNumber}`,
-          UTI: 'com.adobe.pdf'
+          dialogTitle: `Share Invoice ${invNumber}`,
+          UTI: 'com.adobe.pdf',
         });
-      } else {
-        showAlert('Sharing Unavailable', 'Sharing is not available on this platform.', 'error');
       }
 
-      setInvoices(prev => [newInvoice, ...prev]);
+      showAlert(
+        'Invoice Created',
+        `Invoice ${invNumber} was saved, order recorded, and inventory updated!`,
+        'success'
+      );
+
+      // 5. Refresh databases & Reset form
+      await Promise.all([
+        onFetchInvoices(),
+        onFetchOrders(),
+        onFetchCustomers(),
+      ]);
+
       setIsPreviewOpen(false);
       setIsFormOpen(false);
-      showAlert('Success', `Invoice ${formValues.invoiceNumber} created and shared.`, 'success');
-
-      // Reset form fields
       reset();
       setInvoiceItems([]);
-    } catch (error) {
-      console.error(error);
-      showAlert('Error', 'Failed to generate and share invoice PDF.', 'error');
+      setSelectedCustomerId(null);
+    } catch (err: any) {
+      console.error('[handleCreateAndShareInvoice Error]:', err);
+      showAlert('Creation Failed', err.message || 'Failed to complete invoice creation.', 'error');
     } finally {
-      setIsExporting(false);
+      setIsSubmitting(false);
     }
   };
 
+  // Share existing past invoice
   const handleSharePastInvoice = async (inv: any) => {
     setIsExporting(true);
     try {
@@ -527,7 +877,7 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
           dialogTitle: `Share Invoice ${inv.id}`,
-          UTI: 'com.adobe.pdf'
+          UTI: 'com.adobe.pdf',
         });
       } else {
         showAlert('Sharing Unavailable', 'Sharing is not available on this platform.', 'error');
@@ -544,21 +894,47 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
     }
   };
 
-  const onPreviewSubmit = (data: InvoiceFormValues) => {
-    if (!data.clientName.trim()) {
-      showAlert('Input Required', 'Please enter the customer name.', 'error');
-      return;
-    }
-    if (invoiceItems.length === 0) {
-      showAlert('Input Required', 'Please add at least one item to the invoice.', 'error');
-      return;
-    }
-    setIsPreviewOpen(true);
+  // Open invoice creator
+  const handleOpenNewInvoice = () => {
+    setIsPreviewOpen(false);
+    setViewingInvoice(null);
+    setSelectedCustomerId(null);
+    setInvoiceItems([]);
+    setSelectedProduct(null);
+    setSelectedVariant(null);
+    setShowCustomerDropdown(false);
+    setShowProductDropdown(false);
+
+    reset({
+      invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceDate: new Date().toLocaleDateString('en-IN'),
+      clientName: '',
+      clientEmail: '',
+      clientPhone: '',
+      clientAddress: '',
+      taxRate: '12',
+      discount: '0',
+      paymentMethod: 'Online',
+      notes: '',
+    });
+
+    setIsFormOpen(true);
   };
 
-  const totalCollected = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const onlineCollected = invoices.filter(inv => inv.paymentMethod === 'Online').reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const cashCollected = invoices.filter(inv => inv.paymentMethod === 'Cash').reduce((sum, inv) => sum + inv.totalAmount, 0);
+  const totalCollected = invoices.reduce(
+    (sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0),
+    0
+  );
+  const totalOrdersValue = orders.reduce(
+    (sum, ord) => sum + Number(ord.totalAmount || 0),
+    0
+  );
+  const onlineCollected = invoices
+    .filter((inv) => (inv.mode || 'cash').toLowerCase() === 'online')
+    .reduce((sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0), 0);
+  const cashCollected = invoices
+    .filter((inv) => (inv.mode || 'cash').toLowerCase() === 'cash')
+    .reduce((sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0), 0);
 
   if (isLoading) {
     return (
@@ -590,8 +966,9 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
       style={{ flex: 1 }}
     >
       {!isFormOpen ? (
+        // ---------------- LEDGER / PAST INVOICES & ORDERS VIEW ----------------
         <View style={styles.container}>
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContainer}
             alwaysBounceVertical={true}
             refreshControl={
@@ -609,27 +986,13 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             {/* Header */}
             <View style={styles.ledgerHeader}>
               <View>
-                <Text style={styles.ledgerTitle}>Invoice Ledger</Text>
-                <Text style={styles.ledgerSubtitle}>Manage client transactions</Text>
+                <Text style={styles.ledgerTitle}>Invoices & Orders</Text>
+                <Text style={styles.ledgerSubtitle}>
+                  {invoices.length} {invoices.length === 1 ? 'invoice' : 'invoices'} • {orders.length} {orders.length === 1 ? 'order' : 'orders'} recorded
+                </Text>
               </View>
               <TouchableOpacity
-                onPress={() => {
-                  setIsPreviewOpen(false);
-                  setViewingInvoice(null);
-                  reset({
-                    invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    invoiceDate: new Date().toLocaleDateString('en-IN'),
-                    clientName: '',
-                    clientEmail: '',
-                    clientPhone: '',
-                    taxRate: '12',
-                    discount: '0',
-                    paymentMethod: 'Online',
-                    notes: '',
-                  });
-                  setInvoiceItems([]);
-                  setIsFormOpen(true);
-                }}
+                onPress={handleOpenNewInvoice}
                 style={styles.newInvoiceButtonHeader}
                 accessibilityLabel="Create a new invoice button"
                 accessibilityRole="button"
@@ -643,88 +1006,337 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             <View style={styles.statsContainer}>
               <View style={styles.statsCard}>
                 <Text style={styles.statsLabel}>Total Revenue</Text>
-                <Text style={styles.statsValue}>₹{totalCollected.toLocaleString('en-IN')}</Text>
+                <Text style={styles.statsValue}>
+                  &#8377;{totalCollected.toLocaleString('en-IN')}
+                </Text>
               </View>
               <View style={[styles.statsCard, { borderColor: '#e0f2fe' }]}>
-                <Text style={[styles.statsLabel, { color: '#0284c7' }]}>Online Pay</Text>
-                <Text style={[styles.statsValue, { color: '#0284c7' }]}>₹{onlineCollected.toLocaleString('en-IN')}</Text>
+                <Text style={[styles.statsLabel, { color: '#0284c7' }]}>
+                  Orders Value
+                </Text>
+                <Text style={[styles.statsValue, { color: '#0284c7' }]}>
+                  &#8377;{totalOrdersValue.toLocaleString('en-IN')}
+                </Text>
               </View>
               <View style={[styles.statsCard, { borderColor: '#fef3c7' }]}>
-                <Text style={[styles.statsLabel, { color: '#d97706' }]}>Cash Pay</Text>
-                <Text style={[styles.statsValue, { color: '#d97706' }]}>₹{cashCollected.toLocaleString('en-IN')}</Text>
+                <Text style={[styles.statsLabel, { color: '#d97706' }]}>
+                  Cash Pay
+                </Text>
+                <Text style={[styles.statsValue, { color: '#d97706' }]}>
+                  &#8377;{cashCollected.toLocaleString('en-IN')}
+                </Text>
               </View>
             </View>
 
-            {/* Created Invoices Section */}
-            <Text style={styles.sectionHeader}>Created Invoices</Text>
-            {invoices.length === 0 ? (
-              <View style={styles.emptyState}>
-                <FileText size={32} color="#a1a1aa" />
-                <Text style={styles.emptyStateText}>No invoices found</Text>
-                <Text style={styles.emptyStateSub}>Tap "New Invoice" to create one</Text>
-              </View>
-            ) : (
-              invoices.map((inv) => (
-                <View key={inv.id} style={styles.invoiceCard}>
-                  <TouchableOpacity
-                    style={styles.invoiceCardMain}
-                    onPress={() => {
-                      setViewingInvoice(inv);
-                      setIsPreviewOpen(true);
-                    }}
-                    accessibilityLabel={`Invoice card for customer ${inv.clientName}, amount ₹${inv.totalAmount}`}
-                    accessibilityRole="button"
-                  >
-                    <View style={styles.invoiceCardHeader}>
-                      <Text style={styles.invoiceCardClient}>{inv.clientName}</Text>
-                      <Text style={styles.invoiceCardDate}>{inv.date}</Text>
-                    </View>
+            {/* Segmented Tab Switch: Invoices vs Order History */}
+            <View style={styles.ledgerSegmentedContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.ledgerSegmentTab,
+                  activeLedgerTab === 'invoices' && styles.ledgerSegmentTabActive,
+                ]}
+                onPress={() => setActiveLedgerTab('invoices')}
+              >
+                <Receipt
+                  size={14}
+                  color={activeLedgerTab === 'invoices' ? '#FF5E36' : '#71717a'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.ledgerSegmentText,
+                    activeLedgerTab === 'invoices' && styles.ledgerSegmentTextActive,
+                  ]}
+                >
+                  Invoices ({invoices.length})
+                </Text>
+              </TouchableOpacity>
 
-                    <View style={styles.invoiceCardBody}>
-                      <Text style={styles.invoiceCardId}>{inv.id}</Text>
-                      <Text style={styles.invoiceCardCount}>{inv.items.length} {inv.items.length === 1 ? 'item' : 'items'}</Text>
-                    </View>
+              <TouchableOpacity
+                style={[
+                  styles.ledgerSegmentTab,
+                  activeLedgerTab === 'orders' && styles.ledgerSegmentTabActive,
+                ]}
+                onPress={() => setActiveLedgerTab('orders')}
+              >
+                <PackageCheck
+                  size={14}
+                  color={activeLedgerTab === 'orders' ? '#FF5E36' : '#71717a'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.ledgerSegmentText,
+                    activeLedgerTab === 'orders' && styles.ledgerSegmentTextActive,
+                  ]}
+                >
+                  Order History ({orders.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-                    {inv.notes ? (
-                      <Text style={styles.invoiceCardNotes} numberOfLines={1}>
-                        Note: {inv.notes}
-                      </Text>
-                    ) : null}
+            {/* Search Bar for Invoices or Orders */}
+            <View style={styles.searchBar}>
+              <Search size={15} color="#a1a1aa" style={{ marginRight: 8 }} />
+              <TextInput
+                placeholder={
+                  activeLedgerTab === 'invoices'
+                    ? 'Search invoice #, customer name, or phone...'
+                    : 'Search order #, customer name, or item...'
+                }
+                placeholderTextColor="#a1a1aa"
+                value={searchFilter}
+                onChangeText={setSearchFilter}
+                style={styles.searchInput}
+              />
+              {searchFilter.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchFilter('')}>
+                  <X size={14} color="#a1a1aa" />
+                </TouchableOpacity>
+              )}
+            </View>
 
-                    <View style={styles.invoiceCardFooter}>
-                      <Text style={styles.invoiceCardAmount}>₹{inv.totalAmount.toLocaleString('en-IN')}</Text>
-                      <View style={[
-                        styles.badge,
-                        inv.paymentMethod === 'Online' ? styles.badgeOnline : styles.badgeCash
-                      ]}>
-                        <Text style={inv.paymentMethod === 'Online' ? styles.badgeOnlineText : styles.badgeCashText}>
-                          {inv.paymentMethod}
-                        </Text>
+            {/* ================= INVOICES TAB ================= */}
+            {activeLedgerTab === 'invoices' ? (
+              <>
+                <Text style={styles.sectionHeader}>Stored Invoices</Text>
+                {filteredInvoices.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <FileText size={32} color="#a1a1aa" />
+                    <Text style={styles.emptyStateText}>
+                      {searchFilter ? 'No matching invoices' : 'No invoices yet'}
+                    </Text>
+                    <Text style={styles.emptyStateSub}>
+                      {searchFilter
+                        ? 'Try adjusting your search criteria'
+                        : 'Tap "New Invoice" above to generate your first invoice'}
+                    </Text>
+                  </View>
+                ) : (
+                  filteredInvoices.map((inv) => {
+                    const isCash = (inv.mode || 'cash').toLowerCase() === 'cash';
+                    const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);
+                    const itemCount = Array.isArray(inv.items) ? inv.items.length : 1;
+                    const dateDisplay = inv.createdAt
+                      ? new Date(inv.createdAt).toLocaleDateString('en-IN')
+                      : 'Recent';
+
+                    return (
+                      <View key={inv.id} style={styles.invoiceCard}>
+                        <TouchableOpacity
+                          style={styles.invoiceCardMain}
+                          onPress={() => {
+                            setViewingInvoice(inv);
+                            setIsPreviewOpen(true);
+                          }}
+                          accessibilityLabel={`Invoice card for ${inv.customerName || 'Customer'}`}
+                          accessibilityRole="button"
+                        >
+                          <View style={styles.invoiceCardHeader}>
+                            <Text style={styles.invoiceCardClient}>
+                              {inv.customerName || 'Walk-in Customer'}
+                            </Text>
+                            <Text style={styles.invoiceCardDate}>{dateDisplay}</Text>
+                          </View>
+
+                          <View style={styles.invoiceCardBody}>
+                            <Text style={styles.invoiceCardId}>
+                              {inv.invoiceNumber || inv.id}
+                            </Text>
+                            <Text style={styles.invoiceCardCount}>
+                              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                            </Text>
+                          </View>
+
+                          {inv.notes ? (
+                            <Text style={styles.invoiceCardNotes} numberOfLines={1}>
+                              Note: {inv.notes}
+                            </Text>
+                          ) : null}
+
+                          <View style={styles.invoiceCardFooter}>
+                            <Text style={styles.invoiceCardAmount}>
+                              &#8377;{amt.toLocaleString('en-IN')}
+                            </Text>
+                            <View
+                              style={[
+                                styles.badge,
+                                !isCash ? styles.badgeOnline : styles.badgeCash,
+                              ]}
+                            >
+                              <Text
+                                style={
+                                  !isCash
+                                    ? styles.badgeOnlineText
+                                    : styles.badgeCashText
+                                }
+                              >
+                                {!isCash ? 'Online' : 'Cash'}
+                              </Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() =>
+                            onDeleteInvoice(
+                              inv.id,
+                              inv.invoiceNumber || inv.customerName || 'Invoice'
+                            )
+                          }
+                          style={styles.deleteInvoiceBtn}
+                          accessibilityLabel={`Delete invoice ${inv.invoiceNumber || inv.id}`}
+                          accessibilityRole="button"
+                        >
+                          <Trash2 size={16} color="#ef4444" />
+                        </TouchableOpacity>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+                    );
+                  })
+                )}
+              </>
+            ) : (
+              // ================= ORDER HISTORY TAB =================
+              <>
+                <Text style={styles.sectionHeader}>Order History</Text>
+                {filteredOrders.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <ShoppingBag size={32} color="#a1a1aa" />
+                    <Text style={styles.emptyStateText}>
+                      {searchFilter ? 'No matching orders' : 'No orders recorded yet'}
+                    </Text>
+                    <Text style={styles.emptyStateSub}>
+                      {searchFilter
+                        ? 'Try searching by order number or customer name'
+                        : 'Orders are automatically created whenever you generate an invoice.'}
+                    </Text>
+                  </View>
+                ) : (
+                  filteredOrders.map((ord) => {
+                    const isCash = (ord.paymentMethod || 'cash').toLowerCase() === 'cash';
+                    const amt = Number(ord.totalAmount || 0);
+                    const items = ord.items || [];
+                    const dateDisplay = ord.createdAt
+                      ? new Date(ord.createdAt).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : 'Recent';
 
-                  <TouchableOpacity
-                    onPress={() => handleDeleteInvoice(inv.id, inv.clientName)}
-                    style={styles.deleteInvoiceBtn}
-                    accessibilityLabel={`Delete invoice ${inv.id}`}
-                    accessibilityRole="button"
-                  >
-                    <Trash2 size={16} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              ))
+                    return (
+                      <View key={ord.id} style={styles.orderCard}>
+                        {/* Order Card Header */}
+                        <View style={styles.orderCardHeader}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.orderCustomerName}>
+                              {ord.customerName || 'Walk-in Customer'}
+                            </Text>
+                            {ord.customerPhone ? (
+                              <Text style={styles.orderCustomerPhone}>
+                                {ord.customerPhone}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Text style={styles.orderDate}>{dateDisplay}</Text>
+                        </View>
+
+                        {/* Badges Row */}
+                        <View style={styles.orderBadgeRow}>
+                          <View style={styles.orderNumberBadge}>
+                            <ShoppingBag size={11} color="#FF5E36" style={{ marginRight: 4 }} />
+                            <Text style={styles.orderNumberText}>{ord.orderNumber}</Text>
+                          </View>
+
+                          <View style={styles.orderStatusBadge}>
+                            <Text style={styles.orderStatusText}>
+                              {ord.status || 'Confirmed'}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={[
+                              styles.badge,
+                              !isCash ? styles.badgeOnline : styles.badgeCash,
+                            ]}
+                          >
+                            <Text
+                              style={
+                                !isCash
+                                  ? styles.badgeOnlineText
+                                  : styles.badgeCashText
+                              }
+                            >
+                              {!isCash ? 'Online' : 'Cash'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Order Items Breakdown */}
+                        <View style={styles.orderItemsContainer}>
+                          {items.length > 0 ? (
+                            items.map((it, idx) => (
+                              <View key={idx} style={styles.orderItemRow}>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.orderItemName} numberOfLines={1}>
+                                    {it.productName}
+                                  </Text>
+                                  {it.variantColor ? (
+                                    <Text style={styles.orderItemVariant}>
+                                      Color: {it.variantColor}
+                                    </Text>
+                                  ) : null}
+                                </View>
+                                <Text style={styles.orderItemQty}>x{it.quantity}</Text>
+                                <Text style={styles.orderItemPrice}>
+                                  &#8377;{Number(it.total).toLocaleString('en-IN')}
+                                </Text>
+                              </View>
+                            ))
+                          ) : (
+                            <Text style={styles.orderNoItems}>No item details available</Text>
+                          )}
+                        </View>
+
+                        {/* Order Financials & View Button */}
+                        <View style={styles.orderCardFooter}>
+                          <View>
+                            <Text style={styles.orderTotalLabel}>Total Amount</Text>
+                            <Text style={styles.orderTotalValue}>
+                              &#8377;{amt.toLocaleString('en-IN')}
+                            </Text>
+                          </View>
+
+                          <TouchableOpacity
+                            onPress={() => setSelectedOrderModal(ord)}
+                            style={styles.orderViewDetailsBtn}
+                            accessibilityLabel={`View details for order ${ord.orderNumber}`}
+                            accessibilityRole="button"
+                          >
+                            <Eye size={13} color="#ffffff" style={{ marginRight: 5 }} />
+                            <Text style={styles.orderViewDetailsBtnText}>Order Details</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </>
             )}
           </ScrollView>
         </View>
       ) : (
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContainer}>
-          {/* Form header Cancel row */}
+        // ---------------- NEW INVOICE CREATION FORM ----------------
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContainer}
+        >
+          {/* Form Header */}
           <View style={styles.formHeader}>
             <TouchableOpacity
               onPress={() => setIsFormOpen(false)}
               style={styles.formBackButton}
-              accessibilityLabel="Cancel invoice creation and go back to ledger"
+              accessibilityLabel="Cancel invoice creation"
               accessibilityRole="button"
             >
               <X size={18} color="#71717a" />
@@ -733,65 +1345,140 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             <Text style={styles.formTitle}>New Invoice</Text>
           </View>
 
-          <Text style={styles.sectionHeader}>Customer Details</Text>
+          {/* Customer Selection Section */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>Customer Details</Text>
+            <TouchableOpacity
+              onPress={() => setIsAddCustomerModalOpen(true)}
+              style={styles.addCustomerInlineBtn}
+            >
+              <UserPlus size={13} color="#FF5E36" />
+              <Text style={styles.addCustomerInlineText}>Add Manually</Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* Bill to Client Information */}
           <View style={styles.card}>
-            {/* Customer pre-population selection */}
+            {/* Customer Dropdown Trigger */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Choose Client Profile (Optional)</Text>
+              <Text style={styles.inputLabel}>Choose Existing Customer</Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowCustomerDropdown(!showCustomerDropdown);
                   setShowProductDropdown(false);
                 }}
                 style={styles.dropdownTrigger}
-                accessibilityLabel="Select client drop-down menu trigger"
+                accessibilityLabel="Select customer dropdown"
                 accessibilityRole="button"
               >
-                <Text style={styles.dropdownValue}>
-                  Select customer profile to autofill...
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <User size={15} color={selectedCustomerId ? '#FF5E36' : '#a1a1aa'} style={{ marginRight: 8 }} />
+                  <Text
+                    style={[
+                      styles.dropdownValue,
+                      !formValues.clientName && { color: '#a1a1aa' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {formValues.clientName
+                      ? `${formValues.clientName} ${formValues.clientPhone ? `(${formValues.clientPhone})` : ''}`
+                      : 'Select from database...'}
+                  </Text>
+                </View>
                 <ChevronDown size={14} color="#71717a" />
               </TouchableOpacity>
             </View>
 
-            {/* Expanded Customer Dropdown List */}
+            {/* Expanded Customer Picker */}
             {showCustomerDropdown && (
               <View style={styles.dropdownContainer}>
-                <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-                  {MOCK_CUSTOMERS.map((cust, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={styles.dropdownOption}
-                      onPress={() => {
-                        setValue('clientName', cust.name, { shouldDirty: true });
-                        setValue('clientPhone', cust.phone, { shouldDirty: true });
-                        setValue('clientEmail', cust.email, { shouldDirty: true });
-                        setShowCustomerDropdown(false);
-                      }}
-                      accessibilityLabel={`Choose client profile ${cust.name}`}
-                      accessibilityRole="button"
-                    >
-                      <View>
-                        <Text style={styles.dropdownOptionText}>{cust.name}</Text>
-                        <Text style={{ fontSize: 10, color: '#71717a', marginTop: 2 }}>{cust.phone} | {cust.email}</Text>
-                      </View>
+                {/* Search input */}
+                <View style={styles.dropdownSearchBox}>
+                  <Search size={13} color="#a1a1aa" style={{ marginRight: 6 }} />
+                  <TextInput
+                    placeholder="Search name, phone, or email..."
+                    placeholderTextColor="#a1a1aa"
+                    value={customerSearchQuery}
+                    onChangeText={setCustomerSearchQuery}
+                    style={styles.dropdownSearchInput}
+                  />
+                  {customerSearchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setCustomerSearchQuery('')}>
+                      <X size={12} color="#a1a1aa" />
                     </TouchableOpacity>
-                  ))}
+                  )}
+                </View>
+
+                {/* Quick Add Button inside dropdown */}
+                <TouchableOpacity
+                  style={styles.dropdownQuickAddBtn}
+                  onPress={() => {
+                    setShowCustomerDropdown(false);
+                    setIsAddCustomerModalOpen(true);
+                  }}
+                >
+                  <UserPlus size={14} color="#FF5E36" style={{ marginRight: 6 }} />
+                  <Text style={styles.dropdownQuickAddText}>
+                    + Add New Customer Manually
+                  </Text>
+                </TouchableOpacity>
+
+                <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+                  {filteredCustomers.length === 0 ? (
+                    <View style={styles.dropdownEmpty}>
+                      <Text style={styles.dropdownEmptyText}>
+                        No customers found.
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setShowCustomerDropdown(false);
+                          setIsAddCustomerModalOpen(true);
+                        }}
+                      >
+                        <Text style={styles.dropdownEmptyAction}>
+                          Click to add manually
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    filteredCustomers.map((cust) => {
+                      const isSelected = selectedCustomerId === cust.id;
+                      return (
+                        <TouchableOpacity
+                          key={cust.id}
+                          style={[
+                            styles.dropdownOption,
+                            isSelected && styles.dropdownOptionSelected,
+                          ]}
+                          onPress={() => handleSelectCustomer(cust)}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.dropdownOptionText}>
+                              {cust.name}
+                            </Text>
+                            <Text style={styles.dropdownOptionMeta}>
+                              {[cust.phoneNumber, cust.email]
+                                .filter(Boolean)
+                                .join(' | ') || 'No contact details'}
+                            </Text>
+                          </View>
+                          {isSelected && <Check size={14} color="#FF5E36" />}
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
                 </ScrollView>
               </View>
             )}
 
+            {/* Editable Direct Customer Fields */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Customer Name *</Text>
               <Controller
                 control={control}
                 name="clientName"
-                rules={{ required: 'Customer name is required' }}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
-                    placeholder="e.g. Aditi Sharma"
+                    placeholder="e.g. Aishwarya Sen"
                     placeholderTextColor="#a1a1aa"
                     value={value}
                     onBlur={onBlur}
@@ -801,34 +1488,56 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
                 )}
               />
             </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <Controller
-                control={control}
-                name="clientEmail"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    placeholder="e.g. aditi@gmail.com"
-                    placeholderTextColor="#a1a1aa"
-                    keyboardType="email-address"
-                    value={value}
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    style={styles.textInput}
-                  />
-                )}
-              />
+
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <Controller
+                  control={control}
+                  name="clientPhone"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. +91 98123 45678"
+                      placeholderTextColor="#a1a1aa"
+                      keyboardType="phone-pad"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.textInput}
+                    />
+                  )}
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Email Address</Text>
+                <Controller
+                  control={control}
+                  name="clientEmail"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="e.g. client@gmail.com"
+                      placeholderTextColor="#a1a1aa"
+                      keyboardType="email-address"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      style={styles.textInput}
+                    />
+                  )}
+                />
+              </View>
             </View>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number</Text>
+              <Text style={styles.inputLabel}>Address / Location</Text>
               <Controller
                 control={control}
-                name="clientPhone"
+                name="clientAddress"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
-                    placeholder="e.g. +91 99887 76655"
+                    placeholder="e.g. Baner, Pune"
                     placeholderTextColor="#a1a1aa"
-                    keyboardType="phone-pad"
                     value={value}
                     onBlur={onBlur}
                     onChangeText={onChange}
@@ -839,8 +1548,10 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             </View>
           </View>
 
+          {/* Product & Variant Selection Section */}
           <Text style={styles.sectionHeader}>Select & Add Items</Text>
           <View style={styles.card}>
+            {/* Product Picker Trigger */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Choose Product *</Text>
               <TouchableOpacity
@@ -849,40 +1560,118 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
                   setShowCustomerDropdown(false);
                 }}
                 style={styles.dropdownTrigger}
-                accessibilityLabel="Select product from catalog dropdown"
+                accessibilityLabel="Select product from catalog"
                 accessibilityRole="button"
               >
-                <Text style={[styles.dropdownValue, !selectedProduct && { color: '#a1a1aa' }]}>
-                  {selectedProduct ? `${selectedProduct.name} - ₹${selectedProduct.price.toLocaleString('en-IN')}` : 'Select a product...'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <ShoppingBag
+                    size={15}
+                    color={selectedProduct ? '#FF5E36' : '#a1a1aa'}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[
+                      styles.dropdownValue,
+                      !selectedProduct && { color: '#a1a1aa' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {selectedProduct
+                      ? `${selectedProduct.name} - ₹${(selectedProduct.sellingPrice || selectedProduct.price).toLocaleString('en-IN')}`
+                      : 'Select a product from catalog...'}
+                  </Text>
+                </View>
                 <ChevronDown size={14} color="#71717a" />
               </TouchableOpacity>
             </View>
 
-            {/* Expanded Product Dropdown List */}
+            {/* Expanded Product Picker */}
             {showProductDropdown && (
               <View style={styles.dropdownContainer}>
+                <View style={styles.dropdownSearchBox}>
+                  <Search size={13} color="#a1a1aa" style={{ marginRight: 6 }} />
+                  <TextInput
+                    placeholder="Search product name..."
+                    placeholderTextColor="#a1a1aa"
+                    value={productSearchQuery}
+                    onChangeText={setProductSearchQuery}
+                    style={styles.dropdownSearchInput}
+                  />
+                </View>
+
                 <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-                  {products.map(p => (
+                  {filteredProducts.map((p) => (
                     <TouchableOpacity
                       key={p.id}
                       style={styles.dropdownOption}
-                      onPress={() => {
-                        setSelectedProduct(p);
-                        setShowProductDropdown(false);
-                      }}
-                      accessibilityLabel={`Choose product ${p.name}`}
-                      accessibilityRole="button"
+                      onPress={() => handleSelectProduct(p)}
                     >
-                      <Text style={styles.dropdownOptionText}>{p.name}</Text>
-                      <Text style={styles.dropdownOptionPrice}>₹{p.price.toLocaleString('en-IN')}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dropdownOptionText}>{p.name}</Text>
+                        <Text style={styles.dropdownOptionMeta}>
+                          {p.category} {p.variants?.length ? `• ${p.variants.length} variant(s)` : ''}
+                        </Text>
+                      </View>
+                      <Text style={styles.dropdownOptionPrice}>
+                        &#8377;{(p.sellingPrice || p.price).toLocaleString('en-IN')}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
             )}
 
+            {/* Variant Selector (if product has variants) */}
+            {selectedProduct && selectedProduct.variants && selectedProduct.variants.length > 0 && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Select Color / Variant</Text>
+                <View style={styles.variantChipsContainer}>
+                  {selectedProduct.variants.map((v, i) => {
+                    const isSelected = selectedVariant?.color === v.color;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => setSelectedVariant(v)}
+                        style={[
+                          styles.variantChip,
+                          isSelected && styles.variantChipActive,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.variantDot,
+                            { backgroundColor: v.hexCode || '#18181b' },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.variantChipText,
+                            isSelected && styles.variantChipTextActive,
+                          ]}
+                        >
+                          {v.color} ({v.stock} in stock)
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Price & Quantity Row */}
             <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.inputLabel}>Rate / Price (&#8377;)</Text>
+                <TextInput
+                  keyboardType="numeric"
+                  value={itemPrice}
+                  onChangeText={setItemPrice}
+                  placeholder="Price"
+                  placeholderTextColor="#a1a1aa"
+                  style={styles.textInput}
+                />
+              </View>
+
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.inputLabel}>Quantity</Text>
                 <TextInput
@@ -892,6 +1681,7 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
                   style={styles.textInput}
                 />
               </View>
+
               <TouchableOpacity
                 onPress={handleAddProduct}
                 style={styles.addButton}
@@ -899,29 +1689,33 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
                 accessibilityRole="button"
               >
                 <Plus size={16} color="#ffffff" style={{ marginRight: 4 }} />
-                <Text style={styles.addButtonText}>Add Item</Text>
+                <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Invoice Itemized List */}
+          {/* Line Items List */}
           {invoiceItems.length > 0 && (
             <View style={styles.card}>
-              <Text style={[styles.cardTitle, { marginBottom: 12 }]}>Line Items</Text>
+              <Text style={[styles.cardTitle, { marginBottom: 12 }]}>
+                Line Items ({invoiceItems.length})
+              </Text>
               {invoiceItems.map((item) => (
                 <View key={item.id} style={styles.invoiceItemRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.invoiceItemName}>{item.name}</Text>
                     <Text style={styles.invoiceItemSub}>
-                      {item.quantity} x ₹{item.price.toLocaleString('en-IN')}
+                      {item.quantity} x &#8377;{item.price.toLocaleString('en-IN')}
                     </Text>
                   </View>
                   <View style={styles.invoiceItemRight}>
-                    <Text style={styles.invoiceItemTotal}>₹{item.total.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.invoiceItemTotal}>
+                      &#8377;{item.total.toLocaleString('en-IN')}
+                    </Text>
                     <TouchableOpacity
                       onPress={() => handleRemoveItem(item.id)}
                       style={styles.deleteBtn}
-                      accessibilityLabel={`Delete ${item.name} item`}
+                      accessibilityLabel={`Delete ${item.name}`}
                       accessibilityRole="button"
                     >
                       <Trash2 size={13} color="#ef4444" />
@@ -932,6 +1726,7 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
             </View>
           )}
 
+          {/* Taxes, Discounts & Payment */}
           <Text style={styles.sectionHeader}>Adjustments & Payment</Text>
           <View style={styles.card}>
             <View style={styles.row}>
@@ -950,9 +1745,32 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
                     />
                   )}
                 />
+                {/* GST Presets */}
+                <View style={styles.presetsRow}>
+                  {['0', '5', '12', '18'].map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      onPress={() => setValue('taxRate', preset, { shouldDirty: true })}
+                      style={[
+                        styles.presetChip,
+                        formValues.taxRate === preset && styles.presetChipActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.presetChipText,
+                          formValues.taxRate === preset && styles.presetChipTextActive,
+                        ]}
+                      >
+                        {preset}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
+
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Discount (Flat ₹)</Text>
+                <Text style={styles.inputLabel}>Discount (Flat &#8377;)</Text>
                 <Controller
                   control={control}
                   name="discount"
@@ -974,100 +1792,380 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
               <Text style={styles.inputLabel}>Payment Method</Text>
               <View style={styles.paymentSelector}>
                 <TouchableOpacity
-                  style={[styles.paymentOption, formValues.paymentMethod === 'Online' && styles.paymentOptionActive]}
-                  onPress={() => setValue('paymentMethod', 'Online', { shouldDirty: true })}
-                  accessibilityLabel="Choose Online payment mode"
-                  accessibilityRole="button"
+                  style={[
+                    styles.paymentOption,
+                    formValues.paymentMethod === 'Online' &&
+                      styles.paymentOptionActive,
+                  ]}
+                  onPress={() =>
+                    setValue('paymentMethod', 'Online', { shouldDirty: true })
+                  }
                 >
-                  <Text style={[styles.paymentOptionText, formValues.paymentMethod === 'Online' && styles.paymentOptionTextActive]}>
+                  <Text
+                    style={[
+                      styles.paymentOptionText,
+                      formValues.paymentMethod === 'Online' &&
+                        styles.paymentOptionTextActive,
+                    ]}
+                  >
                     Online Payment
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.paymentOption, formValues.paymentMethod === 'Cash' && styles.paymentOptionActive]}
-                  onPress={() => setValue('paymentMethod', 'Cash', { shouldDirty: true })}
-                  accessibilityLabel="Choose Cash payment mode"
-                  accessibilityRole="button"
+                  style={[
+                    styles.paymentOption,
+                    formValues.paymentMethod === 'Cash' &&
+                      styles.paymentOptionActive,
+                  ]}
+                  onPress={() =>
+                    setValue('paymentMethod', 'Cash', { shouldDirty: true })
+                  }
                 >
-                  <Text style={[styles.paymentOptionText, formValues.paymentMethod === 'Cash' && styles.paymentOptionTextActive]}>
+                  <Text
+                    style={[
+                      styles.paymentOptionText,
+                      formValues.paymentMethod === 'Cash' &&
+                        styles.paymentOptionTextActive,
+                    ]}
+                  >
                     Cash Payment
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Notes Input field */}
+            {/* Notes */}
             <View style={[styles.inputGroup, { marginTop: 4 }]}>
-              <Text style={styles.inputLabel}>Notes & Tailoring Customizations</Text>
+              <Text style={styles.inputLabel}>Special Instructions / Notes</Text>
               <Controller
                 control={control}
                 name="notes"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
-                    placeholder="e.g. Custom sleeve length adjustments: 22 inches"
+                    placeholder="e.g. Alterations requested, paid advance..."
                     placeholderTextColor="#a1a1aa"
                     value={value}
                     onBlur={onBlur}
                     onChangeText={onChange}
                     multiline
-                    numberOfLines={3}
-                    style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+                    numberOfLines={2}
+                    style={[styles.textInput, { height: 60, textAlignVertical: 'top' }]}
                   />
                 )}
               />
             </View>
-          </View>
 
-          {/* Pricing Calculation Summary Sheet */}
-          <View style={styles.card}>
-            <Text style={[styles.cardTitle, { marginBottom: 12 }]}>Billing Summary</Text>
+            {/* Live Calculation Summary */}
             <View style={styles.summaryBox}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>₹{subtotal.toLocaleString('en-IN')}</Text>
+                <Text style={styles.summaryValue}>
+                  &#8377;{subtotal.toLocaleString('en-IN')}
+                </Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>GST ({formValues.taxRate || 0}%)</Text>
-                <Text style={styles.summaryValue}>₹{taxAmount.toLocaleString('en-IN')}</Text>
+                <Text style={styles.summaryLabel}>
+                  GST ({formValues.taxRate}%)
+                </Text>
+                <Text style={styles.summaryValue}>
+                  &#8377;{taxAmount.toLocaleString('en-IN')}
+                </Text>
               </View>
               {discountAmount > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Discount</Text>
-                  <Text style={[styles.summaryValue, { color: '#16a34a' }]}>-₹{discountAmount.toLocaleString('en-IN')}</Text>
+                  <Text style={[styles.summaryValue, { color: '#16a34a' }]}>
+                    - &#8377;{discountAmount.toLocaleString('en-IN')}
+                  </Text>
                 </View>
               )}
               <View style={[styles.summaryRow, styles.grandTotalRow]}>
-                <Text style={styles.grandTotalLabel}>Grand Total</Text>
-                <Text style={styles.grandTotalValue}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+                <Text style={styles.grandTotalLabel}>Total Amount</Text>
+                <Text style={styles.grandTotalValue}>
+                  &#8377;{totalAmount.toLocaleString('en-IN')}
+                </Text>
               </View>
             </View>
-          </View>
 
-          {/* Generate / Preview Trigger */}
-          <TouchableOpacity
-            onPress={handleSubmit(onPreviewSubmit)}
-            style={styles.generateButton}
-            accessibilityLabel="Preview and generate invoice button"
-            accessibilityRole="button"
-          >
-            <FileText size={18} color="#ffffff" style={{ marginRight: 6 }} />
-            <Text style={styles.generateButtonText}>Preview & Generate</Text>
-          </TouchableOpacity>
+            {/* Submit Button */}
+            <TouchableOpacity
+              onPress={() => {
+                if (!formValues.clientName.trim()) {
+                  showAlert('Customer Required', 'Please enter customer name.', 'error');
+                  return;
+                }
+                if (invoiceItems.length === 0) {
+                  showAlert('Items Required', 'Please add at least one item.', 'error');
+                  return;
+                }
+                setIsPreviewOpen(true);
+              }}
+              style={styles.generateButton}
+              accessibilityLabel="Preview and generate invoice button"
+              accessibilityRole="button"
+            >
+              <Text style={styles.generateButtonText}>Preview & Create Invoice</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       )}
 
-      {/* Invoice Document Modal Preview */}
+      {/* ---------------- ORDER DETAILS MODAL ---------------- */}
+      <Modal
+        visible={selectedOrderModal !== null}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSelectedOrderModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.orderDetailsModalCard}>
+            {/* Modal Header */}
+            <View style={styles.orderDetailsHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ShoppingBag size={18} color="#FF5E36" style={{ marginRight: 8 }} />
+                <View>
+                  <Text style={styles.orderDetailsTitle}>
+                    {selectedOrderModal?.orderNumber || 'Order Details'}
+                  </Text>
+                  <Text style={styles.orderDetailsSubtitle}>
+                    {selectedOrderModal?.createdAt
+                      ? new Date(selectedOrderModal.createdAt).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Recent Order'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedOrderModal(null)}
+                style={styles.closeBtn}
+              >
+                <X size={18} color="#71717a" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+              {/* Customer Box */}
+              <View style={styles.orderCustomerBox}>
+                <Text style={styles.orderSectionTitle}>Customer Information</Text>
+                <Text style={styles.orderCustomerNameBig}>
+                  {selectedOrderModal?.customerName || 'Walk-in Customer'}
+                </Text>
+                {selectedOrderModal?.customerPhone ? (
+                  <Text style={styles.orderCustomerMeta}>
+                    Phone: {selectedOrderModal.customerPhone}
+                  </Text>
+                ) : null}
+                {selectedOrderModal?.customerEmail ? (
+                  <Text style={styles.orderCustomerMeta}>
+                    Email: {selectedOrderModal.customerEmail}
+                  </Text>
+                ) : null}
+                {selectedOrderModal?.customerAddress ? (
+                  <Text style={styles.orderCustomerMeta}>
+                    Address: {selectedOrderModal.customerAddress}
+                  </Text>
+                ) : null}
+              </View>
+
+              {/* Items Table */}
+              <Text style={styles.orderSectionTitle}>
+                Purchased Items ({selectedOrderModal?.items?.length || 0})
+              </Text>
+              <View style={styles.orderItemsTable}>
+                {selectedOrderModal?.items && selectedOrderModal.items.length > 0 ? (
+                  selectedOrderModal.items.map((it, idx) => (
+                    <View key={idx} style={styles.orderTableRow}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={styles.orderTableRowName}>{it.productName}</Text>
+                        {it.variantColor ? (
+                          <Text style={styles.orderTableRowVariant}>
+                            Color: {it.variantColor}
+                          </Text>
+                        ) : null}
+                        <Text style={styles.orderTableRowRate}>
+                          {it.quantity} x &#8377;{Number(it.unitPrice).toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                      <Text style={styles.orderTableRowTotal}>
+                        &#8377;{Number(it.total).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.orderNoItems}>No item records found</Text>
+                )}
+              </View>
+
+              {/* Financial Summary */}
+              <View style={styles.orderFinancialsBox}>
+                {selectedOrderModal?.subtotal ? (
+                  <View style={styles.orderSummaryRow}>
+                    <Text style={styles.orderSummaryLabel}>Subtotal</Text>
+                    <Text style={styles.orderSummaryValue}>
+                      &#8377;{Number(selectedOrderModal.subtotal).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                ) : null}
+                {Number(selectedOrderModal?.gst || 0) > 0 ? (
+                  <View style={styles.orderSummaryRow}>
+                    <Text style={styles.orderSummaryLabel}>GST / Tax</Text>
+                    <Text style={styles.orderSummaryValue}>
+                      &#8377;{Number(selectedOrderModal?.gst).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                ) : null}
+                {Number(selectedOrderModal?.discount || 0) > 0 ? (
+                  <View style={styles.orderSummaryRow}>
+                    <Text style={styles.orderSummaryLabel}>Discount</Text>
+                    <Text style={[styles.orderSummaryValue, { color: '#16a34a' }]}>
+                      - &#8377;{Number(selectedOrderModal?.discount).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={[styles.orderSummaryRow, styles.orderGrandTotalRow]}>
+                  <Text style={styles.orderGrandTotalLabel}>Total Amount</Text>
+                  <Text style={styles.orderGrandTotalValue}>
+                    &#8377;{Number(selectedOrderModal?.totalAmount || 0).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Additional Details */}
+              <View style={styles.orderMetaBlock}>
+                <Text style={styles.orderMetaItem}>
+                  Status: <Text style={{ fontWeight: '700', color: '#16a34a' }}>{selectedOrderModal?.status || 'Confirmed'}</Text>
+                </Text>
+                <Text style={styles.orderMetaItem}>
+                  Payment Mode: <Text style={{ fontWeight: '700', color: '#09090b' }}>{selectedOrderModal?.paymentMethod === 'online' ? 'Online Payment' : 'Cash Payment'}</Text>
+                </Text>
+                {selectedOrderModal?.notes ? (
+                  <Text style={styles.orderMetaItem}>
+                    Notes: <Text style={{ color: '#71717a' }}>{selectedOrderModal.notes}</Text>
+                  </Text>
+                ) : null}
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setSelectedOrderModal(null)}
+                style={[styles.generateButton, { marginTop: 16 }]}
+              >
+                <Text style={styles.generateButtonText}>Close</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ---------------- MANUAL CUSTOMER CREATION MODAL ---------------- */}
+      <Modal
+        visible={isAddCustomerModalOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsAddCustomerModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.customerModalCard}>
+            <View style={styles.customerModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <UserPlus size={18} color="#FF5E36" style={{ marginRight: 8 }} />
+                <Text style={styles.customerModalTitle}>Add Customer Manually</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsAddCustomerModalOpen(false)}
+                style={styles.closeBtn}
+              >
+                <X size={18} color="#71717a" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name *</Text>
+                <TextInput
+                  placeholder="e.g. Aditi Sharma"
+                  placeholderTextColor="#a1a1aa"
+                  value={newCustomerName}
+                  onChangeText={setNewCustomerName}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  placeholder="e.g. +91 98765 43210"
+                  placeholderTextColor="#a1a1aa"
+                  keyboardType="phone-pad"
+                  value={newCustomerPhone}
+                  onChangeText={setNewCustomerPhone}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email Address</Text>
+                <TextInput
+                  placeholder="e.g. aditi@gmail.com"
+                  placeholderTextColor="#a1a1aa"
+                  keyboardType="email-address"
+                  value={newCustomerEmail}
+                  onChangeText={setNewCustomerEmail}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Address</Text>
+                <TextInput
+                  placeholder="e.g. Flat 402, Signature Tower, Pune"
+                  placeholderTextColor="#a1a1aa"
+                  value={newCustomerAddress}
+                  onChangeText={setNewCustomerAddress}
+                  multiline
+                  numberOfLines={2}
+                  style={[styles.textInput, { height: 60, textAlignVertical: 'top' }]}
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={handleSaveNewCustomer}
+                disabled={isSavingCustomer}
+                style={[styles.generateButton, { marginTop: 12 }]}
+              >
+                {isSavingCustomer ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <Text style={styles.generateButtonText}>Save & Select Customer</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ---------------- INVOICE PREVIEW / SHARE MODAL ---------------- */}
       <Modal
         visible={isPreviewOpen}
         animationType="slide"
-        transparent={false}
+        onRequestClose={() => {
+          setIsPreviewOpen(false);
+          setViewingInvoice(null);
+        }}
       >
-        <SafeAreaView style={styles.previewContainer}>
-          <View style={{ flex: 1 }}>
-            {/* Modal Header */}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f4f5' }}>
+          <View style={styles.previewContainer}>
+            {/* Header */}
             <View style={styles.previewHeader}>
               <Text style={styles.previewTitle}>
-                {isViewingPast ? `Invoice ${activeInvNumber}` : 'Preview Invoice'}
+                {isViewingPast ? 'Invoice Details' : 'Invoice Preview'}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -1075,121 +2173,159 @@ export default function InvoiceScreen({ products, showAlert, isLoading, refreshi
                   setViewingInvoice(null);
                 }}
                 style={styles.closeBtn}
-                accessibilityLabel="Close invoice preview modal button"
-                accessibilityRole="button"
               >
-                <X size={20} color="#71717a" />
+                <X size={20} color="#18181b" />
               </TouchableOpacity>
             </View>
 
-            {/* Simulated Paper Invoice Document */}
+            {/* Paper Preview */}
             <ScrollView style={styles.paperScroll} contentContainerStyle={styles.paperPadding}>
               <View style={styles.paperInvoice}>
-
-                {/* Traditional Atelier Border */}
                 <View style={styles.traditionalBorder} />
 
-                {/* Invoice Header */}
+                {/* Brand & Invoice Header */}
                 <View style={styles.invoiceHeaderRow}>
                   <View>
                     <Text style={styles.brandTitle}>JB51</Text>
-                    <Text style={styles.brandSubtitle}>EST. 1951</Text>
+                    <Text style={styles.brandSubtitle}>EST. 1951 - ATELIER</Text>
                     <Text style={styles.brandAddress}>
-                      Chandni Chowk, New Delhi, India{"\n"}
-                      atelier@jb51.store
+                      Chandni Chowk, New Delhi, India{'\n'}atelier@jb51.store
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.invoiceLabel}>INVOICE</Text>
+                    <Text style={styles.invoiceDetailLabel}>Invoice Number</Text>
                     <Text style={styles.invoiceDetailValue}>{activeInvNumber}</Text>
-                    <Text style={styles.invoiceDetailLabel}>DATE</Text>
+                    <Text style={styles.invoiceDetailLabel}>Date</Text>
                     <Text style={styles.invoiceDetailValue}>{activeInvDate}</Text>
-                    <Text style={styles.invoiceDetailLabel}>PAYMENT METHOD</Text>
+                    <Text style={styles.invoiceDetailLabel}>Payment Method</Text>
                     <Text style={styles.invoiceDetailValue}>{activePaymentMethod}</Text>
                   </View>
                 </View>
 
-                {/* Client Info Block */}
+                {/* Client Block */}
                 <View style={styles.billToBlock}>
                   <Text style={styles.billToTitle}>BILL TO</Text>
                   <Text style={styles.clientNameValue}>{activeClientName}</Text>
-                  {activeClientEmail ? <Text style={styles.clientMetaText}>{activeClientEmail}</Text> : null}
-                  {activeClientPhone ? <Text style={styles.clientMetaText}>{activeClientPhone}</Text> : null}
+                  {activeClientPhone ? (
+                    <Text style={styles.clientMetaText}>Phone: {activeClientPhone}</Text>
+                  ) : null}
+                  {activeClientEmail ? (
+                    <Text style={styles.clientMetaText}>Email: {activeClientEmail}</Text>
+                  ) : null}
+                  {activeClientAddress ? (
+                    <Text style={styles.clientMetaText}>Address: {activeClientAddress}</Text>
+                  ) : null}
                 </View>
 
-                {/* Itemized Table Header */}
+                {/* Table Header */}
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.tableCol, { flex: 2, fontWeight: 'bold' }]}>Description</Text>
-                  <Text style={[styles.tableCol, { flex: 0.5, textAlign: 'center', fontWeight: 'bold' }]}>Qty</Text>
-                  <Text style={[styles.tableCol, { flex: 1, textAlign: 'right', fontWeight: 'bold' }]}>Rate</Text>
-                  <Text style={[styles.tableCol, { flex: 1, textAlign: 'right', fontWeight: 'bold' }]}>Amount</Text>
+                  <Text style={[styles.tableCol, { flex: 2, fontWeight: 'bold' }]}>Item</Text>
+                  <Text style={[styles.tableCol, { width: 40, textAlign: 'center', fontWeight: 'bold' }]}>
+                    Qty
+                  </Text>
+                  <Text style={[styles.tableCol, { width: 70, textAlign: 'right', fontWeight: 'bold' }]}>
+                    Rate
+                  </Text>
+                  <Text style={[styles.tableCol, { width: 80, textAlign: 'right', fontWeight: 'bold' }]}>
+                    Total
+                  </Text>
                 </View>
 
-                {/* Itemized Table Rows */}
-                {activeItems.map((item: any) => (
-                  <View key={item.id} style={styles.tableRow}>
-                    <Text style={[styles.tableCol, { flex: 2, color: '#27272a' }]}>{item.name}</Text>
-                    <Text style={[styles.tableCol, { flex: 0.5, textAlign: 'center', color: '#71717a' }]}>{item.quantity}</Text>
-                    <Text style={[styles.tableCol, { flex: 1, textAlign: 'right', color: '#71717a' }]}>₹{item.price.toLocaleString('en-IN')}</Text>
-                    <Text style={[styles.tableCol, { flex: 1, textAlign: 'right', fontWeight: 'semibold', color: '#09090b' }]}>₹{item.total.toLocaleString('en-IN')}</Text>
+                {/* Table Rows */}
+                {activeItems.map((item: any, idx: number) => (
+                  <View key={idx} style={styles.tableRow}>
+                    <Text style={[styles.tableCol, { flex: 2 }]}>{item.name}</Text>
+                    <Text style={[styles.tableCol, { width: 40, textAlign: 'center' }]}>
+                      {item.quantity}
+                    </Text>
+                    <Text style={[styles.tableCol, { width: 70, textAlign: 'right' }]}>
+                      &#8377;{item.price.toLocaleString('en-IN')}
+                    </Text>
+                    <Text style={[styles.tableCol, { width: 80, textAlign: 'right', fontWeight: 'bold' }]}>
+                      &#8377;{item.total.toLocaleString('en-IN')}
+                    </Text>
                   </View>
                 ))}
 
-                {/* Totals Summary Column */}
+                {/* Totals */}
                 <View style={styles.totalsColumn}>
                   <View style={styles.totalsRow}>
                     <Text style={styles.totalsLabel}>Subtotal</Text>
-                    <Text style={styles.totalsValue}>₹{activeSubtotal.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.totalsValue}>
+                      &#8377;{activeSubtotal.toLocaleString('en-IN')}
+                    </Text>
                   </View>
                   <View style={styles.totalsRow}>
                     <Text style={styles.totalsLabel}>GST ({activeTaxRate}%)</Text>
-                    <Text style={styles.totalsValue}>₹{activeTaxAmount.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.totalsValue}>
+                      &#8377;{activeTaxAmount.toLocaleString('en-IN')}
+                    </Text>
                   </View>
                   {activeDiscountAmount > 0 && (
                     <View style={styles.totalsRow}>
                       <Text style={styles.totalsLabel}>Discount</Text>
-                      <Text style={styles.totalsValue}>- ₹{activeDiscountAmount.toLocaleString('en-IN')}</Text>
+                      <Text style={[styles.totalsValue, { color: '#16a34a' }]}>
+                        - &#8377;{activeDiscountAmount.toLocaleString('en-IN')}
+                      </Text>
                     </View>
                   )}
-                  <View style={[styles.totalsRow, { borderTopWidth: 1, borderColor: '#e4e4e7', paddingTop: 8, marginTop: 4 }]}>
+                  <View
+                    style={[
+                      styles.totalsRow,
+                      {
+                        borderTopWidth: 1,
+                        borderColor: '#e4e4e7',
+                        paddingTop: 8,
+                        marginTop: 4,
+                      },
+                    ]}
+                  >
                     <Text style={styles.grandTotalLabelText}>TOTAL AMOUNT</Text>
-                    <Text style={styles.grandTotalValueText}>₹{activeTotalAmount.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.grandTotalValueText}>
+                      &#8377;{activeTotalAmount.toLocaleString('en-IN')}
+                    </Text>
                   </View>
                 </View>
 
-                {/* Notes Display */}
+                {/* Notes */}
                 {activeNotes ? (
                   <View style={styles.notesPaperBox}>
-                    <Text style={styles.notesPaperTitle}>Notes & Tailoring Customizations:</Text>
+                    <Text style={styles.notesPaperTitle}>Notes & Instructions:</Text>
                     <Text style={styles.notesPaperContent}>{activeNotes}</Text>
                   </View>
                 ) : null}
 
-                {/* Footer Signature */}
+                {/* Footer */}
                 <View style={styles.paperFooter}>
-                  <Text style={styles.thankYouText}>Thank you for your business at JB51.</Text>
-                  <Text style={styles.systemTag}>Invoice Engine Powered by React Invoice Generator Protocol</Text>
+                  <Text style={styles.thankYouText}>
+                    Thank you for your patronage at JB51.
+                  </Text>
                 </View>
-
               </View>
             </ScrollView>
 
-            {/* Export Bar */}
+            {/* Bottom Export / Create Bar */}
             <View style={styles.exportBar}>
               <TouchableOpacity
-                onPress={() => isViewingPast ? handleSharePastInvoice(viewingInvoice) : handleExportInvoice()}
-                disabled={isExporting}
+                onPress={() =>
+                  isViewingPast
+                    ? handleSharePastInvoice(resolvedInvoice)
+                    : handleCreateAndShareInvoice()
+                }
+                disabled={isSubmitting || isExporting}
                 style={styles.exportBtn}
-                accessibilityLabel={isViewingPast ? "Reshare past invoice PDF" : "Generate and save invoice button"}
                 accessibilityRole="button"
               >
-                {isExporting ? (
-                  <Text style={styles.exportBtnText}>Generating PDF...</Text>
+                {isSubmitting || isExporting ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
                 ) : (
                   <>
-                    <Printer size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                    <Printer size={16} color="#ffffff" style={{ marginRight: 8 }} />
                     <Text style={styles.exportBtnText}>
-                      {isViewingPast ? 'Share PDF Invoice' : 'Generate & Save Invoice'}
+                      {isViewingPast
+                        ? 'Share PDF Invoice'
+                        : 'Create & Share Invoice'}
                     </Text>
                   </>
                 )}
@@ -1215,7 +2351,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   ledgerTitle: {
     fontSize: 22,
@@ -1234,18 +2370,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 38,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     gap: 6,
+    shadowColor: '#FF5E36',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   newInvoiceButtonTextHeader: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 14,
     gap: 8,
   },
   statsCard: {
@@ -1270,141 +2411,63 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#18181b',
   },
-  invoiceCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    marginBottom: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-    position: 'relative',
-  },
-  invoiceCardMain: {
-    padding: 16,
-    paddingRight: 60,
-  },
-  invoiceCardHeader: {
+  // Segmented Switch
+  ledgerSegmentedContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
+    backgroundColor: '#f4f4f5',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 14,
   },
-  invoiceCardClient: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  invoiceCardDate: {
-    fontSize: 11,
-    color: '#71717a',
-  },
-  invoiceCardBody: {
+  ledgerSegmentTab: {
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  invoiceCardId: {
-    fontSize: 11,
-    color: '#a1a1aa',
-  },
-  invoiceCardCount: {
-    fontSize: 11,
-    color: '#71717a',
-  },
-  invoiceCardNotes: {
-    fontSize: 10,
-    color: '#a1a1aa',
-    fontStyle: 'italic',
-    marginTop: 8,
-    backgroundColor: '#f8f8f8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  invoiceCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
-  },
-  invoiceCardAmount: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#FF5E36',
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  badgeOnline: {
-    backgroundColor: '#ecfdf5',
-  },
-  badgeOnlineText: {
-    color: '#059669',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  badgeCash: {
-    backgroundColor: '#fffbeb',
-  },
-  badgeCashText: {
-    color: '#d97706',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  emptyState: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    padding: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 10,
+    paddingVertical: 9,
+    borderRadius: 8,
   },
-  emptyStateText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#52525b',
-    marginTop: 10,
+  ledgerSegmentTabActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  emptyStateSub: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    marginTop: 4,
+  ledgerSegmentText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#71717a',
   },
-  formHeader: {
+  ledgerSegmentTextActive: {
+    color: '#FF5E36',
+    fontWeight: '700',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#18181b',
+    padding: 0,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-  },
-  formTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  formBackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  formBackButtonText: {
-    fontSize: 14,
-    color: '#71717a',
-    fontWeight: '500',
+    marginTop: 8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
   sectionHeader: {
     fontSize: 10,
@@ -1412,9 +2475,23 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2,
     color: '#71717a',
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 8,
     paddingLeft: 4,
+  },
+  addCustomerInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#fff7ed',
+    borderRadius: 6,
+  },
+  addCustomerInlineText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF5E36',
   },
   card: {
     backgroundColor: '#ffffff',
@@ -1477,9 +2554,38 @@ const styles = StyleSheet.create({
     borderColor: '#e4e4e7',
     borderRadius: 8,
     backgroundColor: '#ffffff',
-    maxHeight: 150,
+    maxHeight: 220,
     marginBottom: 12,
     overflow: 'hidden',
+  },
+  dropdownSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f4f4f5',
+    backgroundColor: '#fafafa',
+  },
+  dropdownSearchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: '#18181b',
+    padding: 0,
+  },
+  dropdownQuickAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff7ed',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fed7aa',
+  },
+  dropdownQuickAddText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF5E36',
   },
   dropdownScroll: {
     flexGrow: 0,
@@ -1487,19 +2593,78 @@ const styles = StyleSheet.create({
   dropdownOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f4f4f5',
   },
+  dropdownOptionSelected: {
+    backgroundColor: '#fff7ed',
+  },
   dropdownOptionText: {
     fontSize: 13,
+    fontWeight: '600',
     color: '#18181b',
+  },
+  dropdownOptionMeta: {
+    fontSize: 10,
+    color: '#71717a',
+    marginTop: 2,
   },
   dropdownOptionPrice: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FF5E36',
+  },
+  dropdownEmpty: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  dropdownEmptyText: {
+    fontSize: 12,
+    color: '#a1a1aa',
+  },
+  dropdownEmptyAction: {
+    fontSize: 12,
+    color: '#FF5E36',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  variantChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  variantChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    backgroundColor: '#fafafa',
+  },
+  variantChipActive: {
+    borderColor: '#FF5E36',
+    backgroundColor: '#fff7ed',
+  },
+  variantDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: '#d4d4d8',
+  },
+  variantChipText: {
+    fontSize: 11,
+    color: '#52525b',
+  },
+  variantChipTextActive: {
+    color: '#FF5E36',
+    fontWeight: '700',
   },
   addButton: {
     backgroundColor: '#18181b',
@@ -1526,7 +2691,7 @@ const styles = StyleSheet.create({
   },
   invoiceItemName: {
     fontSize: 13,
-    fontWeight: 'semibold',
+    fontWeight: '600',
     color: '#09090b',
   },
   invoiceItemSub: {
@@ -1548,6 +2713,31 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 6,
     backgroundColor: '#fef2f2',
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+  },
+  presetChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    backgroundColor: '#ffffff',
+  },
+  presetChipActive: {
+    backgroundColor: '#FF5E36',
+    borderColor: '#FF5E36',
+  },
+  presetChipText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  presetChipTextActive: {
+    color: '#ffffff',
   },
   paymentSelector: {
     flexDirection: 'row',
@@ -1597,7 +2787,7 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: 12,
-    fontWeight: 'semibold',
+    fontWeight: '600',
     color: '#18181b',
   },
   grandTotalRow: {
@@ -1636,12 +2826,457 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
+  // Ledger invoice card styles
+  invoiceCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    marginBottom: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+    position: 'relative',
+  },
+  invoiceCardMain: {
+    padding: 16,
+    paddingRight: 55,
+  },
+  invoiceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  invoiceCardClient: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#18181b',
+  },
+  invoiceCardDate: {
+    fontSize: 11,
+    color: '#71717a',
+  },
+  invoiceCardBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  invoiceCardId: {
+    fontSize: 11,
+    color: '#a1a1aa',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  invoiceCardCount: {
+    fontSize: 11,
+    color: '#71717a',
+  },
+  invoiceCardNotes: {
+    fontSize: 10,
+    color: '#a1a1aa',
+    fontStyle: 'italic',
+    marginTop: 8,
+    backgroundColor: '#f8f8f8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  invoiceCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+  },
+  invoiceCardAmount: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FF5E36',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  badgeOnline: {
+    backgroundColor: '#ecfdf5',
+  },
+  badgeOnlineText: {
+    color: '#059669',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  badgeCash: {
+    backgroundColor: '#fffbeb',
+  },
+  badgeCashText: {
+    color: '#d97706',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  deleteInvoiceBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  // Order Card Styles
+  orderCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    marginBottom: 12,
+    padding: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  orderCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  orderCustomerName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#18181b',
+  },
+  orderCustomerPhone: {
+    fontSize: 11,
+    color: '#71717a',
+    marginTop: 1,
+  },
+  orderDate: {
+    fontSize: 11,
+    color: '#71717a',
+  },
+  orderBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  orderNumberBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#fff7ed',
+  },
+  orderNumberText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FF5E36',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  orderStatusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#f0fdf4',
+  },
+  orderStatusText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#16a34a',
+    textTransform: 'capitalize',
+  },
+  orderItemsContainer: {
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  orderItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  orderItemName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#18181b',
+  },
+  orderItemVariant: {
+    fontSize: 10,
+    color: '#71717a',
+  },
+  orderItemQty: {
+    fontSize: 11,
+    color: '#71717a',
+    marginHorizontal: 8,
+  },
+  orderItemPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#18181b',
+  },
+  orderNoItems: {
+    fontSize: 11,
+    color: '#a1a1aa',
+    fontStyle: 'italic',
+  },
+  orderCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+    paddingTop: 10,
+  },
+  orderTotalLabel: {
+    fontSize: 10,
+    color: '#71717a',
+    textTransform: 'uppercase',
+  },
+  orderTotalValue: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FF5E36',
+  },
+  orderViewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#18181b',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  orderViewDetailsBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  // Order Details Modal
+  orderDetailsModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  orderDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e4e4e7',
+    backgroundColor: '#fafafa',
+  },
+  orderDetailsTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#18181b',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  orderDetailsSubtitle: {
+    fontSize: 11,
+    color: '#71717a',
+    marginTop: 2,
+  },
+  orderCustomerBox: {
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF5E36',
+  },
+  orderSectionTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: '#71717a',
+    marginBottom: 6,
+  },
+  orderCustomerNameBig: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#18181b',
+    marginBottom: 4,
+  },
+  orderCustomerMeta: {
+    fontSize: 12,
+    color: '#52525b',
+    marginTop: 2,
+  },
+  orderItemsTable: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    padding: 12,
+    marginBottom: 16,
+  },
+  orderTableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f4f4f5',
+  },
+  orderTableRowName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#18181b',
+  },
+  orderTableRowVariant: {
+    fontSize: 10,
+    color: '#71717a',
+  },
+  orderTableRowRate: {
+    fontSize: 11,
+    color: '#a1a1aa',
+    marginTop: 2,
+  },
+  orderTableRowTotal: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#18181b',
+  },
+  orderFinancialsBox: {
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+  },
+  orderSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  orderSummaryLabel: {
+    fontSize: 12,
+    color: '#71717a',
+  },
+  orderSummaryValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#18181b',
+  },
+  orderGrandTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#e4e4e7',
+    paddingTop: 8,
+    marginTop: 6,
+  },
+  orderGrandTotalLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  orderGrandTotalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF5E36',
+  },
+  orderMetaBlock: {
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  orderMetaItem: {
+    fontSize: 12,
+    color: '#71717a',
+  },
+  emptyState: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#52525b',
+    marginTop: 10,
+  },
+  emptyStateSub: {
+    fontSize: 11,
+    color: '#a1a1aa',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f4f4f5',
+  },
+  formTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#18181b',
+  },
+  formBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  formBackButtonText: {
+    fontSize: 14,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  // Customer Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  customerModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  customerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e4e4e7',
+    backgroundColor: '#fafafa',
+  },
+  customerModalTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#18181b',
+  },
+  // Preview modal
   previewContainer: {
     flex: 1,
     backgroundColor: '#f4f4f5',
   },
   previewHeader: {
-    height: 56,
+    height: 54,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e4e4e7',
@@ -1667,7 +3302,7 @@ const styles = StyleSheet.create({
   },
   paperInvoice: {
     backgroundColor: '#ffffff',
-    borderRadius: 4,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#e4e4e7',
     shadowColor: '#000000',
@@ -1787,7 +3422,7 @@ const styles = StyleSheet.create({
   },
   totalsValue: {
     fontSize: 11,
-    fontWeight: 'semibold',
+    fontWeight: '600',
     color: '#18181b',
   },
   grandTotalLabelText: {
@@ -1818,7 +3453,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   paperFooter: {
-    marginTop: 40,
+    marginTop: 36,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#f4f4f5',
@@ -1828,11 +3463,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontStyle: 'italic',
     color: '#71717a',
-  },
-  systemTag: {
-    fontSize: 8,
-    color: '#a1a1aa',
-    marginTop: 8,
   },
   exportBar: {
     padding: 16,
@@ -1852,17 +3482,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  deleteInvoiceBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#fef2f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
   },
 });
