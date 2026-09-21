@@ -84,9 +84,7 @@ interface InvoiceScreenProps {
   onFetchInvoices: () => Promise<void>;
   onFetchOrders: () => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
-  onCreateInvoice: (invoiceData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
-  onRecordTransaction: (txData: any) => Promise<void>;
 }
 
 export default function InvoiceScreen({
@@ -103,9 +101,7 @@ export default function InvoiceScreen({
   onFetchInvoices,
   onFetchOrders,
   onCreateOrder,
-  onCreateInvoice,
   onDeleteInvoice,
-  onRecordTransaction,
 }: InvoiceScreenProps) {
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -746,10 +742,15 @@ export default function InvoiceScreen({
 
       const orderNumber = invNumber.replace('INV', 'ORD');
 
-      // 1. Create Order in DB (items saved to order_items table)
+      // 1. Create Order, deduct Inventory, and create Invoice atomically in backend
       const orderPayload = {
         orderNumber,
+        invoiceNumber: invNumber,
         customerId: selectedCustomerId || null,
+        customerName: clientName,
+        phoneNumber: formValues.clientPhone.trim() || null,
+        email: formValues.clientEmail.trim() || null,
+        address: formValues.clientAddress.trim() || null,
         status: 'confirmed',
         paymentMethod: formValues.paymentMethod.toLowerCase(),
         subtotal,
@@ -770,48 +771,7 @@ export default function InvoiceScreen({
 
       const createdOrder = await onCreateOrder(orderPayload);
 
-      // 2. Record inventory deduction for each line item
-      for (const item of invoiceItems) {
-        try {
-          await onRecordTransaction({
-            productId: item.productId,
-            productVariantId: item.productVariantId || null,
-            type: 'sale',
-            quantity: item.quantity,
-            name: clientName,
-            phoneNumber: formValues.clientPhone.trim() || undefined,
-            email: formValues.clientEmail.trim() || undefined,
-            address: formValues.clientAddress.trim() || undefined,
-            unitPrice: item.price,
-            totalAmount: item.total,
-            notes: `Invoice sale (${invNumber})`,
-          });
-        } catch (invErr) {
-          console.warn(`[Inventory deduction notice]:`, invErr);
-        }
-      }
-
-      // 3. Create Invoice in DB
-      const invoicePayload = {
-        invoiceNumber: invNumber,
-        orderId: createdOrder?.id || null,
-        customerId: selectedCustomerId || null,
-        customerName: clientName,
-        phoneNumber: formValues.clientPhone.trim() || null,
-        email: formValues.clientEmail.trim() || null,
-        subtotal,
-        gst: taxAmount,
-        discount: discountAmount,
-        totalAmount,
-        finalAmount: totalAmount,
-        mode: (formValues.paymentMethod.toLowerCase() === 'cash' ? 'cash' : 'online') as 'cash' | 'online',
-        items: invoiceItems,
-        notes: formValues.notes.trim() || null,
-      };
-
-      await onCreateInvoice(invoicePayload);
-
-      // 4. Generate & Share PDF
+      // 2. Generate & Share PDF
       const pdfData = {
         id: invNumber,
         clientName,

@@ -215,12 +215,22 @@ export const customersRouter = t.router({
 const orderItemSchema = z.object({
   productId: z.string().optional().nullable(),
   productVariantId: z.string().optional().nullable(),
-  productName: z.string(),
+  productName: z.string().optional(),
+  name: z.string().optional(),
   variantColor: z.string().optional().nullable(),
   quantity: z.number().int().positive(),
-  unitPrice: z.number(),
+  unitPrice: z.number().optional(),
+  price: z.number().optional(),
   total: z.number(),
-});
+}).transform((item) => ({
+  productId: item.productId || null,
+  productVariantId: item.productVariantId || null,
+  productName: item.productName || item.name || 'Item',
+  variantColor: item.variantColor || null,
+  quantity: item.quantity,
+  unitPrice: item.unitPrice !== undefined ? item.unitPrice : (item.price ?? 0),
+  total: item.total,
+}));
 
 export const ordersRouter = t.router({
   getAll: t.procedure
@@ -233,7 +243,12 @@ export const ordersRouter = t.router({
     .input(
       z.object({
         orderNumber: z.string().optional(),
+        invoiceNumber: z.string().optional(),
         customerId: z.string().optional().nullable(),
+        customerName: z.string().optional().nullable(),
+        phoneNumber: z.string().optional().nullable(),
+        email: z.string().optional().nullable(),
+        address: z.string().optional().nullable(),
         userId: z.string().optional().nullable(),
         status: z.string().optional(),
         paymentMethod: z.string().optional(),

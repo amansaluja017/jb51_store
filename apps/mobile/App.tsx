@@ -510,6 +510,12 @@ export default function App() {
         method: 'POST',
         body: orderData,
       });
+      if (res?.invoice) {
+        setInvoices(prev => [res.invoice as Invoice, ...prev]);
+      }
+      if (res?.id) {
+        setOrders(prev => [res as Order, ...prev]);
+      }
       return res;
     } catch (err: any) {
       console.error('[handleCreateOrder Error]:', err);
@@ -968,9 +974,7 @@ export default function App() {
               onFetchInvoices={handleFetchInvoices}
               onFetchOrders={handleFetchOrders}
               onCreateOrder={handleCreateOrder}
-              onCreateInvoice={handleCreateInvoice}
               onDeleteInvoice={handleDeleteInvoice}
-              onRecordTransaction={handleRecordTransaction}
             />
           )}
           {activeTab === 'reviews' && (

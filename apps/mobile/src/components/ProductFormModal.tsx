@@ -156,6 +156,7 @@ export default function ProductFormModal({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors }
   } = useForm<ProductFormData>({
@@ -182,52 +183,52 @@ export default function ProductFormModal({
   const formVariants = formValues.variants || [];
 
   const setFormName = (val: string | ((prev: string) => string)) => {
-    setValue('name', typeof val === 'function' ? val(formValues.name) : val, { shouldDirty: true });
+    setValue('name', typeof val === 'function' ? val(getValues('name')) : val, { shouldDirty: true });
   };
   const setFormSlug = (val: string | ((prev: string) => string)) => {
-    setValue('slug', typeof val === 'function' ? val(formValues.slug) : val, { shouldDirty: true });
+    setValue('slug', typeof val === 'function' ? val(getValues('slug')) : val, { shouldDirty: true });
   };
   const setFormDescription = (val: string | ((prev: string) => string)) => {
-    setValue('description', typeof val === 'function' ? val(formValues.description) : val, { shouldDirty: true });
+    setValue('description', typeof val === 'function' ? val(getValues('description')) : val, { shouldDirty: true });
   };
   const setFormMrp = (val: string | ((prev: string) => string)) => {
-    setValue('mrp', typeof val === 'function' ? val(formValues.mrp) : val, { shouldDirty: true });
+    setValue('mrp', typeof val === 'function' ? val(getValues('mrp')) : val, { shouldDirty: true });
   };
   const setFormSellingPrice = (val: string | ((prev: string) => string)) => {
-    setValue('sellingPrice', typeof val === 'function' ? val(formValues.sellingPrice) : val, { shouldDirty: true });
+    setValue('sellingPrice', typeof val === 'function' ? val(getValues('sellingPrice')) : val, { shouldDirty: true });
   };
   const setFormCategory = (val: string | ((prev: string) => string)) => {
-    setValue('category', typeof val === 'function' ? val(formValues.category) : val, { shouldDirty: true });
+    setValue('category', typeof val === 'function' ? val(getValues('category')) : val, { shouldDirty: true });
   };
   const setFormFabric = (val: string | ((prev: string) => string)) => {
-    setValue('fabric', typeof val === 'function' ? val(formValues.fabric) : val, { shouldDirty: true });
+    setValue('fabric', typeof val === 'function' ? val(getValues('fabric')) : val, { shouldDirty: true });
   };
   const setFormFit = (val: string | ((prev: string) => string)) => {
-    setValue('fit', typeof val === 'function' ? val(formValues.fit) : val, { shouldDirty: true });
+    setValue('fit', typeof val === 'function' ? val(getValues('fit')) : val, { shouldDirty: true });
   };
   const setFormCare = (val: string | ((prev: string) => string)) => {
-    setValue('careInstructions', typeof val === 'function' ? val(formValues.careInstructions) : val, { shouldDirty: true });
+    setValue('careInstructions', typeof val === 'function' ? val(getValues('careInstructions')) : val, { shouldDirty: true });
   };
   const setFormTags = (val: string | ((prev: string) => string)) => {
-    setValue('tags', typeof val === 'function' ? val(formValues.tags) : val, { shouldDirty: true });
+    setValue('tags', typeof val === 'function' ? val(getValues('tags')) : val, { shouldDirty: true });
   };
   const setFormFeatured = (val: boolean | ((prev: boolean) => boolean)) => {
-    setValue('featured', typeof val === 'function' ? val(formValues.featured) : val, { shouldDirty: true });
+    setValue('featured', typeof val === 'function' ? val(getValues('featured')) : val, { shouldDirty: true });
   };
   const setFormNewArrival = (val: boolean | ((prev: boolean) => boolean)) => {
-    setValue('newArrival', typeof val === 'function' ? val(formValues.newArrival) : val, { shouldDirty: true });
+    setValue('newArrival', typeof val === 'function' ? val(getValues('newArrival')) : val, { shouldDirty: true });
   };
   const setFormBestseller = (val: boolean | ((prev: boolean) => boolean)) => {
-    setValue('bestseller', typeof val === 'function' ? val(formValues.bestseller) : val, { shouldDirty: true });
+    setValue('bestseller', typeof val === 'function' ? val(getValues('bestseller')) : val, { shouldDirty: true });
   };
   const setFormIsListed = (val: boolean | ((prev: boolean) => boolean)) => {
-    setValue('isListed', typeof val === 'function' ? val(formValues.isListed) : val, { shouldDirty: true });
+    setValue('isListed', typeof val === 'function' ? val(getValues('isListed')) : val, { shouldDirty: true });
   };
   const setFormImages = (val: string[] | ((prev: string[]) => string[])) => {
-    setValue('images', typeof val === 'function' ? val(formValues.images || []) : val, { shouldDirty: true });
+    setValue('images', typeof val === 'function' ? val(getValues('images') || []) : val, { shouldDirty: true });
   };
   const setFormVariants = (val: Variant[] | ((prev: Variant[]) => Variant[])) => {
-    setValue('variants', typeof val === 'function' ? val(formValues.variants || []) : val, { shouldDirty: true });
+    setValue('variants', typeof val === 'function' ? val(getValues('variants') || []) : val, { shouldDirty: true });
   };
 
   // Color Thief palette state per variant
@@ -520,8 +521,10 @@ export default function ProductFormModal({
         }
         return updated;
       });
+      // Also sync to product images list
+      setFormImages(prev => Array.from(new Set([...prev, ...uris])));
     } else {
-      setFormImages(prev => [...prev, ...uris]);
+      setFormImages(prev => Array.from(new Set([...prev, ...uris])));
     }
 
     // Filter for local images that need Cloudinary upload
@@ -558,6 +561,8 @@ export default function ProductFormModal({
               }
               return updated;
             });
+            // Update product images list with Cloudinary URL
+            setFormImages(prev => prev.map(img => img === localUri ? cloudUrl : img));
           } else {
             setFormImages(prev => prev.map(img => img === localUri ? cloudUrl : img));
           }
@@ -577,6 +582,7 @@ export default function ProductFormModal({
               }
               return updated;
             });
+            setFormImages(prev => prev.filter(img => img !== localUri));
           } else {
             setFormImages(prev => prev.filter(img => img !== localUri));
           }
