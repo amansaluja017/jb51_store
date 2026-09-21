@@ -37,6 +37,56 @@ export async function createInvoice(input: CreateInvoiceInput) {
       ? input.finalAmount
       : input.totalAmount || 0;
 
+  // Check if invoice for this orderId or invoiceNumber already exists
+  let existingInv = null;
+  if (input.orderId) {
+    const [found] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.orderId, input.orderId));
+    existingInv = found;
+  }
+  if (!existingInv && input.invoiceNumber) {
+    const [found] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.invoiceNumber, input.invoiceNumber));
+    existingInv = found;
+  }
+
+  if (existingInv) {
+    const [updated] = await db
+      .update(invoicesTable)
+      .set({
+        customerName: input.customerName || existingInv.customerName,
+        phoneNumber: input.phoneNumber || existingInv.phoneNumber,
+        email: input.email || existingInv.email,
+        subtotal:
+          input.subtotal !== undefined && input.subtotal !== null
+            ? input.subtotal.toString()
+            : existingInv.subtotal,
+        gst:
+          input.gst !== undefined && input.gst !== null
+            ? input.gst.toString()
+            : existingInv.gst,
+        discount:
+          input.discount !== undefined && input.discount !== null
+            ? input.discount.toString()
+            : existingInv.discount,
+        totalAmount:
+          input.totalAmount !== undefined && input.totalAmount !== null
+            ? input.totalAmount.toString()
+            : existingInv.totalAmount,
+        finalAmount: finalAmount.toString(),
+        items: input.items && input.items.length > 0 ? input.items : existingInv.items,
+        notes: input.notes !== undefined ? input.notes : existingInv.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(invoicesTable.id, existingInv.id))
+      .returning();
+    return updated;
+  }
+
   const [inv] = await db
     .insert(invoicesTable)
     .values({

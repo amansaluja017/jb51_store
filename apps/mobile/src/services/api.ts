@@ -93,10 +93,13 @@ export const uploadProductImage = async (
   const url = `${host}/api/upload`;
 
   const formData = new FormData();
-  const filename = fileUri.split('/').pop() || `img_${Date.now()}.jpg`;
-  const match = /\.(\w+)$/.exec(filename);
+  const rawFilename = fileUri.split('/').pop()?.split('?')[0]?.split('#')[0] || `img_${Date.now()}.jpg`;
+  const match = /\.(\w+)$/.exec(rawFilename);
   const ext = match ? match[1].toLowerCase() : 'jpeg';
-  const type = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+  const type = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+  const filename = /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(rawFilename)
+    ? rawFilename
+    : `${rawFilename}.${ext === 'jpeg' ? 'jpg' : ext}`;
 
   if (Platform.OS === 'web' || fileUri.startsWith('blob:') || fileUri.startsWith('data:')) {
     try {
@@ -114,7 +117,7 @@ export const uploadProductImage = async (
   } else {
     // Native React Native mobile (iOS / Android)
     formData.append('file', {
-      uri: fileUri,
+      uri: Platform.OS === 'android' ? fileUri : fileUri.replace('file://', ''),
       name: filename,
       type,
     } as any);
@@ -130,8 +133,10 @@ export const uploadProductImage = async (
     formData.append('orderIndex', options.orderIndex.toString());
   }
 
+  // NOTE: Do NOT set 'Content-Type': 'multipart/form-data' manually.
+  // The fetch networking layer automatically generates the header with the correct boundary parameter.
   const headers: Record<string, string> = {
-    'Content-Type': 'multipart/form-data',
+    Accept: 'application/json',
   };
   if (options?.token) {
     headers['Authorization'] = `Bearer ${options.token}`;
@@ -140,12 +145,21 @@ export const uploadProductImage = async (
   console.log(`[Image Upload Request] -> POST ${url} (${filename})`);
 
   try {
-    const response = await axios.post<UploadImageResult>(url, formData, {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
       headers,
-      transformRequest: (data) => data,
     });
 
-    const data = response.data;
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const errorMsg =
+        data?.error ||
+        data?.message ||
+        `Upload failed with server status ${response.status}`;
+      throw new Error(errorMsg);
+    }
 
     if (!data) {
       throw new Error('Received empty response from upload server.');
@@ -153,11 +167,7 @@ export const uploadProductImage = async (
 
     return data;
   } catch (err: any) {
-    const errorMsg =
-      err.response?.data?.error ||
-      err.response?.data?.message ||
-      err.message ||
-      'Failed to upload image to server.';
+    const errorMsg = err.message || 'Failed to upload image to server.';
     console.error('[Image Upload Error]:', errorMsg);
     throw new Error(errorMsg);
   }

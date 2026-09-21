@@ -53,22 +53,29 @@ router.post(
       );
 
       let savedImageRecord = null;
-      if (productId) {
-        const parsedOrder = orderIndex !== undefined && !isNaN(Number(orderIndex))
-          ? Number(orderIndex)
-          : 0;
+      const isUuid = typeof productId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+      const isVariantUuid = typeof productVariantId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productVariantId);
 
-        const [inserted] = await db
-          .insert(productImages)
-          .values({
-            productId: productId,
-            productVariantId: productVariantId || null,
-            url: uploadResult.url,
-            orderIndex: parsedOrder,
-          })
-          .returning();
+      if (productId && isUuid) {
+        try {
+          const parsedOrder = orderIndex !== undefined && !isNaN(Number(orderIndex))
+            ? Number(orderIndex)
+            : 0;
 
-        savedImageRecord = inserted;
+          const [inserted] = await db
+            .insert(productImages)
+            .values({
+              productId: productId,
+              productVariantId: isVariantUuid ? productVariantId : null,
+              url: uploadResult.url,
+              orderIndex: parsedOrder,
+            })
+            .returning();
+
+          savedImageRecord = inserted;
+        } catch (dbErr: any) {
+          console.warn('[Upload Route Notice] Skipping DB link for image:', dbErr?.message || dbErr);
+        }
       }
 
       res.status(200).json({
@@ -116,17 +123,24 @@ router.post(
         );
 
         let savedImageRecord = null;
-        if (productId) {
-          const [inserted] = await db
-            .insert(productImages)
-            .values({
-              productId: productId,
-              productVariantId: productVariantId || null,
-              url: result.url,
-              orderIndex: baseOrder + idx,
-            })
-            .returning();
-          savedImageRecord = inserted;
+        const isUuid = typeof productId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+        const isVariantUuid = typeof productVariantId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productVariantId);
+
+        if (productId && isUuid) {
+          try {
+            const [inserted] = await db
+              .insert(productImages)
+              .values({
+                productId: productId,
+                productVariantId: isVariantUuid ? productVariantId : null,
+                url: result.url,
+                orderIndex: baseOrder + idx,
+              })
+              .returning();
+            savedImageRecord = inserted;
+          } catch (dbErr: any) {
+            console.warn('[Multiple Upload Route Notice] Skipping DB link for image:', dbErr?.message || dbErr);
+          }
         }
 
         return {

@@ -53,6 +53,27 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
   }
 
   return await db.transaction(async (tx) => {
+    // Prevent duplicate deduction if already recorded (e.g. by orders.create backend transaction)
+    if (input.notes && input.notes.startsWith('Invoice sale (')) {
+      const [alreadyRecorded] = await tx
+        .select()
+        .from(inventryTransactionTable)
+        .where(
+          and(
+            eq(inventryTransactionTable.productId, input.productId),
+            eq(inventryTransactionTable.notes, input.notes.trim())
+          )
+        );
+      if (alreadyRecorded) {
+        return {
+          success: true,
+          transaction: alreadyRecorded,
+          productName: foundProduct.name,
+          variantName: foundVariant?.color || null,
+        };
+      }
+    }
+
     // 1. Locate the inventory record
     let inventoryQuery = tx
       .select()
