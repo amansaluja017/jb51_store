@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 export const getInitialApiHost = () => {
   const host = process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL;
   if (!host) {
-    throw new Error('API host is not configured. Please set EXPO_PUBLIC_API_HOST or EXPO_PUBLIC_API_URL.');
+    return 'http://localhost:3001';
   }
   return host;
 };

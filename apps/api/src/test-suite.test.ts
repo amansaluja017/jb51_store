@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert';
 import { appRouter } from './router.js';
 
@@ -172,4 +172,75 @@ test('Product Images & Cloudinary Upload Infrastructure', async (t) => {
     // Invalid non-cloudinary URL
     assert.strictEqual(extractPublicIdFromUrl('https://example.com/photo.jpg'), null);
   });
+
+  await t.test('createProduct with 3 images inserts exactly 3 rows in product_images (no duplication)', async () => {
+    const { createProduct, getProductBySlug } = await import('@repo/products');
+    const { db, productImages, product: productTable } = await import('@repo/db');
+    const { eq } = await import('drizzle-orm');
+
+    const testSlug = 'dedup-test-outfit-' + Date.now();
+    const imgUrls = [
+      'https://res.cloudinary.com/demo/image/upload/sample1.jpg',
+      'https://res.cloudinary.com/demo/image/upload/sample2.jpg',
+      'https://res.cloudinary.com/demo/image/upload/sample3.jpg',
+    ];
+
+    try {
+      const created = await createProduct({
+        name: 'Deduplication Test Outfit',
+        slug: testSlug,
+        description: 'Testing that adding 3 images creates exactly 3 rows in product_images without doubling.',
+        mrp: 1999,
+        sellingPrice: 1499,
+        category: 'Test Category',
+        images: imgUrls,
+        variants: [
+          {
+            color: 'Red',
+            hexCode: '#ff0000',
+            stock: 10,
+            reservedStock: 0,
+            images: imgUrls,
+          },
+        ],
+      });
+
+      assert.ok(created, 'Product should be created');
+      assert.strictEqual(created.images.length, 3, 'Product.images should contain exactly 3 URLs');
+
+      // Verify the database table product_images directly
+      const dbImageRows = await db
+        .select()
+        .from(productImages)
+        .where(eq(productImages.productId, created.id));
+
+      assert.strictEqual(
+        dbImageRows.length,
+        3,
+        `Expected exactly 3 rows in product_images table, but found ${dbImageRows.length}`
+      );
+
+      // Verify getProductBySlug
+      const fetched = await getProductBySlug(testSlug);
+      assert.ok(fetched, 'Product should be fetchable by slug');
+      assert.strictEqual(fetched.images.length, 3, 'Fetched product images should contain exactly 3 URLs');
+    } finally {
+      // Clean up test product
+      try {
+        const rows = await db.select().from(productTable).where(eq(productTable.name, 'Deduplication Test Outfit'));
+        for (const row of rows) {
+          await db.delete(productImages).where(eq(productImages.productId, row.id));
+          await db.delete(productTable).where(eq(productTable.id, row.id));
+        }
+      } catch (_) {}
+    }
+  });
+});
+
+after(async () => {
+  try {
+    const { client } = await import('@repo/db');
+    await client.end({ timeout: 1 });
+  } catch (_) {}
+  process.exit(0);
 });

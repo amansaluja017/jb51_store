@@ -74,7 +74,7 @@ export function ShopClient() {
         setHasSetInitialMax(true);
       }
     }
-  }, [products, hasSetInitialMax]);
+  }, [listedProductsOnly, hasSetInitialMax]);
 
   // Sync state with URL params changes
   useEffect(() => {
@@ -517,7 +517,7 @@ export function ShopClient() {
               <LotusIcon className="w-12 h-12 mx-auto text-[#FF5E36] mb-4" />
               <h3 className="font-serif text-xl text-zinc-900 mb-2 font-medium">No creations match filters</h3>
               <p className="text-zinc-500 text-xs mb-6 max-w-xs mx-auto leading-relaxed font-light">
-                We couldn't find any designs matching your refinement profile. Select another category or reset refinements.
+                We couldn&apos;t find any designs matching your refinement profile. Select another category or reset refinements.
               </p>
               <Button 
                 onClick={resetAllFilters}

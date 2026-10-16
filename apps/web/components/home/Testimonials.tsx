@@ -94,7 +94,7 @@ export function Testimonials() {
                     ))}
                   </div>
                   <p className="text-zinc-600 text-[11px] md:text-xs font-light italic leading-relaxed whitespace-normal mb-5">
-                    "{item.quote}"
+                    &ldquo;{item.quote}&rdquo;
                   </p>
                 </div>
 
@@ -127,7 +127,7 @@ export function Testimonials() {
                     ))}
                   </div>
                   <p className="text-zinc-600 text-[11px] md:text-xs font-light italic leading-relaxed whitespace-normal mb-5">
-                    "{item.quote}"
+                    &ldquo;{item.quote}&rdquo;
                   </p>
                 </div>
 

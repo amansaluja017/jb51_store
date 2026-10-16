@@ -506,7 +506,7 @@ export default function ProductFormModal({
     if (!uris || uris.length === 0) return;
     const variantIdx = activeVariantIdxForMedia !== null && activeVariantIdxForMedia !== undefined
       ? activeVariantIdxForMedia
-      : (formVariants.length > 0 ? 0 : null);
+      : null;
 
     // Immediately display newly selected images so the UI is instantaneous
     if (variantIdx !== null && variantIdx !== undefined) {

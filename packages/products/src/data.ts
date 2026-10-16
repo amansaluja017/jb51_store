@@ -164,7 +164,10 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
     for (const img of dbImages) {
       if (img.productId && img.url) {
         if (!imagesMap.has(img.productId)) imagesMap.set(img.productId, []);
-        imagesMap.get(img.productId)!.push(img.url);
+        const list = imagesMap.get(img.productId)!;
+        if (!list.includes(img.url)) {
+          list.push(img.url);
+        }
       }
     }
 
@@ -199,9 +202,11 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
           if (prodVariants && prodVariants.length > 0) {
             prod.variants = prodVariants.map(v => {
               const inv = inventoryByVariant.get(v.id);
-              const variantImgs = dbImages
-                .filter(img => img.productId === r.id && img.productVariantId === v.id)
-                .map(img => img.url);
+              const variantImgs = Array.from(new Set(
+                dbImages
+                  .filter(img => img.productId === r.id && img.productVariantId === v.id)
+                  .map(img => img.url)
+              ));
               return {
                 id: v.id,
                 color: v.color,
@@ -275,13 +280,16 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
       .where(eq(productImagesTable.productId, targetRow.id))
       .orderBy(asc(productImagesTable.orderIndex));
     if (relationalImages && relationalImages.length > 0) {
-      const mainUrls = relationalImages
-        .filter(img => !img.productVariantId)
-        .map(img => img.url);
+      const allUrls = Array.from(new Set(relationalImages.map(img => img.url)));
+      const mainUrls = Array.from(new Set(
+        relationalImages
+          .filter(img => !img.productVariantId)
+          .map(img => img.url)
+      ));
       if (mainUrls.length > 0) {
-        prod.images = mainUrls;
+        prod.images = Array.from(new Set([...mainUrls, ...allUrls]));
       } else {
-        prod.images = relationalImages.map(img => img.url);
+        prod.images = allUrls;
       }
     }
 
@@ -300,9 +308,11 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 
       prod.variants = relationalVariants.map(v => {
         const inv = inventoryByVariant.get(v.id);
-        const variantImgs = relationalImages
-          .filter(img => img.productVariantId === v.id)
-          .map(img => img.url);
+        const variantImgs = Array.from(new Set(
+          relationalImages
+            .filter(img => img.productVariantId === v.id)
+            .map(img => img.url)
+        ));
         return {
           id: v.id,
           color: v.color,
@@ -441,6 +451,7 @@ export async function createProduct(productInput: Partial<Product> & { name: str
     // 3. Insert product variants & 6. Insert inventory
     const createdVariants: ProductVariant[] = [];
     let totalStockAcrossVariants = 0;
+    const insertedImageUrls = new Set<string>();
 
     for (const v of rawVariants) {
       const variantColor = (v.color || 'Standard').trim();
@@ -467,15 +478,19 @@ export async function createProduct(productInput: Partial<Product> & { name: str
         totalStock: variantStock + variantReservedStock,
       });
 
-      // Insert variant-specific images if any
+      // Insert variant-specific images if any (deduplicate so same URL is not inserted twice)
       const variantSpecificImages = (v.images || []).map(img => img.trim()).filter(img => img !== '');
       for (let order = 0; order < variantSpecificImages.length; order++) {
-        await tx.insert(productImagesTable).values({
-          productId: insertedProduct.id,
-          productVariantId: insertedVariant.id,
-          url: variantSpecificImages[order],
-          orderIndex: order,
-        });
+        const imgUrl = variantSpecificImages[order];
+        if (!insertedImageUrls.has(imgUrl)) {
+          await tx.insert(productImagesTable).values({
+            productId: insertedProduct.id,
+            productVariantId: insertedVariant.id,
+            url: imgUrl,
+            orderIndex: order,
+          });
+          insertedImageUrls.add(imgUrl);
+        }
       }
 
       createdVariants.push({
@@ -488,14 +503,19 @@ export async function createProduct(productInput: Partial<Product> & { name: str
       });
     }
 
-    // 4. Insert main product images (at least 2 images)
+    // 4. Insert main product images (only images not already inserted for a variant)
+    let mainOrder = 0;
     for (let order = 0; order < allImages.length; order++) {
-      await tx.insert(productImagesTable).values({
-        productId: insertedProduct.id,
-        productVariantId: null,
-        url: allImages[order],
-        orderIndex: order,
-      });
+      const imgUrl = allImages[order];
+      if (!insertedImageUrls.has(imgUrl)) {
+        await tx.insert(productImagesTable).values({
+          productId: insertedProduct.id,
+          productVariantId: null,
+          url: imgUrl,
+          orderIndex: mainOrder++,
+        });
+        insertedImageUrls.add(imgUrl);
+      }
     }
 
     // 5. Insert product status
@@ -530,6 +550,7 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
   try {
     const dbProducts = await db.select().from(productTable);
     const targetRow = dbProducts.find((r: any) => matchesSlug(r, slug));
+    console.log('updatedData', updatedData);
 
     if (targetRow) {
       const currentFeat = (targetRow.features as Record<string, any>) || {};
@@ -677,6 +698,69 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
 
           const inStock = updatedData.inStock !== undefined ? updatedData.inStock : totalAvailStock > 0;
           await upsertProductStatus(targetRow.id, { inStock }, tx);
+        }
+
+        // Synchronize productImagesTable when images or variants are updated
+        if (updatedData.images !== undefined || updatedData.variants !== undefined) {
+          const newImages = updatedData.images !== undefined ? updatedData.images : (currentFeat.images || []);
+          const newVariants = updatedData.variants !== undefined ? updatedData.variants : (currentFeat.variants || []);
+          const rawImgs = (newImages || []).map((i: string) => i.trim()).filter((i: string) => i !== '');
+          const varImgs = (newVariants || []).flatMap((v: any) => (v.images || []).map((img: string) => img.trim()).filter((img: string) => img !== ''));
+          const allNewImages = Array.from(new Set([...rawImgs, ...varImgs]));
+
+          // Delete existing images for this product and re-insert deduplicated rows
+          console.log("yes")
+          await tx
+            .delete(productImagesTable)
+            .where(eq(productImagesTable.productId, targetRow.id));
+
+          const syncedUrls = new Set<string>();
+
+          // First insert variant-specific images
+          for (const v of newVariants) {
+            let variantId = v.id;
+            if (!variantId && v.color) {
+              const [foundV] = await tx
+                .select()
+                .from(productVariantTable)
+                .where(
+                  and(
+                    eq(productVariantTable.productId, targetRow.id),
+                    eq(productVariantTable.color, v.color)
+                  )
+                );
+              if (foundV) variantId = foundV.id;
+            }
+
+            const vImgs = (v.images || []).map((img: string) => img.trim()).filter((img: string) => img !== '');
+            for (let o = 0; o < vImgs.length; o++) {
+              const u = vImgs[o];
+              if (!syncedUrls.has(u)) {
+                await tx.insert(productImagesTable).values({
+                  productId: targetRow.id,
+                  productVariantId: variantId || null,
+                  url: u,
+                  orderIndex: o,
+                });
+                syncedUrls.add(u);
+              }
+            }
+          }
+
+          // Then insert any remaining main product images
+          let mainO = 0;
+          for (let o = 0; o < allNewImages.length; o++) {
+            const u = allNewImages[o];
+            if (!syncedUrls.has(u)) {
+              await tx.insert(productImagesTable).values({
+                productId: targetRow.id,
+                productVariantId: null,
+                url: u,
+                orderIndex: mainO++,
+              });
+              syncedUrls.add(u);
+            }
+          }
         }
 
         if (updatedRow) {

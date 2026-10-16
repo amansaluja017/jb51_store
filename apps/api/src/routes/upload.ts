@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { db, productImages } from '@repo/db';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 import { uploadBufferToCloudinary, deleteFromCloudinary } from '../services/cloudinary.js';
 
 const router: Router = Router();
@@ -62,17 +62,31 @@ router.post(
             ? Number(orderIndex)
             : 0;
 
-          const [inserted] = await db
-            .insert(productImages)
-            .values({
-              productId: productId,
-              productVariantId: isVariantUuid ? productVariantId : null,
-              url: uploadResult.url,
-              orderIndex: parsedOrder,
-            })
-            .returning();
+          const existingImg = await db
+            .select()
+            .from(productImages)
+            .where(
+              and(
+                eq(productImages.productId, productId),
+                eq(productImages.url, uploadResult.url)
+              )
+            );
 
-          savedImageRecord = inserted;
+          if (existingImg.length === 0) {
+            const [inserted] = await db
+              .insert(productImages)
+              .values({
+                productId: productId,
+                productVariantId: isVariantUuid ? productVariantId : null,
+                url: uploadResult.url,
+                orderIndex: parsedOrder,
+              })
+              .returning();
+
+            savedImageRecord = inserted;
+          } else {
+            savedImageRecord = existingImg[0];
+          }
         } catch (dbErr: any) {
           console.warn('[Upload Route Notice] Skipping DB link for image:', dbErr?.message || dbErr);
         }
@@ -128,16 +142,30 @@ router.post(
 
         if (productId && isUuid) {
           try {
-            const [inserted] = await db
-              .insert(productImages)
-              .values({
-                productId: productId,
-                productVariantId: isVariantUuid ? productVariantId : null,
-                url: result.url,
-                orderIndex: baseOrder + idx,
-              })
-              .returning();
-            savedImageRecord = inserted;
+            const existingImg = await db
+              .select()
+              .from(productImages)
+              .where(
+                and(
+                  eq(productImages.productId, productId),
+                  eq(productImages.url, result.url)
+                )
+              );
+
+            if (existingImg.length === 0) {
+              const [inserted] = await db
+                .insert(productImages)
+                .values({
+                  productId: productId,
+                  productVariantId: isVariantUuid ? productVariantId : null,
+                  url: result.url,
+                  orderIndex: baseOrder + idx,
+                })
+                .returning();
+              savedImageRecord = inserted;
+            } else {
+              savedImageRecord = existingImg[0];
+            }
           } catch (dbErr: any) {
             console.warn('[Multiple Upload Route Notice] Skipping DB link for image:', dbErr?.message || dbErr);
           }

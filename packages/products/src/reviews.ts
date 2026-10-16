@@ -116,10 +116,15 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewItem
   };
 }
 
+const isUuid = (str: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 export async function updateReview(
   id: string,
   data: { approved?: boolean; rating?: number; review?: string }
 ): Promise<ReviewItem | null> {
+  if (!id || !isUuid(id)) return null;
+
   const updatePayload: Record<string, any> = {};
   if (data.approved !== undefined) updatePayload.approved = data.approved;
   if (data.rating !== undefined) updatePayload.rating = String(data.rating);
@@ -150,6 +155,8 @@ export async function updateReview(
 }
 
 export async function deleteReview(id: string): Promise<boolean> {
+  if (!id || !isUuid(id)) return false;
+
   const deleted = await db
     .delete(reviewsTable)
     .where(eq(reviewsTable.id, id))

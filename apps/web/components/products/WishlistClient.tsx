@@ -49,7 +49,7 @@ export function WishlistClient() {
           <span className="text-4xl text-brand-saffron mb-4">✤</span>
           <h2 className="font-serif text-2xl mb-4 text-brand-maroon">Your Wishlist is Empty</h2>
           <p className="text-brand-brown/60 text-sm max-w-sm mb-8 font-light leading-relaxed">
-            Explore our curated collections of premium women's suits, heritage designs, and luxury formalwear to add your favorite pieces.
+            Explore our curated collections of premium women&apos;s suits, heritage designs, and luxury formalwear to add your favorite pieces.
           </p>
           <Link href="/shop" passHref legacyBehavior>
             <Button className="px-8">
