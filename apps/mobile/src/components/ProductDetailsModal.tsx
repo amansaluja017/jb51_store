@@ -9,7 +9,6 @@ import {
   Modal,
   Switch,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -30,6 +29,7 @@ import {
   Hash,
 } from 'lucide-react-native';
 import { Product, isProductInStock } from '../types';
+import FormattedRichText from './FormattedRichText';
 
 interface ProductDetailsModalProps {
   visible: boolean;
@@ -447,21 +447,27 @@ export default function ProductDetailsModal({
                 {product.fabric ? (
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Fabric</Text>
-                    <Text style={styles.specValue}>{product.fabric}</Text>
+                    <View style={{ flex: 1 }}>
+                      <FormattedRichText text={product.fabric} textColor="#27272a" baseFontSize={13} />
+                    </View>
                   </View>
                 ) : null}
 
                 {product.fit ? (
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Silhouette & Fit</Text>
-                    <Text style={styles.specValue}>{product.fit}</Text>
+                    <View style={{ flex: 1 }}>
+                      <FormattedRichText text={product.fit} textColor="#27272a" baseFontSize={13} />
+                    </View>
                   </View>
                 ) : null}
 
                 {product.careInstructions ? (
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Care Instructions</Text>
-                    <Text style={styles.specValue}>{product.careInstructions}</Text>
+                    <View style={{ flex: 1 }}>
+                      <FormattedRichText text={product.careInstructions} textColor="#27272a" baseFontSize={13} />
+                    </View>
                   </View>
                 ) : null}
               </View>
@@ -475,7 +481,7 @@ export default function ProductDetailsModal({
                 <FileText size={16} color="#FF5E36" />
                 <Text style={styles.sectionHeader}>Description & Atelier Notes</Text>
               </View>
-              <Text style={styles.descriptionText}>{product.description}</Text>
+              <FormattedRichText text={product.description} textColor="#3f3f46" baseFontSize={14} />
             </View>
           ) : null}
 

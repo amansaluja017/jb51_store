@@ -1,8 +1,9 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { db, productImages } from '@repo/db';
 import { eq, asc, and } from 'drizzle-orm';
 import { uploadBufferToCloudinary, deleteFromCloudinary } from '../services/cloudinary.js';
+import { reorderProductImages } from '@repo/products';
 
 const router: Router = Router();
 
@@ -36,7 +37,7 @@ const upload = multer({
 router.post(
   '/upload',
   upload.any(),
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const files = req.files as Express.Multer.File[] | undefined;
       if (!files || files.length === 0) {
@@ -117,7 +118,7 @@ router.post(
 router.post(
   '/upload/multiple',
   upload.array('images', 15),
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
       const files = req.files as Express.Multer.File[] | undefined;
       if (!files || files.length === 0) {
@@ -318,15 +319,25 @@ router.delete(
 
 /**
  * PATCH /api/products/images/reorder
- * Update orderIndex for an array of images: { images: [{ id: string, orderIndex: number }] }
+ * Update orderIndex for an array of images:
+ * - Either: { slug: string, images: string[] }
+ * - Or: { images: [{ id: string, orderIndex: number }] }
  */
 router.patch(
   '/products/images/reorder',
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { images } = req.body;
+      const { images, slug, productId } = req.body;
+      const targetSlug = slug || productId;
+
+      if (targetSlug && Array.isArray(images) && (images.length === 0 || typeof images[0] === 'string')) {
+        const updatedUrls = await reorderProductImages(targetSlug, images);
+        res.status(200).json({ success: true, images: updatedUrls, updatedCount: updatedUrls.length });
+        return;
+      }
+
       if (!Array.isArray(images) || images.length === 0) {
-        res.status(400).json({ error: 'Expected images array with id and orderIndex.' });
+        res.status(400).json({ error: 'Expected images array with id and orderIndex, or slug and image URLs array.' });
         return;
       }
 

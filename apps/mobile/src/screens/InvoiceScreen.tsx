@@ -25,7 +25,6 @@ import {
   Check,
   User,
   ShoppingBag,
-  Layers,
   PackageCheck,
   Receipt,
   Eye,
@@ -34,7 +33,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useForm, Controller } from 'react-hook-form';
 import { InvoiceSkeleton } from '../components/SkeletonLoader';
-import { Product, Variant, Customer, Invoice, Order, OrderItem } from '../types';
+import { Product, Variant, Customer, Invoice, Order } from '../types';
 
 export interface InvoiceFormValues {
   invoiceNumber: string;
@@ -769,7 +768,7 @@ export default function InvoiceScreen({
         notes: formValues.notes.trim() || null,
       };
 
-      const createdOrder = await onCreateOrder(orderPayload);
+      await onCreateOrder(orderPayload);
 
       // 2. Generate & Share PDF
       const pdfData = {
@@ -889,9 +888,6 @@ export default function InvoiceScreen({
     (sum, ord) => sum + Number(ord.totalAmount || 0),
     0
   );
-  const onlineCollected = invoices
-    .filter((inv) => (inv.mode || 'cash').toLowerCase() === 'online')
-    .reduce((sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0), 0);
   const cashCollected = invoices
     .filter((inv) => (inv.mode || 'cash').toLowerCase() === 'cash')
     .reduce((sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0), 0);

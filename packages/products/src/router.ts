@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories } from './data.js';
+import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories, reorderProductImages } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviews.js';
 import { recordInventoryTransaction, getInventoryTransactions } from './inventory.js';
 import { getCustomers, createCustomer } from './customers.js';
@@ -22,7 +22,9 @@ import {
   UpdateProductStatusOutputSchema,
   CreateReviewInputSchema,
   UpdateReviewInputSchema,
-  DeleteReviewInputSchema
+  DeleteReviewInputSchema,
+  ReorderProductImagesInputSchema,
+  ReorderProductImagesOutputSchema
 } from './services/validations.js';
 
 export interface RouteMeta {
@@ -72,14 +74,22 @@ export const productsRouter = t.router({
     .input(CreateProductInputSchema)
     .output(CreateProductOutputSchema)
     .mutation(async ({ input }) => {
-      return await createProduct(input);
+      return await createProduct(input as any);
     }),
   update: adminProcedure
     .meta({ description: 'Update an existing product listing (Admin only)' })
     .input(UpdateProductInputSchema)
     .output(UpdateProductOutputSchema)
     .mutation(async ({ input }) => {
-      return await updateProduct(input.slug, input.data);
+      return await updateProduct(input.slug, input.data as any);
+    }),
+  reorderImages: adminProcedure
+    .meta({ description: 'Reorder product images (Admin only)' })
+    .input(ReorderProductImagesInputSchema)
+    .output(ReorderProductImagesOutputSchema)
+    .mutation(async ({ input }) => {
+      const updatedImages = await reorderProductImages(input.slug, input.images);
+      return { success: true, images: updatedImages };
     }),
   delete: adminProcedure
     .meta({ description: 'Delete an existing product listing (Admin only)' })

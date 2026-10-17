@@ -1,47 +1,47 @@
 import { z } from 'zod';
 
 export const ProductVariantSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional().nullable(),
   color: z.string().min(1, 'Variant color is required'),
-  hexCode: z.string().optional(),
+  hexCode: z.string().optional().nullable(),
   stock: z.number().int().min(0, 'Stock must be 0 or greater'),
-  reservedStock: z.number().int().min(0).optional().default(0),
-  images: z.array(z.string()).optional().default([]),
+  reservedStock: z.number().int().min(0).optional().nullable().default(0),
+  images: z.array(z.string()).optional().nullable().default([]),
 });
 
 export const CreateProductVariantSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional().nullable(),
   color: z.string().min(1, 'Color is mandatory for every variant'),
-  hexCode: z.string().optional(),
+  hexCode: z.string().optional().nullable(),
   stock: z.number().int().min(1, 'Stock must be greater than 0'),
-  reservedStock: z.number().int().min(0).optional().default(0),
-  images: z.array(z.string()).optional().default([]),
+  reservedStock: z.number().int().min(0).optional().nullable().default(0),
+  images: z.array(z.string()).optional().nullable().default([]),
 });
 
 export const ProductSchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
-  description: z.string().optional().default(''),
-  mrp: z.number().optional(),
-  sellingPrice: z.number().optional(),
+  description: z.string().optional().nullable().default(''),
+  mrp: z.number().optional().nullable(),
+  sellingPrice: z.number().optional().nullable(),
   price: z.number(),
-  discountPrice: z.number().optional(),
-  category: z.string().optional().default('Uncategorized'),
-  categoryId: z.string().optional(),
-  images: z.array(z.string()).optional().default([]),
-  fabric: z.string().optional().default(''),
-  fit: z.string().optional().default(''),
-  careInstructions: z.string().optional().default(''),
-  variants: z.array(ProductVariantSchema).optional().default([]),
-  featured: z.boolean().optional().default(false),
-  newArrival: z.boolean().optional().default(false),
-  bestseller: z.boolean().optional().default(false),
+  discountPrice: z.number().optional().nullable(),
+  category: z.string().optional().nullable().default('Uncategorized'),
+  categoryId: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().nullable().default([]),
+  fabric: z.string().optional().nullable().default(''),
+  fit: z.string().optional().nullable().default(''),
+  careInstructions: z.string().optional().nullable().default(''),
+  variants: z.array(ProductVariantSchema).optional().nullable().default([]),
+  featured: z.boolean().optional().nullable().default(false),
+  newArrival: z.boolean().optional().nullable().default(false),
+  bestseller: z.boolean().optional().nullable().default(false),
   createdAt: z.string(),
-  tags: z.array(z.string()).optional().default([]),
-  isListed: z.boolean().optional().default(true),
-  status: z.enum(['listed', 'unListed', 'discontinued']).optional().default('listed'),
-  inStock: z.boolean().optional().default(true),
+  tags: z.array(z.string()).optional().nullable().default([]),
+  isListed: z.boolean().optional().nullable().default(true),
+  status: z.enum(['listed', 'unListed', 'discontinued']).optional().nullable().default('listed'),
+  inStock: z.boolean().optional().nullable().default(true),
 });
 
 // Input Validations
@@ -53,25 +53,61 @@ export const CreateProductInputSchema = ProductSchema.omit({
   id: true,
   createdAt: true,
 }).extend({
-  id: z.string().optional(),
+  id: z.string().optional().nullable(),
   name: z.string().min(1, 'Product name is required'),
   slug: z.string().min(1, 'Product slug is required'),
   description: z.string().min(1, 'Product description is required'),
-  mrp: z.number().positive('MRP must be greater than 0').optional(),
-  sellingPrice: z.number().positive('Selling price must be greater than 0').optional(),
-  price: z.number().optional(),
+  mrp: z.number().positive('MRP must be greater than 0').optional().nullable(),
+  sellingPrice: z.number().positive('Selling price must be greater than 0').optional().nullable(),
+  price: z.number().optional().nullable(),
   category: z.string().min(1, 'Category is required'),
-  categoryId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().optional().nullable(),
   images: z.array(z.string().min(1)).min(2, 'At least 2 product images are required'),
   variants: z.array(CreateProductVariantSchema).min(1, 'At least one variant with stock is required'),
-  createdAt: z.string().optional(),
+  createdAt: z.string().optional().nullable(),
 });
+export const UpdateProductDataSchema = z.object({
+  id: z.string().optional().nullable(),
+  name: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  description: z.string().optional().nullable(),
+  mrp: z.number().positive().optional().nullable(),
+  sellingPrice: z.number().positive().optional().nullable(),
+  price: z.number().positive().optional().nullable(),
+  discountPrice: z.number().optional().nullable(),
+  category: z.string().min(1).optional().nullable(),
+  categoryId: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().nullable(),
+  fabric: z.string().optional().nullable(),
+  fit: z.string().optional().nullable(),
+  careInstructions: z.string().optional().nullable(),
+  variants: z.array(ProductVariantSchema).optional().nullable(),
+  featured: z.boolean().optional().nullable(),
+  newArrival: z.boolean().optional().nullable(),
+  bestseller: z.boolean().optional().nullable(),
+  createdAt: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional().nullable(),
+  isListed: z.boolean().optional().nullable(),
+  status: z.enum(['listed', 'unListed', 'discontinued']).optional().nullable(),
+  inStock: z.boolean().optional().nullable(),
+});
+
 export const UpdateProductInputSchema = z.object({
   slug: z.string(),
-  data: ProductSchema.partial(),
+  data: UpdateProductDataSchema,
 });
 export const DeleteProductInputSchema = z.object({
   slug: z.string(),
+});
+
+export const ReorderProductImagesInputSchema = z.object({
+  slug: z.string().min(1, 'Product slug or ID is required'),
+  images: z.array(z.string().min(1)).min(1, 'At least one image URL is required'),
+});
+
+export const ReorderProductImagesOutputSchema = z.object({
+  success: z.boolean(),
+  images: z.array(z.string()),
 });
 
 // Output Validations

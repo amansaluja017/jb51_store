@@ -30,6 +30,7 @@ interface DraggableItemProps {
   total: number;
   isUploading?: boolean;
   isDeleting?: boolean;
+  isReordering?: boolean;
   onMoveLeft: () => void;
   onMoveRight: () => void;
   onRemove: () => void;
@@ -42,6 +43,7 @@ function DraggableItem({
   total,
   isUploading = false,
   isDeleting = false,
+  isReordering = false,
   onMoveLeft,
   onMoveRight,
   onRemove,
@@ -51,7 +53,7 @@ function DraggableItem({
   const scale = useRef(new Animated.Value(1)).current;
   const [isDraggingState, setIsDraggingState] = useState(false);
 
-  const isBusy = isUploading || isDeleting;
+  const isBusy = isUploading || isDeleting || isReordering;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -188,10 +190,13 @@ function DraggableItem({
         </View>
       )}
 
-      {/* Loading overlay with ONLY the spinner */}
+      {/* Loading overlay with spinner */}
       {isBusy && (
         <View style={styles.spinnerOnlyOverlay}>
-          <ActivityIndicator size="large" color="#ffffff" />
+          <ActivityIndicator size="small" color="#ffffff" />
+          {isReordering && (
+            <Text style={styles.reorderingItemText}>Saving...</Text>
+          )}
         </View>
       )}
     </Animated.View>
@@ -206,6 +211,7 @@ export interface DraggableImageListProps {
   uploadingUris?: string[];
   deletingUris?: string[];
   isUploading?: boolean;
+  isReordering?: boolean;
 }
 
 export default function DraggableImageList({
@@ -216,12 +222,23 @@ export default function DraggableImageList({
   uploadingUris = [],
   deletingUris = [],
   isUploading = false,
+  isReordering = false,
 }: DraggableImageListProps) {
+  const [localImages, setLocalImages] = useState<string[]>(images);
+
+  // Keep local copy synced when parent images change
+  React.useEffect(() => {
+    setLocalImages(images);
+  }, [images]);
+
   const handleDragEnd = (fromIdx: number, toIdx: number) => {
     if (fromIdx === toIdx) return;
-    const updated = [...images];
+    const updated = [...localImages];
     const [movedItem] = updated.splice(fromIdx, 1);
     updated.splice(toIdx, 0, movedItem);
+    // 1. Immediately update local state so UI order is instant
+    setLocalImages(updated);
+    // 2. Trigger parent route / persistence
     onReorder(updated);
   };
 
@@ -231,17 +248,25 @@ export default function DraggableImageList({
   };
 
   const handleMoveRight = (idx: number) => {
-    if (idx >= images.length - 1) return;
+    if (idx >= localImages.length - 1) return;
     handleDragEnd(idx, idx + 1);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.instructionsRow}>
-        <Text style={styles.instructionsText}>
-          Drag photos horizontally to define display order. First photo is the{' '}
-          <Text style={{ fontWeight: 'bold', color: '#FF5E36' }}>Cover</Text>.
-        </Text>
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <Text style={styles.instructionsText}>
+            Drag photos horizontally or use arrows to change display order. First photo is the{' '}
+            <Text style={{ fontWeight: 'bold', color: '#FF5E36' }}>Cover</Text>.
+          </Text>
+        </View>
+        {isReordering && (
+          <View style={styles.reorderSyncBadge}>
+            <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 6 }} />
+            <Text style={styles.reorderSyncText}>Saving order...</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -263,7 +288,7 @@ export default function DraggableImageList({
         </TouchableOpacity>
 
         {/* Draggable Big Image Tiles */}
-        {images.map((img: string, idx: number) => {
+        {localImages.map((img: string, idx: number) => {
           const isItemUploading =
             uploadingUris.includes(img) ||
             ((img.startsWith('file:') || img.startsWith('content:') || img.startsWith('blob:')) && isUploading);
@@ -271,12 +296,13 @@ export default function DraggableImageList({
 
           return (
             <DraggableItem
-              key={`${img}-${idx}`}
+              key={img || `img-${idx}`}
               img={img}
               idx={idx}
-              total={images.length}
+              total={localImages.length}
               isUploading={isItemUploading}
               isDeleting={isItemDeleting}
+              isReordering={isReordering}
               onMoveLeft={() => handleMoveLeft(idx)}
               onMoveRight={() => handleMoveRight(idx)}
               onRemove={() => onRemove(idx)}
@@ -295,11 +321,35 @@ const styles = StyleSheet.create({
   },
   instructionsRow: {
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   instructionsText: {
     fontSize: 11,
     color: '#71717a',
-    lineHeight: 15,
+    lineHeight: 16,
+  },
+  reorderSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff1ee',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ffcca7',
+  },
+  reorderSyncText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF5E36',
+  },
+  reorderingItemText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginTop: 4,
   },
   scrollContent: {
     flexDirection: 'row',

@@ -20,7 +20,6 @@ import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CatalogScreen from './src/screens/CatalogScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
-import AnalyticsScreen from './src/screens/AnalyticsScreen';
 import InvoiceScreen from './src/screens/InvoiceScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import ProductFormModal from './src/components/ProductFormModal';
@@ -31,7 +30,7 @@ import InquiriesModal from './src/components/InquiriesModal';
 import CustomAlert, { CustomAlertConfig } from './src/components/CustomAlert';
 import NavigationTabBar, { TabType } from './src/components/NavigationTabBar';
 
-import { getInitialApiHost, trpcRequest as trpcRequestService } from './src/services/api';
+import { getInitialApiHost, trpcRequest as trpcRequestService, reorderProductImagesApi } from './src/services/api';
 import {
   configureNotifications
 } from './src/services/notifications';
@@ -538,22 +537,6 @@ export default function App() {
     }
   };
 
-  const handleCreateInvoice = async (invoiceData: any) => {
-    try {
-      const res: any = await trpcRequest('invoices.create', {
-        method: 'POST',
-        body: invoiceData,
-      });
-      const newInv = res as Invoice;
-      setInvoices(prev => [newInv, ...prev]);
-      return newInv;
-    } catch (err: any) {
-      console.error('[handleCreateInvoice Error]:', err);
-      showAlert('Invoice Error', err.message || 'Failed to create invoice', 'error');
-      throw err;
-    }
-  };
-
   const handleDeleteInvoice = async (id: string, label: string) => {
     try {
       await trpcRequest('invoices.delete', {
@@ -609,16 +592,7 @@ export default function App() {
     );
   };
 
-  // Review Mutators
   const handleAddReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => {
-    const tempId = `rev_${Date.now()}`;
-    const newReview: Review = {
-      ...reviewData,
-      id: tempId,
-      createdAt: new Date().toISOString(),
-      approved: true,
-    };
-
     try {
       const decoded: any = await trpcRequest('reviews.create', {
         method: 'POST',
@@ -719,6 +693,46 @@ export default function App() {
   const handleResolveInquiry = (id: string, name?: string) => {
     setInquiries(prev => prev.map(inq => inq.id === id ? { ...inq, status: 'Responded' as const } : inq));
     showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Responded.`, 'success');
+  };
+
+  const handleReorderProductImages = async (newImages: string[]): Promise<string[]> => {
+    if (!editingSlug) return newImages;
+    try {
+      console.log('[handleReorderProductImages] Hitting products.reorderImages for slug:', editingSlug);
+      const res: any = await trpcRequest('products.reorderImages', {
+        method: 'POST',
+        body: { slug: editingSlug, images: newImages },
+      });
+      const confirmedImages = Array.isArray(res?.images) && res.images.length > 0 ? res.images : newImages;
+      setProducts(prev => prev.map(p => {
+        if (p.slug !== editingSlug) return p;
+        const updatedVariants = (p.variants || []).map(v => ({
+          ...v,
+          images: confirmedImages,
+        }));
+        return { ...p, images: confirmedImages, variants: updatedVariants.length > 0 ? updatedVariants : p.variants };
+      }));
+      return confirmedImages;
+    } catch (err: any) {
+      console.warn('[handleReorderProductImages fallback to REST]:', err);
+      try {
+        const res = await reorderProductImagesApi(editingSlug, newImages, { apiHost, token });
+        const confirmedImages = Array.isArray(res?.images) && res.images.length > 0 ? res.images : newImages;
+        setProducts(prev => prev.map(p => {
+          if (p.slug !== editingSlug) return p;
+          const updatedVariants = (p.variants || []).map(v => ({
+            ...v,
+            images: confirmedImages,
+          }));
+          return { ...p, images: confirmedImages, variants: updatedVariants.length > 0 ? updatedVariants : p.variants };
+        }));
+        return confirmedImages;
+      } catch (fallbackErr: any) {
+        console.error('[handleReorderProductImages failed]:', fallbackErr);
+        showAlert('Reorder Failed', fallbackErr?.message || err?.message || 'Could not update image order.', 'error');
+        return newImages;
+      }
+    }
   };
 
   // Save edits/addings
@@ -966,7 +980,7 @@ export default function App() {
               invoices={invoices}
               orders={orders}
               showAlert={showAlert}
-              isLoading={isLoading || isLoadingInvoices || isLoadingOrders}
+              isLoading={isLoading || isLoadingInvoices || isLoadingOrders || isLoadingCustomers}
               refreshing={refreshing}
               onRefresh={handleRefresh}
               onFetchCustomers={handleFetchCustomers}
@@ -1022,6 +1036,7 @@ export default function App() {
           categories={categories}
           onClose={() => setFormModalOpen(false)}
           onSave={handleSaveProduct}
+          onReorderImages={handleReorderProductImages}
           onAddNewCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
           showAlert={showAlert}

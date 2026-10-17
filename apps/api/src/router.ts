@@ -15,7 +15,7 @@ import {
 export type { ReviewItem } from '@repo/products';
 import * as trpcExpress from '@trpc/server/adapters/express';
 
-export const createTRPCContext = async ({ req, res }: trpcExpress.CreateExpressContextOptions) => {
+export const createTRPCContext = async ({ req }: trpcExpress.CreateExpressContextOptions) => {
   const authHeader = req?.headers?.authorization;
   let user: JwtPayload | null = null;
   let isStaff = false;

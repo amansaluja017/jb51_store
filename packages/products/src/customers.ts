@@ -3,7 +3,7 @@ import {
   customerDetails as customerDetailsTable,
   user as userTable,
 } from '@repo/db';
-import { desc, eq, or } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 export interface CreateCustomerInput {
   name: string;

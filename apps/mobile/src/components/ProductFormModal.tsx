@@ -8,9 +8,7 @@ import {
   TextInput,
   Modal,
   Switch,
-  Alert,
   Platform,
-  Image,
   KeyboardAvoidingView,
   ActivityIndicator
 } from 'react-native';
@@ -31,7 +29,6 @@ import {
   ChevronRight,
   Eye,
   Sparkles,
-  CloudUpload,
   RefreshCw,
   Pipette,
   Palette,
@@ -42,6 +39,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Product, Variant } from '../types';
 import DraggableImageList from './DraggableImageList';
 import ColorPickerModal from './ColorPickerModal';
+import SimpleTextEditor from './SimpleTextEditor';
 import {
   extractColorsFromCoverImage,
   getClosestColorName,
@@ -49,7 +47,7 @@ import {
   isLightColor,
   SIGNATURE_ATELIER_PALETTE,
 } from '../utils/colorThiefHelper';
-import { uploadProductImage, deleteProductImageByUrl } from '../services/api';
+import { uploadProductImage, deleteProductImageByUrl, reorderProductImagesApi } from '../services/api';
 import { useForm, Controller } from 'react-hook-form';
 
 export interface ProductFormData {
@@ -79,6 +77,7 @@ interface ProductFormModalProps {
   categories: string[];
   onClose: () => void;
   onSave: (product: Product) => void;
+  onReorderImages?: (newImages: string[]) => Promise<string[] | void>;
   onDeleteCategory: (categoryToDelete: string, targetCategory: string) => void;
   onAddNewCategory: (newCategory: string) => void;
   showAlert: (title: string, message: string, type?: 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
@@ -94,6 +93,7 @@ export default function ProductFormModal({
   categories,
   onClose,
   onSave,
+  onReorderImages,
   onDeleteCategory,
   onAddNewCategory,
   showAlert,
@@ -158,7 +158,6 @@ export default function ProductFormModal({
     setValue,
     getValues,
     watch,
-    formState: { errors }
   } = useForm<ProductFormData>({
     defaultValues: getInitialFormValues(),
   });
@@ -245,10 +244,11 @@ export default function ProductFormModal({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [tempUrl, setTempUrl] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [uploadProgressText, setUploadProgressText] = useState('');
   const [uploadingUris, setUploadingUris] = useState<string[]>([]);
   const [deletingUris, setDeletingUris] = useState<string[]>([]);
   const [activeVariantIdxForMedia, setActiveVariantIdxForMedia] = useState<number | null>(null);
+  const [isReorderingImages, setIsReorderingImages] = useState(false);
+  const [reorderingVariantIdx, setReorderingVariantIdx] = useState<number | null>(null);
 
   // Dropdown states
   const [showCategorySelector, setShowCategorySelector] = useState(false);
@@ -266,9 +266,10 @@ export default function ProductFormModal({
     setNewCatInput('');
     setActiveVariantIdxForMedia(null);
     setIsUploadingImage(false);
-    setUploadProgressText('');
     setUploadingUris([]);
     setDeletingUris([]);
+    setIsReorderingImages(false);
+    setReorderingVariantIdx(null);
     setActiveTab('details');
     setExtractedPalettes({});
     setIsExtractingColors({});
@@ -395,12 +396,19 @@ export default function ProductFormModal({
     setShowDiscardAlert(false);
   };
 
-  // Sync form state when modal opens or initialData changes
+  const lastOpenedRef = React.useRef<{ visible: boolean; slug: string | null }>({ visible: false, slug: null });
+
+  // Sync form state ONLY when modal opens or when editing a different product
   useEffect(() => {
-    if (visible) {
+    const wasVisible = lastOpenedRef.current.visible;
+    const prevSlug = lastOpenedRef.current.slug;
+    const currentSlug = editingSlug || null;
+
+    if (visible && (!wasVisible || prevSlug !== currentSlug)) {
       resetFormState();
     }
-  }, [visible, isEditing, initialProduct, categories]);
+    lastOpenedRef.current = { visible, slug: currentSlug };
+  }, [visible, editingSlug]);
 
   const handleExtractCoverColors = async (variantIdx: number, coverUri: string, force = false) => {
     if (!coverUri) return;
@@ -438,9 +446,9 @@ export default function ProductFormModal({
     }
   };
 
-  // Watch for changes to cover images (images[0]) and automatically extract colors with Color Thief
+  // Watch for changes to cover images (images[0]) and automatically extract colors with Color Thief (create mode only)
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || isEditing) return;
     formVariants.forEach((v, idx) => {
       const cover = (v.images && v.images.length > 0) ? v.images[0] : null;
       if (cover) {
@@ -454,7 +462,7 @@ export default function ProductFormModal({
         }
       }
     });
-  }, [formVariants, visible]);
+  }, [formVariants, visible, isEditing]);
 
   const handleNameChange = (val: string) => {
     setFormName(val);
@@ -478,29 +486,6 @@ export default function ProductFormModal({
     );
   };
 
-  const removeImageField = async (idx: number) => {
-    const urlToRemove = formImages[idx];
-    if (!urlToRemove) return;
-    if (deletingUris.includes(urlToRemove)) return;
-
-    if (isCloudinaryUrl(urlToRemove)) {
-      setDeletingUris(prev => [...prev, urlToRemove]);
-      try {
-        console.log('[Cloudinary Delete] Deleting image from Cloudinary:', urlToRemove);
-        await deleteProductImageByUrl(urlToRemove, { apiHost, token });
-        console.log('[Cloudinary Delete Success]:', urlToRemove);
-      } catch (e: any) {
-        console.warn('[Cloudinary remote delete warning]:', e?.message || e);
-      } finally {
-        setDeletingUris(prev => prev.filter(u => u !== urlToRemove));
-        setFormImages(prev => prev.filter(img => img !== urlToRemove));
-        setUploadingUris(prev => prev.filter(u => u !== urlToRemove));
-      }
-    } else {
-      setFormImages(prev => prev.filter((_, i) => i !== idx));
-      setUploadingUris(prev => prev.filter(u => u !== urlToRemove));
-    }
-  };
 
   const addImageUris = async (uris: string[]) => {
     if (!uris || uris.length === 0) return;
@@ -535,11 +520,9 @@ export default function ProductFormModal({
     if (localUris.length > 0) {
       setIsUploadingImage(true);
       setUploadingUris(prev => Array.from(new Set([...prev, ...localUris])));
-      setUploadProgressText(`Uploading ${localUris.length} image${localUris.length > 1 ? 's' : ''} to Cloudinary...`);
 
       for (let i = 0; i < localUris.length; i++) {
         const localUri = localUris[i];
-        setUploadProgressText(`Uploading photo ${i + 1}/${localUris.length} to Cloudinary...`);
 
         try {
           const res = await uploadProductImage(localUri, {
@@ -592,15 +575,10 @@ export default function ProductFormModal({
       }
 
       setIsUploadingImage(false);
-      setUploadProgressText('');
       setUploadingUris(prev => prev.filter(u => !localUris.includes(u)));
     }
   };
 
-  const openMediaForMain = () => {
-    setActiveVariantIdxForMedia(null);
-    setShowMediaOptions(true);
-  };
 
   const openMediaForVariant = (variantIdx: number) => {
     setActiveVariantIdxForMedia(variantIdx);
@@ -655,7 +633,12 @@ export default function ProductFormModal({
     }
   };
 
-  const handleReorderVariantImages = (variantIdx: number, newImages: string[]) => {
+  const handleReorderVariantImages = async (variantIdx: number, newImages: string[]) => {
+    setIsReorderingImages(true);
+    setReorderingVariantIdx(variantIdx);
+    let mergedImages: string[] = [];
+
+    // Immediately update local form state so UI responds instantly
     setFormVariants(prev => {
       const updated = [...prev];
       if (updated[variantIdx]) {
@@ -664,8 +647,51 @@ export default function ProductFormModal({
           images: newImages,
         };
       }
+      mergedImages = Array.from(new Set([
+        ...newImages,
+        ...updated.flatMap(v => v.images || []),
+      ])).filter(Boolean);
       return updated;
     });
+
+    setFormImages(mergedImages);
+
+    const targetSlug = editingSlug || initialProduct?.slug;
+    if (isEditing && targetSlug) {
+      const imagesToSync = mergedImages.length > 0 ? mergedImages : newImages;
+      try {
+        let finalImages = imagesToSync;
+        if (onReorderImages) {
+          const res = await onReorderImages(imagesToSync);
+          if (Array.isArray(res) && res.length > 0) finalImages = res;
+        } else {
+          const res = await reorderProductImagesApi(targetSlug, imagesToSync, { apiHost, token });
+          if (Array.isArray(res?.images) && res.images.length > 0) finalImages = res.images;
+        }
+
+        // Keep form in sync with confirmed server order
+        setFormVariants(prev => {
+          const updated = [...prev];
+          if (updated[variantIdx]) {
+            updated[variantIdx] = {
+              ...updated[variantIdx],
+              images: newImages,
+            };
+          }
+          return updated;
+        });
+        setFormImages(finalImages);
+      } catch (err: any) {
+        console.error('[handleReorderVariantImages Error]:', err);
+        showAlert('Reorder Failed', err?.message || 'Failed to update image order on server.', 'error');
+      } finally {
+        setIsReorderingImages(false);
+        setReorderingVariantIdx(null);
+      }
+    } else {
+      setIsReorderingImages(false);
+      setReorderingVariantIdx(null);
+    }
   };
 
   // Launch photo library (Gallery) with Android legacy support to access all storage folders
@@ -786,7 +812,7 @@ export default function ProductFormModal({
     setShowNewCatInput(false);
   };
 
-  const handleSave = async (data?: ProductFormData) => {
+  const handleSave = async () => {
     if (isUploadingImage || deletingUris.length > 0) {
       showAlert('Operation in Progress', 'Please wait until image upload/removal finishes.', 'error');
       return;
@@ -844,12 +870,10 @@ export default function ProductFormModal({
     if (pendingUploads.length > 0) {
       setIsUploadingImage(true);
       setUploadingUris(pendingUploads.map(p => p.uri));
-      setUploadProgressText(`Uploading ${pendingUploads.length} remaining images to Cloudinary...`);
 
       try {
         for (let i = 0; i < pendingUploads.length; i++) {
           const item = pendingUploads[i];
-          setUploadProgressText(`Uploading ${i + 1}/${pendingUploads.length} to Cloudinary...`);
           try {
             const res = await uploadProductImage(item.uri, {
               productId: initialProduct?.id,
@@ -879,7 +903,6 @@ export default function ProductFormModal({
         }
       } finally {
         setIsUploadingImage(false);
-        setUploadProgressText('');
         setUploadingUris([]);
       }
     }
@@ -893,28 +916,30 @@ export default function ProductFormModal({
       images: (v.images || []).map(img => img.trim()).filter(img => img !== '')
     }));
 
-    // Validate: color is mandatory for each variant
-    const missingColorIdx = cleanedVariants.findIndex(v => !v.color);
-    if (missingColorIdx !== -1) {
-      showAlert(
-        'Color Required',
-        `Variant #${missingColorIdx + 1} is missing a color. Color is mandatory for every variant.`,
-        'error'
-      );
-      setActiveTab('variants');
-      return;
-    }
+    if (!isEditing) {
+      // Validate: color is mandatory for each variant
+      const missingColorIdx = cleanedVariants.findIndex(v => !v.color);
+      if (missingColorIdx !== -1) {
+        showAlert(
+          'Color Required',
+          `Variant #${missingColorIdx + 1} is missing a color. Color is mandatory for every variant.`,
+          'error'
+        );
+        setActiveTab('variants');
+        return;
+      }
 
-    // Validate: stock must be greater than 0 for each variant
-    const invalidStockIdx = cleanedVariants.findIndex(v => isNaN(v.stock) || v.stock <= 0);
-    if (invalidStockIdx !== -1) {
-      showAlert(
-        'Stock Required',
-        `Variant #${invalidStockIdx + 1} stock must be greater than 0.`,
-        'error'
-      );
-      setActiveTab('variants');
-      return;
+      // Validate: stock must be greater than 0 for each variant
+      const invalidStockIdx = cleanedVariants.findIndex(v => isNaN(v.stock) || v.stock <= 0);
+      if (invalidStockIdx !== -1) {
+        showAlert(
+          'Stock Required',
+          `Variant #${invalidStockIdx + 1} stock must be greater than 0.`,
+          'error'
+        );
+        setActiveTab('variants');
+        return;
+      }
     }
 
     const allVariantImages = cleanedVariants.flatMap(v => v.images || []);
@@ -933,7 +958,7 @@ export default function ProductFormModal({
       .map(t => t.trim().toLowerCase())
       .filter(t => t !== '');
 
-    onSave({
+    const savePayload: any = {
       id: initialProduct?.id || Math.random().toString(36).substring(2, 9),
       name: formName.trim(),
       slug: formSlug.trim(),
@@ -947,13 +972,18 @@ export default function ProductFormModal({
       fabric: formFabric.trim(),
       fit: formFit.trim(),
       careInstructions: formCare.trim(),
-      variants: cleanedVariants,
       featured: formFeatured,
       newArrival: formNewArrival,
       bestseller: formBestseller,
       isListed: formIsListed,
       tags
-    });
+    };
+
+    if (!isEditing) {
+      savePayload.variants = cleanedVariants;
+    }
+
+    onSave(savePayload);
   };
 
   return (
@@ -1189,117 +1219,107 @@ export default function ProductFormModal({
                 <View style={styles.sectionCard}>
                   <Text style={styles.cardHeaderTitle}>Material & Styling Specs</Text>
 
-                  <View style={styles.twoColumnGrid}>
-                    <View style={[styles.modalInputGroup, { flex: 1, marginRight: 8 }]}>
-                      <Text style={styles.fieldLabel}>Fabric Details</Text>
-                      <Controller
-                        control={control}
-                        name="fabric"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <TextInput
-                            value={value}
-                            onBlur={onBlur}
-                            onChangeText={(val) => {
-                              onChange(val);
-                              setFormFabric(val);
-                            }}
-                            placeholder="e.g. 100% Chanderi Silk"
-                            style={styles.modalInput}
-                            placeholderTextColor="#a1a1aa"
-                          />
-                        )}
+                  {/* Fabric Details */}
+                  <Controller
+                    control={control}
+                    name="fabric"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <SimpleTextEditor
+                        label="Fabric Details"
+                        value={value || ''}
+                        onBlur={onBlur}
+                        onChangeText={(val) => {
+                          onChange(val);
+                          setFormFabric(val);
+                        }}
+                        placeholder="e.g. 100% Chanderi Silk with Zari borders"
+                        multiline
+                        numberOfLines={2}
                       />
-                    </View>
-                    <View style={[styles.modalInputGroup, { flex: 1, marginLeft: 8 }]}>
-                      <Text style={styles.fieldLabel}>Fit Silhouette</Text>
-                      <Controller
-                        control={control}
-                        name="fit"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <TextInput
-                            value={value}
-                            onBlur={onBlur}
-                            onChangeText={(val) => {
-                              onChange(val);
-                              setFormFit(val);
-                            }}
-                            placeholder="e.g. Straight Silhouette"
-                            style={styles.modalInput}
-                            placeholderTextColor="#a1a1aa"
-                          />
-                        )}
+                    )}
+                  />
+
+                  {/* Fit Silhouette */}
+                  <Controller
+                    control={control}
+                    name="fit"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <SimpleTextEditor
+                        label="Fit Silhouette"
+                        value={value || ''}
+                        onBlur={onBlur}
+                        onChangeText={(val) => {
+                          onChange(val);
+                          setFormFit(val);
+                        }}
+                        placeholder="e.g. Straight Silhouette with comfort ease"
+                        multiline
+                        numberOfLines={2}
                       />
-                    </View>
-                  </View>
+                    )}
+                  />
 
-                  <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>Care Instructions</Text>
-                    <Controller
-                      control={control}
-                      name="careInstructions"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            setFormCare(val);
-                          }}
-                          placeholder="e.g. Dry Clean only. Store in muslin cloth."
-                          style={styles.modalInput}
-                          placeholderTextColor="#a1a1aa"
-                        />
-                      )}
-                    />
-                  </View>
+                  {/* Care Instructions */}
+                  <Controller
+                    control={control}
+                    name="careInstructions"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <SimpleTextEditor
+                        label="Care Instructions"
+                        value={value || ''}
+                        onBlur={onBlur}
+                        onChangeText={(val) => {
+                          onChange(val);
+                          setFormCare(val);
+                        }}
+                        placeholder="e.g. Dry Clean only. Store in muslin cloth."
+                        multiline
+                        numberOfLines={2}
+                      />
+                    )}
+                  />
 
-                  <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>Outfit Tags (Comma Separated)</Text>
-                    <Controller
-                      control={control}
-                      name="tags"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            setFormTags(val);
-                          }}
-                          placeholder="e.g. silk, minimalist, wedding, coord"
-                          style={styles.modalInput}
-                          placeholderTextColor="#a1a1aa"
-                        />
-                      )}
-                    />
-                  </View>
+                  {/* Outfit Tags */}
+                  <Controller
+                    control={control}
+                    name="tags"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <SimpleTextEditor
+                        label="Outfit Tags (Comma Separated)"
+                        value={value || ''}
+                        onBlur={onBlur}
+                        onChangeText={(val) => {
+                          onChange(val);
+                          setFormTags(val);
+                        }}
+                        placeholder="e.g. silk, minimalist, wedding, coord"
+                      />
+                    )}
+                  />
                 </View>
 
                 {/* Editorial Description Card */}
                 <View style={styles.sectionCard}>
                   <Text style={styles.cardHeaderTitle}>Editorial Narration</Text>
-                  <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>Editorial Description</Text>
-                    <Controller
-                      control={control}
-                      name="description"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            setFormDescription(val);
-                          }}
-                          placeholder="Describe heritage motifs, dupatta styles, embroidery, or weave history..."
-                          multiline
-                          numberOfLines={4}
-                          style={[styles.modalInput, styles.multilineInput]}
-                          placeholderTextColor="#a1a1aa"
-                        />
-                      )}
-                    />
-                  </View>
+
+                  <Controller
+                    control={control}
+                    name="description"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <SimpleTextEditor
+                        label="Editorial Description"
+                        value={value || ''}
+                        onBlur={onBlur}
+                        onChangeText={(val) => {
+                          onChange(val);
+                          setFormDescription(val);
+                        }}
+                        placeholder="Describe heritage motifs, dupatta styles, embroidery, or weave history..."
+                        multiline
+                        numberOfLines={5}
+                      />
+                    )}
+                  />
                 </View>
 
               </View>
@@ -1315,17 +1335,21 @@ export default function ProductFormModal({
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={styles.variantsTitleText}>Variant Collections</Text>
                       <Text style={styles.variantsSubtextText}>
-                        Configure colors, stock counts, and dedicated images per variant.
+                        {isEditing
+                          ? 'View garment shades, photos, and current inventory allocation.'
+                          : 'Configure colors, stock counts, and dedicated images per variant.'}
                       </Text>
                     </View>
-                    <TouchableOpacity
-                      onPress={addVariantField}
-                      style={styles.addVariantPrimaryBtn}
-                      activeOpacity={0.8}
-                    >
-                      <Plus size={14} color="#ffffff" />
-                      <Text style={styles.addVariantPrimaryBtnText}>Add Variant</Text>
-                    </TouchableOpacity>
+                    {!isEditing && (
+                      <TouchableOpacity
+                        onPress={addVariantField}
+                        style={styles.addVariantPrimaryBtn}
+                        activeOpacity={0.8}
+                      >
+                        <Plus size={14} color="#ffffff" />
+                        <Text style={styles.addVariantPrimaryBtnText}>Add Variant</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   {/* Summary Stat Pills */}
@@ -1373,14 +1397,16 @@ export default function ProductFormModal({
                             VARIANT #{idx + 1} {v.color.trim() ? `• ${v.color.trim()}` : ''} {v.hexCode ? `• ${v.hexCode}` : ''} • {total} Total
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => removeVariantField(idx)}
-                          style={styles.deleteVariantIconCardBtn}
-                          disabled={formVariants.length === 1}
-                          activeOpacity={0.7}
-                        >
-                          <Trash2 size={14} color={formVariants.length === 1 ? '#d4d4d8' : '#ef4444'} />
-                        </TouchableOpacity>
+                        {!isEditing && (
+                          <TouchableOpacity
+                            onPress={() => removeVariantField(idx)}
+                            style={styles.deleteVariantIconCardBtn}
+                            disabled={formVariants.length === 1}
+                            activeOpacity={0.7}
+                          >
+                            <Trash2 size={14} color={formVariants.length === 1 ? '#d4d4d8' : '#ef4444'} />
+                          </TouchableOpacity>
+                        )}
                       </View>
 
                       {/* 1. IMAGE SELECTION FIRST (Top Section) */}
@@ -1395,6 +1421,7 @@ export default function ProductFormModal({
                           uploadingUris={uploadingUris}
                           deletingUris={deletingUris}
                           isUploading={isUploadingImage && (activeVariantIdxForMedia === idx || activeVariantIdxForMedia === null)}
+                          isReordering={isReorderingImages && reorderingVariantIdx === idx}
                           onReorder={(newImages: string[]) => handleReorderVariantImages(idx, newImages)}
                           onRemove={(imgIdx: number) => removeVariantImage(idx, imgIdx)}
                           onAddPress={() => openMediaForVariant(idx)}
@@ -1762,62 +1789,86 @@ export default function ProductFormModal({
                           </View>
                         </View>
 
-                        <View style={styles.stockAllocationRow}>
-                          <View style={styles.stockColItem}>
-                            <Text style={styles.stylishFieldLabel}>
-                              AVAILABLE <Text style={{ color: '#ef4444' }}>*</Text>
+                        {isEditing ? (
+                          <View style={styles.readOnlyInventoryBanner}>
+                            <View style={styles.readOnlyStockStatsRow}>
+                              <View style={styles.readOnlyStatItem}>
+                                <Text style={styles.readOnlyStatLabel}>AVAILABLE</Text>
+                                <Text style={[styles.readOnlyStatVal, { color: '#16a34a' }]}>{avail} pcs</Text>
+                              </View>
+                              <View style={styles.readOnlyStatDivider} />
+                              <View style={styles.readOnlyStatItem}>
+                                <Text style={styles.readOnlyStatLabel}>RESERVED</Text>
+                                <Text style={[styles.readOnlyStatVal, { color: '#d97706' }]}>{res} pcs</Text>
+                              </View>
+                              <View style={styles.readOnlyStatDivider} />
+                              <View style={styles.readOnlyStatItem}>
+                                <Text style={styles.readOnlyStatLabel}>TOTAL</Text>
+                                <Text style={[styles.readOnlyStatVal, { color: '#09090b' }]}>{total} pcs</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.readOnlyInventoryHint}>
+                              🔒 Inventory editing is disabled in this form. Manage stock quantities and adjustments from the Inventory screen.
                             </Text>
-                            <TextInput
-                              placeholder="Min 1"
-                              value={
-                                v.stock !== undefined && v.stock !== null && (v.stock as any) !== ''
-                                  ? String(v.stock)
-                                  : ''
-                              }
-                              onChangeText={(val) =>
-                                updateVariantField(idx, 'stock', val.replace(/[^0-9]/g, ''))
-                              }
-                              keyboardType="numeric"
-                              style={[
-                                styles.stylishVariantInput,
-                                (Number(v.stock) <= 0 || (v.stock as any) === '') && {
-                                  borderColor: '#fca5a5',
-                                },
-                              ]}
-                              placeholderTextColor="#a1a1aa"
-                            />
                           </View>
+                        ) : (
+                          <View style={styles.stockAllocationRow}>
+                            <View style={styles.stockColItem}>
+                              <Text style={styles.stylishFieldLabel}>
+                                AVAILABLE <Text style={{ color: '#ef4444' }}>*</Text>
+                              </Text>
+                              <TextInput
+                                placeholder="Min 1"
+                                value={
+                                  v.stock !== undefined && v.stock !== null && (v.stock as any) !== ''
+                                    ? String(v.stock)
+                                    : ''
+                                }
+                                onChangeText={(val) =>
+                                  updateVariantField(idx, 'stock', val.replace(/[^0-9]/g, ''))
+                                }
+                                keyboardType="numeric"
+                                style={[
+                                  styles.stylishVariantInput,
+                                  (Number(v.stock) <= 0 || (v.stock as any) === '') && {
+                                    borderColor: '#fca5a5',
+                                  },
+                                ]}
+                                placeholderTextColor="#a1a1aa"
+                              />
+                            </View>
 
-                          <View style={styles.stockColItem}>
-                            <Text style={styles.stylishFieldLabel}>RESERVED</Text>
-                            <TextInput
-                              placeholder="0"
-                              value={
-                                v.reservedStock !== undefined &&
-                                v.reservedStock !== null &&
-                                (v.reservedStock as any) !== '' &&
-                                v.reservedStock !== 0
-                                  ? String(v.reservedStock)
-                                  : v.reservedStock === 0
-                                  ? '0'
-                                  : ''
-                              }
-                              onChangeText={(val) =>
-                                updateVariantField(idx, 'reservedStock', val.replace(/[^0-9]/g, ''))
-                              }
-                              keyboardType="numeric"
-                              style={styles.stylishVariantInput}
-                              placeholderTextColor="#a1a1aa"
-                            />
-                          </View>
+                            <View style={styles.stockColItem}>
+                              <Text style={styles.stylishFieldLabel}>RESERVED</Text>
+                              <TextInput
+                                placeholder="0"
+                                value={
+                                  v.reservedStock !== undefined &&
+                                  v.reservedStock !== null &&
+                                  (v.reservedStock as any) !== '' &&
+                                  v.reservedStock !== 0
+                                    ? String(v.reservedStock)
+                                    : v.reservedStock === 0
+                                    ? '0'
+                                    : ''
+                                }
+                                onChangeText={(val) =>
+                                  updateVariantField(idx, 'reservedStock', val.replace(/[^0-9]/g, ''))
+                                }
+                                keyboardType="numeric"
+                                style={styles.stylishVariantInput}
+                                placeholderTextColor="#a1a1aa"
+                              />
+                            </View>
 
-                          <View style={styles.stockColItem}>
-                            <Text style={styles.stylishFieldLabel}>TOTAL UNITS</Text>
-                            <View style={styles.readOnlyTotalBox}>
-                              <Text style={styles.readOnlyTotalText}>{total} pcs</Text>
+                            <View style={styles.stockColItem}>
+                              <Text style={styles.stylishFieldLabel}>TOTAL UNITS</Text>
+                              <View style={styles.readOnlyTotalBox}>
+                                <Text style={styles.readOnlyTotalText}>{total} pcs</Text>
+                              </View>
                             </View>
                           </View>
-                        </View>
+                        )}
                       </View>
                     </View>
                   );
@@ -1899,8 +1950,11 @@ export default function ProductFormModal({
           {activeTab !== 'details' ? (
             <TouchableOpacity
               onPress={() => {
-                if (activeTab === 'visibility') setActiveTab('variants');
-                else if (activeTab === 'variants') setActiveTab('details');
+                if (activeTab === 'visibility') {
+                  setActiveTab('variants');
+                } else if (activeTab === 'variants') {
+                  setActiveTab('details');
+                }
               }}
               style={styles.secondaryBottomBtn}
               activeOpacity={0.7}
@@ -1920,8 +1974,11 @@ export default function ProductFormModal({
           {activeTab !== 'visibility' ? (
             <TouchableOpacity
               onPress={() => {
-                if (activeTab === 'details') setActiveTab('variants');
-                else if (activeTab === 'variants') setActiveTab('visibility');
+                if (activeTab === 'details') {
+                  setActiveTab('variants');
+                } else if (activeTab === 'variants') {
+                  setActiveTab('visibility');
+                }
               }}
               style={styles.primaryBottomBtn}
               activeOpacity={0.8}
@@ -1931,7 +1988,7 @@ export default function ProductFormModal({
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={handleSubmit((data) => handleSave(data))}
+              onPress={handleSubmit(() => handleSave())}
               style={[styles.submitBottomBtn, (isUploadingImage || deletingUris.length > 0) && { opacity: 0.6 }]}
               activeOpacity={0.8}
               disabled={isUploadingImage || deletingUris.length > 0}
@@ -3115,6 +3172,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: '#FF5E36',
+  },
+  readOnlyInventoryBanner: {
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    padding: 10,
+    marginTop: 4,
+  },
+  readOnlyStockStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 4,
+  },
+  readOnlyStatItem: {
+    alignItems: 'center',
+  },
+  readOnlyStatLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#71717a',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  readOnlyStatVal: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  readOnlyStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#e4e4e7',
+  },
+  readOnlyInventoryHint: {
+    fontSize: 10,
+    color: '#71717a',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 14,
   },
   variantGallerySection: {
     paddingTop: 10,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Linking, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Linking } from 'react-native';
 import { MessageCircle, Camera, CheckCircle2, Phone, Mail, Check } from 'lucide-react-native';
 import { Inquiry } from '../types';
 

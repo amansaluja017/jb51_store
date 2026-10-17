@@ -18,11 +18,8 @@ import {
   TrendingDown,
   TrendingUp,
   Search,
-  Calendar,
   User,
   Package,
-  Phone,
-  Mail,
   FileText,
   Clock,
   RotateCw,
@@ -244,7 +241,6 @@ export default function InventoryHistoryModal({
               filteredTransactions.map(tx => {
                 const isSale = tx.type === 'sale';
                 const isPurchase = tx.type === 'purchase';
-                const isAdjustment = !isSale && !isPurchase;
 
                 const party = isSale
                   ? (tx.customerName || 'Walk-in Customer')

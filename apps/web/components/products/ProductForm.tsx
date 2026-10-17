@@ -7,6 +7,7 @@ import { type Product, type ProductVariant } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { toast } from 'sonner';
 import { Dropdown } from '@/components/ui/Dropdown';
+import { SimpleRichTextEditor } from '@/components/ui/SimpleRichTextEditor';
 
 export interface FormVariant {
   id?: string;
@@ -29,6 +30,8 @@ const CATEGORIES = [
   'Velvet Edit',
   'Occasion Wear'
 ];
+
+
 
 
 export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
@@ -445,17 +448,14 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Product Description *</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                placeholder="Describe the silhouette, pattern details, structure, and embellishments..."
-                className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors resize-none leading-relaxed"
-                required
-              />
-            </div>
+            <SimpleRichTextEditor
+              label="Product Description"
+              value={description}
+              onChange={setDescription}
+              placeholder="Describe the silhouette, pattern details, structure, and embellishments..."
+              rows={4}
+              required
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
@@ -564,39 +564,30 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
             <h2 className="font-serif text-lg font-bold text-zinc-900 border-b border-zinc-100 pb-3">Fabric & Details</h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Fabric Composition</label>
-                <input
-                  type="text"
-                  value={fabric}
-                  onChange={(e) => setFabric(e.target.value)}
-                  placeholder="e.g. 100% Chanderi Silk with gold zari borders"
-                  className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
-                />
-              </div>
+              <SimpleRichTextEditor
+                label="Fabric Composition"
+                value={fabric}
+                onChange={setFabric}
+                placeholder="e.g. 100% Chanderi Silk with gold zari borders"
+                rows={2}
+              />
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Silhouette & Fit Details</label>
-                <input
-                  type="text"
-                  value={fit}
-                  onChange={(e) => setFit(e.target.value)}
-                  placeholder="e.g. Relaxed, fluid fit. True to size."
-                  className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Care Instructions</label>
-              <input
-                type="text"
-                value={careInstructions}
-                onChange={(e) => setCareInstructions(e.target.value)}
-                placeholder="e.g. Dry clean only. Iron on reverse."
-                className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
+              <SimpleRichTextEditor
+                label="Silhouette & Fit Details"
+                value={fit}
+                onChange={setFit}
+                placeholder="e.g. Relaxed, fluid fit. True to size."
+                rows={2}
               />
             </div>
+
+            <SimpleRichTextEditor
+              label="Care Instructions"
+              value={careInstructions}
+              onChange={setCareInstructions}
+              placeholder="e.g. Dry clean only. Iron on reverse."
+              rows={2}
+            />
           </div>
 
           {/* Section: Sizing and Color variants */}
@@ -737,21 +728,19 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
           </div>
 
           {/* Section: Tag tags */}
+          {/* Section: Tags */}
           <div className="bg-white border border-zinc-200/80 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="font-serif text-base font-bold text-zinc-900 border-b border-zinc-100 pb-3">Outfit Tags</h3>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Tags (Comma Separated)</label>
-              <input
-                type="text"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="silk, minimalist, coord, wedding"
-                className="px-4 py-3 border border-zinc-200 focus:border-zinc-400 rounded-xl outline-none text-xs font-semibold text-zinc-800 transition-colors"
-              />
-              <span className="text-[9px] text-zinc-400 font-light">
-                Tags match recommended &quot;Similar Outfits&quot; grids algorithmically.
-              </span>
-            </div>
+            <SimpleRichTextEditor
+              label="Tags (Comma Separated)"
+              value={tagsInput}
+              onChange={setTagsInput}
+              placeholder="silk, minimalist, coord, wedding"
+              rows={2}
+            />
+            <span className="text-[9px] text-zinc-400 font-light">
+              Tags match recommended &quot;Similar Outfits&quot; grids algorithmically.
+            </span>
           </div>
 
           {/* Section: Images Gallery urls */}
