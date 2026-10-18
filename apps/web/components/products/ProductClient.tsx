@@ -47,8 +47,10 @@ const getColorHex = (colorName: string) => {
   return '#E4E4E7'; // light zinc fallback
 };
 
-export function ProductClient({ product }: { product: Product }) {
-  const [selectedColor, setSelectedColor] = useState<string>(product.variants[0]?.color || '');
+export function ProductClient({ product }: { product: any }) {
+  const variants = product.variants || [];
+  const images: string[] = product.images || [];
+  const [selectedColor, setSelectedColor] = useState<string>(variants[0]?.color || '');
   const [activeImage, setActiveImage] = useState(0);
 
   // Magnifier State
@@ -67,28 +69,28 @@ export function ProductClient({ product }: { product: Product }) {
   // Fetch and filter similar products using tags
   const { data: products = [], isLoading: loading } = api.products.getAll.useQuery();
 
-  const similarProductsByTag = products
-    .filter(p => p.id !== product.id)
-    .map(p => {
+  const similarProductsByTag = (products || [])
+    .filter((p: any) => p.id !== product.id)
+    .map((p: any) => {
       const currentTags = product.tags || [];
       const compareTags = p.tags || [];
-      const matchCount = currentTags.filter(t => compareTags.includes(t)).length;
+      const matchCount = currentTags.filter((t: string) => compareTags.includes(t)).length;
       return { product: p, matchCount };
     })
-    .filter(item => item.matchCount > 0)
-    .sort((a, b) => b.matchCount - a.matchCount)
-    .map(item => item.product);
+    .filter((item: any) => item.matchCount > 0)
+    .sort((a: any, b: any) => b.matchCount - a.matchCount)
+    .map((item: any) => item.product);
 
-  const fallbackCategoryProducts = products
-    .filter(p => p.id !== product.id && p.category === product.category && !similarProductsByTag.some(sp => sp.id === p.id));
+  const fallbackCategoryProducts = (products || [])
+    .filter((p: any) => p.id !== product.id && p.category === product.category && !similarProductsByTag.some((sp: any) => sp.id === p.id));
 
-  const fallbackAllProducts = products
-    .filter(p => p.id !== product.id && !similarProductsByTag.some(sp => sp.id === p.id) && !fallbackCategoryProducts.some(f => f.id === p.id));
+  const fallbackAllProducts = (products || [])
+    .filter((p: any) => p.id !== product.id && !similarProductsByTag.some((sp: any) => sp.id === p.id) && !fallbackCategoryProducts.some((f: any) => f.id === p.id));
 
   const similarProducts = [...similarProductsByTag, ...fallbackCategoryProducts, ...fallbackAllProducts].slice(0, 4);
 
   // Extract unique colors
-  const colors = Array.from(new Set(product.variants.map(v => v.color)));
+  const colors = Array.from(new Set(variants.map((v: any) => v.color).filter(Boolean))) as string[];
 
   useEffect(() => {
     gsap.fromTo('.product-animate',
@@ -129,7 +131,7 @@ export function ProductClient({ product }: { product: Product }) {
   };
 
   // Get current stock count for selected shade
-  const selectedVariant = product.variants.find(v => v.color === selectedColor) || product.variants[0];
+  const selectedVariant = variants.find((v: any) => v.color === selectedColor) || variants[0];
   const currentStock = selectedVariant ? selectedVariant.stock : 0;
   const isSelectedOutOfStock = currentStock === 0;
 
@@ -151,7 +153,7 @@ export function ProductClient({ product }: { product: Product }) {
           <span>✦</span>
           <span>Shop</span>
           <span>✦</span>
-          <span className="text-[#FF5E36] font-bold">{product.category}</span>
+          <span className="text-[#FF5E36] font-bold">{product.category || 'Atelier'}</span>
         </div>
       </div>
 
@@ -162,7 +164,7 @@ export function ProductClient({ product }: { product: Product }) {
           
           {/* Thumbnails list */}
           <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto hide-scrollbar md:w-20 shrink-0 select-none pb-2 md:pb-0">
-            {product.images.map((img, idx) => (
+            {images.map((img: string, idx: number) => (
               <button 
                 key={idx} 
                 onClick={() => setActiveImage(idx)}
@@ -190,15 +192,15 @@ export function ProductClient({ product }: { product: Product }) {
               <div className="absolute inset-3.5 border border-zinc-200/40 rounded-2xl pointer-events-none z-20" />
               
               <Image 
-                src={product.images[activeImage] || ''} 
-                alt={product.name} 
+                src={images[activeImage] || images[0] || '/placeholder.jpg'} 
+                alt={product.name || 'Product'} 
                 fill 
                 priority
                 className={cn("object-cover transition-transform duration-100 ease-out z-10", isHovering ? "scale-150 lg:scale-100" : "scale-100")} 
                 style={{
                   transformOrigin: isHovering ? `${zoomPos.x}% ${zoomPos.y}%` : 'center center'
                 }}
-                sizes="(max-w-1024px) 100vw, 60vw"
+                sizes="(max-width: 1024px) 100vw, 60vw"
               />
 
               {/* Magnifier glass selector square */}
@@ -237,8 +239,8 @@ export function ProductClient({ product }: { product: Product }) {
               <div className="absolute top-0 left-[calc(100%+32px)] w-[68%] h-[68%] bg-white border border-zinc-200 rounded-3xl overflow-hidden z-50 pointer-events-none hidden lg:block shadow-2xl animate-scale-up">
                 <div className="absolute inset-3.5 border border-zinc-200/40 rounded-2xl pointer-events-none z-20" />
                 <Image 
-                  src={product.images[activeImage] || ''} 
-                  alt={`${product.name} Zoom View`} 
+                  src={images[activeImage] || images[0] || '/placeholder.jpg'} 
+                  alt={`${product.name || 'Product'} Zoom View`} 
                   fill 
                   className="object-cover pointer-events-none"
                   style={{
@@ -481,8 +483,8 @@ export function ProductClient({ product }: { product: Product }) {
             </div>
           ) : similarProducts.length > 0 ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {similarProducts.map((simProduct) => (
-                <ProductCard key={simProduct.id} product={simProduct} />
+              {similarProducts.map((simProduct: any) => (
+                <ProductCard key={simProduct.id} product={simProduct as any} />
               ))}
             </div>
           ) : (

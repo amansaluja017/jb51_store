@@ -29,16 +29,6 @@ export const registerUser = async (input: RegisterInput) => {
     throw new Error('A user with this email address already exists');
   }
 
-  const desiredName = (input as any).name || input.userName;
-  const existingUserName = await db
-    .select()
-    .from(user)
-    .where(eq(user.name, desiredName));
-
-  if (existingUserName.length > 0) {
-    throw new Error('A user with this username already exists');
-  }
-
   const hashedPassword = await hashPassword(input.password);
 
   try {
@@ -46,7 +36,6 @@ export const registerUser = async (input: RegisterInput) => {
       .insert(user)
       .values({
         email: input.email.toLowerCase(),
-        name: desiredName,
         password: hashedPassword,
         role: 'customer',
       })
@@ -56,7 +45,6 @@ export const registerUser = async (input: RegisterInput) => {
     const tokens = await generateAuthTokens({
       id: sanitized.id,
       email: sanitized.email,
-      name: sanitized.name,
       userName: sanitized.userName,
       role: sanitized.role,
     });
@@ -86,12 +74,7 @@ export const loginUser = async (input: LoginInput) => {
   const [foundUser] = await db
     .select()
     .from(user)
-    .where(
-      or(
-        eq(user.email, identifierLower),
-        eq(user.name, input.identifier)
-      )
-    );
+    .where(eq(user.email, identifierLower));
 
   if (!foundUser) {
     throw new Error('Invalid email/username or password');
@@ -209,33 +192,21 @@ export const changeUsername = async (input: ChangeUsernameInput) => {
   const [existingUser] = await db
     .select()
     .from(user)
-    .where(eq(user.name, input.newUserName));
+    .where(eq(user.id, input.userId!));
 
-  if (existingUser && existingUser.id !== input.userId) {
-    throw new Error('Username is already taken');
+  if (!existingUser) {
+    throw new Error('User not found');
   }
 
-  try {
-    const [updatedUser] = await db
-      .update(user)
-      .set({
-        name: input.newUserName,
-        updatedAt: new Date(),
-      })
-      .where(eq(user.id, input.userId!))
-      .returning();
+  const [updatedUser] = await db
+    .update(user)
+    .set({
+      updatedAt: new Date(),
+    })
+    .where(eq(user.id, input.userId!))
+    .returning();
 
-    if (!updatedUser) {
-      throw new Error('User not found');
-    }
-
-    return sanitizeUser(updatedUser);
-  } catch (err: any) {
-    if (err.code === '23505' || err.message?.includes('unique constraint') || err.message?.includes('UNIQUE')) {
-      throw new Error('Username is already taken');
-    }
-    throw err;
-  }
+  return sanitizeUser(updatedUser);
 };
 
 export const changeEmail = async (input: ChangeEmailInput) => {

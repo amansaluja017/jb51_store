@@ -93,7 +93,8 @@ export interface Customer {
   id: string;
   userId?: string | null;
   name: string;
-  phoneNumber?: string | null;
+  nameSlug?: string;
+  phoneNumber: string;
   email?: string | null;
   address?: string | null;
   createdAt?: string;

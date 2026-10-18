@@ -212,13 +212,18 @@ export const customersRouter = t.router({
     .input(
       z.object({
         name: z.string().min(1, 'Customer name is required'),
-        phoneNumber: z.string().optional().nullable(),
+        phoneNumber: z.string().min(1, 'Phone number is required'),
         email: z.string().optional().nullable(),
         address: z.string().optional().nullable(),
       })
     )
     .mutation(async ({ input }) => {
-      return await createCustomer(input);
+      return await createCustomer({
+        name: input.name,
+        phoneNumber: input.phoneNumber,
+        email: input.email,
+        address: input.address,
+      });
     }),
 });
 

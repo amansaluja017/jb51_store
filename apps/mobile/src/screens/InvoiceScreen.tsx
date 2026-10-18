@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   ScrollView,
@@ -33,6 +32,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useForm, Controller } from 'react-hook-form';
 import { InvoiceSkeleton } from '../components/SkeletonLoader';
+import styles from './InvoiceScreen.styles';
 import { Product, Variant, Customer, Invoice, Order } from '../types';
 
 export interface InvoiceFormValues {
@@ -76,7 +76,7 @@ interface InvoiceScreenProps {
   onFetchCustomers: () => Promise<void>;
   onCreateCustomer: (data: {
     name: string;
-    phoneNumber?: string;
+    phoneNumber: string;
     email?: string;
     address?: string;
   }) => Promise<Customer>;
@@ -334,11 +334,17 @@ export default function InvoiceScreen({
       return;
     }
 
+    const trimmedPhone = newCustomerPhone.trim();
+    if (!trimmedPhone) {
+      showAlert('Phone Number Required', 'Please enter customer phone number.', 'error');
+      return;
+    }
+
     setIsSavingCustomer(true);
     try {
       const created = await onCreateCustomer({
         name: trimmedName,
-        phoneNumber: newCustomerPhone.trim() || undefined,
+        phoneNumber: trimmedPhone,
         email: newCustomerEmail.trim() || undefined,
         address: newCustomerAddress.trim() || undefined,
       });
@@ -1302,20 +1308,11 @@ export default function InvoiceScreen({
           </View>
 
           {/* Customer Selection Section */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>Customer Details</Text>
-            <TouchableOpacity
-              onPress={() => setIsAddCustomerModalOpen(true)}
-              style={styles.addCustomerInlineBtn}
-            >
-              <UserPlus size={13} color="#FF5E36" />
-              <Text style={styles.addCustomerInlineText}>Add Manually</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionHeader}>Customer Details</Text>
 
           <View style={styles.card}>
             {/* Customer Dropdown Trigger */}
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, !showCustomerDropdown && { marginBottom: 0 }]}>
               <Text style={styles.inputLabel}>Choose Existing Customer</Text>
               <TouchableOpacity
                 onPress={() => {
@@ -1340,6 +1337,22 @@ export default function InvoiceScreen({
                       : 'Select from database...'}
                   </Text>
                 </View>
+                {formValues.clientName ? (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setSelectedCustomerId(null);
+                      setValue('clientName', '', { shouldDirty: true });
+                      setValue('clientPhone', '', { shouldDirty: true });
+                      setValue('clientEmail', '', { shouldDirty: true });
+                      setValue('clientAddress', '', { shouldDirty: true });
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ marginRight: 6 }}
+                  >
+                    <X size={14} color="#a1a1aa" />
+                  </TouchableOpacity>
+                ) : null}
                 <ChevronDown size={14} color="#71717a" />
               </TouchableOpacity>
             </View>
@@ -1364,20 +1377,6 @@ export default function InvoiceScreen({
                   )}
                 </View>
 
-                {/* Quick Add Button inside dropdown */}
-                <TouchableOpacity
-                  style={styles.dropdownQuickAddBtn}
-                  onPress={() => {
-                    setShowCustomerDropdown(false);
-                    setIsAddCustomerModalOpen(true);
-                  }}
-                >
-                  <UserPlus size={14} color="#FF5E36" style={{ marginRight: 6 }} />
-                  <Text style={styles.dropdownQuickAddText}>
-                    + Add New Customer Manually
-                  </Text>
-                </TouchableOpacity>
-
                 <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
                   {filteredCustomers.length === 0 ? (
                     <View style={styles.dropdownEmpty}>
@@ -1396,112 +1395,48 @@ export default function InvoiceScreen({
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    filteredCustomers.map((cust) => {
-                      const isSelected = selectedCustomerId === cust.id;
-                      return (
-                        <TouchableOpacity
-                          key={cust.id}
-                          style={[
-                            styles.dropdownOption,
-                            isSelected && styles.dropdownOptionSelected,
-                          ]}
-                          onPress={() => handleSelectCustomer(cust)}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.dropdownOptionText}>
-                              {cust.name}
-                            </Text>
-                            <Text style={styles.dropdownOptionMeta}>
-                              {[cust.phoneNumber, cust.email]
-                                .filter(Boolean)
-                                .join(' | ') || 'No contact details'}
-                            </Text>
-                          </View>
-                          {isSelected && <Check size={14} color="#FF5E36" />}
-                        </TouchableOpacity>
-                      );
-                    })
+                    <>
+                      {filteredCustomers.map((cust) => {
+                        const isSelected = selectedCustomerId === cust.id;
+                        return (
+                          <TouchableOpacity
+                            key={cust.id}
+                            style={[
+                              styles.dropdownOption,
+                              isSelected && styles.dropdownOptionSelected,
+                            ]}
+                            onPress={() => handleSelectCustomer(cust)}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.dropdownOptionText}>
+                                {cust.name}
+                              </Text>
+                              <Text style={styles.dropdownOptionMeta}>
+                                {[cust.phoneNumber, cust.email]
+                                  .filter(Boolean)
+                                  .join(' | ') || 'No contact details'}
+                              </Text>
+                            </View>
+                            {isSelected && <Check size={14} color="#FF5E36" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                      <TouchableOpacity
+                        style={[styles.dropdownEmpty, { paddingTop: 10, paddingBottom: 14 }]}
+                        onPress={() => {
+                          setShowCustomerDropdown(false);
+                          setIsAddCustomerModalOpen(true);
+                        }}
+                      >
+                        <Text style={styles.dropdownEmptyAction}>
+                          Click to add manually
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </ScrollView>
               </View>
             )}
-
-            {/* Editable Direct Customer Fields */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Customer Name *</Text>
-              <Controller
-                control={control}
-                name="clientName"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    placeholder="e.g. Aishwarya Sen"
-                    placeholderTextColor="#a1a1aa"
-                    value={value}
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    style={styles.textInput}
-                  />
-                )}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
-                <Controller
-                  control={control}
-                  name="clientPhone"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. +91 98123 45678"
-                      placeholderTextColor="#a1a1aa"
-                      keyboardType="phone-pad"
-                      value={value}
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      style={styles.textInput}
-                    />
-                  )}
-                />
-              </View>
-
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Email Address</Text>
-                <Controller
-                  control={control}
-                  name="clientEmail"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. client@gmail.com"
-                      placeholderTextColor="#a1a1aa"
-                      keyboardType="email-address"
-                      value={value}
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      style={styles.textInput}
-                    />
-                  )}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Address / Location</Text>
-              <Controller
-                control={control}
-                name="clientAddress"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    placeholder="e.g. Baner, Pune"
-                    placeholderTextColor="#a1a1aa"
-                    value={value}
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    style={styles.textInput}
-                  />
-                )}
-              />
-            </View>
           </View>
 
           {/* Product & Variant Selection Section */}
@@ -1847,7 +1782,7 @@ export default function InvoiceScreen({
             <TouchableOpacity
               onPress={() => {
                 if (!formValues.clientName.trim()) {
-                  showAlert('Customer Required', 'Please enter customer name.', 'error');
+                  showAlert('Customer Required', 'Please select a customer.', 'error');
                   return;
                 }
                 if (invoiceItems.length === 0) {
@@ -2055,7 +1990,7 @@ export default function InvoiceScreen({
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
+                <Text style={styles.inputLabel}>Phone Number *</Text>
                 <TextInput
                   placeholder="e.g. +91 98765 43210"
                   placeholderTextColor="#a1a1aa"
@@ -2294,1149 +2229,3 @@ export default function InvoiceScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fbfbfb',
-  },
-  scrollContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  ledgerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  ledgerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  ledgerSubtitle: {
-    fontSize: 12,
-    color: '#71717a',
-    marginTop: 2,
-  },
-  newInvoiceButtonHeader: {
-    backgroundColor: '#FF5E36',
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 38,
-    paddingHorizontal: 14,
-    gap: 6,
-    shadowColor: '#FF5E36',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  newInvoiceButtonTextHeader: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    gap: 8,
-  },
-  statsCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    alignItems: 'center',
-  },
-  statsLabel: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    color: '#71717a',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  statsValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  // Segmented Switch
-  ledgerSegmentedContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f4f4f5',
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 14,
-  },
-  ledgerSegmentTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  ledgerSegmentTabActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  ledgerSegmentText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#71717a',
-  },
-  ledgerSegmentTextActive: {
-    color: '#FF5E36',
-    fontWeight: '700',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 16,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#18181b',
-    padding: 0,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  sectionHeader: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    color: '#71717a',
-    marginTop: 8,
-    marginBottom: 8,
-    paddingLeft: 4,
-  },
-  addCustomerInlineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: '#fff7ed',
-    borderRadius: 6,
-  },
-  addCustomerInlineText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FF5E36',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#09090b',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#3f3f46',
-    marginBottom: 6,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#09090b',
-    backgroundColor: '#ffffff',
-  },
-  dropdownTrigger: {
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-  },
-  dropdownValue: {
-    fontSize: 13,
-    color: '#09090b',
-  },
-  dropdownContainer: {
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    maxHeight: 220,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  dropdownSearchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-    backgroundColor: '#fafafa',
-  },
-  dropdownSearchInput: {
-    flex: 1,
-    fontSize: 12,
-    color: '#18181b',
-    padding: 0,
-  },
-  dropdownQuickAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#fff7ed',
-    borderBottomWidth: 1,
-    borderBottomColor: '#fed7aa',
-  },
-  dropdownQuickAddText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FF5E36',
-  },
-  dropdownScroll: {
-    flexGrow: 0,
-  },
-  dropdownOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-  },
-  dropdownOptionSelected: {
-    backgroundColor: '#fff7ed',
-  },
-  dropdownOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  dropdownOptionMeta: {
-    fontSize: 10,
-    color: '#71717a',
-    marginTop: 2,
-  },
-  dropdownOptionPrice: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FF5E36',
-  },
-  dropdownEmpty: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  dropdownEmptyText: {
-    fontSize: 12,
-    color: '#a1a1aa',
-  },
-  dropdownEmptyAction: {
-    fontSize: 12,
-    color: '#FF5E36',
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  variantChipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  variantChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    backgroundColor: '#fafafa',
-  },
-  variantChipActive: {
-    borderColor: '#FF5E36',
-    backgroundColor: '#fff7ed',
-  },
-  variantDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
-    borderWidth: 1,
-    borderColor: '#d4d4d8',
-  },
-  variantChipText: {
-    fontSize: 11,
-    color: '#52525b',
-  },
-  variantChipTextActive: {
-    color: '#FF5E36',
-    fontWeight: '700',
-  },
-  addButton: {
-    backgroundColor: '#18181b',
-    height: 40,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  invoiceItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-  },
-  invoiceItemName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#09090b',
-  },
-  invoiceItemSub: {
-    fontSize: 11,
-    color: '#71717a',
-    marginTop: 2,
-  },
-  invoiceItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  invoiceItemTotal: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#09090b',
-  },
-  deleteBtn: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: '#fef2f2',
-  },
-  presetsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 6,
-  },
-  presetChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    backgroundColor: '#ffffff',
-  },
-  presetChipActive: {
-    backgroundColor: '#FF5E36',
-    borderColor: '#FF5E36',
-  },
-  presetChipText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#71717a',
-  },
-  presetChipTextActive: {
-    color: '#ffffff',
-  },
-  paymentSelector: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#f4f4f5',
-    padding: 3,
-  },
-  paymentOption: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  paymentOptionActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  paymentOptionText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#71717a',
-  },
-  paymentOptionTextActive: {
-    color: '#FF5E36',
-  },
-  summaryBox: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: '#71717a',
-  },
-  summaryValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  grandTotalRow: {
-    borderTopWidth: 1,
-    borderTopColor: '#e4e4e7',
-    paddingTop: 8,
-    marginTop: 6,
-  },
-  grandTotalLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#09090b',
-  },
-  grandTotalValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FF5E36',
-  },
-  generateButton: {
-    backgroundColor: '#FF5E36',
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF5E36',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-    marginTop: 8,
-  },
-  generateButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  // Ledger invoice card styles
-  invoiceCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    marginBottom: 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-    position: 'relative',
-  },
-  invoiceCardMain: {
-    padding: 16,
-    paddingRight: 55,
-  },
-  invoiceCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  invoiceCardClient: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  invoiceCardDate: {
-    fontSize: 11,
-    color: '#71717a',
-  },
-  invoiceCardBody: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  invoiceCardId: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  invoiceCardCount: {
-    fontSize: 11,
-    color: '#71717a',
-  },
-  invoiceCardNotes: {
-    fontSize: 10,
-    color: '#a1a1aa',
-    fontStyle: 'italic',
-    marginTop: 8,
-    backgroundColor: '#f8f8f8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  invoiceCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
-  },
-  invoiceCardAmount: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#FF5E36',
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  badgeOnline: {
-    backgroundColor: '#ecfdf5',
-  },
-  badgeOnlineText: {
-    color: '#059669',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  badgeCash: {
-    backgroundColor: '#fffbeb',
-  },
-  badgeCashText: {
-    color: '#d97706',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  deleteInvoiceBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: '#fef2f2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  // Order Card Styles
-  orderCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    marginBottom: 12,
-    padding: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  orderCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  orderCustomerName: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  orderCustomerPhone: {
-    fontSize: 11,
-    color: '#71717a',
-    marginTop: 1,
-  },
-  orderDate: {
-    fontSize: 11,
-    color: '#71717a',
-  },
-  orderBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  orderNumberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#fff7ed',
-  },
-  orderNumberText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#FF5E36',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  orderStatusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#f0fdf4',
-  },
-  orderStatusText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#16a34a',
-    textTransform: 'capitalize',
-  },
-  orderItemsContainer: {
-    backgroundColor: '#fafafa',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-  },
-  orderItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  orderItemName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  orderItemVariant: {
-    fontSize: 10,
-    color: '#71717a',
-  },
-  orderItemQty: {
-    fontSize: 11,
-    color: '#71717a',
-    marginHorizontal: 8,
-  },
-  orderItemPrice: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#18181b',
-  },
-  orderNoItems: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    fontStyle: 'italic',
-  },
-  orderCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
-    paddingTop: 10,
-  },
-  orderTotalLabel: {
-    fontSize: 10,
-    color: '#71717a',
-    textTransform: 'uppercase',
-  },
-  orderTotalValue: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FF5E36',
-  },
-  orderViewDetailsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#18181b',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  orderViewDetailsBtnText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  // Order Details Modal
-  orderDetailsModalCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    overflow: 'hidden',
-    maxHeight: '90%',
-  },
-  orderDetailsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e4e4e7',
-    backgroundColor: '#fafafa',
-  },
-  orderDetailsTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#18181b',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  orderDetailsSubtitle: {
-    fontSize: 11,
-    color: '#71717a',
-    marginTop: 2,
-  },
-  orderCustomerBox: {
-    backgroundColor: '#fafafa',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FF5E36',
-  },
-  orderSectionTitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    color: '#71717a',
-    marginBottom: 6,
-  },
-  orderCustomerNameBig: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#18181b',
-    marginBottom: 4,
-  },
-  orderCustomerMeta: {
-    fontSize: 12,
-    color: '#52525b',
-    marginTop: 2,
-  },
-  orderItemsTable: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    padding: 12,
-    marginBottom: 16,
-  },
-  orderTableRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-  },
-  orderTableRowName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  orderTableRowVariant: {
-    fontSize: 10,
-    color: '#71717a',
-  },
-  orderTableRowRate: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    marginTop: 2,
-  },
-  orderTableRowTotal: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  orderFinancialsBox: {
-    backgroundColor: '#fafafa',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-  },
-  orderSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  orderSummaryLabel: {
-    fontSize: 12,
-    color: '#71717a',
-  },
-  orderSummaryValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  orderGrandTotalRow: {
-    borderTopWidth: 1,
-    borderTopColor: '#e4e4e7',
-    paddingTop: 8,
-    marginTop: 6,
-  },
-  orderGrandTotalLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#09090b',
-  },
-  orderGrandTotalValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF5E36',
-  },
-  orderMetaBlock: {
-    paddingHorizontal: 4,
-    gap: 4,
-  },
-  orderMetaItem: {
-    fontSize: 12,
-    color: '#71717a',
-  },
-  emptyState: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#52525b',
-    marginTop: 10,
-  },
-  emptyStateSub: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  formHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-  },
-  formTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  formBackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  formBackButtonText: {
-    fontSize: 14,
-    color: '#71717a',
-    fontWeight: '500',
-  },
-  // Customer Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  customerModalCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    overflow: 'hidden',
-    maxHeight: '90%',
-  },
-  customerModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e4e4e7',
-    backgroundColor: '#fafafa',
-  },
-  customerModalTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  // Preview modal
-  previewContainer: {
-    flex: 1,
-    backgroundColor: '#f4f4f5',
-  },
-  previewHeader: {
-    height: 54,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e4e4e7',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  previewTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#09090b',
-  },
-  closeBtn: {
-    padding: 6,
-  },
-  paperScroll: {
-    flex: 1,
-  },
-  paperPadding: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  paperInvoice: {
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    padding: 24,
-    position: 'relative',
-  },
-  traditionalBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: '#FF5E36',
-  },
-  invoiceHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-  },
-  brandTitle: {
-    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#18181b',
-    letterSpacing: 2,
-  },
-  brandSubtitle: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    color: '#FF5E36',
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  brandAddress: {
-    fontSize: 10,
-    color: '#71717a',
-    lineHeight: 14,
-  },
-  invoiceLabel: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#18181b',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  invoiceDetailLabel: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: '#71717a',
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  invoiceDetailValue: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  billToBlock: {
-    marginVertical: 20,
-  },
-  billToTitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#71717a',
-    letterSpacing: 1.5,
-    marginBottom: 6,
-  },
-  clientNameValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  clientMetaText: {
-    fontSize: 11,
-    color: '#52525b',
-    marginTop: 2,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    borderBottomWidth: 2,
-    borderBottomColor: '#18181b',
-    paddingBottom: 8,
-    marginBottom: 8,
-  },
-  tableCol: {
-    fontSize: 11,
-    color: '#18181b',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-    paddingVertical: 10,
-  },
-  totalsColumn: {
-    marginTop: 20,
-    alignSelf: 'flex-end',
-    width: '60%',
-  },
-  totalsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  totalsLabel: {
-    fontSize: 11,
-    color: '#71717a',
-  },
-  totalsValue: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#18181b',
-  },
-  grandTotalLabelText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#18181b',
-  },
-  grandTotalValueText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF5E36',
-  },
-  notesPaperBox: {
-    marginTop: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
-  },
-  notesPaperTitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#71717a',
-    marginBottom: 4,
-  },
-  notesPaperContent: {
-    fontSize: 11,
-    color: '#52525b',
-    lineHeight: 15,
-  },
-  paperFooter: {
-    marginTop: 36,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
-    alignItems: 'center',
-  },
-  thankYouText: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    color: '#71717a',
-  },
-  exportBar: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e4e4e7',
-  },
-  exportBtn: {
-    backgroundColor: '#18181b',
-    borderRadius: 10,
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exportBtnText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-});
