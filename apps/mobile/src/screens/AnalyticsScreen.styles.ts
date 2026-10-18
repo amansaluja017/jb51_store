@@ -1,0 +1,267 @@
+import { StyleSheet, Platform } from 'react-native';
+
+export const styles = StyleSheet.create({
+  tabContent: {
+    flex: 1,
+  },
+  scrollPadding: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  selectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+  },
+  selectorLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#71717a',
+  },
+  selectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectorButtonText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  dropdownPickerList: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    borderRadius: 16,
+    padding: 8,
+    marginBottom: 16,
+    gap: 4,
+  },
+  dropdownOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  dropdownOptionText: {
+    fontSize: 11,
+    color: '#71717a',
+    fontWeight: 'semibold',
+  },
+  activeOption: {
+    color: '#FF5E36',
+    fontWeight: 'bold',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  analyticsStatCard: {
+    width: '48%',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    borderRadius: 16,
+    padding: 14,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statHeading: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#71717a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statValue: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'serif',
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#09090b',
+    marginTop: 6,
+  },
+  activeCardViews: {
+    borderColor: '#FF5E36',
+    borderWidth: 1.5,
+    backgroundColor: '#FF5E3605',
+  },
+  activeCardWa: {
+    borderColor: '#128C7E',
+    borderWidth: 1.5,
+    backgroundColor: '#128C7E05',
+  },
+  activeCardIg: {
+    borderColor: '#E1306C',
+    borderWidth: 1.5,
+    backgroundColor: '#E1306C05',
+  },
+  activeCardConversion: {
+    borderColor: '#3B82F6',
+    borderWidth: 1.5,
+    backgroundColor: '#3B82F605',
+  },
+  tableCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    borderRadius: 24,
+    padding: 20,
+    marginTop: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  tableTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  tableSub: {
+    fontSize: 9,
+    color: '#71717a',
+    marginTop: 2,
+  },
+  table: {
+    marginTop: 16,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#f4f4f5',
+    paddingBottom: 8,
+  },
+  th: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#a1a1aa',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#f4f4f5',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  td: {
+    fontSize: 10,
+    color: '#09090b',
+  },
+  demandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  demandHeaderIcon: {
+    marginTop: -2,
+  },
+  highlightsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 16,
+  },
+  highlightCard: {
+    flex: 1,
+    backgroundColor: '#fafafa',
+    borderWidth: 1,
+    borderColor: '#f4f4f5',
+    borderRadius: 12,
+    padding: 10,
+  },
+  highlightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  highlightLabel: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#71717a',
+    textTransform: 'uppercase',
+  },
+  highlightName: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  highlightMetricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  highlightValue: {
+    fontSize: 10,
+    color: '#71717a',
+    fontWeight: 'semibold',
+  },
+  growthBadge: {
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  growthText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  highGrowthBadge: {
+    backgroundColor: '#fff7ed',
+  },
+  highGrowthText: {
+    color: '#ea580c',
+  },
+  productThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#f4f4f5',
+  },
+  productThumbFallback: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#f4f4f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productNameText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  productCatText: {
+    fontSize: 8,
+    color: '#71717a',
+  },
+  metricText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  growthPercentText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#10b981',
+  },
+});
+
+export default styles;

@@ -1,0 +1,158 @@
+import { StyleSheet, Platform } from 'react-native';
+
+export const styles = StyleSheet.create({
+  tabContent: {
+    flex: 1,
+  },
+  searchContainer: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f4f4f5',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 38,
+  },
+  searchInput: {
+    marginLeft: 8,
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#09090b',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  categoriesButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4f4f5',
+    borderRadius: 10,
+    height: 36,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  categoriesButtonText: {
+    color: '#09090b',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  addButton: {
+    flex: 1,
+    backgroundColor: '#FF5E36',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
+    gap: 6,
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  categoryPillsContainer: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingVertical: 8,
+  },
+  categoryPillsScroll: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  categoryPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  categoryPillActive: {
+    backgroundColor: '#FF5E36',
+    borderColor: '#FF5E36',
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  categoryPillTextActive: {
+    color: '#ffffff',
+  },
+  scrollPadding: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  countSummaryRow: {
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  countSummaryText: {
+    fontSize: 11,
+    color: '#71717a',
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 12,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    marginTop: 14,
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#09090b',
+  },
+  emptyLabel: {
+    fontSize: 12,
+    color: '#71717a',
+    textAlign: 'center',
+    marginTop: 6,
+    maxWidth: 280,
+    lineHeight: 18,
+  },
+  clearFilterBtn: {
+    marginTop: 16,
+    backgroundColor: '#f4f4f5',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  clearFilterText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#09090b',
+  },
+});
+
+export default styles;

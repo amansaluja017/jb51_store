@@ -197,8 +197,8 @@ async function extractColorsWeb(imageUri: string, count: number): Promise<string
       try {
         const palette = await getPalette(img, { colorCount: count + 2 });
         if (palette && palette.length > 0) {
-          const hexes = palette.map((c) => c.hex().toUpperCase());
-          resolve(Array.from(new Set(hexes)).slice(0, count));
+          const hexes: string[] = palette.map((c: any) => c.hex().toUpperCase());
+          resolve(Array.from(new Set(hexes)).slice(0, count) as string[]);
           return;
         }
       } catch (err) {
@@ -225,8 +225,8 @@ async function extractColorsWeb(imageUri: string, count: number): Promise<string
         const colors = extractPalette(imgData.data, canvas.width, canvas.height, opts, quantizer, 'srgb');
 
         if (colors && colors.length > 0) {
-          const hexes = colors.map((c) => c.hex().toUpperCase());
-          return resolve(Array.from(new Set(hexes)).slice(0, count));
+          const hexes: string[] = colors.map((c: any) => c.hex().toUpperCase());
+          return resolve(Array.from(new Set(hexes)).slice(0, count) as string[]);
         }
       } catch (canvasErr) {
         console.warn('[ColorThief Web] Direct canvas extraction notice:', canvasErr);
@@ -328,8 +328,8 @@ async function extractColorsNative(imageUri: string, count: number): Promise<str
     const colors = extractPalette(rgbaData, width, height, opts, quantizer, 'srgb');
 
     if (colors && colors.length > 0) {
-      const hexes = colors.map((c) => c.hex().toUpperCase());
-      return Array.from(new Set(hexes)).slice(0, count);
+      const hexes: string[] = colors.map((c: any) => c.hex().toUpperCase());
+      return Array.from(new Set(hexes)).slice(0, count) as string[];
     }
   } catch (err) {
     console.warn('[ColorThief Native Extraction Notice]:', err);
@@ -339,7 +339,7 @@ async function extractColorsNative(imageUri: string, count: number): Promise<str
 }
 
 /**
- * Universal color extraction function from Cover Image using Color Thief
+ * Native and cross-platform color extraction function from Cover Image using Color Thief
  * @param imageUri URI of the variant cover image
  * @param count Number of dominant colors to extract (default: 6)
  * @returns Array of uppercase hex color strings (e.g. ['#722F37', '#1E293B', ...])

@@ -38,6 +38,13 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Product, Variant } from '../types';
 import DraggableImageList from './DraggableImageList';
 import ColorPickerModal from './ColorPickerModal';
+import MediaSelectionModal from './products/MediaSelectionModal';
+import UrlInputModal from './products/UrlInputModal';
+import ProductDetailsTab from './products/ProductDetailsTab';
+import ProductVariantsTab from './products/ProductVariantsTab';
+import ProductVisibilityTab from './products/ProductVisibilityTab';
+
+
 import SimpleTextEditor from './SimpleTextEditor';
 import styles from './ProductFormModal.styles';
 import {
@@ -1033,915 +1040,70 @@ export default function ProductFormModal({
             showsVerticalScrollIndicator={false}
           >
 
-            {/* -------------------- TAB 1: DETAILS -------------------- */}
             {activeTab === 'details' && (
-              <View style={styles.tabContentContainer}>
-
-                {/* Basic Card */}
-                <View style={styles.sectionCard}>
-                  <Text style={styles.cardHeaderTitle}>Basic Garment Info</Text>
-
-                  <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>Design Name</Text>
-                    <Controller
-                      control={control}
-                      name="name"
-                      rules={{ required: 'Product name is required' }}
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            handleNameChange(val);
-                          }}
-                          placeholder="e.g. Palace Silk Kurta"
-                          style={styles.modalInput}
-                          placeholderTextColor="#a1a1aa"
-                        />
-                      )}
-                    />
-                  </View>
-
-                  <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>SEO URL Slug</Text>
-                    <Controller
-                      control={control}
-                      name="slug"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            setFormSlug(val);
-                          }}
-                          placeholder="e.g. palace-silk-kurta"
-                          style={styles.modalInput}
-                          placeholderTextColor="#a1a1aa"
-                        />
-                      )}
-                    />
-                  </View>
-
-                  {/* Category Dropdown */}
-                  <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>Boutique Category</Text>
-                    <TouchableOpacity
-                      onPress={() => setShowCategorySelector(prev => !prev)}
-                      style={styles.dropdownTrigger}
-                    >
-                      <Text style={styles.dropdownTriggerText} numberOfLines={1}>{formCategory}</Text>
-                      <ChevronDown size={14} color="#71717a" style={{ marginLeft: 4 }} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {showCategorySelector && (
-                    <View style={styles.dropdownWrapper}>
-                      {categories.map(cat => (
-                        <View key={cat} style={styles.dropdownItemRow}>
-                          <TouchableOpacity
-                            onPress={() => { setFormCategory(cat); setShowCategorySelector(false); }}
-                            style={styles.dropdownItemButton}
-                          >
-                            <Text style={styles.dropdownItemText}>{cat}</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleDeleteCategoryClick(cat)}
-                            style={styles.deleteCategoryBtn}
-                          >
-                            <Trash2 size={12} color="#ef4444" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-
-                      <View style={styles.dropdownItemDivider} />
-                      {!showNewCatInput ? (
-                        <TouchableOpacity
-                          onPress={() => setShowNewCatInput(true)}
-                          style={styles.addNewCatTrigger}
-                        >
-                          <Text style={styles.addNewCatTriggerText}>+ Create New Category</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <View style={styles.newCatInputBox}>
-                          <TextInput
-                            placeholder="Type category..."
-                            value={newCatInput}
-                            onChangeText={setNewCatInput}
-                            style={styles.newCatTextInput}
-                            placeholderTextColor="#a1a1aa"
-                          />
-                          <TouchableOpacity onPress={handleCreateCategory} style={styles.newCatAddBtn}>
-                            <Text style={styles.newCatAddBtnText}>Add</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Pricing Inputs: MRP & Selling Price */}
-                  <View style={styles.twoColumnGrid}>
-                    {/* MRP with Rupee symbol */}
-                    <View style={[styles.modalInputGroup, { flex: 1, marginRight: 8 }]}>
-                      <Text style={styles.fieldLabel}>MRP (INR) *</Text>
-                      <View style={styles.priceInputWrapper}>
-                        <Text style={styles.pricePrefix}>₹</Text>
-                        <Controller
-                          control={control}
-                          name="mrp"
-                          rules={{ required: 'MRP is required' }}
-                          render={({ field: { onChange, onBlur, value } }) => (
-                            <TextInput
-                              value={value}
-                              onBlur={onBlur}
-                              onChangeText={(val) => {
-                                onChange(val);
-                                setFormMrp(val);
-                              }}
-                              placeholder="2999"
-                              keyboardType="numeric"
-                              style={styles.priceInput}
-                              placeholderTextColor="#a1a1aa"
-                            />
-                          )}
-                        />
-                      </View>
-                    </View>
-
-                    {/* Selling Price with Rupee symbol */}
-                    <View style={[styles.modalInputGroup, { flex: 1, marginLeft: 8 }]}>
-                      <Text style={styles.fieldLabel}>Selling Price (INR) *</Text>
-                      <View style={styles.priceInputWrapper}>
-                        <Text style={styles.pricePrefix}>₹</Text>
-                        <Controller
-                          control={control}
-                          name="sellingPrice"
-                          rules={{ required: 'Selling price is required' }}
-                          render={({ field: { onChange, onBlur, value } }) => (
-                            <TextInput
-                              value={value}
-                              onBlur={onBlur}
-                              onChangeText={(val) => {
-                                onChange(val);
-                                setFormSellingPrice(val);
-                              }}
-                              placeholder="1999"
-                              keyboardType="numeric"
-                              style={styles.priceInput}
-                              placeholderTextColor="#a1a1aa"
-                            />
-                          )}
-                        />
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Live Discount Indicator */}
-                  {Boolean(Number(formMrp) > 0 && Number(formSellingPrice) > 0) && (
-                    <View style={styles.discountPreviewContainer}>
-                      {Number(formSellingPrice) <= Number(formMrp) ? (
-                        <View style={styles.discountBadge}>
-                          <Text style={styles.discountBadgeText}>
-                            {Number(formMrp) > Number(formSellingPrice)
-                              ? `${Math.round(((Number(formMrp) - Number(formSellingPrice)) / Number(formMrp)) * 100)}% OFF • Customer saves ₹${(Number(formMrp) - Number(formSellingPrice)).toLocaleString('en-IN')}`
-                              : 'No discount (Selling at MRP)'}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.discountErrorText}>⚠️ Selling price cannot exceed MRP</Text>
-                      )}
-                    </View>
-                  )}
-                </View>
-
-                {/* Technical Specifications Card */}
-                <View style={styles.sectionCard}>
-                  <Text style={styles.cardHeaderTitle}>Material & Styling Specs</Text>
-
-                  {/* Fabric Details */}
-                  <Controller
-                    control={control}
-                    name="fabric"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <SimpleTextEditor
-                        label="Fabric Details"
-                        value={value || ''}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setFormFabric(val);
-                        }}
-                        placeholder="e.g. 100% Chanderi Silk with Zari borders"
-                        multiline
-                        numberOfLines={2}
-                      />
-                    )}
-                  />
-
-                  {/* Fit Silhouette */}
-                  <Controller
-                    control={control}
-                    name="fit"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <SimpleTextEditor
-                        label="Fit Silhouette"
-                        value={value || ''}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setFormFit(val);
-                        }}
-                        placeholder="e.g. Straight Silhouette with comfort ease"
-                        multiline
-                        numberOfLines={2}
-                      />
-                    )}
-                  />
-
-                  {/* Care Instructions */}
-                  <Controller
-                    control={control}
-                    name="careInstructions"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <SimpleTextEditor
-                        label="Care Instructions"
-                        value={value || ''}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setFormCare(val);
-                        }}
-                        placeholder="e.g. Dry Clean only. Store in muslin cloth."
-                        multiline
-                        numberOfLines={2}
-                      />
-                    )}
-                  />
-
-                  {/* Outfit Tags */}
-                  <Controller
-                    control={control}
-                    name="tags"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <SimpleTextEditor
-                        label="Outfit Tags (Comma Separated)"
-                        value={value || ''}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setFormTags(val);
-                        }}
-                        placeholder="e.g. silk, minimalist, wedding, coord"
-                      />
-                    )}
-                  />
-                </View>
-
-                {/* Editorial Description Card */}
-                <View style={styles.sectionCard}>
-                  <Text style={styles.cardHeaderTitle}>Editorial Narration</Text>
-
-                  <Controller
-                    control={control}
-                    name="description"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <SimpleTextEditor
-                        label="Editorial Description"
-                        value={value || ''}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setFormDescription(val);
-                        }}
-                        placeholder="Describe heritage motifs, dupatta styles, embroidery, or weave history..."
-                        multiline
-                        numberOfLines={5}
-                      />
-                    )}
-                  />
-                </View>
-
-              </View>
+              <ProductDetailsTab
+                control={control}
+                categories={categories}
+                formMrp={formMrp}
+                setFormMrp={setFormMrp}
+                formSellingPrice={formSellingPrice}
+                setFormSellingPrice={setFormSellingPrice}
+                setFormFabric={setFormFabric}
+                setFormFit={setFormFit}
+                setFormCare={setFormCare}
+                setFormTags={setFormTags}
+                setFormDescription={setFormDescription}
+                formSlug={formSlug}
+                setFormSlug={setFormSlug}
+                formCategory={formCategory}
+                setFormCategory={setFormCategory}
+                showCategorySelector={showCategorySelector}
+                setShowCategorySelector={setShowCategorySelector}
+                showNewCatInput={showNewCatInput}
+                setShowNewCatInput={setShowNewCatInput}
+                newCatInput={newCatInput}
+                setNewCatInput={setNewCatInput}
+                handleCreateCategory={handleCreateCategory}
+                handleDeleteCategoryClick={handleDeleteCategoryClick}
+                handleNameChange={handleNameChange}
+              />
             )}
 
-            {/* -------------------- TAB 2: VARIANTS -------------------- */}
             {activeTab === 'variants' && (
-              <View style={styles.tabContentContainer}>
-
-                {/* Variants Overview & Action Banner Card */}
-                <View style={styles.variantsHeaderCard}>
-                  <View style={styles.variantHeaderMainRow}>
-                    <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={styles.variantsTitleText}>Variant Collections</Text>
-                      <Text style={styles.variantsSubtextText}>
-                        {isEditing
-                          ? 'View garment shades, photos, and current inventory allocation.'
-                          : 'Configure colors, stock counts, and dedicated images per variant.'}
-                      </Text>
-                    </View>
-                    {!isEditing && (
-                      <TouchableOpacity
-                        onPress={addVariantField}
-                        style={styles.addVariantPrimaryBtn}
-                        activeOpacity={0.8}
-                      >
-                        <Plus size={14} color="#ffffff" />
-                        <Text style={styles.addVariantPrimaryBtnText}>Add Variant</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {/* Summary Stat Pills */}
-                  <View style={styles.variantSummaryPillsRow}>
-                    <View style={styles.summaryPill}>
-                      <Text style={styles.summaryPillLabel}>Variants</Text>
-                      <Text style={styles.summaryPillValue}>{formVariants.length}</Text>
-                    </View>
-                    <View style={styles.summaryPill}>
-                      <Text style={styles.summaryPillLabel}>Available</Text>
-                      <Text style={[styles.summaryPillValue, { color: '#16a34a' }]}>
-                        {formVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryPill}>
-                      <Text style={styles.summaryPillLabel}>Reserved</Text>
-                      <Text style={[styles.summaryPillValue, { color: '#d97706' }]}>
-                        {formVariants.reduce((sum, v) => sum + (Number(v.reservedStock) || 0), 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryPill}>
-                      <Text style={styles.summaryPillLabel}>Total Stock</Text>
-                      <Text style={[styles.summaryPillValue, { color: '#FF5E36' }]}>
-                        {formVariants.reduce((sum, v) => sum + (Number(v.stock) || 0) + (Number(v.reservedStock) || 0), 0)} pcs
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Variant Cards List */}
-                {formVariants.map((v, idx) => {
-                  const avail = Number(v.stock) || 0;
-                  const res = Number(v.reservedStock) || 0;
-                  const total = avail + res;
-                  const coverImg = v.images && v.images.length > 0 ? v.images[0] : null;
-                  const variantPalette = extractedPalettes[idx] || [];
-
-                  return (
-                    <View key={idx} style={styles.redesignedVariantCard}>
-                      {/* Card Header Tag & Delete Action */}
-                      <View style={styles.variantCardHeaderBar}>
-                        <View style={styles.variantCardBadge}>
-                          <View style={[styles.colorDot, { backgroundColor: (v.hexCode && isValidHex(v.hexCode)) ? v.hexCode : (v.color.trim() ? '#FF5E36' : '#a1a1aa') }]} />
-                          <Text style={styles.variantCardBadgeText}>
-                            VARIANT #{idx + 1} {v.color.trim() ? `• ${v.color.trim()}` : ''} {v.hexCode ? `• ${v.hexCode}` : ''} • {total} Total
-                          </Text>
-                        </View>
-                        {!isEditing && (
-                          <TouchableOpacity
-                            onPress={() => removeVariantField(idx)}
-                            style={styles.deleteVariantIconCardBtn}
-                            disabled={formVariants.length === 1}
-                            activeOpacity={0.7}
-                          >
-                            <Trash2 size={14} color={formVariants.length === 1 ? '#d4d4d8' : '#ef4444'} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      {/* 1. IMAGE SELECTION FIRST (Top Section) */}
-                      <View style={styles.variantImageFirstSection}>
-                        <View style={styles.variantGalleryHeader}>
-                          <Text style={styles.variantGalleryTitle}>STEP 1: VARIANT IMAGES • DRAG TO REORDER</Text>
-                          <Text style={styles.variantGalleryCount}>{(v.images || []).length} photos</Text>
-                        </View>
-
-                        <DraggableImageList
-                          images={v.images || []}
-                          uploadingUris={uploadingUris}
-                          deletingUris={deletingUris}
-                          isUploading={isUploadingImage && (activeVariantIdxForMedia === idx || activeVariantIdxForMedia === null)}
-                          isReordering={isReorderingImages && reorderingVariantIdx === idx}
-                          onReorder={(newImages: string[]) => handleReorderVariantImages(idx, newImages)}
-                          onRemove={(imgIdx: number) => removeVariantImage(idx, imgIdx)}
-                          onAddPress={() => openMediaForVariant(idx)}
-                        />
-                      </View>
-
-                      {/* STEP 2: REDESIGNED COLOR & TONE STUDIO */}
-                      <View style={styles.colorStudioSection}>
-                        <View style={styles.colorStudioHeaderRow}>
-                          <View style={styles.colorStudioTitleBadge}>
-                            <Palette size={13} color="#FF5E36" style={{ marginRight: 5 }} />
-                            <Text style={styles.colorStudioHeaderTitle}>STEP 2: COLOR IDENTITY & SHADE</Text>
-                          </View>
-                          {v.hexCode && isValidHex(v.hexCode) ? (
-                            <View style={styles.colorReadyBadge}>
-                              <Check size={10} color="#16a34a" style={{ marginRight: 3 }} />
-                              <Text style={styles.colorReadyText}>CONFIGURED</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.colorPendingBadge}>
-                              <Text style={styles.colorPendingText}>REQUIRED</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        {/* Active Color Master Card / Live Hero Display */}
-                        <View style={styles.activeColorHeroCard}>
-                          <View style={styles.heroLeftSection}>
-                            {/* Color Swatch Circle with Gloss */}
-                            <View
-                              style={[
-                                styles.heroColorSwatch,
-                                {
-                                  backgroundColor:
-                                    v.hexCode && isValidHex(v.hexCode)
-                                      ? v.hexCode
-                                      : v.color.trim()
-                                      ? '#f4f4f5'
-                                      : '#fafafa',
-                                  borderColor:
-                                    v.hexCode && isValidHex(v.hexCode)
-                                      ? 'rgba(0,0,0,0.1)'
-                                      : '#e4e4e7',
-                                },
-                              ]}
-                            >
-                              {!(v.hexCode && isValidHex(v.hexCode)) && (
-                                <Palette size={18} color="#a1a1aa" />
-                              )}
-                              <View style={styles.swatchGlossHighlight} />
-                            </View>
-
-                            {/* Color Info Texts */}
-                            <View style={styles.heroColorInfo}>
-                              <Text style={styles.heroColorNameText} numberOfLines={1}>
-                                {v.color.trim() || 'Select / Name Shade'}
-                              </Text>
-                              <View style={styles.heroHexRow}>
-                                <View
-                                  style={[
-                                    styles.heroHexPill,
-                                    v.hexCode && isValidHex(v.hexCode) && styles.heroHexPillActive,
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.heroHexText,
-                                      v.hexCode && isValidHex(v.hexCode) && styles.heroHexTextActive,
-                                    ]}
-                                  >
-                                    {v.hexCode && isValidHex(v.hexCode)
-                                      ? v.hexCode.toUpperCase()
-                                      : 'No Hex Assigned'}
-                                  </Text>
-                                </View>
-                                {v.hexCode && isValidHex(v.hexCode) && (
-                                  <Text style={styles.heroSuggestedTag} numberOfLines={1}>
-                                    • {getClosestColorName(v.hexCode)}
-                                  </Text>
-                                )}
-                              </View>
-                            </View>
-                          </View>
-
-                          {/* Action Button: Launch High-Precision Color Picker Modal */}
-                          <TouchableOpacity
-                            onPress={() => setColorPickerTargetIdx(idx)}
-                            style={styles.heroPickerActionBtn}
-                            activeOpacity={0.8}
-                          >
-                            <Pipette size={14} color="#FF5E36" style={{ marginRight: 4 }} />
-                            <Text style={styles.heroPickerActionText}>Picker</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        {/* Palettes Container */}
-                        <View style={styles.palettesContainer}>
-                          {/* 1. Cover Photo AI Extracted Palette */}
-                          <View style={styles.paletteSourceBox}>
-                            <View style={styles.paletteSourceHeaderRow}>
-                              <View style={styles.paletteSourceHeaderLeft}>
-                                <Sparkles size={12} color="#FF5E36" style={{ marginRight: 4 }} />
-                                <Text style={styles.paletteSourceTitle}>
-                                  FROM COVER PHOTO (AI EXTRACTED)
-                                </Text>
-                              </View>
-                              {coverImg ? (
-                                <TouchableOpacity
-                                  onPress={() => handleExtractCoverColors(idx, coverImg, true)}
-                                  disabled={isExtractingColors[idx]}
-                                  style={styles.reExtractBtn}
-                                  activeOpacity={0.7}
-                                >
-                                  <RefreshCw
-                                    size={10}
-                                    color={isExtractingColors[idx] ? '#FF5E36' : '#71717a'}
-                                    style={{ marginRight: 3 }}
-                                  />
-                                  <Text style={styles.reExtractBtnText}>
-                                    {isExtractingColors[idx] ? 'Extracting...' : 'Re-extract'}
-                                  </Text>
-                                </TouchableOpacity>
-                              ) : null}
-                            </View>
-
-                            {isExtractingColors[idx] ? (
-                              <View style={styles.extractionLoadingBox}>
-                                <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 8 }} />
-                                <Text style={styles.extractionLoadingText}>
-                                  Detecting dominant garment tones with Color Thief...
-                                </Text>
-                              </View>
-                            ) : coverImg ? (
-                              variantPalette.length > 0 ? (
-                                <ScrollView
-                                  horizontal
-                                  showsHorizontalScrollIndicator={false}
-                                  contentContainerStyle={styles.extractedColorsScroll}
-                                >
-                                  {variantPalette.map((hex, cIdx) => {
-                                    const isSelected = (v.hexCode || '').toUpperCase() === hex.toUpperCase();
-                                    const light = isLightColor(hex);
-                                    const suggestedName = getClosestColorName(hex);
-                                    return (
-                                      <TouchableOpacity
-                                        key={cIdx}
-                                        onPress={() => {
-                                          updateVariantField(idx, 'hexCode', hex);
-                                          if (!v.color.trim() || v.color.trim() === 'Standard') {
-                                            updateVariantField(idx, 'color', suggestedName);
-                                          }
-                                        }}
-                                        style={[
-                                          styles.paletteChipCard,
-                                          isSelected && styles.paletteChipCardSelected,
-                                        ]}
-                                        activeOpacity={0.75}
-                                      >
-                                        <View
-                                          style={[
-                                            styles.paletteChipSwatch,
-                                            { backgroundColor: hex },
-                                            isSelected && styles.paletteChipSwatchSelected,
-                                          ]}
-                                        >
-                                          {isSelected && (
-                                            <Check
-                                              size={13}
-                                              color={light ? '#000000' : '#ffffff'}
-                                              strokeWidth={2.5}
-                                            />
-                                          )}
-                                        </View>
-                                        <Text
-                                          style={[
-                                            styles.paletteChipHex,
-                                            isSelected && styles.paletteChipHexSelected,
-                                          ]}
-                                          numberOfLines={1}
-                                        >
-                                          {hex}
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.paletteChipName,
-                                            isSelected && styles.paletteChipNameSelected,
-                                          ]}
-                                          numberOfLines={1}
-                                        >
-                                          {suggestedName}
-                                        </Text>
-                                      </TouchableOpacity>
-                                    );
-                                  })}
-                                </ScrollView>
-                              ) : (
-                                <View style={styles.paletteNoticeBox}>
-                                  <Text style={styles.paletteNoticeText}>
-                                    Colors not yet extracted. Tap "Re-extract" or pick from signature shades below.
-                                  </Text>
-                                </View>
-                              )
-                            ) : (
-                              <View style={styles.paletteNoticeBox}>
-                                <ImageIcon size={13} color="#94a3b8" style={{ marginRight: 6 }} />
-                                <Text style={styles.paletteNoticeText}>
-                                  Add a cover photo above to auto-detect colors, or select a curated shade below.
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-
-                          {/* 2. Curated Signature Atelier Palette */}
-                          <View style={styles.signatureSectionBox}>
-                            <Text style={styles.signatureSectionTitle}>
-                              SIGNATURE ATELIER SHADES
-                            </Text>
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={styles.signatureScrollContent}
-                            >
-                              {SIGNATURE_ATELIER_PALETTE.map((preset, pIdx) => {
-                                const isSelected =
-                                  (v.hexCode || '').toUpperCase() === preset.hex.toUpperCase();
-                                const light = isLightColor(preset.hex);
-                                return (
-                                  <TouchableOpacity
-                                    key={pIdx}
-                                    onPress={() => {
-                                      updateVariantField(idx, 'hexCode', preset.hex);
-                                      updateVariantField(idx, 'color', preset.name);
-                                    }}
-                                    style={[
-                                      styles.signatureChipBtn,
-                                      isSelected && styles.signatureChipBtnSelected,
-                                    ]}
-                                    activeOpacity={0.75}
-                                  >
-                                    <View
-                                      style={[
-                                        styles.signatureCircleSwatch,
-                                        { backgroundColor: preset.hex },
-                                        isSelected && styles.signatureCircleSwatchSelected,
-                                      ]}
-                                    >
-                                      {isSelected && (
-                                        <Check
-                                          size={11}
-                                          color={light ? '#000000' : '#ffffff'}
-                                          strokeWidth={2.5}
-                                        />
-                                      )}
-                                    </View>
-                                    <Text
-                                      style={[
-                                        styles.signatureChipLabel,
-                                        isSelected && styles.signatureChipLabelSelected,
-                                      ]}
-                                      numberOfLines={1}
-                                    >
-                                      {preset.name}
-                                    </Text>
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </ScrollView>
-                          </View>
-                        </View>
-
-                        {/* Dedicated Color Input Fields */}
-                        <View style={styles.colorInputsContainer}>
-                          <View style={styles.colorInputsRow}>
-                            {/* Color Name Input */}
-                            <View style={styles.colorNameInputCol}>
-                              <Text style={styles.stylishFieldLabel}>
-                                COLOR / SHADE NAME <Text style={{ color: '#ef4444' }}>*</Text>
-                              </Text>
-                              <TextInput
-                                placeholder="e.g. Royal Wine, Champagne"
-                                value={v.color}
-                                onChangeText={(val) => updateVariantField(idx, 'color', val)}
-                                style={[
-                                  styles.stylishVariantInput,
-                                  !v.color.trim() && { borderColor: '#fca5a5' },
-                                ]}
-                                placeholderTextColor="#a1a1aa"
-                              />
-                              {/* Quick Suggestion Tag if Hex is set and differs */}
-                              {Boolean(v.hexCode &&
-                                isValidHex(v.hexCode) &&
-                                getClosestColorName(v.hexCode!) !== v.color.trim()) && (
-                                  <TouchableOpacity
-                                    onPress={() =>
-                                      updateVariantField(idx, 'color', getClosestColorName(v.hexCode!))
-                                    }
-                                    style={styles.suggestionPillBtn}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Sparkles size={10} color="#FF5E36" style={{ marginRight: 3 }} />
-                                    <Text style={styles.suggestionPillText} numberOfLines={1}>
-                                      Suggested: "{getClosestColorName(v.hexCode!)}" (tap to apply)
-                                    </Text>
-                                  </TouchableOpacity>
-                                )}
-                            </View>
-
-                            {/* Hex Code Input */}
-                            <View style={styles.hexInputCol}>
-                              <Text style={styles.stylishFieldLabel}>HEX CODE</Text>
-                              <View style={styles.hexFieldWrapper}>
-                                <View
-                                  style={[
-                                    styles.hexIndicatorDot,
-                                    {
-                                      backgroundColor:
-                                        v.hexCode && isValidHex(v.hexCode) ? v.hexCode : '#cbd5e1',
-                                    },
-                                  ]}
-                                />
-                                <TextInput
-                                  placeholder="#RRGGBB"
-                                  value={v.hexCode || ''}
-                                  maxLength={7}
-                                  autoCapitalize="characters"
-                                  onChangeText={(val) => {
-                                    let formatted = val.toUpperCase().replace(/[^0-9A-F#]/g, '');
-                                    if (!formatted.startsWith('#') && formatted.length > 0)
-                                      formatted = '#' + formatted;
-                                    updateVariantField(idx, 'hexCode', formatted);
-                                    if (
-                                      isValidHex(formatted) &&
-                                      (!v.color.trim() || v.color.trim() === 'Standard')
-                                    ) {
-                                      updateVariantField(idx, 'color', getClosestColorName(formatted));
-                                    }
-                                  }}
-                                  style={styles.hexInlineInput}
-                                  placeholderTextColor="#a1a1aa"
-                                />
-                                <TouchableOpacity
-                                  onPress={() => setColorPickerTargetIdx(idx)}
-                                  style={styles.openPickerSmallBtn}
-                                  activeOpacity={0.8}
-                                >
-                                  <Pipette size={13} color="#FF5E36" />
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* STEP 3: DEDICATED INVENTORY & STOCK ALLOCATION */}
-                      <View style={styles.inventoryAllocationSection}>
-                        <View style={styles.inventoryHeaderRow}>
-                          <View style={styles.inventoryHeaderLeft}>
-                            <Layers size={13} color="#71717a" style={{ marginRight: 5 }} />
-                            <Text style={styles.inventoryHeaderTitle}>
-                              STEP 3: INVENTORY & STOCK ALLOCATION
-                            </Text>
-                          </View>
-                          <View style={styles.totalPillSmallBadge}>
-                            <Text style={styles.totalPillSmallBadgeText}>{total} pcs total</Text>
-                          </View>
-                        </View>
-
-                        {isEditing ? (
-                          <View style={styles.readOnlyInventoryBanner}>
-                            <View style={styles.readOnlyStockStatsRow}>
-                              <View style={styles.readOnlyStatItem}>
-                                <Text style={styles.readOnlyStatLabel}>AVAILABLE</Text>
-                                <Text style={[styles.readOnlyStatVal, { color: '#16a34a' }]}>{avail} pcs</Text>
-                              </View>
-                              <View style={styles.readOnlyStatDivider} />
-                              <View style={styles.readOnlyStatItem}>
-                                <Text style={styles.readOnlyStatLabel}>RESERVED</Text>
-                                <Text style={[styles.readOnlyStatVal, { color: '#d97706' }]}>{res} pcs</Text>
-                              </View>
-                              <View style={styles.readOnlyStatDivider} />
-                              <View style={styles.readOnlyStatItem}>
-                                <Text style={styles.readOnlyStatLabel}>TOTAL</Text>
-                                <Text style={[styles.readOnlyStatVal, { color: '#09090b' }]}>{total} pcs</Text>
-                              </View>
-                            </View>
-                            <Text style={styles.readOnlyInventoryHint}>
-                              🔒 Inventory editing is disabled in this form. Manage stock quantities and adjustments from the Inventory screen.
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={styles.stockAllocationRow}>
-                            <View style={styles.stockColItem}>
-                              <Text style={styles.stylishFieldLabel}>
-                                AVAILABLE <Text style={{ color: '#ef4444' }}>*</Text>
-                              </Text>
-                              <TextInput
-                                placeholder="Min 1"
-                                value={
-                                  v.stock !== undefined && v.stock !== null && (v.stock as any) !== ''
-                                    ? String(v.stock)
-                                    : ''
-                                }
-                                onChangeText={(val) =>
-                                  updateVariantField(idx, 'stock', val.replace(/[^0-9]/g, ''))
-                                }
-                                keyboardType="numeric"
-                                style={[
-                                  styles.stylishVariantInput,
-                                  (Number(v.stock) <= 0 || (v.stock as any) === '') && {
-                                    borderColor: '#fca5a5',
-                                  },
-                                ]}
-                                placeholderTextColor="#a1a1aa"
-                              />
-                            </View>
-
-                            <View style={styles.stockColItem}>
-                              <Text style={styles.stylishFieldLabel}>RESERVED</Text>
-                              <TextInput
-                                placeholder="0"
-                                value={
-                                  v.reservedStock !== undefined &&
-                                  v.reservedStock !== null &&
-                                  (v.reservedStock as any) !== '' &&
-                                  v.reservedStock !== 0
-                                    ? String(v.reservedStock)
-                                    : v.reservedStock === 0
-                                    ? '0'
-                                    : ''
-                                }
-                                onChangeText={(val) =>
-                                  updateVariantField(idx, 'reservedStock', val.replace(/[^0-9]/g, ''))
-                                }
-                                keyboardType="numeric"
-                                style={styles.stylishVariantInput}
-                                placeholderTextColor="#a1a1aa"
-                              />
-                            </View>
-
-                            <View style={styles.stockColItem}>
-                              <Text style={styles.stylishFieldLabel}>TOTAL UNITS</Text>
-                              <View style={styles.readOnlyTotalBox}>
-                                <Text style={styles.readOnlyTotalText}>{total} pcs</Text>
-                              </View>
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-
-              </View>
+              <ProductVariantsTab
+                isEditing={isEditing}
+                addVariantField={addVariantField}
+                formVariants={formVariants}
+                extractedPalettes={extractedPalettes}
+                removeVariantField={removeVariantField}
+                updateVariantField={updateVariantField}
+                setColorPickerTargetIdx={setColorPickerTargetIdx}
+                openMediaForVariant={openMediaForVariant}
+                removeVariantImage={removeVariantImage}
+                handleReorderVariantImages={handleReorderVariantImages}
+                handleExtractCoverColors={handleExtractCoverColors}
+                isExtractingColors={isExtractingColors}
+                reorderingVariantIdx={reorderingVariantIdx}
+                isUploadingImage={isUploadingImage}
+                activeVariantIdxForMedia={activeVariantIdxForMedia}
+                isReorderingImages={isReorderingImages}
+                uploadingUris={uploadingUris}
+                deletingUris={deletingUris}
+              />
             )}
 
-            {/* -------------------- TAB 3: VISIBILITY -------------------- */}
             {activeTab === 'visibility' && (
-              <View style={styles.tabContentContainer}>
-
-                {/* Settings Card */}
-                <View style={styles.sectionCard}>
-                  <Text style={styles.cardHeaderTitle}>Boutique Display & Visibility</Text>
-                  <Text style={styles.cardHeaderSubtitle}>Configure storefront visibility and promotional tagging.</Text>
-
-                  <View style={styles.switchRowCard}>
-                    <View style={styles.switchLabelContainer}>
-                      <Text style={styles.switchTitle}>Visibility listed</Text>
-                      <Text style={styles.switchDesc}>Outfit is active and visible to client browsing.</Text>
-                    </View>
-                    <Switch
-                      value={formIsListed}
-                      onValueChange={setFormIsListed}
-                      trackColor={{ false: '#e4e4e7', true: '#FF5E36' }}
-                      thumbColor="#ffffff"
-                    />
-                  </View>
-
-                  <View style={styles.switchRowCard}>
-                    <View style={styles.switchLabelContainer}>
-                      <Text style={styles.switchTitle}>Featured on Homepage</Text>
-                      <Text style={styles.switchDesc}>Include this outfit in the home landing carousel.</Text>
-                    </View>
-                    <Switch
-                      value={formFeatured}
-                      onValueChange={setFormFeatured}
-                      trackColor={{ false: '#e4e4e7', true: '#FF5E36' }}
-                      thumbColor="#ffffff"
-                    />
-                  </View>
-
-                  <View style={styles.switchRowCard}>
-                    <View style={styles.switchLabelContainer}>
-                      <Text style={styles.switchTitle}>New Arrivals Edit</Text>
-                      <Text style={styles.switchDesc}>Display tag and group in the New Collection list.</Text>
-                    </View>
-                    <Switch
-                      value={formNewArrival}
-                      onValueChange={setFormNewArrival}
-                      trackColor={{ false: '#e4e4e7', true: '#FF5E36' }}
-                      thumbColor="#ffffff"
-                    />
-                  </View>
-
-                  <View style={styles.switchRowCard}>
-                    <View style={styles.switchLabelContainer}>
-                      <Text style={styles.switchTitle}>Bestseller Label</Text>
-                      <Text style={styles.switchDesc}>Label with high popularity indicator flag.</Text>
-                    </View>
-                    <Switch
-                      value={formBestseller}
-                      onValueChange={setFormBestseller}
-                      trackColor={{ false: '#e4e4e7', true: '#FF5E36' }}
-                      thumbColor="#ffffff"
-                    />
-                  </View>
-                </View>
-
-              </View>
+              <ProductVisibilityTab
+                isListed={formIsListed}
+                setIsListed={setFormIsListed}
+                featured={formFeatured}
+                setFeatured={setFormFeatured}
+                newArrival={formNewArrival}
+                setNewArrival={setFormNewArrival}
+                bestseller={formBestseller}
+                setBestseller={setFormBestseller}
+              />
             )}
-
           </ScrollView>
         </KeyboardAvoidingView>
 
@@ -1999,154 +1161,36 @@ export default function ProductFormModal({
           )}
         </View>
 
-        {/* Media Selection Sheet (Modal) */}
-        <Modal
+        {/* Media Selection Sheet */}
+        <MediaSelectionModal
           visible={showMediaOptions}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowMediaOptions(false)}
-        >
-          <View style={styles.overlayContainer}>
-            <TouchableOpacity
-              style={styles.overlayBackground}
-              activeOpacity={1}
-              onPress={() => setShowMediaOptions(false)}
-            />
-            <View style={styles.mediaOptionsSheet}>
-              <Text style={styles.overlayTitle}>Add Garment Media</Text>
-              <Text style={styles.overlaySubtitle}>Select how you want to access and select outfit photos</Text>
-
-              <View style={styles.verticalOptionsContainer}>
-                <TouchableOpacity
-                  style={styles.verticalOptionRow}
-                  onPress={handlePickImage}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.optionIconBox, { backgroundColor: '#e0f2fe' }]}>
-                    <ImageIcon size={20} color="#0284c7" />
-                  </View>
-                  <View style={styles.optionTextBox}>
-                    <Text style={styles.optionTitle}>Photo Gallery</Text>
-                    <Text style={styles.optionDescription}>Pick images from your device photo library</Text>
-                  </View>
-                  <ChevronRight size={16} color="#71717a" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.verticalOptionRow}
-                  onPress={handleTakePhoto}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.optionIconBox, { backgroundColor: '#ecfdf5' }]}>
-                    <Camera size={20} color="#059669" />
-                  </View>
-                  <View style={styles.optionTextBox}>
-                    <Text style={styles.optionTitle}>Device Camera</Text>
-                    <Text style={styles.optionDescription}>Take a live photo of the product</Text>
-                  </View>
-                  <ChevronRight size={16} color="#71717a" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.verticalOptionRow}
-                  onPress={handlePickFromFiles}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.optionIconBox, { backgroundColor: '#f4f4f5' }]}>
-                    <FolderOpen size={20} color="#52525b" />
-                  </View>
-                  <View style={styles.optionTextBox}>
-                    <Text style={styles.optionTitle}>Local Files (Storage)</Text>
-                    <Text style={styles.optionDescription}>Browse internal storage, DCIM, and downloads</Text>
-                  </View>
-                  <ChevronRight size={16} color="#71717a" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.verticalOptionRow}
-                  onPress={() => {
-                    setShowMediaOptions(false);
-                    setTimeout(() => setShowUrlInput(true), 350);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.optionIconBox, { backgroundColor: '#fef3c7' }]}>
-                    <LinkIcon size={20} color="#d97706" />
-                  </View>
-                  <View style={styles.optionTextBox}>
-                    <Text style={styles.optionTitle}>Web Image URL</Text>
-                    <Text style={styles.optionDescription}>Paste a direct image link</Text>
-                  </View>
-                  <ChevronRight size={16} color="#71717a" />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.cancelOverlayBtn}
-                onPress={() => setShowMediaOptions(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cancelOverlayBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+          onClose={() => setShowMediaOptions(false)}
+          onPickImage={handlePickImage}
+          onTakePhoto={handleTakePhoto}
+          onPickDocument={handlePickFromFiles}
+          onOpenUrlInput={() => {
+            setShowMediaOptions(false);
+            setTimeout(() => setShowUrlInput(true), 350);
+          }}
+        />
 
         {/* URL Input Modal */}
-        <Modal
+        <UrlInputModal
           visible={showUrlInput}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowUrlInput(false)}
-        >
-          <View style={styles.overlayContainerCenter}>
-            <TouchableOpacity
-              style={styles.overlayBackground}
-              activeOpacity={1}
-              onPress={() => setShowUrlInput(false)}
-            />
-            <View style={styles.urlInputCard}>
-              <Text style={styles.overlayTitle}>Import Web Image</Text>
-              <Text style={styles.overlaySubtitle}>Paste a direct web image link</Text>
-
-              <TextInput
-                placeholder="https://example.com/image.jpg"
-                value={tempUrl}
-                onChangeText={setTempUrl}
-                autoFocus
-                style={styles.urlTextInput}
-                placeholderTextColor="#a1a1aa"
-              />
-
-              <View style={styles.urlButtonsRow}>
-                <TouchableOpacity
-                  style={[styles.urlButton, { backgroundColor: '#f4f4f5' }]}
-                  onPress={() => {
-                    setShowUrlInput(false);
-                    setTempUrl('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.urlButtonText, { color: '#09090b' }]}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.urlButton, { backgroundColor: '#FF5E36' }]}
-                  onPress={() => {
-                    if (tempUrl.trim()) {
-                      addImageUris([tempUrl.trim()]);
-                      setTempUrl('');
-                      setShowUrlInput(false);
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.urlButtonText, { color: '#ffffff' }]}>Add Image</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
+          url={tempUrl}
+          setUrl={setTempUrl}
+          onClose={() => {
+            setShowUrlInput(false);
+            setTempUrl('');
+          }}
+          onSubmit={() => {
+            if (tempUrl.trim()) {
+              addImageUris([tempUrl.trim()]);
+              setTempUrl('');
+              setShowUrlInput(false);
+            }
+          }}
+        />
 
         {/* Color Picker Modal */}
         {colorPickerTargetIdx !== null && (
