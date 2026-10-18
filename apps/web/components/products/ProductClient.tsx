@@ -14,6 +14,7 @@ import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
 import { HeritageCraftBanner } from '@/components/products/HeritageCraftBanner';
+import { FormattedRichText } from '@/components/ui/FormattedRichText';
 
 // Beautiful luxury Indian lotus icon motif
 const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
@@ -299,9 +300,9 @@ export function ProductClient({ product }: { product: Product }) {
           <div className="editorial-divider my-2" />
           
           {/* Description */}
-          <p className="text-zinc-600 text-xs md:text-sm leading-relaxed mb-6 font-light">
-            {product.description}
-          </p>
+          <div className="text-zinc-600 text-xs md:text-sm leading-relaxed mb-6 font-light">
+            <FormattedRichText text={product.description} />
+          </div>
 
           {/* Color Selection Pill Swatches - Redesigned as luxurious color swatches */}
           <div className="mb-5 border-t border-zinc-100 pt-5">
@@ -422,9 +423,9 @@ export function ProductClient({ product }: { product: Product }) {
                   <span>Craft & Embellishments</span>
                 </AccordionTrigger>
                 <AccordionContent className="text-xs text-zinc-650 leading-relaxed pb-4 font-light">
-                  <p className="mb-2"><strong>Composition:</strong> {product.fabric}</p>
+                  <div className="mb-2"><strong>Composition:</strong> <FormattedRichText text={product.fabric} className="inline" /></div>
                   <p className="mb-2"><strong>Artisanal Detail:</strong> Woven on traditional handlooms utilizing genuine threads, intricate borders, and local embroidery patterns.</p>
-                  <p><strong>Care Instructions:</strong> {product.careInstructions}</p>
+                  <div><strong>Care Instructions:</strong> <FormattedRichText text={product.careInstructions} className="inline" /></div>
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="fit" className="border-b border-zinc-200/50">
@@ -432,7 +433,7 @@ export function ProductClient({ product }: { product: Product }) {
                   <span>Silhouette & Styling</span>
                 </AccordionTrigger>
                 <AccordionContent className="text-xs text-zinc-650 leading-relaxed pb-4 font-light">
-                  <p className="mb-2"><strong>Profile:</strong> {product.fit}</p>
+                  <div className="mb-2"><strong>Profile:</strong> <FormattedRichText text={product.fit} className="inline" /></div>
                   <p><strong>Styling Tip:</strong> Pair with raw-silk flats, subtle brass jewelry, and let the sheer dupatta carry the drape for classic celebratory elegance.</p>
                 </AccordionContent>
               </AccordionItem>

@@ -18,13 +18,13 @@
     "db:studio": "pnpm build && drizzle-kit studio"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "drizzle-orm": "^0.33.0",
     "postgres": "^3.4.4"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
     "@types/pg": "^8.11.6",
-    "dotenv": "^16.4.5",
     "drizzle-kit": "^0.24.2",
     "pg": "^8.12.0",
     "typescript": "7.0.2"

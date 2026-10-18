@@ -6,7 +6,6 @@ import {
   ScrollView, 
   TextInput, 
   TouchableOpacity, 
-  ActivityIndicator,
   RefreshControl
 } from 'react-native';
 import { Search, Plus, Tag, Package, XCircle } from 'lucide-react-native';

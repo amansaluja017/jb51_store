@@ -17,18 +17,12 @@ import {
   X,
   Plus,
   Minus,
-  CheckCircle2,
   TrendingDown,
   TrendingUp,
   User,
-  Phone,
-  Mail,
-  FileText,
   AlertCircle,
   Package,
-  Layers,
   ChevronDown,
-  DollarSign,
 } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { Product, Variant } from '../types';

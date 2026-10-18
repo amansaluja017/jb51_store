@@ -9,7 +9,6 @@ import {
   Image,
   Switch,
   RefreshControl,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -22,15 +21,16 @@ import {
   Minus,
   Save,
   RotateCcw,
-  SlidersHorizontal,
   Layers,
-  ArrowUpDown,
-  Tag,
   Eye,
   ImageOff,
   Sparkles,
   Lock,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  ArrowUpDown,
   History,
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
@@ -100,16 +100,20 @@ export default function InventoryScreen({
   onRefresh,
   onToggleStock,
   onUpdateInventory,
-  onRecordTransaction,
+  onRecordTransaction: _onRecordTransaction,
   transactions = [],
   isLoadingTransactions = false,
   onFetchTransactions,
   onViewProductDetails,
-  showAlert,
+  showAlert: _showAlert,
 }: InventoryScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<StockFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  type SortOption = 'default' | 'stockAsc' | 'stockDesc';
+  const [sortBy, setSortBy] = useState<SortOption>('default');
+  const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
+  const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
   
   // History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -221,6 +225,45 @@ export default function InventoryScreen({
     });
   }, [products, searchQuery, activeFilter, selectedCategory]);
 
+  // Helper to compute a product's current total stock
+  const getProductTotalStock = (p: Product) => {
+    const variants = pendingStockEdits[p.slug] || p.variants || [];
+    return variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+  };
+
+  // Sort and filter products
+  const sortedAndFilteredProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    if (sortBy === 'stockAsc') {
+      list.sort((a, b) => getProductTotalStock(a) - getProductTotalStock(b));
+    } else if (sortBy === 'stockDesc') {
+      list.sort((a, b) => getProductTotalStock(b) - getProductTotalStock(a));
+    }
+    return list;
+  }, [filteredProducts, sortBy, pendingStockEdits]);
+
+  // Toggle collapse for single product
+  const toggleProductCollapse = (slug: string) => {
+    setCollapsedSlugs(prev => {
+      const current = prev[slug] !== undefined ? prev[slug] : allCollapsed;
+      return {
+        ...prev,
+        [slug]: !current,
+      };
+    });
+  };
+
+  // Toggle collapse for all products
+  const toggleAllCollapse = () => {
+    const nextState = !allCollapsed;
+    setAllCollapsed(nextState);
+    const updated: Record<string, boolean> = {};
+    products.forEach(p => {
+      updated[p.slug] = nextState;
+    });
+    setCollapsedSlugs(updated);
+  };
+
   // Helper to get working variants (either modified pending or original)
   const getWorkingVariants = (product: Product): Variant[] => {
     return pendingStockEdits[product.slug] || product.variants || [];
@@ -316,48 +359,6 @@ export default function InventoryScreen({
 
   return (
     <View style={styles.container}>
-      {/* Top Search & Filter Bar */}
-      <View style={styles.searchHeader}>
-        <View style={styles.searchBar}>
-          <Search size={15} color="#a1a1aa" />
-          <TextInput
-            placeholder="Search inventory by name, slug, color..."
-            placeholderTextColor="#a1a1aa"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <XCircle size={15} color="#a1a1aa" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Category Pill Scroll */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-          <TouchableOpacity
-            onPress={() => setSelectedCategory('All')}
-            style={[styles.categoryPill, selectedCategory === 'All' && styles.categoryPillActive]}
-          >
-            <Text style={[styles.categoryPillText, selectedCategory === 'All' && styles.categoryPillTextActive]}>
-              All Categories
-            </Text>
-          </TouchableOpacity>
-          {categoryList.map(cat => (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => setSelectedCategory(cat)}
-              style={[styles.categoryPill, selectedCategory === cat && styles.categoryPillActive]}
-            >
-              <Text style={[styles.categoryPillText, selectedCategory === cat && styles.categoryPillTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
       {/* Main Inventory Scroll Area */}
       <ScrollView
         style={styles.scrollBody}
@@ -373,27 +374,7 @@ export default function InventoryScreen({
           ) : undefined
         }
       >
-        {/* Top Quick Actions: Transaction History */}
-        <View style={styles.topActionsRow}>
-          <TouchableOpacity
-            onPress={() => {
-              onFetchTransactions?.();
-              setHistoryModalOpen(true);
-            }}
-            style={styles.historyBtn}
-            activeOpacity={0.8}
-          >
-            <History size={15} color="#18181b" />
-            <Text style={styles.historyBtnText}>History</Text>
-            {transactions.length > 0 && (
-              <View style={styles.historyBadge}>
-                <Text style={styles.historyBadgeText}>{transactions.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* KPI Metrics Dashboard Card */}
+        {/* 1. Analytics Card Section (KPI Metrics Dashboard) */}
         <View style={styles.metricsContainer}>
           <View style={styles.metricsHeaderRow}>
             <View style={styles.metricsHeaderLeft}>
@@ -478,7 +459,113 @@ export default function InventoryScreen({
           </View>
         </View>
 
-        {/* Status Filter Tabs */}
+        {/* 2. Search Bar & History Options AFTER Analytics Section */}
+        <View style={styles.searchAndHistorySection}>
+          <View style={styles.searchAndHistoryRow}>
+            <View style={styles.searchBar}>
+              <Search size={15} color="#a1a1aa" />
+              <TextInput
+                placeholder="Search inventory by name, slug, color..."
+                placeholderTextColor="#a1a1aa"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <XCircle size={15} color="#a1a1aa" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                onFetchTransactions?.();
+                setHistoryModalOpen(true);
+              }}
+              style={styles.historyBtn}
+              activeOpacity={0.8}
+            >
+              <History size={15} color="#18181b" />
+              <Text style={styles.historyBtnText}>History</Text>
+              {transactions.length > 0 && (
+                <View style={styles.historyBadge}>
+                  <Text style={styles.historyBadgeText}>{transactions.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Category Pill Scroll */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+            <TouchableOpacity
+              onPress={() => setSelectedCategory('All')}
+              style={[styles.categoryPill, selectedCategory === 'All' && styles.categoryPillActive]}
+            >
+              <Text style={[styles.categoryPillText, selectedCategory === 'All' && styles.categoryPillTextActive]}>
+                All Categories
+              </Text>
+            </TouchableOpacity>
+            {categoryList.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setSelectedCategory(cat)}
+                style={[styles.categoryPill, selectedCategory === cat && styles.categoryPillActive]}
+              >
+                <Text style={[styles.categoryPillText, selectedCategory === cat && styles.categoryPillTextActive]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* 3. Tools Row: Sort Options & Collapse All */}
+        <View style={styles.toolsRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortPillsScroll}>
+            <TouchableOpacity
+              onPress={() => setSortBy('default')}
+              style={[styles.sortPill, sortBy === 'default' && styles.sortPillActive]}
+            >
+              <Text style={[styles.sortPillText, sortBy === 'default' && styles.sortPillTextActive]}>
+                Default
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setSortBy('stockAsc')}
+              style={[styles.sortPill, sortBy === 'stockAsc' && styles.sortPillActive]}
+            >
+              <ArrowUpDown size={11} color={sortBy === 'stockAsc' ? '#ffffff' : '#71717a'} style={{ marginRight: 4 }} />
+              <Text style={[styles.sortPillText, sortBy === 'stockAsc' && styles.sortPillTextActive]}>
+                Stock: Low → High
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setSortBy('stockDesc')}
+              style={[styles.sortPill, sortBy === 'stockDesc' && styles.sortPillActive]}
+            >
+              <ArrowUpDown size={11} color={sortBy === 'stockDesc' ? '#ffffff' : '#71717a'} style={{ marginRight: 4 }} />
+              <Text style={[styles.sortPillText, sortBy === 'stockDesc' && styles.sortPillTextActive]}>
+                Stock: High → Low
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          <TouchableOpacity
+            onPress={toggleAllCollapse}
+            style={styles.collapseAllBtn}
+            activeOpacity={0.7}
+          >
+            <ChevronsUpDown size={13} color="#FF5E36" style={{ marginRight: 4 }} />
+            <Text style={styles.collapseAllBtnText}>
+              {allCollapsed ? 'Expand All' : 'Collapse All'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 4. Status Filter Tabs */}
         <View style={styles.filterTabsWrapper}>
           <ScrollView
             horizontal
@@ -536,18 +623,19 @@ export default function InventoryScreen({
         {/* Product Inventory Items */}
         {isLoading && products.length === 0 ? (
           <InventorySkeleton />
-        ) : filteredProducts.length === 0 ? (
+        ) : sortedAndFilteredProducts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Package size={44} color="#d4d4d8" />
             <Text style={styles.emptyTitle}>No Outfits Found</Text>
             <Text style={styles.emptySubtitle}>
-              No products match your current search or stock status filters.
+              No products match your current search, stock status, or sort filters.
             </Text>
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
                 setActiveFilter('all');
                 setSelectedCategory('All');
+                setSortBy('default');
               }}
               style={styles.resetFilterBtn}
             >
@@ -556,10 +644,12 @@ export default function InventoryScreen({
           </View>
         ) : (
           <View style={styles.productsList}>
-            {filteredProducts.map(product => {
+            {sortedAndFilteredProducts.map(product => {
               const workingVariants = getWorkingVariants(product);
               const hasPendingChanges = !!pendingStockEdits[product.slug];
               const isSaving = !!savingSlugs[product.slug];
+              const isCollapsed = collapsedSlugs[product.slug] !== undefined ? collapsedSlugs[product.slug] : allCollapsed;
+              const shouldShowVariants = hasPendingChanges || !isCollapsed;
 
               const totalCurrentStock = workingVariants.reduce(
                 (acc, v) => acc + (Number(v.stock) || 0),
@@ -660,59 +750,76 @@ export default function InventoryScreen({
                     />
                   </View>
 
-                  {/* Variants Management Section */}
+                  {/* Variants Management Section (Collapsible) */}
                   <View style={styles.variantsSection}>
-                    <View style={styles.variantsHeader}>
-                      <View style={styles.variantsHeaderTop}>
-                        <View style={styles.variantsHeaderLeft}>
-                          <Layers size={13} color="#FF5E36" />
-                          <View>
-                            <Text style={styles.variantsHeaderTitle}>Variants & Stock Matrix</Text>
-                            <Text style={styles.variantsHeaderSubtitle}>
-                              {totalCurrentStock} available • {totalCurrentReserved} reserved
-                            </Text>
-                          </View>
+                    <TouchableOpacity
+                      onPress={() => toggleProductCollapse(product.slug)}
+                      activeOpacity={0.7}
+                      style={styles.variantsHeaderToggleRow}
+                    >
+                      <View style={styles.variantsHeaderLeft}>
+                        <Layers size={13} color="#FF5E36" />
+                        <View>
+                          <Text style={styles.variantsHeaderTitle}>
+                            Variants ({workingVariants.length})
+                          </Text>
+                          <Text style={styles.variantsHeaderSubtitle}>
+                            {totalCurrentStock} available • {totalCurrentReserved} reserved
+                          </Text>
                         </View>
                       </View>
 
-                      <View style={styles.quickAddRow}>
-                        <TouchableOpacity
-                          onPress={() => handleBatchAddStock(product, 5)}
-                          style={styles.quickAddBtn}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.quickAddBtnText}>+5 Avail</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleBatchAddStock(product, 10)}
-                          style={styles.quickAddBtn}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.quickAddBtnText}>+10 Avail</Text>
-                        </TouchableOpacity>
-                        {totalCurrentReserved > 0 && (
-                          <TouchableOpacity
-                            onPress={() => handleClearAllReserved(product)}
-                            style={styles.clearReservedBtn}
-                            activeOpacity={0.7}
-                          >
-                            <RotateCcw size={10} color="#c2410c" />
-                            <Text style={styles.clearReservedBtnText}>Clear Holds ({totalCurrentReserved})</Text>
-                          </TouchableOpacity>
+                      <View style={styles.variantsHeaderRightPill}>
+                        <Text style={styles.variantsHeaderRightText}>
+                          {shouldShowVariants ? 'Collapse' : 'Manage Stock'}
+                        </Text>
+                        {shouldShowVariants ? (
+                          <ChevronUp size={14} color="#71717a" style={{ marginLeft: 3 }} />
+                        ) : (
+                          <ChevronDown size={14} color="#FF5E36" style={{ marginLeft: 3 }} />
                         )}
                       </View>
-                    </View>
+                    </TouchableOpacity>
 
-                    <View style={styles.variantsList}>
-                      {workingVariants.map((variant, vIdx) => {
-                        const stockVal = Number(variant.stock) || 0;
-                        const reservedVal = Number(variant.reservedStock) || 0;
-                        const swatchColor = getColorHex(variant.color, variant.hexCode);
-                        const isOos = stockVal === 0;
-                        const hasReserved = reservedVal > 0;
+                    {shouldShowVariants ? (
+                      <>
+                        <View style={styles.quickAddRow}>
+                          <TouchableOpacity
+                            onPress={() => handleBatchAddStock(product, 5)}
+                            style={styles.quickAddBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.quickAddBtnText}>+5 Avail</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleBatchAddStock(product, 10)}
+                            style={styles.quickAddBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.quickAddBtnText}>+10 Avail</Text>
+                          </TouchableOpacity>
+                          {totalCurrentReserved > 0 && (
+                            <TouchableOpacity
+                              onPress={() => handleClearAllReserved(product)}
+                              style={styles.clearReservedBtn}
+                              activeOpacity={0.7}
+                            >
+                              <RotateCcw size={10} color="#c2410c" />
+                              <Text style={styles.clearReservedBtnText}>Clear Holds ({totalCurrentReserved})</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
 
-                        return (
-                          <View key={`variant_${vIdx}`} style={styles.variantCard}>
+                        <View style={styles.variantsList}>
+                          {workingVariants.map((variant, vIdx) => {
+                            const stockVal = Number(variant.stock) || 0;
+                            const reservedVal = Number(variant.reservedStock) || 0;
+                            const swatchColor = getColorHex(variant.color, variant.hexCode);
+                            const isOos = stockVal === 0;
+                            const hasReserved = reservedVal > 0;
+
+                            return (
+                              <View key={`variant_${vIdx}`} style={styles.variantCard}>
                             {/* Variant Top Meta */}
                             <View style={styles.variantTopRow}>
                               <View style={styles.variantLeft}>
@@ -865,6 +972,31 @@ export default function InventoryScreen({
                         );
                       })}
                     </View>
+                  </>
+                ) : (
+                      /* Collapsed Summary Strip */
+                      <TouchableOpacity
+                        onPress={() => toggleProductCollapse(product.slug)}
+                        activeOpacity={0.7}
+                        style={styles.collapsedVariantStrip}
+                      >
+                        <View style={styles.collapsedSwatchesRow}>
+                          {workingVariants.slice(0, 5).map((v, i) => (
+                            <View
+                              key={i}
+                              style={[
+                                styles.miniSwatchDot,
+                                { backgroundColor: getColorHex(v.color, v.hexCode) },
+                              ]}
+                            />
+                          ))}
+                          {workingVariants.length > 5 && (
+                            <Text style={styles.miniSwatchMoreText}>+{workingVariants.length - 5}</Text>
+                          )}
+                        </View>
+                        <Text style={styles.collapsedActionHint}>Tap to manage variant stock</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   {/* Action Bar (Appears when modifications exist) */}
@@ -921,22 +1053,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fafafa',
   },
-  searchHeader: {
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f5',
-    paddingTop: 12,
-    paddingBottom: 10,
+  searchAndHistorySection: {
+    gap: 10,
+  },
+  searchAndHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
-    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
     gap: 8,
   },
   searchInput: {
@@ -946,17 +1080,19 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   categoryScroll: {
-    paddingHorizontal: 16,
     gap: 8,
   },
   categoryPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
   },
   categoryPillActive: {
     backgroundColor: '#18181b',
+    borderColor: '#18181b',
   },
   categoryPillText: {
     fontSize: 12,
@@ -965,6 +1101,106 @@ const styles = StyleSheet.create({
   },
   categoryPillTextActive: {
     color: '#ffffff',
+  },
+  toolsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  sortPillsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  sortPillActive: {
+    backgroundColor: '#18181b',
+    borderColor: '#18181b',
+  },
+  sortPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  sortPillTextActive: {
+    color: '#ffffff',
+  },
+  collapseAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7f5',
+    borderWidth: 1,
+    borderColor: '#ffd8d0',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  collapseAllBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF5E36',
+  },
+  variantsHeaderToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+  },
+  variantsHeaderRightPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f4f4f5',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  variantsHeaderRightText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  collapsedVariantStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 6,
+  },
+  collapsedSwatchesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  miniSwatchDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  miniSwatchMoreText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#a1a1aa',
+    marginLeft: 2,
+  },
+  collapsedActionHint: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF5E36',
   },
 
   scrollBody: {
@@ -1705,25 +1941,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  topActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 12,
-  },
   historyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e4e4e7',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
     gap: 6,
+    height: 42,
   },
   historyBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     color: '#18181b',
   },

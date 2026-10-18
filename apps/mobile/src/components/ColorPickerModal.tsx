@@ -10,7 +10,7 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check, Pipette, Sparkles, RefreshCw } from 'lucide-react-native';
+import { X, Check, Pipette, Sparkles } from 'lucide-react-native';
 import {
   rgbToHex,
   hexToRgb,

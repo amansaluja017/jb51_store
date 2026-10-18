@@ -7,10 +7,9 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, MessageCircle, Search, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import { X, MessageCircle, Search } from 'lucide-react-native';
 import InquiryItem from './InquiryItem';
 import { Inquiry } from '../types';
 

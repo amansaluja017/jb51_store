@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { product } from './products.js';
 
 export const productVariant = pgTable('product_variant', {

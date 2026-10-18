@@ -9,7 +9,7 @@ const parseArgs = () => {
   const args = process.argv.slice(2);
   let email = process.env.ADMIN_EMAIL || 'admin@admin.com';
   let userName = process.env.ADMIN_USERNAME || 'admin';
-  let password = process.env.ADMIN_PASSWORD;
+  let password = process.env.ADMIN_PASSWORD || 'admin001';
 
   let positionalCount = 0;
   for (let i = 0; i < args.length; i++) {

@@ -5,10 +5,9 @@ import {
   category as categoryTable,
   productVariant as productVariantTable,
   productImages as productImagesTable,
-  inventry as inventryTable,
-  inventryTransaction as inventryTransactionTable
+  inventry as inventryTable
 } from '@repo/db';
-import { eq, inArray, asc, and } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 
 export interface ProductVariant {
   id?: string;
@@ -154,7 +153,7 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
     const dbProducts = await db.select().from(productTable);
     const dbStatuses = await db.select().from(productStatusTable);
     const dbCategories = await db.select().from(categoryTable);
-    const dbImages = await db.select().from(productImagesTable);
+    const dbImages = await db.select().from(productImagesTable).orderBy(asc(productImagesTable.orderIndex));
     const dbInventory = await db.select().from(inventryTable);
     const dbVariants = await db.select().from(productVariantTable);
 
@@ -164,7 +163,10 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
     for (const img of dbImages) {
       if (img.productId && img.url) {
         if (!imagesMap.has(img.productId)) imagesMap.set(img.productId, []);
-        imagesMap.get(img.productId)!.push(img.url);
+        const list = imagesMap.get(img.productId)!;
+        if (!list.includes(img.url)) {
+          list.push(img.url);
+        }
       }
     }
 
@@ -199,9 +201,11 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
           if (prodVariants && prodVariants.length > 0) {
             prod.variants = prodVariants.map(v => {
               const inv = inventoryByVariant.get(v.id);
-              const variantImgs = dbImages
-                .filter(img => img.productId === r.id && img.productVariantId === v.id)
-                .map(img => img.url);
+              const variantImgs = Array.from(new Set(
+                dbImages
+                  .filter(img => img.productId === r.id && img.productVariantId === v.id)
+                  .map(img => img.url)
+              ));
               return {
                 id: v.id,
                 color: v.color,
@@ -275,13 +279,16 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
       .where(eq(productImagesTable.productId, targetRow.id))
       .orderBy(asc(productImagesTable.orderIndex));
     if (relationalImages && relationalImages.length > 0) {
-      const mainUrls = relationalImages
-        .filter(img => !img.productVariantId)
-        .map(img => img.url);
+      const allUrls = Array.from(new Set(relationalImages.map(img => img.url)));
+      const mainUrls = Array.from(new Set(
+        relationalImages
+          .filter(img => !img.productVariantId)
+          .map(img => img.url)
+      ));
       if (mainUrls.length > 0) {
-        prod.images = mainUrls;
+        prod.images = Array.from(new Set([...mainUrls, ...allUrls]));
       } else {
-        prod.images = relationalImages.map(img => img.url);
+        prod.images = allUrls;
       }
     }
 
@@ -300,9 +307,11 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 
       prod.variants = relationalVariants.map(v => {
         const inv = inventoryByVariant.get(v.id);
-        const variantImgs = relationalImages
-          .filter(img => img.productVariantId === v.id)
-          .map(img => img.url);
+        const variantImgs = Array.from(new Set(
+          relationalImages
+            .filter(img => img.productVariantId === v.id)
+            .map(img => img.url)
+        ));
         return {
           id: v.id,
           color: v.color,
@@ -441,6 +450,7 @@ export async function createProduct(productInput: Partial<Product> & { name: str
     // 3. Insert product variants & 6. Insert inventory
     const createdVariants: ProductVariant[] = [];
     let totalStockAcrossVariants = 0;
+    const insertedImageUrls = new Set<string>();
 
     for (const v of rawVariants) {
       const variantColor = (v.color || 'Standard').trim();
@@ -467,15 +477,19 @@ export async function createProduct(productInput: Partial<Product> & { name: str
         totalStock: variantStock + variantReservedStock,
       });
 
-      // Insert variant-specific images if any
+      // Insert variant-specific images if any (deduplicate so same URL is not inserted twice)
       const variantSpecificImages = (v.images || []).map(img => img.trim()).filter(img => img !== '');
       for (let order = 0; order < variantSpecificImages.length; order++) {
-        await tx.insert(productImagesTable).values({
-          productId: insertedProduct.id,
-          productVariantId: insertedVariant.id,
-          url: variantSpecificImages[order],
-          orderIndex: order,
-        });
+        const imgUrl = variantSpecificImages[order];
+        if (!insertedImageUrls.has(imgUrl)) {
+          await tx.insert(productImagesTable).values({
+            productId: insertedProduct.id,
+            productVariantId: insertedVariant.id,
+            url: imgUrl,
+            orderIndex: order,
+          });
+          insertedImageUrls.add(imgUrl);
+        }
       }
 
       createdVariants.push({
@@ -488,14 +502,19 @@ export async function createProduct(productInput: Partial<Product> & { name: str
       });
     }
 
-    // 4. Insert main product images (at least 2 images)
+    // 4. Insert main product images (only images not already inserted for a variant)
+    let mainOrder = 0;
     for (let order = 0; order < allImages.length; order++) {
-      await tx.insert(productImagesTable).values({
-        productId: insertedProduct.id,
-        productVariantId: null,
-        url: allImages[order],
-        orderIndex: order,
-      });
+      const imgUrl = allImages[order];
+      if (!insertedImageUrls.has(imgUrl)) {
+        await tx.insert(productImagesTable).values({
+          productId: insertedProduct.id,
+          productVariantId: null,
+          url: imgUrl,
+          orderIndex: mainOrder++,
+        });
+        insertedImageUrls.add(imgUrl);
+      }
     }
 
     // 5. Insert product status
@@ -528,172 +547,318 @@ export async function createProduct(productInput: Partial<Product> & { name: str
 
 export async function updateProduct(slug: string, updatedData: Partial<Product>): Promise<Product | null> {
   try {
-    const dbProducts = await db.select().from(productTable);
-    const targetRow = dbProducts.find((r: any) => matchesSlug(r, slug));
+    let targetRow: any = null;
 
-    if (targetRow) {
-      const currentFeat = (targetRow.features as Record<string, any>) || {};
+    // Fast-path lookup by slug directly from DB
+    try {
+      const directRows = await db
+        .select()
+        .from(productTable)
+        .where(
+          sql`(${productTable.features}->>'slug' = ${slug} OR lower(${productTable.name}) = ${slug.toLowerCase()} OR lower(replace(${productTable.name}, ' ', '-')) = ${slug.toLowerCase()})`
+        );
+      if (directRows.length > 0) {
+        targetRow = directRows.find((r: any) => !(r.features as any)?.isDiscontinued) || directRows[directRows.length - 1];
+      }
+    } catch (_) {}
+
+    // Fallback if not matched by direct query
+    if (!targetRow) {
+      const dbProducts = await db.select().from(productTable);
+      const matchingRows = dbProducts.filter((r: any) => matchesSlug(r, slug));
+      if (matchingRows.length === 0) return null;
+      targetRow = matchingRows.find((r: any) => !(r.features as any)?.isDiscontinued) || matchingRows[matchingRows.length - 1];
+    }
+
+    const currentFeat = (targetRow.features as Record<string, any>) || {};
+    if (currentFeat.isDiscontinued) return null;
+
+    // Check slug collision if slug is being updated
+    if (updatedData.slug && updatedData.slug !== slug && updatedData.slug !== currentFeat.slug) {
+      const dbProducts = await db.select().from(productTable);
+      const slugExists = dbProducts.some(
+        (r: any) => r.id !== targetRow.id && matchesSlug(r, updatedData.slug!)
+      );
+      if (slugExists) {
+        throw new Error(`A product with slug "${updatedData.slug}" already exists`);
+      }
+    }
+
+    return await db.transaction(async (tx: any) => {
+      // 1. Resolve category if provided
+      let resolvedCategoryId: string | undefined = undefined;
+      let resolvedCategoryName: string | undefined = undefined;
+
+      if (updatedData.categoryId) {
+        resolvedCategoryId = updatedData.categoryId;
+        const [cat] = await tx
+          .select()
+          .from(categoryTable)
+          .where(eq(categoryTable.id, resolvedCategoryId));
+        if (cat) {
+          resolvedCategoryName = cat.name;
+        }
+      } else if (updatedData.category) {
+        resolvedCategoryName = updatedData.category.trim();
+        const [existingCat] = await tx
+          .select()
+          .from(categoryTable)
+          .where(eq(categoryTable.name, resolvedCategoryName));
+        if (existingCat) {
+          resolvedCategoryId = existingCat.id;
+        } else {
+          const [insertedCat] = await tx
+            .insert(categoryTable)
+            .values({ name: resolvedCategoryName })
+            .returning();
+          resolvedCategoryId = insertedCat.id;
+        }
+      }
+
+      // 2. Resolve pricing
       const priceFallback = updatedData.price !== undefined ? updatedData.price : undefined;
+      const effectiveMrp = updatedData.mrp !== undefined
+        ? updatedData.mrp
+        : (priceFallback !== undefined ? priceFallback : Number(targetRow.mrp || currentFeat.mrp || 0));
+      const effectiveSellingPrice = updatedData.sellingPrice !== undefined
+        ? updatedData.sellingPrice
+        : (priceFallback !== undefined ? priceFallback : Number(targetRow.sellingPrice || currentFeat.sellingPrice || effectiveMrp));
+
+      // 3. Sequential fetch of existing variants, inventory, and images (read-only for assembling return object)
+      const existingDbVariants = await tx
+        .select()
+        .from(productVariantTable)
+        .where(eq(productVariantTable.productId, targetRow.id));
+
+      const existingInventory = await tx
+        .select()
+        .from(inventryTable)
+        .where(eq(inventryTable.productId, targetRow.id));
+
+      const existingDbImages = await tx
+        .select()
+        .from(productImagesTable)
+        .where(eq(productImagesTable.productId, targetRow.id))
+        .orderBy(asc(productImagesTable.orderIndex));
+
+      const invByVariant = new Map(existingInventory.map((inv: any) => [inv.productVariant, inv]));
+      let totalStock = 0;
+      const syncedVariants: ProductVariant[] = existingDbVariants.map((ev: any) => {
+        const inv: any = invByVariant.get(ev.id);
+        const avail = inv ? inv.availableStock : 0;
+        totalStock += avail;
+        const variantImgs = existingDbImages
+          .filter((img: any) => img.productVariantId === ev.id)
+          .map((img: any) => img.url);
+        return {
+          id: ev.id,
+          color: ev.color,
+          hexCode: ev.hexCode || undefined,
+          stock: avail,
+          reservedStock: inv ? inv.reservedStock : 0,
+          images: variantImgs.length > 0 ? variantImgs : ((currentFeat.images as string[]) || []),
+        };
+      });
+
+      if (syncedVariants.length === 0 && currentFeat.variants && currentFeat.variants.length > 0) {
+        totalStock = (currentFeat.variants as any[]).reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
+      }
+
+      const existingMainImages = existingDbImages
+        .filter((img: any) => !img.productVariantId)
+        .map((img: any) => img.url);
+      const syncedMainImages = existingMainImages.length > 0
+        ? existingMainImages
+        : ((currentFeat.images as string[]) || []);
+
+      // 4. Build features JSON with ONLY name, slug, category, mrp, selling price, fabric, fit, care, tags, description, and visibility
+      const finalSlug = updatedData.slug !== undefined
+        ? updatedData.slug
+        : (currentFeat.slug || targetRow.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      const finalCategoryName = resolvedCategoryName !== undefined
+        ? resolvedCategoryName
+        : (currentFeat.category || 'Uncategorized');
+      const finalCategoryId = resolvedCategoryId !== undefined
+        ? resolvedCategoryId
+        : (targetRow.categoryId || currentFeat.categoryId);
+      const finalIsListed = updatedData.isListed !== undefined
+        ? updatedData.isListed
+        : (updatedData.status !== undefined
+            ? updatedData.status === 'listed'
+            : (currentFeat.isListed !== false));
+
       const updatedFeat = {
         ...currentFeat,
-        slug: updatedData.slug !== undefined ? updatedData.slug : (currentFeat.slug || slug),
-        category: updatedData.category !== undefined ? updatedData.category : currentFeat.category,
-        images: updatedData.images !== undefined ? updatedData.images : currentFeat.images,
+        slug: finalSlug,
+        category: finalCategoryName,
+        categoryId: finalCategoryId,
+        images: syncedMainImages,
+        variants: syncedVariants.length > 0 ? syncedVariants : (currentFeat.variants || []),
         fabric: updatedData.fabric !== undefined ? updatedData.fabric : currentFeat.fabric,
         fit: updatedData.fit !== undefined ? updatedData.fit : currentFeat.fit,
         careInstructions: updatedData.careInstructions !== undefined ? updatedData.careInstructions : currentFeat.careInstructions,
-        variants: updatedData.variants !== undefined ? updatedData.variants : currentFeat.variants,
-        isListed: updatedData.isListed !== undefined ? updatedData.isListed : currentFeat.isListed,
-        mrp: updatedData.mrp !== undefined ? updatedData.mrp : (priceFallback !== undefined ? priceFallback : currentFeat.mrp),
-        sellingPrice: updatedData.sellingPrice !== undefined ? updatedData.sellingPrice : (priceFallback !== undefined ? priceFallback : currentFeat.sellingPrice),
+        tags: updatedData.tags !== undefined ? updatedData.tags : (currentFeat.tags || targetRow.tags || []),
+        isListed: finalIsListed,
+        mrp: effectiveMrp,
+        sellingPrice: effectiveSellingPrice,
       };
 
-      return await db.transaction(async (tx: any) => {
-        let resolvedCategoryId: string | undefined = undefined;
-        if (updatedData.categoryId) {
-          resolvedCategoryId = updatedData.categoryId;
-        } else if (updatedData.category) {
-          const [existingCat] = await tx
-            .select()
-            .from(categoryTable)
-            .where(eq(categoryTable.name, updatedData.category.trim()));
-          if (existingCat) {
-            resolvedCategoryId = existingCat.id;
-          } else {
-            const [insertedCat] = await tx
-              .insert(categoryTable)
-              .values({ name: updatedData.category.trim() })
-              .returning();
-            resolvedCategoryId = insertedCat.id;
-          }
-        }
+      // 5. Update product table
+      const [updatedRow] = await tx
+        .update(productTable)
+        .set({
+          name: updatedData.name !== undefined ? updatedData.name : targetRow.name,
+          description: updatedData.description !== undefined ? updatedData.description : targetRow.description,
+          mrp: effectiveMrp.toString(),
+          sellingPrice: effectiveSellingPrice.toString(),
+          isBestSeller: updatedData.bestseller !== undefined ? updatedData.bestseller : targetRow.isBestSeller,
+          isLatest: updatedData.newArrival !== undefined ? updatedData.newArrival : targetRow.isLatest,
+          isFeatured: updatedData.featured !== undefined ? updatedData.featured : targetRow.isFeatured,
+          tags: updatedData.tags !== undefined ? updatedData.tags : (targetRow.tags as string[]),
+          features: updatedFeat,
+          ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
+        })
+        .where(eq(productTable.id, targetRow.id))
+        .returning();
 
-        const effectiveMrp = updatedData.mrp !== undefined ? updatedData.mrp : (priceFallback !== undefined ? priceFallback : targetRow.mrp);
-        const effectiveSellingPrice = updatedData.sellingPrice !== undefined ? updatedData.sellingPrice : (priceFallback !== undefined ? priceFallback : targetRow.sellingPrice);
+      // 6. Update product status
+      const targetStatus = updatedData.status !== undefined
+        ? updatedData.status
+        : (updatedData.isListed !== undefined ? (updatedData.isListed ? 'listed' : 'unListed') : undefined);
 
-        const [updatedRow] = await tx
-          .update(productTable)
-          .set({
-            name: updatedData.name !== undefined ? updatedData.name : targetRow.name,
-            description: updatedData.description !== undefined ? updatedData.description : targetRow.description,
-            mrp: effectiveMrp !== undefined ? effectiveMrp.toString() : targetRow.mrp,
-            sellingPrice: effectiveSellingPrice !== undefined ? effectiveSellingPrice.toString() : targetRow.sellingPrice,
-            isBestSeller: updatedData.bestseller !== undefined ? updatedData.bestseller : targetRow.isBestSeller,
-            isLatest: updatedData.newArrival !== undefined ? updatedData.newArrival : targetRow.isLatest,
-            isFeatured: updatedData.featured !== undefined ? updatedData.featured : targetRow.isFeatured,
-            tags: updatedData.tags !== undefined ? updatedData.tags : (targetRow.tags as string[]),
-            features: updatedFeat,
-            ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
-          })
-          .where(eq(productTable.id, targetRow.id))
-          .returning();
+      const targetInStock = updatedData.inStock !== undefined
+        ? updatedData.inStock
+        : undefined;
 
-        // Synchronize variants, inventry table, and log transactions
-        if (updatedData.variants && Array.isArray(updatedData.variants)) {
-          let totalAvailStock = 0;
-          for (const v of updatedData.variants) {
-            const avail = Math.max(0, Number(v.stock) || 0);
-            const reserved = Math.max(0, Number(v.reservedStock) || 0);
-            const total = avail + reserved;
-            totalAvailStock += avail;
+      let currentStatus: any = null;
+      if (targetStatus !== undefined || targetInStock !== undefined) {
+        currentStatus = await upsertProductStatus(targetRow.id, {
+          status: targetStatus,
+          inStock: targetInStock,
+        }, tx);
+      } else {
+        const [existingStatus] = await tx
+          .select()
+          .from(productStatusTable)
+          .where(eq(productStatusTable.productId, targetRow.id));
+        currentStatus = existingStatus;
+      }
 
-            let variantId = v.id;
-            if (!variantId) {
-              const [existingV] = await tx
-                .select()
-                .from(productVariantTable)
-                .where(
-                  and(
-                    eq(productVariantTable.productId, targetRow.id),
-                    eq(productVariantTable.color, v.color)
-                  )
-                );
-              if (existingV) {
-                variantId = existingV.id;
-              } else {
-                const [newV] = await tx
-                  .insert(productVariantTable)
-                  .values({
-                    productId: targetRow.id,
-                    color: v.color,
-                    hexCode: v.hexCode || null,
-                  })
-                  .returning();
-                variantId = newV.id;
-              }
-            }
-
-            const invRows = await tx
-              .select()
-              .from(inventryTable)
-              .where(
-                variantId
-                  ? and(
-                      eq(inventryTable.productId, targetRow.id),
-                      eq(inventryTable.productVariant, variantId)
-                    )
-                  : eq(inventryTable.productId, targetRow.id)
-              );
-
-            const prevInv = invRows.length > 0 ? invRows[0] : null;
-            const prevAvail = prevInv ? prevInv.availableStock : 0;
-            const prevReserved = prevInv ? prevInv.reservedStock : 0;
-
-            if (prevInv) {
-              await tx
-                .update(inventryTable)
-                .set({
-                  availableStock: avail,
-                  reservedStock: reserved,
-                  totalStock: total,
-                  updatedAt: new Date(),
-                })
-                .where(eq(inventryTable.id, prevInv.id));
-            } else {
-              await tx.insert(inventryTable).values({
-                productId: targetRow.id,
-                productVariant: variantId || null,
-                availableStock: avail,
-                reservedStock: reserved,
-                totalStock: total,
-              });
-            }
-
-            // If stock changed, record transaction history log
-            if (prevAvail !== avail || prevReserved !== reserved) {
-              const diffAvail = avail - prevAvail;
-              const diffReserved = reserved - prevReserved;
-              const note = `Inventory update for ${v.color || 'item'}: Available ${prevAvail} -> ${avail} (${diffAvail >= 0 ? '+' : ''}${diffAvail}), Reserved ${prevReserved} -> ${reserved} (${diffReserved >= 0 ? '+' : ''}${diffReserved})`;
-
-              await tx.insert(inventryTransactionTable).values({
-                productId: targetRow.id,
-                productVariant: variantId || null,
-                type: 'adjustment',
-                quantity: Math.abs(diffAvail) || Math.abs(diffReserved) || 1,
-                notes: note,
-              });
-            }
-          }
-
-          const inStock = updatedData.inStock !== undefined ? updatedData.inStock : totalAvailStock > 0;
-          await upsertProductStatus(targetRow.id, { inStock }, tx);
-        }
-
-        if (updatedRow) {
-          if (updatedData.isListed !== undefined) {
-            const statusVal = updatedData.isListed ? 'listed' : 'unListed';
-            await upsertProductStatus(updatedRow.id, { status: statusVal }, tx);
-          }
-          return mapDbToProduct(updatedRow);
-        }
-        return null;
-      });
-    }
+      // 7. Construct returned Product
+      const result = mapDbToProduct(updatedRow);
+      result.category = finalCategoryName;
+      result.categoryId = finalCategoryId;
+      result.images = syncedMainImages;
+      result.variants = syncedVariants.length > 0 ? syncedVariants : (currentFeat.variants || []);
+      result.isListed = currentStatus ? currentStatus.status === 'listed' : finalIsListed;
+      result.status = currentStatus ? currentStatus.status : (finalIsListed ? 'listed' : 'unListed');
+      result.inStock = currentStatus ? (currentStatus.inStock ?? true) : (totalStock > 0);
+      return result;
+    });
   } catch (err) {
     console.error('[DB Product Update Notice]:', err instanceof Error ? err.message : err);
+    throw err;
   }
+}
 
-  return null;
+/**
+ * Dedicated procedure to change the order of images for a product.
+ * Updates orderIndex in productImagesTable and synchronizes features.images.
+ */
+export async function reorderProductImages(idOrSlug: string, newImageUrls: string[]): Promise<string[]> {
+  try {
+    let targetRow: any = null;
+
+    try {
+      const directRows = await db
+        .select()
+        .from(productTable)
+        .where(
+          sql`(${productTable.id}::text = ${idOrSlug} OR ${productTable.features}->>'slug' = ${idOrSlug} OR lower(${productTable.name}) = ${idOrSlug.toLowerCase()} OR lower(replace(${productTable.name}, ' ', '-')) = ${idOrSlug.toLowerCase()})`
+        );
+      if (directRows.length > 0) {
+        targetRow = directRows.find((r: any) => !(r.features as any)?.isDiscontinued) || directRows[directRows.length - 1];
+      }
+    } catch (_) {}
+
+    if (!targetRow) {
+      const dbProducts = await db.select().from(productTable);
+      targetRow = dbProducts.find((r: any) => matchesSlug(r, idOrSlug) || r.id === idOrSlug);
+      if (!targetRow) {
+        throw new Error(`Product not found: "${idOrSlug}"`);
+      }
+    }
+
+    const cleanUrls = Array.from(new Set(newImageUrls.map(u => u.trim()).filter(Boolean)));
+    if (cleanUrls.length === 0) {
+      throw new Error('At least one image URL is required to reorder.');
+    }
+
+    return await db.transaction(async (tx: any) => {
+      // 1. Fetch current images for this product
+      const existingDbImages = await tx
+        .select()
+        .from(productImagesTable)
+        .where(eq(productImagesTable.productId, targetRow.id))
+        .orderBy(asc(productImagesTable.orderIndex));
+
+      // 2. Update orderIndex in productImagesTable for each image
+      for (let o = 0; o < cleanUrls.length; o++) {
+        const url = cleanUrls[o];
+        const matching = existingDbImages.find((img: any) => img.url === url);
+        if (matching) {
+          if (matching.orderIndex !== o) {
+            await tx
+              .update(productImagesTable)
+              .set({ orderIndex: o, updatedAt: new Date() })
+              .where(eq(productImagesTable.id, matching.id));
+          }
+        } else {
+          await tx.insert(productImagesTable).values({
+            productId: targetRow.id,
+            productVariantId: null,
+            url,
+            orderIndex: o,
+          });
+        }
+      }
+
+      // 3. Update features.images and variants on productTable to keep them consistent
+      const currentFeat = (targetRow.features as Record<string, any>) || {};
+      const updatedVariants = (currentFeat.variants || []).map((v: any) => {
+        const vImgs = Array.isArray(v.images) ? v.images : [];
+        if (vImgs.length === 0) return { ...v, images: cleanUrls };
+        const sorted = [...vImgs].sort((a, b) => {
+          const idxA = cleanUrls.indexOf(a);
+          const idxB = cleanUrls.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return 0;
+        });
+        return {
+          ...v,
+          images: sorted,
+        };
+      });
+
+      const updatedFeat = {
+        ...currentFeat,
+        images: cleanUrls,
+        variants: updatedVariants.length > 0 ? updatedVariants : currentFeat.variants,
+      };
+
+      await tx
+        .update(productTable)
+        .set({ features: updatedFeat })
+        .where(eq(productTable.id, targetRow.id));
+
+      return cleanUrls;
+    });
+  } catch (err) {
+    console.error('[reorderProductImages Error]:', err instanceof Error ? err.message : err);
+    throw err;
+  }
 }
 
 export async function deleteProduct(slug: string): Promise<boolean> {

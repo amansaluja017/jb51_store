@@ -38,6 +38,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     setIsInitialized(true);
   }, []);
 
+  const { mutate: syncWishlist } = syncMutation;
+
   // Sync to localStorage and Server in background when state changes
   useEffect(() => {
     if (!isInitialized) return;
@@ -46,11 +48,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('jb51_wishlist', JSON.stringify(wishlist));
       
       // Perform background sync (Optimistic UI: state updates first, mutation hits in background)
-      syncMutation.mutate({ productIds: wishlist });
+      syncWishlist({ productIds: wishlist });
     } catch (e) {
       console.error('Failed to sync wishlist:', e);
     }
-  }, [wishlist, isInitialized]);
+  }, [wishlist, isInitialized, syncWishlist]);
 
   const addToWishlist = (productId: string) => {
     if (wishlist.includes(productId)) return;

@@ -6,14 +6,13 @@ import {
   ScrollView, 
   TextInput, 
   TouchableOpacity, 
-  ActivityIndicator, 
   Modal, 
   Platform, 
   KeyboardAvoidingView, 
   RefreshControl,
   Image 
 } from 'react-native';
-import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Mail, Clock } from 'lucide-react-native';
+import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Clock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, Controller } from 'react-hook-form';
 import { ReviewsSkeleton } from '../components/SkeletonLoader';
@@ -74,7 +73,7 @@ export default function ReviewsScreen({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'approved' | 'pending'>('all');
 
-  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ReviewFormValues>({
+  const { control, handleSubmit, reset, setValue, watch } = useForm<ReviewFormValues>({
     defaultValues: {
       name: '',
       message: '',

@@ -71,7 +71,7 @@ export function SearchClient({ query }: Props) {
               Search Results
             </h1>
             <p className="text-zinc-500 text-xs md:text-sm font-light mt-2">
-              Showing results for: <span className="font-semibold text-zinc-800">"{decodedSearchTerm}"</span>
+              Showing results for: <span className="font-semibold text-zinc-800">&ldquo;{decodedSearchTerm}&rdquo;</span>
             </p>
           </div>
           <p className="text-zinc-400 text-[10px] tracking-wider uppercase font-bold">
@@ -95,7 +95,7 @@ export function SearchClient({ query }: Props) {
             <Search className="w-12 h-12 text-[#FF5E36] mb-4 opacity-80" />
             <h2 className="font-serif text-2xl font-bold mb-3 text-zinc-900">No Ensembles Found</h2>
             <p className="text-zinc-500 text-sm max-w-sm mb-8 font-light leading-relaxed">
-              We couldn't find any bespoke items matching "{decodedSearchTerm}". Try exploring our collections or resetting your search.
+              We couldn&apos;t find any bespoke items matching &ldquo;{decodedSearchTerm}&rdquo;. Try exploring our collections or resetting your search.
             </p>
             <Link 
               href="/shop"

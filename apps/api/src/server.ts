@@ -8,6 +8,7 @@ import uploadRouter from './routes/upload.js';
 const app = express();
 const port = process.env.PORT || 3001;
 
+
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
   : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:19006', 'http://10.220.109.189:3000', 'http://10.220.109.189:8081', 'http://10.220.109.189:19006'];
@@ -36,7 +37,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Health check endpoint
-app.get(['/', '/health'], (req, res) => {
+app.get(['/', '/health'], (_req, res) => {
   res.json({
     status: 'ok',
     service: 'JB51 Store API',

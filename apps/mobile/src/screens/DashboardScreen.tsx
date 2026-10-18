@@ -4,7 +4,6 @@ import {
   Text,
   View,
   ScrollView,
-  Platform,
   TouchableOpacity,
   RefreshControl,
   Image,
@@ -22,7 +21,7 @@ import { DashboardSkeleton } from '../components/SkeletonLoader';
 import { Product } from '../types';
 
 interface DashboardScreenProps {
-  stats: {
+  stats?: {
     total: number;
     listed: number;
     oos: number;
@@ -54,7 +53,7 @@ const formatCurrency = (val: number) => {
 };
 
 export default function DashboardScreen({
-  stats,
+  stats: _stats,
   products,
   analyticsMetrics,
   activeAnalyticsProduct,
@@ -65,7 +64,7 @@ export default function DashboardScreen({
   isLoading,
   refreshing,
   onRefresh,
-  onNavigateToTab,
+  onNavigateToTab: _onNavigateToTab,
 }: DashboardScreenProps) {
   const [activeMetric, setActiveMetric] = useState<'views' | 'waHits' | 'igHits' | 'conversion'>('views');
 

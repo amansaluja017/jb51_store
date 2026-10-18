@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 export const getInitialApiHost = () => {
   const host = process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL;
   if (!host) {
-    throw new Error('API host is not configured. Please set EXPO_PUBLIC_API_HOST or EXPO_PUBLIC_API_URL.');
+    return 'http://localhost:3001';
   }
   return host;
 };
@@ -33,7 +33,7 @@ export const trpcRequest = async (
       method,
       url,
       headers,
-      timeout: 10000,
+      timeout: 60000,
       data: method === 'POST' && options.body !== undefined ? { json: options.body } : undefined,
     });
 
@@ -51,6 +51,7 @@ export const trpcRequest = async (
     }
     return json?.result || json;
   } catch (err: any) {
+    const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
     const statusFallback = err.response?.status
       ? `Request failed with status ${err.response.status}`
       : undefined;
@@ -58,7 +59,7 @@ export const trpcRequest = async (
       err.response?.data?.error?.json?.message ||
       err.response?.data?.error?.message ||
       statusFallback ||
-      err.message ||
+      (isTimeout ? 'Request timed out. Server took longer than expected.' : err.message) ||
       'Unknown error';
     console.error(`[tRPC Axios Error] ${path}:`, serverError);
     throw new Error(serverError);
@@ -231,4 +232,24 @@ export const deleteProductImageByUrl = async (
     console.warn('[deleteProductImageByUrl Error]:', err?.message || err);
     return null;
   }
+};
+
+export const reorderProductImagesApi = async (
+  slug: string,
+  images: string[],
+  options?: { apiHost?: string; token?: string | null }
+) => {
+  const host = (options?.apiHost || getInitialApiHost()).trim().replace(/\/$/, '');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (options?.token) {
+    headers['Authorization'] = `Bearer ${options.token}`;
+  }
+  const response = await axios.patch(
+    `${host}/api/products/images/reorder`,
+    { slug, images },
+    { headers, timeout: 20000 }
+  );
+  return response.data;
 };

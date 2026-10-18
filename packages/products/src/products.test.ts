@@ -1,8 +1,8 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert';
-import { client, db, product as productTable } from '@repo/db';
+import { client, db, product as productTable, productImages as productImagesTable } from '@repo/db';
 import { productsRouter } from './router.js';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 
 describe('Products Router API Integration Tests', () => {
   const runId = Date.now().toString(36);
@@ -148,6 +148,11 @@ describe('Products Router API Integration Tests', () => {
     assert.notStrictEqual(updatedProduct, null);
     assert.strictEqual(updatedProduct?.price, 34900);
     assert.strictEqual(updatedProduct?.isListed, false);
+    assert.strictEqual(updatedProduct?.name, 'Test Royal Silk Suit');
+    assert.strictEqual(updatedProduct?.category, 'Occasion Wear');
+    assert.strictEqual(updatedProduct!.images!.length, 2);
+    assert.strictEqual(updatedProduct!.variants!.length, 1);
+    assert.strictEqual(updatedProduct!.variants![0].stock, 15);
   });
 
   it('6. should reject product update and delete for non-admin users', async () => {
@@ -290,15 +295,138 @@ describe('Products Router API Integration Tests', () => {
     });
 
     assert.strictEqual(created.slug, slug);
-    assert.strictEqual(created.variants.length, 2);
-    assert.strictEqual(created.images.length, 2);
+    assert.strictEqual(created.variants!.length, 2);
+    assert.strictEqual(created.images!.length, 2);
     assert.strictEqual(created.inStock, true);
 
     // Verify retrieval includes populated relational data
     const retrieved = await caller.getBySlug({ slug });
     assert.notStrictEqual(retrieved, null);
     assert.strictEqual(retrieved?.category, 'Anarkali Suits');
-    assert.strictEqual(retrieved?.variants.length, 2);
-    assert.strictEqual(retrieved?.images.length >= 2, true);
+    assert.strictEqual(retrieved!.variants!.length, 2);
+    assert.strictEqual(retrieved!.images!.length >= 2, true);
+  });
+
+  it('11. should update product name, pricing, specs, tags, and visibility without altering variants or inventory', async () => {
+    const caller = productsRouter.createCaller(adminContext);
+    const slug = getRunSlug('atomic-transaction-suit');
+
+    // Update product specs, pricing, and visibility
+    const updated = await caller.update({
+      slug,
+      data: {
+        name: 'Atomic Transaction Suit Premium',
+        price: 21999,
+        fabric: 'Pure Georgette',
+        fit: 'Royal Flared Fit',
+        careInstructions: 'Dry Clean Only',
+        tags: ['silk', 'royal', 'flared'],
+        isListed: true,
+      },
+    });
+
+    assert.notStrictEqual(updated, null);
+    assert.strictEqual(updated?.name, 'Atomic Transaction Suit Premium');
+    assert.strictEqual(updated?.price, 21999);
+    assert.strictEqual(updated?.fabric, 'Pure Georgette');
+    assert.strictEqual(updated?.fit, 'Royal Flared Fit');
+    assert.strictEqual(updated?.careInstructions, 'Dry Clean Only');
+    // Existing variants and stock remain intact
+    assert.strictEqual(updated!.variants!.length, 2);
+    assert.strictEqual(updated!.variants!.some(v => v.color === 'Emerald Green' && v.stock === 12), true);
+    assert.strictEqual(updated!.variants!.some(v => v.color === 'Ruby Red' && v.stock === 8), true);
+
+    // Verify via getBySlug query
+    const fetched = await caller.getBySlug({ slug });
+    assert.notStrictEqual(fetched, null);
+    assert.strictEqual(fetched?.name, 'Atomic Transaction Suit Premium');
+    assert.strictEqual(fetched?.price, 21999);
+    assert.strictEqual(fetched!.variants!.length, 2);
+  });
+
+  it('12. should update orderIndex and preserve image IDs when calling reorderImages route', async () => {
+    const caller = productsRouter.createCaller(adminContext);
+    const slug = getRunSlug('image-reorder-test-suit');
+
+    const created = await caller.create({
+      name: 'Image Reorder Test Suit',
+      slug,
+      description: 'Testing that reordering images only changes orderIndex and preserves row IDs',
+      price: 25000,
+      category: 'Festive Wear',
+      images: [
+        'https://example.com/reorder-img1.jpg',
+        'https://example.com/reorder-img2.jpg',
+        'https://example.com/reorder-img3.jpg',
+      ],
+      variants: [{ color: 'Navy Blue', stock: 10 }],
+    });
+
+    assert.notStrictEqual(created, null);
+    const productId = created.id;
+
+    // Fetch initial image records directly from DB
+    const initialImages = await db
+      .select()
+      .from(productImagesTable)
+      .where(eq(productImagesTable.productId, productId))
+      .orderBy(asc(productImagesTable.orderIndex));
+
+    assert.strictEqual(initialImages.length, 3);
+    const img1Initial = initialImages.find(img => img.url === 'https://example.com/reorder-img1.jpg')!;
+    const img2Initial = initialImages.find(img => img.url === 'https://example.com/reorder-img2.jpg')!;
+    const img3Initial = initialImages.find(img => img.url === 'https://example.com/reorder-img3.jpg')!;
+
+    assert.strictEqual(img1Initial.orderIndex, 0);
+    assert.strictEqual(img2Initial.orderIndex, 1);
+    assert.strictEqual(img3Initial.orderIndex, 2);
+
+    // Hit the dedicated reorderImages route to swap position 0 and 2: [img3, img2, img1]
+    const reorderResult = await caller.reorderImages({
+      slug,
+      images: [
+        'https://example.com/reorder-img3.jpg',
+        'https://example.com/reorder-img2.jpg',
+        'https://example.com/reorder-img1.jpg',
+      ],
+    });
+
+    assert.notStrictEqual(reorderResult, null);
+    assert.strictEqual(reorderResult.success, true);
+    assert.deepStrictEqual(reorderResult.images, [
+      'https://example.com/reorder-img3.jpg',
+      'https://example.com/reorder-img2.jpg',
+      'https://example.com/reorder-img1.jpg',
+    ]);
+
+    // Inspect DB records: The row IDs must be IDENTICAL (not dropped and recreated)
+    const afterReorderImages = await db
+      .select()
+      .from(productImagesTable)
+      .where(eq(productImagesTable.productId, productId))
+      .orderBy(asc(productImagesTable.orderIndex));
+
+    assert.strictEqual(afterReorderImages.length, 3);
+    const img1After = afterReorderImages.find(img => img.url === 'https://example.com/reorder-img1.jpg')!;
+    const img2After = afterReorderImages.find(img => img.url === 'https://example.com/reorder-img2.jpg')!;
+    const img3After = afterReorderImages.find(img => img.url === 'https://example.com/reorder-img3.jpg')!;
+
+    // IDs are preserved
+    assert.strictEqual(img1After.id, img1Initial.id);
+    assert.strictEqual(img2After.id, img2Initial.id);
+    assert.strictEqual(img3After.id, img3Initial.id);
+
+    // orderIndex reflects new order
+    assert.strictEqual(img3After.orderIndex, 0);
+    assert.strictEqual(img2After.orderIndex, 1);
+    assert.strictEqual(img1After.orderIndex, 2);
+
+    // Verify getBySlug orders them by the new orderIndex
+    const fetched = await caller.getBySlug({ slug });
+    assert.deepStrictEqual(fetched?.images, [
+      'https://example.com/reorder-img3.jpg',
+      'https://example.com/reorder-img2.jpg',
+      'https://example.com/reorder-img1.jpg',
+    ]);
   });
 });

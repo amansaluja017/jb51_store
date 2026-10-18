@@ -35,9 +35,6 @@ interface AnalyticsScreenProps {
   onRefresh?: () => void;
 }
 
-const formatCurrency = (val: number) => {
-  return `₹${val.toLocaleString('en-IN')}`;
-};
 
 interface EventLog {
   type: 'view' | 'inquiry';
@@ -110,20 +107,6 @@ export default function AnalyticsScreen({
   // Active metric for charting
   const [activeMetric, setActiveMetric] = useState<'views' | 'waHits' | 'igHits' | 'conversion'>('views');
 
-  // Compute sizing distribution values dynamically based on selected product
-  const sizingValues = useMemo(() => {
-    if (activeAnalyticsProduct) {
-      const seed = activeAnalyticsProduct.slug.charCodeAt(0) || 10;
-      return [
-        20 + (seed * 3) % 25,  // XS
-        40 + (seed * 5) % 25,  // S
-        75 + (seed * 2) % 20,  // M (typically best seller)
-        50 + (seed * 7) % 25,  // L
-        15 + (seed * 4) % 20   // XL
-      ];
-    }
-    return [25, 55, 85, 65, 30]; // defaults for atelier overview
-  }, [activeAnalyticsProduct]);
 
   // Compute 6-week trend data dynamically based on the selected metric and product totals
   const chartData = useMemo(() => {
