@@ -11,6 +11,7 @@ import {
   InvoiceItem,
 } from '@repo/db';
 import { desc, eq, and, inArray } from 'drizzle-orm';
+import { generateSlug } from './customers.js';
 
 export interface CreateOrderInput {
   orderNumber?: string;
@@ -90,11 +91,13 @@ export async function createOrder(input: CreateOrderInput) {
         if (!email) email = existingCust.email || null;
         if (!address) address = existingCust.address || null;
       } else {
+        const slug = generateSlug(clientName);
         const [newCust] = await tx
           .insert(customerDetailsTable)
           .values({
             name: clientName,
-            phoneNumber,
+            nameSlug: slug || 'customer',
+            phoneNumber: phoneNumber || 'N/A',
             email,
             address,
           })

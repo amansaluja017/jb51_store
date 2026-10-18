@@ -1,0 +1,926 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fafafa',
+  },
+  searchAndHistorySection: {
+    gap: 10,
+  },
+  searchAndHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingHorizontal: 12,
+    height: 42,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#18181b',
+    paddingVertical: 0,
+  },
+  categoryScroll: {
+    gap: 8,
+  },
+  categoryPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  categoryPillActive: {
+    backgroundColor: '#18181b',
+    borderColor: '#18181b',
+  },
+  categoryPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  categoryPillTextActive: {
+    color: '#ffffff',
+  },
+  toolsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  sortPillsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  sortPillActive: {
+    backgroundColor: '#18181b',
+    borderColor: '#18181b',
+  },
+  sortPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  sortPillTextActive: {
+    color: '#ffffff',
+  },
+  collapseAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7f5',
+    borderWidth: 1,
+    borderColor: '#ffd8d0',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  collapseAllBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF5E36',
+  },
+  variantsHeaderToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+  },
+  variantsHeaderRightPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f4f4f5',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  variantsHeaderRightText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  collapsedVariantStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 6,
+  },
+  collapsedSwatchesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  miniSwatchDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  miniSwatchMoreText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#a1a1aa',
+    marginLeft: 2,
+  },
+  collapsedActionHint: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF5E36',
+  },
+
+  scrollBody: {
+    flex: 1,
+  },
+  scrollPadding: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 36,
+    gap: 14,
+  },
+
+  // KPI Dashboard
+  metricsContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#EAE3D2',
+    shadowColor: '#1F1A1B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  metricsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  metricsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  metricsSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1F1A1B',
+    letterSpacing: -0.2,
+  },
+  metricsTotalPill: {
+    backgroundColor: '#FAF6EF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EAE3D2',
+  },
+  metricsTotalPillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#5A1827',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricCard: {
+    width: '48%',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    justifyContent: 'space-between',
+    minHeight: 88,
+  },
+  metricCardTotal: {
+    backgroundColor: '#FAF8F5',
+    borderColor: '#EAE3D2',
+  },
+  metricCardInStock: {
+    backgroundColor: '#F0F7F4',
+    borderColor: '#CBE4D8',
+  },
+  metricCardOutOfStock: {
+    backgroundColor: '#FCF2F0',
+    borderColor: '#F6D3CD',
+  },
+  metricCardLowStock: {
+    backgroundColor: '#FEF9EF',
+    borderColor: '#F7E5BF',
+  },
+  metricCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  metricIconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#524749',
+  },
+  metricValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1F1A1B',
+    letterSpacing: -0.5,
+  },
+  metricSub: {
+    fontSize: 10.5,
+    color: '#82787A',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+
+  // Reserved Stock Banner Callout
+  reservedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FAF4EB',
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#EAE0CF',
+  },
+  reservedBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  reservedBannerIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F4E7D2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reservedBannerTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2C1E16',
+  },
+  reservedBannerSub: {
+    fontSize: 11,
+    color: '#C0603A',
+    marginTop: 1,
+    fontWeight: '500',
+  },
+  reservedBannerBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#1F1A1B',
+  },
+  reservedBannerBtnActive: {
+    backgroundColor: '#FF5E36',
+  },
+  reservedBannerBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FDFBF7',
+  },
+  reservedBannerBtnTextActive: {
+    color: '#ffffff',
+  },
+
+  // Filter Tabs
+  filterTabsWrapper: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EAE3D2',
+  },
+  filterTabsScroll: {
+    padding: 4,
+    gap: 6,
+  },
+  filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  filterTabActive: {
+    backgroundColor: '#1F1A1B',
+  },
+  filterTabActiveReserved: {
+    backgroundColor: '#C0603A',
+  },
+  filterTabText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  filterTabTextActive: {
+    color: '#ffffff',
+  },
+
+  // Products List
+  productsList: {
+    gap: 14,
+  },
+  productCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#f4f4f5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  productThumb: {
+    width: 54,
+    height: 64,
+    borderRadius: 10,
+    backgroundColor: '#f4f4f5',
+  },
+  noThumb: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productHeaderMeta: {
+    flex: 1,
+    gap: 4,
+  },
+  productName: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#18181b',
+    letterSpacing: -0.2,
+    lineHeight: 18,
+  },
+  productSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  categoryBadge: {
+    backgroundColor: '#f4f4f5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    maxWidth: 110,
+  },
+  categoryBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  productCategory: {
+    fontSize: 11,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  dotSeparator: {
+    fontSize: 11,
+    color: '#d4d4d8',
+  },
+  productPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#18181b',
+  },
+
+  cardHeaderRight: {
+    alignItems: 'flex-end',
+    gap: 3,
+  },
+  stockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 12,
+  },
+  stockBadgeInStock: {
+    backgroundColor: '#ecfdf5',
+  },
+  stockBadgeOutOfStock: {
+    backgroundColor: '#fef2f2',
+  },
+  stockDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginRight: 4,
+  },
+  stockDotInStock: {
+    backgroundColor: '#10b981',
+  },
+  stockDotOutOfStock: {
+    backgroundColor: '#ef4444',
+  },
+  stockBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  stockBadgeTextInStock: {
+    color: '#15803d',
+  },
+  stockBadgeTextOutOfStock: {
+    color: '#b91c1c',
+  },
+  cardHeaderCountsCol: {
+    alignItems: 'flex-end',
+    marginTop: 2,
+  },
+  totalUnitsText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  headerReservedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    marginTop: 2,
+    borderWidth: 0.5,
+    borderColor: '#fed7aa',
+  },
+  headerReservedPillText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#c2410c',
+  },
+
+  // Master Switch Row
+  masterToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+  },
+  switchInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  switchTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  switchLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#18181b',
+  },
+  switchSub: {
+    fontSize: 10.5,
+    color: '#71717a',
+    marginTop: 2,
+  },
+
+  // Variants Section
+  variantsSection: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+  },
+  variantsHeader: {
+    marginBottom: 10,
+    gap: 8,
+  },
+  variantsHeaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  variantsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flex: 1,
+  },
+  variantsHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#18181b',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  variantsHeaderSubtitle: {
+    fontSize: 10,
+    color: '#a1a1aa',
+    marginTop: 1,
+    fontWeight: '500',
+  },
+  quickAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  quickAddBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 6,
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  quickAddBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#18181b',
+  },
+  clearReservedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 6,
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  clearReservedBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#c2410c',
+  },
+
+  variantsList: {
+    gap: 8,
+  },
+  variantCard: {
+    backgroundColor: '#fafafa',
+    borderWidth: 1,
+    borderColor: '#f4f4f5',
+    borderRadius: 12,
+    padding: 10,
+    gap: 8,
+  },
+  variantTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  variantLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  colorSwatch: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  swatchBorder: {
+    borderWidth: 1,
+    borderColor: '#d4d4d8',
+  },
+  variantNameCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  variantColorTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#18181b',
+  },
+  variantSizeBadge: {
+    backgroundColor: '#e4e4e7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  variantSizeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#27272a',
+  },
+  variantStatusBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  variantStatusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  variantStatusAvail: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 0.5,
+    borderColor: '#a7f3d0',
+  },
+  variantStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  variantStatusTextAvail: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#15803d',
+  },
+  variantStatusOos: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 0.5,
+    borderColor: '#fecaca',
+  },
+  variantStatusTextOos: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b91c1c',
+  },
+  variantStatusReserved: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 0.5,
+    borderColor: '#fed7aa',
+  },
+  variantStatusTextReserved: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#c2410c',
+  },
+  variantDot: {
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.5,
+    marginRight: 4,
+  },
+  variantDotAvail: {
+    backgroundColor: '#10b981',
+  },
+  variantDotOos: {
+    backgroundColor: '#ef4444',
+  },
+
+  // Dual Controls Row
+  variantDualEditors: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f4f4f5',
+  },
+  variantEditorCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  editorColHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 5,
+  },
+  editorColLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#a1a1aa',
+    letterSpacing: 0.5,
+    marginBottom: 5,
+  },
+  editorColLabelReserved: {
+    color: '#c2410c',
+    marginBottom: 0,
+  },
+  resetReservedMiniBtn: {
+    padding: 2,
+  },
+  editorDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: '#f4f4f5',
+    marginHorizontal: 6,
+  },
+
+  // Steppers
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnPlus: {
+    borderColor: '#fed7aa',
+    backgroundColor: '#fff7ed',
+  },
+  stepperBtnReserved: {
+    borderColor: '#fed7aa',
+    backgroundColor: '#fff7ed',
+  },
+  stepperBtnReservedPlus: {
+    borderColor: '#fed7aa',
+    backgroundColor: '#fff7ed',
+  },
+  stepperBtnDisabled: {
+    backgroundColor: '#fafafa',
+    borderColor: '#f4f4f5',
+  },
+  stockInput: {
+    minWidth: 38,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#18181b',
+    paddingVertical: 0,
+    paddingHorizontal: 2,
+  },
+  stockInputOos: {
+    color: '#dc2626',
+    borderColor: '#fecaca',
+    backgroundColor: '#fff5f5',
+  },
+  reservedStockInput: {
+    borderColor: '#e4e4e7',
+  },
+  reservedStockInputActive: {
+    color: '#c2410c',
+    borderColor: '#fed7aa',
+    backgroundColor: '#fff7ed',
+  },
+
+  // Save changes action bar
+  saveActionBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+  },
+  discardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#f4f4f5',
+  },
+  discardBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#71717a',
+  },
+  saveStockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FF5E36',
+  },
+  saveStockBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+
+  // Empty & loading
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#18181b',
+    marginTop: 6,
+  },
+  emptySubtitle: {
+    fontSize: 12.5,
+    color: '#71717a',
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  resetFilterBtn: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#18181b',
+  },
+  resetFilterBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  historyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+    height: 42,
+  },
+  historyBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#18181b',
+  },
+  historyBadge: {
+    backgroundColor: '#FF5E36',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  historyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+});
+
+export default styles;

@@ -3,11 +3,19 @@ import {
   customerDetails as customerDetailsTable,
   user as userTable,
 } from '@repo/db';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, and } from 'drizzle-orm';
+
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 export interface CreateCustomerInput {
   name: string;
-  phoneNumber?: string | null;
+  phoneNumber: string;
   email?: string | null;
   address?: string | null;
 }
@@ -18,6 +26,7 @@ export async function getCustomers() {
       id: customerDetailsTable.id,
       userId: customerDetailsTable.userId,
       name: customerDetailsTable.name,
+      nameSlug: customerDetailsTable.nameSlug,
       phoneNumber: customerDetailsTable.phoneNumber,
       email: customerDetailsTable.email,
       address: customerDetailsTable.address,
@@ -36,11 +45,35 @@ export async function createCustomer(input: CreateCustomerInput) {
     throw new Error('Customer name is required');
   }
 
+  const phoneNumber = input.phoneNumber?.trim();
+  if (!phoneNumber) {
+    throw new Error('Phone number is required');
+  }
+
+  const nameSlug = generateSlug(name);
+  if (!nameSlug) {
+    throw new Error('Customer name must contain valid alphanumeric characters');
+  }
+
   const email = input.email?.trim() || null;
-  const phoneNumber = input.phoneNumber?.trim() || null;
   const address = input.address?.trim() || null;
 
   return await db.transaction(async (tx) => {
+    // Check if customer with same nameSlug and phoneNumber already exists
+    const [duplicateCustomer] = await tx
+      .select()
+      .from(customerDetailsTable)
+      .where(
+        and(
+          eq(customerDetailsTable.nameSlug, nameSlug),
+          eq(customerDetailsTable.phoneNumber, phoneNumber)
+        )
+      );
+
+    if (duplicateCustomer) {
+      throw new Error('A customer with this name and phone number already exists');
+    }
+
     // Check if user already exists
     let existingUser = null;
     if (email) {
@@ -59,21 +92,9 @@ export async function createCustomer(input: CreateCustomerInput) {
         email ||
         `cust_${Date.now()}_${Math.floor(Math.random() * 10000)}@internal.store`;
 
-      // Check if username is unique
-      let usernameCandidate = name;
-      const [nameConflict] = await tx
-        .select()
-        .from(userTable)
-        .where(eq(userTable.name, usernameCandidate));
-
-      if (nameConflict) {
-        usernameCandidate = `${name}_${Date.now().toString().slice(-4)}`;
-      }
-
       const [newUser] = await tx
         .insert(userTable)
         .values({
-          name: usernameCandidate,
           email: fallbackEmail,
           password: 'CUSTOMER_NO_AUTH',
           role: 'customer',
@@ -89,6 +110,7 @@ export async function createCustomer(input: CreateCustomerInput) {
       .values({
         userId,
         name,
+        nameSlug,
         phoneNumber,
         email,
         address,

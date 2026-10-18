@@ -174,7 +174,7 @@ export default function App() {
       const reviewsPath = isAuthenticated
         ? 'reviews.getModerationQueue'
         : 'reviews.getAll';
-      
+
       const decodedReviews = await trpcRequest(reviewsPath).catch(() => null);
       if (Array.isArray(decodedReviews)) {
         setReviews(decodedReviews as Review[]);
@@ -453,7 +453,7 @@ export default function App() {
 
   const handleCreateCustomer = async (data: {
     name: string;
-    phoneNumber?: string;
+    phoneNumber: string;
     email?: string;
     address?: string;
   }) => {

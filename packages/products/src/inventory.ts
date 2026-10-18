@@ -1,5 +1,6 @@
 import { db, product as productTable, productVariant as productVariantTable, inventry as inventryTable, inventryTransaction as inventryTransactionTable, customerDetails as customerDetailsTable, user as userTable, productStatus as productStatusTable } from '@repo/db';
 import { eq, desc, and } from 'drizzle-orm';
+import { generateSlug } from './customers.js';
 
 export interface RecordTransactionInput {
   productId: string;
@@ -115,11 +116,13 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
         .where(eq(inventryTable.id, invRow.id));
 
       // Record customer in customer_details table
+      const partySlug = generateSlug(partyName);
       const [insertedCust] = await tx
         .insert(customerDetailsTable)
         .values({
           name: partyName,
-          phoneNumber: input.phoneNumber?.trim() || null,
+          nameSlug: partySlug || 'customer',
+          phoneNumber: input.phoneNumber?.trim() || 'N/A',
           email: input.email?.trim() || null,
           address: input.address?.trim() || null,
         })
@@ -154,24 +157,23 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
       }
 
       // Store / find seller in user table with role 'seller'
+      const sellerEmail = input.email?.trim().toLowerCase() || `seller_${generateSlug(partyName) || Date.now()}@internal.store`;
       let sellerUser = (
         await tx
           .select()
           .from(userTable)
           .where(
             and(
-              eq(userTable.name, partyName),
+              eq(userTable.email, sellerEmail),
               eq(userTable.role, 'seller')
             )
           )
       )[0];
 
       if (!sellerUser) {
-        const sellerEmail = input.email?.trim().toLowerCase() || `seller_${Date.now()}_${Math.floor(Math.random() * 1000)}@internal.store`;
         const [createdSeller] = await tx
           .insert(userTable)
           .values({
-            name: partyName,
             email: sellerEmail,
             password: 'INTERNAL_SELLER_NO_AUTH',
             role: 'seller',
@@ -257,7 +259,7 @@ export async function getInventoryTransactions(options?: { productId?: string; l
       customerName: customerDetailsTable.name,
       customerPhone: customerDetailsTable.phoneNumber,
       customerEmail: customerDetailsTable.email,
-      sellerName: userTable.name,
+      sellerName: userTable.email,
       sellerEmail: userTable.email,
     })
     .from(inventryTransactionTable)
