@@ -4,23 +4,32 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+const path = require('path');
+
 // Colorthief package defaults to Node.js build with sharp native dependency.
-// Redirect colorthief imports to browser-safe builds for mobile and web bundler.
+// Redirect colorthief imports directly to browser-safe source files to prevent subpath export warnings.
+let colorthiefDistDir;
+try {
+  colorthiefDistDir = path.dirname(
+    require.resolve('colorthief', { paths: [__dirname] })
+  );
+} catch {
+  colorthiefDistDir = null;
+}
+
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === 'colorthief') {
-    return context.resolveRequest(
-      context,
-      'colorthief/dist/index.browser.js',
-      platform
-    );
+  if (moduleName === 'colorthief' && colorthiefDistDir) {
+    return {
+      type: 'sourceFile',
+      filePath: path.join(colorthiefDistDir, 'index.browser.js'),
+    };
   }
-  if (moduleName === 'colorthief/internals') {
-    return context.resolveRequest(
-      context,
-      'colorthief/dist/internals.browser.js',
-      platform
-    );
+  if (moduleName === 'colorthief/internals' && colorthiefDistDir) {
+    return {
+      type: 'sourceFile',
+      filePath: path.join(colorthiefDistDir, 'internals.browser.js'),
+    };
   }
   if (originalResolveRequest) {
     return originalResolveRequest(context, moduleName, platform);

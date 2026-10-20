@@ -8,6 +8,13 @@
       "when": 1792146263344,
       "tag": "0000_youthful_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792386087002,
+      "tag": "0001_aromatic_zodiak",
+      "breakpoints": true
     }
   ]
 }

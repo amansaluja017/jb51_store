@@ -130,7 +130,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
           showAnalyticsSelector={showAnalyticsSelector}
           setShowAnalyticsSelector={setShowAnalyticsSelector}
-          isLoading={isLoading}
+          isLoading={false}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onNavigateToTab={(tab) => setActiveTab(tab)}
@@ -158,7 +158,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
         <InventoryScreen
           products={products}
           categories={categories}
-          isLoading={isLoading}
+          isLoading={isLoading || isLoadingTransactions}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onToggleStock={onToggleStock}
@@ -178,7 +178,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           invoices={invoices}
           orders={orders}
           showAlert={showAlert}
-          isLoading={isLoading || isLoadingInvoices || isLoadingOrders || isLoadingCustomers}
+          isLoading={isLoadingInvoices || isLoadingOrders || isLoadingCustomers}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onFetchCustomers={onFetchCustomers}
@@ -192,9 +192,9 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
       {activeTab === 'reviews' && (
         <ReviewsScreen
           reviews={reviews}
-          isLoading={isLoading || isLoadingReviews}
-          refreshing={refreshing || isLoadingReviews}
-          onRefresh={onFetchReviews}
+          isLoading={isLoadingReviews}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           onAddReview={onAddReview}
           onDeleteReview={onDeleteReview}
           onToggleApproval={onToggleReviewApproval}

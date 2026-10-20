@@ -71,8 +71,14 @@ export function useAppData() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Flags to avoid redundant fetching on rapid tab switching
+  const hasFetchedProducts = useRef(false);
+  const hasFetchedTransactions = useRef(false);
+  const hasFetchedInvoices = useRef(false);
+  const hasFetchedReviews = useRef(false);
 
   // Search & Modals
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,7 +127,8 @@ export function useAppData() {
     return trpcRequestService(path, { ...options, token, apiHost });
   };
 
-  const fetchFromBackend = async (isRefresh = false) => {
+  // Modular fetch: Products & Categories (Hit only in Products/Catalogue, Inventory, or Invoices section)
+  const handleFetchProducts = async (isRefresh = false) => {
     if (!isRefresh) {
       setIsLoading(true);
     }
@@ -151,38 +158,10 @@ export function useAppData() {
       } else if (Array.isArray(decodedCategories) && decodedCategories.length > 0) {
         setCategories(decodedCategories as string[]);
       }
-
-      const reviewsPath = isAuthenticated
-        ? 'reviews.getModerationQueue'
-        : 'reviews.getAll';
-
-      const decodedReviews = await trpcRequest(reviewsPath).catch(() => null);
-      if (Array.isArray(decodedReviews)) {
-        setReviews(decodedReviews as Review[]);
-      }
-
-      const decodedTxs = await trpcRequest('inventory.getTransactions').catch(() => null);
-      if (Array.isArray(decodedTxs)) {
-        setTransactions(decodedTxs as InventoryTransaction[]);
-      }
-
-      const decodedCusts = await trpcRequest('customers.getAll').catch(() => null);
-      if (Array.isArray(decodedCusts)) {
-        setCustomers(decodedCusts as Customer[]);
-      }
-
-      const decodedInvs = await trpcRequest('invoices.getAll').catch(() => null);
-      if (Array.isArray(decodedInvs)) {
-        setInvoices(decodedInvs as Invoice[]);
-      }
-
-      const decodedOrders = await trpcRequest('orders.getAll').catch(() => null);
-      if (Array.isArray(decodedOrders)) {
-        setOrders(decodedOrders as Order[]);
-      }
-
-      setSyncMessage('Successfully synced with server');
-    } catch (err) {
+      hasFetchedProducts.current = true;
+      setSyncMessage('Products synced with server');
+    } catch (err: any) {
+      console.error('[handleFetchProducts Error]:', err);
       setSyncMessage('Server offline - Sandbox active');
     } finally {
       if (!isRefresh) {
@@ -191,32 +170,77 @@ export function useAppData() {
     }
   };
 
-  // Fetch catalogue and categories on initial mount
+  // Tab-based lazy data fetching: hit routes only in their particular section.
+  // Neither Login nor Home (dashboard/analytics) trigger these calls.
   useEffect(() => {
-    fetchFromBackend();
-  }, []);
+    if (!isAuthenticated) return;
 
-  // Re-fetch when authentication changes
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchFromBackend();
+    if (activeTab === 'catalogue') {
+      if (!hasFetchedProducts.current) {
+        handleFetchProducts();
+      }
+    } else if (activeTab === 'inventory') {
+      if (!hasFetchedProducts.current) {
+        handleFetchProducts();
+      }
+      if (!hasFetchedTransactions.current) {
+        handleFetchTransactions();
+      }
+    } else if (activeTab === 'invoices') {
+      if (!hasFetchedInvoices.current) {
+        handleFetchInvoices();
+        handleFetchOrders();
+        handleFetchCustomers();
+      }
+      if (!hasFetchedProducts.current) {
+        handleFetchProducts();
+      }
+    } else if (activeTab === 'reviews') {
+      if (!hasFetchedReviews.current) {
+        handleFetchReviews();
+      }
     }
-  }, [isAuthenticated]);
+    // On 'dashboard' (Home) and 'analytics': DO NOT hit products, reviews, inventory, or customers routes!
+  }, [isAuthenticated, activeTab]);
 
+  // Ping server connectivity without hitting unnecessary domain routes
   const handleManualSync = async () => {
     setIsSyncing(true);
-    setSyncMessage('Pinging tRPC server...');
-    await fetchFromBackend();
-    setIsSyncing(false);
+    setSyncMessage('Pinging server...');
+    try {
+      await trpcRequest('health');
+      setSyncMessage('Server online');
+    } catch {
+      setSyncMessage('Server offline - Sandbox active');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
+  // Section-aware refresh handler: only re-fetches the current section's data
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        fetchFromBackend(true),
-        new Promise(resolve => setTimeout(resolve, 600))
-      ]);
+      if (activeTab === 'catalogue') {
+        await handleFetchProducts(true);
+      } else if (activeTab === 'inventory') {
+        await Promise.all([
+          handleFetchProducts(true),
+          handleFetchTransactions(),
+        ]);
+      } else if (activeTab === 'invoices') {
+        await Promise.all([
+          handleFetchInvoices(),
+          handleFetchOrders(),
+          handleFetchCustomers(),
+          handleFetchProducts(true),
+        ]);
+      } else if (activeTab === 'reviews') {
+        await handleFetchReviews();
+      } else {
+        // Home (dashboard / analytics) - do NOT hit products, reviews, inventory, customers
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
     } finally {
       setRefreshing(false);
     }
@@ -272,6 +296,18 @@ export function useAppData() {
       setToken(null);
       setCurrentUser(null);
       setIsAuthenticated(false);
+      setActiveTab('dashboard');
+      setProducts([]);
+      setCategories([]);
+      setTransactions([]);
+      setCustomers([]);
+      setInvoices([]);
+      setOrders([]);
+      setReviews([]);
+      hasFetchedProducts.current = false;
+      hasFetchedTransactions.current = false;
+      hasFetchedInvoices.current = false;
+      hasFetchedReviews.current = false;
       showAlert('Logged Out', 'Your admin session has ended.', 'info');
     }
   };
@@ -319,7 +355,7 @@ export function useAppData() {
       );
       showAlert('Stock Status Updated', `${product.name} is now ${newInStock ? 'In Stock' : 'Out of Stock'}.`, 'success');
     } catch (err: any) {
-      await fetchFromBackend();
+      await handleFetchProducts(true);
       showAlert('Error', err.message || 'Failed to update stock status', 'error');
     }
   };
@@ -365,7 +401,7 @@ export function useAppData() {
       showAlert('Inventory Updated', `Stock updated for ${product.name}.`, 'success');
     } catch (err: any) {
       console.error('[handleUpdateInventory Error]:', err);
-      await fetchFromBackend();
+      await handleFetchProducts(true);
       showAlert('Error', err.message || 'Failed to update inventory', 'error');
       throw err;
     }
@@ -409,7 +445,7 @@ export function useAppData() {
         'success'
       );
 
-      await fetchFromBackend(true);
+      await handleFetchProducts(true);
       await handleFetchTransactions();
     } catch (err: any) {
       console.error('[handleRecordTransaction Error]:', err);
@@ -548,7 +584,7 @@ export function useAppData() {
       );
       showAlert('Status Updated', `${product.name} is now ${status === 'listed' ? 'Listed' : 'Unlisted'}.`, 'success');
     } catch (err: any) {
-      await fetchFromBackend();
+      await handleFetchProducts(true);
       showAlert('Error', err.message || 'Failed to update status', 'error');
     }
   };
@@ -850,6 +886,7 @@ export function useAppData() {
     isLoading,
     refreshing,
     handleRefresh,
+    handleFetchProducts,
     handleToggleStock,
     handleUpdateVisibility,
     handleSaveProduct,
