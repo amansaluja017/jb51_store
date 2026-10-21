@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Text, 
   View, 
@@ -7,10 +7,13 @@ import {
   TouchableOpacity, 
   Modal, 
   Platform, 
-  KeyboardAvoidingView, 
   RefreshControl,
-  Image 
+  Image,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Clock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, Controller } from 'react-hook-form';
@@ -72,6 +75,39 @@ export default function ReviewsScreen({
   const [formVisible, setFormVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'approved' | 'pending'>('all');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const reviewScrollRef = useRef<ScrollView>(null);
+  const fieldOffsets = useRef<{ [key: string]: number }>({});
+
+  const handleFieldFocus = (key: string) => {
+    setTimeout(() => {
+      const y = fieldOffsets.current[key] || 0;
+      reviewScrollRef.current?.scrollTo({ y: Math.max(0, y - 10), animated: true });
+    }, 120);
+  };
+
+  const modalHeight = useMemo(() => {
+    if (keyboardHeight > 0) {
+      const topOffset = Platform.OS === 'ios' ? 60 : 35;
+      return Math.max(260, SCREEN_HEIGHT - keyboardHeight - topOffset);
+    }
+    return Math.round(SCREEN_HEIGHT * 0.85);
+  }, [keyboardHeight]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const { control, handleSubmit, reset, setValue, watch } = useForm<ReviewFormValues>({
     defaultValues: {
@@ -256,9 +292,18 @@ export default function ReviewsScreen({
             <Text style={styles.emptyTitle}>No Reviews Found</Text>
             <Text style={styles.emptySubtitle}>
               {reviews.length === 0 
-                ? "No reviews in the database yet. Tap '+ Add Review' to submit a review."
+                ? "No reviews in the database yet. Tap below to submit a review."
                 : "No reviews match your filter or search query."}
             </Text>
+            <TouchableOpacity 
+              onPress={() => setFormVisible(true)} 
+              style={[styles.addButton, { marginTop: 14 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Add review from empty state"
+            >
+              <Plus size={14} color="#fff" />
+              <Text style={styles.addButtonText}>Add Review</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           filteredReviews.map(rev => (
@@ -383,26 +428,48 @@ export default function ReviewsScreen({
         animationType="slide"
         transparent={true}
         onRequestClose={() => setFormVisible(false)}
+        statusBarTranslucent={true}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Customer Review</Text>
-               <TouchableOpacity 
-                 onPress={() => setFormVisible(false)} 
-                 style={styles.closeBtn}
-                 accessibilityLabel="Close modal"
-                 accessibilityRole="button"
-               >
-                 <X size={16} color="#09090b" />
-               </TouchableOpacity>
-            </View>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setFormVisible(false)} 
+            accessibilityLabel="Dismiss review modal"
+            accessibilityRole="button"
+          />
+          <View 
+            style={[
+              styles.keyboardContainer,
+              keyboardHeight > 0 && { paddingBottom: keyboardHeight }
+            ]}
+          >
+            <View style={[styles.modalContent, { height: modalHeight, maxHeight: modalHeight }]}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Customer Review</Text>
+                <TouchableOpacity 
+                  onPress={() => setFormVisible(false)} 
+                  style={styles.closeBtn}
+                  accessibilityLabel="Close modal"
+                  accessibilityRole="button"
+                >
+                  <X size={16} color="#09090b" />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView contentContainerStyle={styles.formContainer}>
+              <ScrollView 
+                ref={reviewScrollRef}
+                style={{ flex: 1 }}
+                contentContainerStyle={[
+                  styles.formContainer,
+                  { paddingBottom: 40 }
+                ]}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                showsVerticalScrollIndicator={false}
+                automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+              >
               {/* Star Rating Select */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Rating (Stars) <Text style={styles.requiredAsterisk}>*</Text></Text>
@@ -426,7 +493,10 @@ export default function ReviewsScreen({
               </View>
 
               {/* Name input */}
-              <View style={styles.formGroup}>
+              <View 
+                style={styles.formGroup}
+                onLayout={(e) => { fieldOffsets.current['name'] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.fieldLabel}>Customer Name <Text style={styles.requiredAsterisk}>*</Text></Text>
                 <Controller
                   control={control}
@@ -438,6 +508,7 @@ export default function ReviewsScreen({
                       placeholderTextColor="#a1a1aa"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('name')}
                       onChangeText={onChange}
                       style={styles.formInput}
                     />
@@ -446,7 +517,10 @@ export default function ReviewsScreen({
               </View>
 
               {/* Message input */}
-              <View style={styles.formGroup}>
+              <View 
+                style={styles.formGroup}
+                onLayout={(e) => { fieldOffsets.current['message'] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.fieldLabel}>Review Message <Text style={styles.requiredAsterisk}>*</Text></Text>
                 <Controller
                   control={control}
@@ -458,6 +532,7 @@ export default function ReviewsScreen({
                       placeholderTextColor="#a1a1aa"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('message')}
                       onChangeText={onChange}
                       multiline
                       numberOfLines={4}
@@ -470,7 +545,10 @@ export default function ReviewsScreen({
               <Text style={styles.optionalSectionHeader}>Optional Fields</Text>
 
               {/* Location */}
-              <View style={styles.formGroup}>
+              <View 
+                style={styles.formGroup}
+                onLayout={(e) => { fieldOffsets.current['location'] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.fieldLabel}>Location</Text>
                 <Controller
                   control={control}
@@ -481,6 +559,7 @@ export default function ReviewsScreen({
                       placeholderTextColor="#a1a1aa"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('location')}
                       onChangeText={onChange}
                       style={styles.formInput}
                     />
@@ -489,7 +568,10 @@ export default function ReviewsScreen({
               </View>
 
               {/* Instagram ID */}
-              <View style={styles.formGroup}>
+              <View 
+                style={styles.formGroup}
+                onLayout={(e) => { fieldOffsets.current['instagramId'] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.fieldLabel}>Instagram ID</Text>
                 <Controller
                   control={control}
@@ -500,6 +582,7 @@ export default function ReviewsScreen({
                       placeholderTextColor="#a1a1aa"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('instagramId')}
                       onChangeText={onChange}
                       style={styles.formInput}
                       autoCapitalize="none"
@@ -509,7 +592,10 @@ export default function ReviewsScreen({
               </View>
 
               {/* Phone */}
-              <View style={styles.formGroup}>
+              <View 
+                style={styles.formGroup}
+                onLayout={(e) => { fieldOffsets.current['phone'] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.fieldLabel}>Phone Number</Text>
                 <Controller
                   control={control}
@@ -520,6 +606,7 @@ export default function ReviewsScreen({
                       placeholderTextColor="#a1a1aa"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('phone')}
                       onChangeText={onChange}
                       keyboardType="phone-pad"
                       style={styles.formInput}
@@ -529,7 +616,10 @@ export default function ReviewsScreen({
               </View>
 
               {/* Email */}
-              <View style={styles.formGroup}>
+              <View 
+                style={styles.formGroup}
+                onLayout={(e) => { fieldOffsets.current['email'] = e.nativeEvent.layout.y; }}
+              >
                 <Text style={styles.fieldLabel}>Email Address</Text>
                 <Controller
                   control={control}
@@ -540,6 +630,7 @@ export default function ReviewsScreen({
                       placeholderTextColor="#a1a1aa"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('email')}
                       onChangeText={onChange}
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -620,7 +711,8 @@ export default function ReviewsScreen({
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
+        </View>
       </Modal>
     </View>
   );

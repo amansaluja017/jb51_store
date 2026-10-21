@@ -89,6 +89,8 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
           <ScrollView
             contentContainerStyle={styles.scrollContainer}
             alwaysBounceVertical={true}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             refreshControl={
               onRefresh ? (
                 <RefreshControl

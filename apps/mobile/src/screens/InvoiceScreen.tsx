@@ -92,6 +92,9 @@ interface InvoiceScreenProps {
   onFetchOrders: () => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
+  onFetchProducts?: () => Promise<void>;
+  isLoadingCustomers?: boolean;
+  isLoadingProducts?: boolean;
 }
 
 export default function InvoiceScreen({
@@ -109,6 +112,9 @@ export default function InvoiceScreen({
   onFetchOrders,
   onCreateOrder,
   onDeleteInvoice,
+  onFetchProducts,
+  isLoadingCustomers,
+  isLoadingProducts,
 }: InvoiceScreenProps) {
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -644,6 +650,7 @@ export default function InvoiceScreen({
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       style={{ flex: 1 }}
     >
       {!isFormOpen ? (
@@ -682,6 +689,10 @@ export default function InvoiceScreen({
           selectedCustomerId={selectedCustomerId}
           onSelectCustomer={handleSelectCustomer}
           onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
+          onFetchCustomers={onFetchCustomers}
+          isLoadingCustomers={isLoadingCustomers}
+          onFetchProducts={onFetchProducts}
+          isLoadingProducts={isLoadingProducts}
           selectedProduct={selectedProduct}
           selectedVariant={selectedVariant}
           setSelectedVariant={setSelectedVariant}

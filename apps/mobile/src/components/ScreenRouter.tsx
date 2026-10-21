@@ -56,6 +56,8 @@ export interface ScreenRouterProps {
   onFetchOrders: () => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
+  onFetchProducts?: () => Promise<void>;
+  isLoadingProducts?: boolean;
   // Reviews
   reviews: Review[];
   isLoadingReviews: boolean;
@@ -109,6 +111,8 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onFetchOrders,
   onCreateOrder,
   onDeleteInvoice,
+  onFetchProducts,
+  isLoadingProducts,
   reviews,
   isLoadingReviews,
   onFetchReviews,
@@ -178,7 +182,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           invoices={invoices}
           orders={orders}
           showAlert={showAlert}
-          isLoading={isLoadingInvoices || isLoadingOrders || isLoadingCustomers}
+          isLoading={isLoadingInvoices || isLoadingOrders}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onFetchCustomers={onFetchCustomers}
@@ -187,6 +191,9 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onFetchOrders={onFetchOrders}
           onCreateOrder={onCreateOrder}
           onDeleteInvoice={onDeleteInvoice}
+          onFetchProducts={onFetchProducts}
+          isLoadingCustomers={isLoadingCustomers}
+          isLoadingProducts={isLoadingProducts}
         />
       )}
       {activeTab === 'reviews' && (

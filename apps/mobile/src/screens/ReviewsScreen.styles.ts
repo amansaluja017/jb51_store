@@ -1,4 +1,6 @@
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, Dimensions } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
   container: {
@@ -263,15 +265,24 @@ export const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(9, 9, 11, 0.4)',
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(9, 9, 11, 0.45)',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  keyboardContainer: {
+    width: '100%',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    height: Math.round(SCREEN_HEIGHT * 0.85),
+    maxHeight: Math.round(SCREEN_HEIGHT * 0.9),
+    width: '100%',
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -350,6 +361,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderColor: '#e4e4e7',
+    backgroundColor: '#ffffff',
     gap: 12,
   },
   cancelBtn: {

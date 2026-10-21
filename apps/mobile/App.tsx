@@ -108,6 +108,8 @@ export default function App() {
           onFetchOrders={data.handleFetchOrders}
           onCreateOrder={data.handleCreateOrder}
           onDeleteInvoice={data.handleDeleteInvoice}
+          onFetchProducts={data.handleFetchProducts}
+          isLoadingProducts={data.isLoading}
           reviews={data.reviews}
           isLoadingReviews={data.isLoadingReviews}
           onFetchReviews={data.handleFetchReviews}

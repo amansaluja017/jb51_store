@@ -190,11 +190,9 @@ export function useAppData() {
       if (!hasFetchedInvoices.current) {
         handleFetchInvoices();
         handleFetchOrders();
-        handleFetchCustomers();
       }
-      if (!hasFetchedProducts.current) {
-        handleFetchProducts();
-      }
+      // On invoices tab: DO NOT hit customers and products routes on load.
+      // They are loaded on-demand when the user clicks the respective dropdown.
     } else if (activeTab === 'reviews') {
       if (!hasFetchedReviews.current) {
         handleFetchReviews();
@@ -232,8 +230,6 @@ export function useAppData() {
         await Promise.all([
           handleFetchInvoices(),
           handleFetchOrders(),
-          handleFetchCustomers(),
-          handleFetchProducts(true),
         ]);
       } else if (activeTab === 'reviews') {
         await handleFetchReviews();

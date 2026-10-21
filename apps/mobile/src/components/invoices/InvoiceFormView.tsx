@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Keyboard,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import {
   X,
@@ -16,6 +19,9 @@ import {
   Trash2,
   User,
   ShoppingBag,
+  Phone,
+  Mail,
+  MapPin,
 } from 'lucide-react-native';
 import { Control, Controller, FieldErrors, UseFormSetValue } from 'react-hook-form';
 import { Customer, Product, Variant } from '../../types';
@@ -36,6 +42,8 @@ export interface InvoiceFormViewProps {
   selectedCustomerId: string | null;
   onSelectCustomer: (cust: Customer) => void;
   onOpenAddCustomerModal: () => void;
+  onFetchCustomers?: () => Promise<void>;
+  isLoadingCustomers?: boolean;
   selectedProduct: Product | null;
   selectedVariant: Variant | null;
   setSelectedVariant: (v: Variant | null) => void;
@@ -45,6 +53,8 @@ export interface InvoiceFormViewProps {
   setShowProductDropdown: (val: boolean | ((prev: boolean) => boolean)) => void;
   filteredProducts: Product[];
   onSelectProduct: (prod: Product) => void;
+  onFetchProducts?: () => Promise<void>;
+  isLoadingProducts?: boolean;
   itemPrice: string;
   setItemPrice: (val: string) => void;
   itemQuantity: string;
@@ -75,6 +85,8 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   selectedCustomerId,
   onSelectCustomer,
   onOpenAddCustomerModal,
+  onFetchCustomers,
+  isLoadingCustomers,
   selectedProduct,
   selectedVariant,
   setSelectedVariant,
@@ -84,6 +96,8 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   setShowProductDropdown,
   filteredProducts,
   onSelectProduct,
+  onFetchProducts,
+  isLoadingProducts,
   itemPrice,
   setItemPrice,
   itemQuantity,
@@ -99,10 +113,101 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   onCloseForm,
   onPreview,
 }) => {
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isFetchingCustomers, setIsFetchingCustomers] = useState(false);
+  const [isFetchingProducts, setIsFetchingProducts] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldOffsets = useRef<{ [key: string]: number }>({});
+  const activeFieldRef = useRef<{ key: string; offset: number } | null>(null);
+
+  const handleToggleCustomerDropdown = async () => {
+    const nextState = !showCustomerDropdown;
+    setShowCustomerDropdown(nextState);
+    setShowProductDropdown(false);
+    if (nextState && onFetchCustomers) {
+      setIsFetchingCustomers(true);
+      try {
+        await onFetchCustomers();
+      } finally {
+        setIsFetchingCustomers(false);
+      }
+    }
+  };
+
+  const handleToggleProductDropdown = async () => {
+    const nextState = !showProductDropdown;
+    setShowProductDropdown(nextState);
+    setShowCustomerDropdown(false);
+    if (nextState && onFetchProducts) {
+      setIsFetchingProducts(true);
+      try {
+        await onFetchProducts();
+      } finally {
+        setIsFetchingProducts(false);
+      }
+    }
+  };
+
+  const calculateTargetY = (key: string, offset = 0) => {
+    if (key === 'notes') {
+      const cardY = fieldOffsets.current['adjustments'] || 0;
+      const noteLocalY = fieldOffsets.current['notes_local'] || 220;
+      return Math.max(0, cardY + noteLocalY - 30);
+    }
+    return Math.max(0, (fieldOffsets.current[key] || 0) + offset);
+  };
+
+  const handleFieldFocus = (key: string, extraOffset = 0) => {
+    activeFieldRef.current = { key, offset: extraOffset };
+    const doScroll = () => {
+      const targetY = calculateTargetY(key, extraOffset);
+      scrollRef.current?.scrollTo({ y: targetY, animated: true });
+    };
+
+    setTimeout(doScroll, 80);
+    setTimeout(doScroll, 250);
+  };
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        const height = e.endCoordinates.height;
+        setKeyboardHeight(height);
+        if (activeFieldRef.current) {
+          const { key, offset } = activeFieldRef.current;
+          setTimeout(() => {
+            const targetY = calculateTargetY(key, offset);
+            scrollRef.current?.scrollTo({ y: targetY, animated: true });
+          }, 150);
+        }
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   return (
         <ScrollView
+          ref={scrollRef}
           style={styles.container}
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 180 : 80 }
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={false}
         >
           {/* Form Header */}
           <View style={styles.formHeader}>
@@ -123,13 +228,10 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
 
           <View style={styles.card}>
             {/* Customer Dropdown Trigger */}
-            <View style={[styles.inputGroup, !showCustomerDropdown && { marginBottom: 0 }]}>
+            <View style={[styles.inputGroup, !showCustomerDropdown && !formValues.clientName && { marginBottom: 0 }]}>
               <Text style={styles.inputLabel}>Choose Existing Customer</Text>
               <TouchableOpacity
-                onPress={() => {
-                  setShowCustomerDropdown(!showCustomerDropdown);
-                  setShowProductDropdown(false);
-                }}
+                onPress={handleToggleCustomerDropdown}
                 style={styles.dropdownTrigger}
                 accessibilityLabel="Select customer dropdown"
                 accessibilityRole="button"
@@ -148,6 +250,9 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       : 'Select from database...'}
                   </Text>
                 </View>
+                {(isFetchingCustomers || isLoadingCustomers) && (
+                  <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 6 }} />
+                )}
                 {formValues.clientName ? (
                   <TouchableOpacity
                     onPress={(e) => {
@@ -157,6 +262,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       setValue('clientPhone', '', { shouldDirty: true });
                       setValue('clientEmail', '', { shouldDirty: true });
                       setValue('clientAddress', '', { shouldDirty: true });
+                      setIsEditingDetails(false);
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     style={{ marginRight: 6 }}
@@ -189,7 +295,14 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                 </View>
 
                 <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-                  {filteredCustomers.length === 0 ? (
+                  {(isFetchingCustomers || isLoadingCustomers) ? (
+                    <View style={[styles.dropdownEmpty, { paddingVertical: 24, alignItems: 'center' }]}>
+                      <ActivityIndicator size="small" color="#FF5E36" />
+                      <Text style={[styles.dropdownEmptyText, { marginTop: 8 }]}>
+                        Loading customers...
+                      </Text>
+                    </View>
+                  ) : filteredCustomers.length === 0 ? (
                     <View style={styles.dropdownEmpty}>
                       <Text style={styles.dropdownEmptyText}>
                         No customers found.
@@ -248,6 +361,144 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                 </ScrollView>
               </View>
             )}
+
+            {/* Selected Customer Details Section */}
+            {Boolean(formValues.clientName && !showCustomerDropdown) && (
+              <View 
+                style={styles.selectedCustomerBox}
+                onLayout={(e) => { fieldOffsets.current['customer'] = e.nativeEvent.layout.y; }}
+              >
+                <View style={styles.selectedCustomerHeader}>
+                  <View style={styles.selectedCustomerHeaderLeft}>
+                    <View style={styles.selectedCustomerAvatar}>
+                      <User size={16} color="#FF5E36" />
+                    </View>
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={styles.selectedCustomerName} numberOfLines={1}>
+                        {formValues.clientName}
+                      </Text>
+                      <Text style={styles.selectedCustomerSubtitle}>
+                        Customer Details
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setIsEditingDetails(!isEditingDetails)}
+                    style={styles.selectedCustomerEditBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={isEditingDetails ? 'Done editing customer details' : 'Edit customer details'}
+                  >
+                    <Text style={styles.selectedCustomerEditBtnText}>
+                      {isEditingDetails ? 'Done' : 'Edit'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.selectedCustomerDivider} />
+
+                {isEditingDetails ? (
+                  <View style={styles.selectedCustomerEditForm}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Phone Number</Text>
+                      <Controller
+                        control={control}
+                        name="clientPhone"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            keyboardType="phone-pad"
+                            value={value}
+                            onBlur={onBlur}
+                            onFocus={() => handleFieldFocus('customer', 40)}
+                            onChangeText={onChange}
+                            placeholder="Customer phone..."
+                            placeholderTextColor="#a1a1aa"
+                            style={styles.textInput}
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Email Address</Text>
+                      <Controller
+                        control={control}
+                        name="clientEmail"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            value={value}
+                            onBlur={onBlur}
+                            onFocus={() => handleFieldFocus('customer', 90)}
+                            onChangeText={onChange}
+                            placeholder="Customer email..."
+                            placeholderTextColor="#a1a1aa"
+                            style={styles.textInput}
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+                      <Text style={styles.inputLabel}>Billing / Shipping Address</Text>
+                      <Controller
+                        control={control}
+                        name="clientAddress"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            multiline
+                            numberOfLines={2}
+                            value={value}
+                            onBlur={onBlur}
+                            onFocus={() => handleFieldFocus('customer', 140)}
+                            onChangeText={onChange}
+                            placeholder="Customer address..."
+                            placeholderTextColor="#a1a1aa"
+                            style={[styles.textInput, { height: 54, textAlignVertical: 'top' }]}
+                          />
+                        )}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.selectedCustomerInfoGrid}>
+                    <View style={styles.selectedCustomerInfoRow}>
+                      <View style={styles.selectedCustomerIconWrapper}>
+                        <Phone size={12} color="#FF5E36" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.selectedCustomerInfoLabel}>Phone</Text>
+                        <Text style={styles.selectedCustomerInfoValue}>
+                          {formValues.clientPhone || 'Not provided'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.selectedCustomerInfoRow}>
+                      <View style={styles.selectedCustomerIconWrapper}>
+                        <Mail size={12} color="#FF5E36" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.selectedCustomerInfoLabel}>Email</Text>
+                        <Text style={styles.selectedCustomerInfoValue}>
+                          {formValues.clientEmail || 'Not provided'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.selectedCustomerInfoRow, { marginBottom: 0 }]}>
+                      <View style={styles.selectedCustomerIconWrapper}>
+                        <MapPin size={12} color="#FF5E36" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.selectedCustomerInfoLabel}>Address</Text>
+                        <Text style={styles.selectedCustomerInfoValue}>
+                          {formValues.clientAddress || 'Not provided'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Product & Variant Selection Section */}
@@ -257,10 +508,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Choose Product *</Text>
               <TouchableOpacity
-                onPress={() => {
-                  setShowProductDropdown(!showProductDropdown);
-                  setShowCustomerDropdown(false);
-                }}
+                onPress={handleToggleProductDropdown}
                 style={styles.dropdownTrigger}
                 accessibilityLabel="Select product from catalog"
                 accessibilityRole="button"
@@ -283,6 +531,9 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       : 'Select a product from catalog...'}
                   </Text>
                 </View>
+                {(isFetchingProducts || isLoadingProducts) && (
+                  <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 6 }} />
+                )}
                 <ChevronDown size={14} color="#71717a" />
               </TouchableOpacity>
             </View>
@@ -302,23 +553,36 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                 </View>
 
                 <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-                  {filteredProducts.map((p) => (
-                    <TouchableOpacity
-                      key={p.id}
-                      style={styles.dropdownOption}
-                      onPress={() => onSelectProduct(p)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.dropdownOptionText}>{p.name}</Text>
-                        <Text style={styles.dropdownOptionMeta}>
-                          {p.category} {p.variants?.length ? `• ${p.variants.length} variant(s)` : ''}
-                        </Text>
-                      </View>
-                      <Text style={styles.dropdownOptionPrice}>
-                        &#8377;{(p.sellingPrice || p.price).toLocaleString('en-IN')}
+                  {(isFetchingProducts || isLoadingProducts) ? (
+                    <View style={[styles.dropdownEmpty, { paddingVertical: 24, alignItems: 'center' }]}>
+                      <ActivityIndicator size="small" color="#FF5E36" />
+                      <Text style={[styles.dropdownEmptyText, { marginTop: 8 }]}>
+                        Loading products...
                       </Text>
-                    </TouchableOpacity>
-                  ))}
+                    </View>
+                  ) : filteredProducts.length === 0 ? (
+                    <View style={styles.dropdownEmpty}>
+                      <Text style={styles.dropdownEmptyText}>No products found.</Text>
+                    </View>
+                  ) : (
+                    filteredProducts.map((p) => (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={styles.dropdownOption}
+                        onPress={() => onSelectProduct(p)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dropdownOptionText}>{p.name}</Text>
+                          <Text style={styles.dropdownOptionMeta}>
+                            {p.category} {p.variants?.length ? `• ${p.variants.length} variant(s)` : ''}
+                          </Text>
+                        </View>
+                        <Text style={styles.dropdownOptionPrice}>
+                          &#8377;{(p.sellingPrice || p.price).toLocaleString('en-IN')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </ScrollView>
               </View>
             )}
@@ -361,12 +625,16 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
             )}
 
             {/* Price & Quantity Row */}
-            <View style={styles.row}>
+            <View 
+              style={styles.row}
+              onLayout={(e) => { fieldOffsets.current['pricing'] = e.nativeEvent.layout.y; }}
+            >
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.inputLabel}>Rate / Price (&#8377;)</Text>
                 <TextInput
                   keyboardType="numeric"
                   value={itemPrice}
+                  onFocus={() => handleFieldFocus('pricing')}
                   onChangeText={setItemPrice}
                   placeholder="Price"
                   placeholderTextColor="#a1a1aa"
@@ -379,6 +647,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                 <TextInput
                   keyboardType="number-pad"
                   value={itemQuantity}
+                  onFocus={() => handleFieldFocus('pricing')}
                   onChangeText={setItemQuantity}
                   style={styles.textInput}
                 />
@@ -430,9 +699,12 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
 
           {/* Taxes, Discounts & Payment */}
           <Text style={styles.sectionHeader}>Adjustments & Payment</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+          <View 
+            style={styles.card}
+            onLayout={(e) => { fieldOffsets.current['adjustments'] = e.nativeEvent.layout.y; }}
+          >
+            <View style={styles.adjustmentsRow}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                 <Text style={styles.inputLabel}>GST / Tax %</Text>
                 <Controller
                   control={control}
@@ -442,8 +714,9 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       keyboardType="numeric"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('adjustments')}
                       onChangeText={onChange}
-                      style={styles.textInput}
+                      style={[styles.textInput, { height: 40 }]}
                     />
                   )}
                 />
@@ -481,8 +754,9 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       keyboardType="numeric"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('adjustments')}
                       onChangeText={onChange}
-                      style={styles.textInput}
+                      style={[styles.textInput, { height: 40 }]}
                     />
                   )}
                 />
@@ -537,7 +811,12 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
             </View>
 
             {/* Notes */}
-            <View style={[styles.inputGroup, { marginTop: 4 }]}>
+            <View 
+              style={[styles.inputGroup, { marginTop: 4 }]}
+              onLayout={(e) => { 
+                fieldOffsets.current['notes_local'] = e.nativeEvent.layout.y; 
+              }}
+            >
               <Text style={styles.inputLabel}>Special Instructions / Notes</Text>
               <Controller
                 control={control}
@@ -547,11 +826,15 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                     placeholder="e.g. Alterations requested, paid advance..."
                     placeholderTextColor="#a1a1aa"
                     value={value}
-                    onBlur={onBlur}
+                    onBlur={() => {
+                      onBlur();
+                      activeFieldRef.current = null;
+                    }}
+                    onFocus={() => handleFieldFocus('notes')}
                     onChangeText={onChange}
                     multiline
-                    numberOfLines={2}
-                    style={[styles.textInput, { height: 60, textAlignVertical: 'top' }]}
+                    numberOfLines={3}
+                    style={[styles.textInput, { height: 70, textAlignVertical: 'top' }]}
                   />
                 )}
               />
