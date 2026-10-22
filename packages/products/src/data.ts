@@ -8,6 +8,7 @@ import {
   inventry as inventryTable
 } from '@repo/db';
 import { eq, asc, sql } from 'drizzle-orm';
+import { countWords } from './services/validations.js';
 
 export interface ProductVariant {
   id?: string;
@@ -56,12 +57,23 @@ export async function getCategories(): Promise<string[]> {
   try {
     const dbCategories = await db.select().from(categoryTable);
     if (dbCategories && dbCategories.length > 0) {
-      return dbCategories.map(c => c.name);
+      const names = dbCategories.map(c => c.name).filter(Boolean);
+      if (names.length > 0) return names;
     }
   } catch (err) {
     console.log('[DB getCategories Notice]:', err instanceof Error ? err.message : err);
   }
-  return [];
+
+  // Fallback to distinct categories from existing products or boutique defaults
+  try {
+    const prods = await getProducts();
+    const prodCats = Array.from(new Set(prods.map(p => p.category).filter(Boolean)));
+    if (prodCats.length > 0) {
+      return Array.from(new Set([...CATEGORIES, ...prodCats]));
+    }
+  } catch {}
+
+  return CATEGORIES;
 }
 
 function matchesSlug(row: any, slug: string): boolean {
@@ -344,6 +356,10 @@ export async function createProduct(productInput: Partial<Product> & { name: str
   if (!name) throw new Error('Product name is required');
   if (!slug) throw new Error('Product slug is required');
   if (!description) throw new Error('Product description is mandatory for creating the product');
+  const descWords = countWords(description);
+  if (descWords < 100) {
+    throw new Error(`Product description must be at least 100 words (currently contains ${descWords} word${descWords === 1 ? '' : 's'})`);
+  }
   if (isNaN(mrp) || mrp <= 0) throw new Error('Product MRP must be greater than 0');
   if (isNaN(sellingPrice) || sellingPrice <= 0) throw new Error('Product selling price must be greater than 0');
 
@@ -581,6 +597,14 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
       );
       if (slugExists) {
         throw new Error(`A product with slug "${updatedData.slug}" already exists`);
+      }
+    }
+
+    // Validate description minimum 100 words if provided
+    if (updatedData.description !== undefined && updatedData.description !== null && updatedData.description.trim() !== '') {
+      const updateDescWords = countWords(updatedData.description);
+      if (updateDescWords < 100) {
+        throw new Error(`Product description must be at least 100 words (currently contains ${updateDescWords} word${updateDescWords === 1 ? '' : 's'})`);
       }
     }
 
@@ -953,4 +977,105 @@ export async function updateProductStatus(
   }
 
   return null;
+}
+
+export interface GetPaginatedProductsInput {
+  search?: string | null;
+  category?: string | null;
+  filter?: 'new' | 'bestseller' | 'all' | null;
+  inStockOnly?: boolean | null;
+  sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default' | null;
+  page?: number | null;
+  limit?: number | null;
+}
+
+export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
+  const page = Math.max(1, input?.page || 1);
+  const limit = Math.max(1, input?.limit || 8);
+  const search = (input?.search || '').trim().toLowerCase();
+  const category = (input?.category || 'All').trim();
+  const inStockOnly = !!input?.inStockOnly;
+  const sortBy = input?.sortBy || 'name-asc';
+
+  let list = (await getProducts()).filter(
+    (p) => p.isListed !== false && p.status !== 'unListed' && p.status !== 'discontinued'
+  );
+
+  if (search) {
+    list = list.filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const cat = (p.category || '').toLowerCase();
+      const slug = (p.slug || '').toLowerCase();
+      const fabric = (p.fabric || '').toLowerCase();
+      return name.includes(search) || cat.includes(search) || slug.includes(search) || fabric.includes(search);
+    });
+  }
+
+  if (category && category !== 'All') {
+    const normCategory = category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    list = list.filter((p) => {
+      const cat = (p.category || '').toLowerCase();
+      const catSlug = cat.replace(/[^a-z0-9]+/g, '-');
+      return cat === category.toLowerCase() || catSlug === normCategory;
+    });
+  }
+
+  if (input?.filter === 'new') {
+    list = list.filter((p) => p.newArrival);
+  } else if (input?.filter === 'bestseller') {
+    list = list.filter((p) => p.bestseller);
+  }
+
+  if (inStockOnly) {
+    list = list.filter((p) => {
+      if (p.inStock === false) return false;
+      if (!p.variants || p.variants.length === 0) return true;
+      return p.variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) > 0;
+    });
+  }
+
+  list.sort((a, b) => {
+    const priceA = Number(a.sellingPrice || a.price || 0);
+    const priceB = Number(b.sellingPrice || b.price || 0);
+    const nameA = (a.name || '').trim();
+    const nameB = (b.name || '').trim();
+
+    const getStockCount = (prod: Product) => {
+      if (!prod.variants || prod.variants.length === 0) return 0;
+      return prod.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+    };
+
+    switch (sortBy) {
+      case 'name-asc':
+        return nameA.localeCompare(nameB, 'en', { sensitivity: 'base' });
+      case 'name-desc':
+        return nameB.localeCompare(nameA, 'en', { sensitivity: 'base' });
+      case 'price-asc':
+        return priceA - priceB;
+      case 'price-desc':
+        return priceB - priceA;
+      case 'stock-desc':
+        return getStockCount(b) - getStockCount(a);
+      case 'stock-asc':
+        return getStockCount(a) - getStockCount(b);
+      case 'newest':
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      default:
+        return 0;
+    }
+  });
+
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = list.slice(offset, offset + limit);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+  };
 }

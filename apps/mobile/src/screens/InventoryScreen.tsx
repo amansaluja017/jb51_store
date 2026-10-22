@@ -25,10 +25,10 @@ import {
   ImageOff,
   Sparkles,
   Lock,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  ChevronsUpDown,
   ArrowUpDown,
   History,
 } from 'lucide-react-native';
@@ -62,6 +62,14 @@ interface InventoryScreenProps {
   onFetchTransactions?: () => Promise<void>;
   onViewProductDetails?: (product: Product) => void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
+  onFetchPaginatedStock?: (params?: {
+    search?: string;
+    category?: string;
+    stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
+    sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
+    page?: number;
+    limit?: number;
+  }) => Promise<any>;
 }
 
 type StockFilter = 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
@@ -106,12 +114,32 @@ export default function InventoryScreen({
   onFetchTransactions,
   onViewProductDetails,
   showAlert: _showAlert,
+  onFetchPaginatedStock,
 }: InventoryScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<StockFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   type SortOption = 'default' | 'stockAsc' | 'stockDesc';
   const [sortBy, setSortBy] = useState<SortOption>('default');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
+  const [remoteStockData, setRemoteStockData] = useState<{
+    items: Product[];
+    total: number;
+    totalPages: number;
+    page: number;
+    metrics?: {
+      totalProducts: number;
+      inStockProducts: number;
+      outOfStockProducts: number;
+      lowStockProducts: number;
+      hasReservedProducts: number;
+      totalStockUnits: number;
+      totalReservedUnits: number;
+    };
+  } | null>(null);
+  const [isFetchingRemote, setIsFetchingRemote] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
   
@@ -122,6 +150,44 @@ export default function InventoryScreen({
   React.useEffect(() => {
     onFetchTransactions?.();
   }, []);
+
+  // Reset page to 1 whenever search, filter, category or sort changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchQuery, activeFilter, selectedCategory, sortBy]);
+
+  // Query backend route for paginated stock & store-wide metrics
+  React.useEffect(() => {
+    if (!onFetchPaginatedStock) return;
+
+    let isCancelled = false;
+    const fetchRemote = async () => {
+      setIsFetchingRemote(true);
+      try {
+        const res = await onFetchPaginatedStock({
+          search: searchQuery.trim() || undefined,
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          stockFilter: activeFilter,
+          sortBy: sortBy === 'stockAsc' ? 'stock-asc' : sortBy === 'stockDesc' ? 'stock-desc' : 'default',
+          page,
+          limit: PAGE_SIZE,
+        });
+        if (!isCancelled && res && Array.isArray(res.items)) {
+          setRemoteStockData(res);
+        }
+      } catch (err) {
+        console.error('[InventoryScreen pagination error]:', err);
+      } finally {
+        if (!isCancelled) setIsFetchingRemote(false);
+      }
+    };
+
+    const timer = setTimeout(fetchRemote, searchQuery ? 250 : 0);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, activeFilter, selectedCategory, sortBy, page, refreshKey, onFetchPaginatedStock]);
 
   // Local pending variant stock edits: { [productSlug]: Variant[] }
   const [pendingStockEdits, setPendingStockEdits] = useState<Record<string, Variant[]>>({});
@@ -231,7 +297,7 @@ export default function InventoryScreen({
     return variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
   };
 
-  // Sort and filter products
+  // Sort and filter products (local fallback)
   const sortedAndFilteredProducts = useMemo(() => {
     const list = [...filteredProducts];
     if (sortBy === 'stockAsc') {
@@ -241,6 +307,40 @@ export default function InventoryScreen({
     }
     return list;
   }, [filteredProducts, sortBy, pendingStockEdits]);
+
+  const activeMetrics = remoteStockData?.metrics || metrics;
+
+  const displayedProducts = onFetchPaginatedStock && remoteStockData
+    ? remoteStockData.items
+    : sortedAndFilteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const totalCount = onFetchPaginatedStock && remoteStockData
+    ? remoteStockData.total
+    : sortedAndFilteredProducts.length;
+
+  const totalPages = onFetchPaginatedStock && remoteStockData
+    ? remoteStockData.totalPages
+    : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const safePage = Math.min(page, totalPages);
+  const startRecord = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
+
+  // Generate page numbers for bottom pagination: e.g. [1, 2, 3, 4] or [1, '...', 4, 5, '...', 10]
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [];
+    if (safePage <= 3) {
+      pages.push(1, 2, 3, 4, '...', totalPages);
+    } else if (safePage >= totalPages - 2) {
+      pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages);
+    }
+    return pages;
+  }, [totalPages, safePage]);
 
   // Toggle collapse for single product
   const toggleProductCollapse = (slug: string) => {
@@ -253,16 +353,6 @@ export default function InventoryScreen({
     });
   };
 
-  // Toggle collapse for all products
-  const toggleAllCollapse = () => {
-    const nextState = !allCollapsed;
-    setAllCollapsed(nextState);
-    const updated: Record<string, boolean> = {};
-    products.forEach(p => {
-      updated[p.slug] = nextState;
-    });
-    setCollapsedSlugs(updated);
-  };
 
   // Helper to get working variants (either modified pending or original)
   const getWorkingVariants = (product: Product): Variant[] => {
@@ -342,6 +432,7 @@ export default function InventoryScreen({
     setSavingSlugs(prev => ({ ...prev, [product.slug]: true }));
     try {
       await onUpdateInventory(product, editedVariants);
+      setRefreshKey(k => k + 1);
       // Remove from pending on success
       setPendingStockEdits(prev => {
         const next = { ...prev };
@@ -357,6 +448,16 @@ export default function InventoryScreen({
     }
   };
 
+  const handleToggleStockInternal = (product: Product) => {
+    onToggleStock(product);
+    setRefreshKey(k => k + 1);
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1);
+    onRefresh?.();
+  };
+
   return (
     <View style={styles.container}>
       {/* Main Inventory Scroll Area */}
@@ -364,14 +465,12 @@ export default function InventoryScreen({
         style={styles.scrollBody}
         contentContainerStyle={styles.scrollPadding}
         refreshControl={
-          onRefresh ? (
-            <RefreshControl
-              refreshing={!!refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FF5E36"
-              colors={['#FF5E36']}
-            />
-          ) : undefined
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FF5E36"
+            colors={['#FF5E36']}
+          />
         }
       >
         {/* 1. Analytics Card Section (KPI Metrics Dashboard) */}
@@ -382,7 +481,7 @@ export default function InventoryScreen({
               <Text style={styles.metricsSectionTitle}>Stock Ledger Snapshot</Text>
             </View>
             <View style={styles.metricsTotalPill}>
-              <Text style={styles.metricsTotalPillText}>{metrics.totalStockUnits} units total</Text>
+              <Text style={styles.metricsTotalPillText}>{activeMetrics.totalStockUnits} units total</Text>
             </View>
           </View>
 
@@ -394,8 +493,8 @@ export default function InventoryScreen({
                 </View>
                 <Text style={styles.metricLabel}>Total Styles</Text>
               </View>
-              <Text style={styles.metricValue}>{metrics.totalProducts}</Text>
-              <Text style={styles.metricSub}>{metrics.totalStockUnits} total units</Text>
+              <Text style={styles.metricValue}>{activeMetrics.totalProducts}</Text>
+              <Text style={styles.metricSub}>{activeMetrics.totalStockUnits} total units</Text>
             </View>
 
             <View style={[styles.metricCard, styles.metricCardInStock]}>
@@ -405,7 +504,7 @@ export default function InventoryScreen({
                 </View>
                 <Text style={[styles.metricLabel, { color: '#1F4E3D' }]}>In Stock</Text>
               </View>
-              <Text style={[styles.metricValue, { color: '#1F4E3D' }]}>{metrics.inStockProducts}</Text>
+              <Text style={[styles.metricValue, { color: '#1F4E3D' }]}>{activeMetrics.inStockProducts}</Text>
               <Text style={[styles.metricSub, { color: '#2E6853' }]}>Ready to order</Text>
             </View>
 
@@ -416,7 +515,7 @@ export default function InventoryScreen({
                 </View>
                 <Text style={[styles.metricLabel, { color: '#B95C3F' }]}>Out of Stock</Text>
               </View>
-              <Text style={[styles.metricValue, { color: '#5A1827' }]}>{metrics.outOfStockProducts}</Text>
+              <Text style={[styles.metricValue, { color: '#5A1827' }]}>{activeMetrics.outOfStockProducts}</Text>
               <Text style={[styles.metricSub, { color: '#A34A30' }]}>Needs restock</Text>
             </View>
 
@@ -427,7 +526,7 @@ export default function InventoryScreen({
                 </View>
                 <Text style={[styles.metricLabel, { color: '#C06826' }]}>Low Stock</Text>
               </View>
-              <Text style={[styles.metricValue, { color: '#A6561B' }]}>{metrics.lowStockProducts}</Text>
+              <Text style={[styles.metricValue, { color: '#A6561B' }]}>{activeMetrics.lowStockProducts}</Text>
               <Text style={[styles.metricSub, { color: '#C06826' }]}>≤ {LOW_STOCK_THRESHOLD} pcs left</Text>
             </View>
           </View>
@@ -441,11 +540,11 @@ export default function InventoryScreen({
               <View style={{ flex: 1 }}>
                 <Text style={styles.reservedBannerTitle}>Customer Holds & Tailoring Reserves</Text>
                 <Text style={styles.reservedBannerSub}>
-                  {metrics.totalReservedUnits} units held across {metrics.hasReservedProducts} {metrics.hasReservedProducts === 1 ? 'outfit' : 'outfits'}
+                  {activeMetrics.totalReservedUnits} units held across {activeMetrics.hasReservedProducts} {activeMetrics.hasReservedProducts === 1 ? 'outfit' : 'outfits'}
                 </Text>
               </View>
             </View>
-            {metrics.hasReservedProducts > 0 && (
+            {activeMetrics.hasReservedProducts > 0 && (
               <TouchableOpacity
                 onPress={() => setActiveFilter(activeFilter === 'reserved' ? 'all' : 'reserved')}
                 style={[styles.reservedBannerBtn, activeFilter === 'reserved' && styles.reservedBannerBtnActive]}
@@ -552,17 +651,6 @@ export default function InventoryScreen({
               </Text>
             </TouchableOpacity>
           </ScrollView>
-
-          <TouchableOpacity
-            onPress={toggleAllCollapse}
-            style={styles.collapseAllBtn}
-            activeOpacity={0.7}
-          >
-            <ChevronsUpDown size={13} color="#FF5E36" style={{ marginRight: 4 }} />
-            <Text style={styles.collapseAllBtnText}>
-              {allCollapsed ? 'Expand All' : 'Collapse All'}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* 4. Status Filter Tabs */}
@@ -577,7 +665,7 @@ export default function InventoryScreen({
               style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
             >
               <Text style={[styles.filterTabText, activeFilter === 'all' && styles.filterTabTextActive]}>
-                All ({metrics.totalProducts})
+                All ({activeMetrics.totalProducts})
               </Text>
             </TouchableOpacity>
 
@@ -586,7 +674,7 @@ export default function InventoryScreen({
               style={[styles.filterTab, activeFilter === 'inStock' && styles.filterTabActive]}
             >
               <Text style={[styles.filterTabText, activeFilter === 'inStock' && styles.filterTabTextActive]}>
-                In Stock ({metrics.inStockProducts})
+                In Stock ({activeMetrics.inStockProducts})
               </Text>
             </TouchableOpacity>
 
@@ -595,7 +683,7 @@ export default function InventoryScreen({
               style={[styles.filterTab, activeFilter === 'outOfStock' && styles.filterTabActive]}
             >
               <Text style={[styles.filterTabText, activeFilter === 'outOfStock' && styles.filterTabTextActive]}>
-                Out of Stock ({metrics.outOfStockProducts})
+                Out of Stock ({activeMetrics.outOfStockProducts})
               </Text>
             </TouchableOpacity>
 
@@ -604,7 +692,7 @@ export default function InventoryScreen({
               style={[styles.filterTab, activeFilter === 'lowStock' && styles.filterTabActive]}
             >
               <Text style={[styles.filterTabText, activeFilter === 'lowStock' && styles.filterTabTextActive]}>
-                Low Stock ({metrics.lowStockProducts})
+                Low Stock ({activeMetrics.lowStockProducts})
               </Text>
             </TouchableOpacity>
 
@@ -614,16 +702,16 @@ export default function InventoryScreen({
             >
               <Lock size={11} color={activeFilter === 'reserved' ? '#ffffff' : '#C0603A'} style={{ marginRight: 4 }} />
               <Text style={[styles.filterTabText, activeFilter === 'reserved' && styles.filterTabTextActive]}>
-                Reserved ({metrics.hasReservedProducts})
+                Reserved ({activeMetrics.hasReservedProducts})
               </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
         {/* Product Inventory Items */}
-        {isLoading && products.length === 0 ? (
+        {(isLoading || isFetchingRemote) && (!refreshing || displayedProducts.length === 0) ? (
           <InventorySkeleton />
-        ) : sortedAndFilteredProducts.length === 0 ? (
+        ) : totalCount === 0 ? (
           <View style={styles.emptyContainer}>
             <Package size={44} color="#d4d4d8" />
             <Text style={styles.emptyTitle}>No Outfits Found</Text>
@@ -644,7 +732,7 @@ export default function InventoryScreen({
           </View>
         ) : (
           <View style={styles.productsList}>
-            {sortedAndFilteredProducts.map(product => {
+            {displayedProducts.map(product => {
               const workingVariants = getWorkingVariants(product);
               const hasPendingChanges = !!pendingStockEdits[product.slug];
               const isSaving = !!savingSlugs[product.slug];
@@ -744,7 +832,7 @@ export default function InventoryScreen({
                     </View>
                     <Switch
                       value={isCurrentlyInStock}
-                      onValueChange={() => onToggleStock(product)}
+                      onValueChange={() => handleToggleStockInternal(product)}
                       trackColor={{ false: '#e4e4e7', true: '#FF5E36' }}
                       thumbColor="#ffffff"
                     />
@@ -1031,6 +1119,61 @@ export default function InventoryScreen({
                 </View>
               );
             })}
+            {/* Bottom Pagination Numbers (only shown after data exceeds the page limit) */}
+            {totalPages > 1 && (
+              <View style={styles.paginationSection}>
+                <View style={styles.paginationNumbersRow}>
+                  <TouchableOpacity
+                    style={[styles.pageButton, safePage <= 1 && styles.pageButtonDisabled]}
+                    onPress={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    accessibilityLabel="Previous page"
+                    accessibilityRole="button"
+                  >
+                    <ChevronLeft size={16} color={safePage <= 1 ? '#d4d4d8' : '#18181b'} />
+                  </TouchableOpacity>
+
+                  {pageNumbers.map((pNum, idx) => {
+                    if (pNum === '...') {
+                      return (
+                        <View key={`ellipsis-${idx}`} style={styles.pageEllipsis}>
+                          <Text style={styles.pageEllipsisText}>...</Text>
+                        </View>
+                      );
+                    }
+
+                    const isCurrent = pNum === safePage;
+                    return (
+                      <TouchableOpacity
+                        key={`page-${pNum}`}
+                        style={[styles.pageNumberBtn, isCurrent && styles.pageNumberBtnActive]}
+                        onPress={() => setPage(pNum as number)}
+                        accessibilityLabel={`Page ${pNum}`}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.pageNumberBtnText, isCurrent && styles.pageNumberBtnTextActive]}>
+                          {pNum}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  <TouchableOpacity
+                    style={[styles.pageButton, safePage >= totalPages && styles.pageButtonDisabled]}
+                    onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    accessibilityLabel="Next page"
+                    accessibilityRole="button"
+                  >
+                    <ChevronRight size={16} color={safePage >= totalPages ? '#d4d4d8' : '#18181b'} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.paginationInfoText}>
+                  Page {safePage} of {totalPages} ({totalCount} total items)
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

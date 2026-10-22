@@ -13,11 +13,14 @@ import {
   X,
   Layers,
   Sparkles,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { Control, Controller } from 'react-hook-form';
 import SimpleTextEditor from '../SimpleTextEditor';
 import { ProductFormData } from '../ProductFormModal';
 import styles from '../ProductFormModal.styles';
+import { countWords } from '../../utils/text';
 
 export interface ProductDetailsTabProps {
   control: Control<ProductFormData>;
@@ -342,20 +345,80 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                   <Controller
                     control={control}
                     name="description"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <SimpleTextEditor
-                        label="Editorial Description"
-                        value={value || ''}
-                        onBlur={onBlur}
-                        onChangeText={(val) => {
-                          onChange(val);
-                          setFormDescription(val);
-                        }}
-                        placeholder="Describe heritage motifs, dupatta styles, embroidery, or weave history..."
-                        multiline
-                        numberOfLines={5}
-                      />
-                    )}
+                    render={({ field: { onChange, onBlur, value } }) => {
+                      const words = countWords(value);
+                      const isRequirementMet = words >= 100;
+                      return (
+                        <View>
+                          <SimpleTextEditor
+                            label="Editorial Description"
+                            value={value || ''}
+                            onBlur={onBlur}
+                            onChangeText={(val) => {
+                              onChange(val);
+                              setFormDescription(val);
+                            }}
+                            placeholder="Describe heritage motifs, dupatta styles, embroidery, or weave history..."
+                            multiline
+                            numberOfLines={5}
+                            minWords={100}
+                          />
+
+                          {/* Live 100-word validation status message */}
+                          <View
+                            style={{
+                              marginTop: 4,
+                              paddingVertical: 8,
+                              paddingHorizontal: 12,
+                              borderRadius: 10,
+                              backgroundColor: isRequirementMet ? '#F0FDF4' : '#FFF1F2',
+                              borderWidth: 1,
+                              borderColor: isRequirementMet ? '#BBF7D0' : '#FECDD3',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                              {isRequirementMet ? (
+                                <CheckCircle2 size={15} color="#16A34A" style={{ marginRight: 6 }} />
+                              ) : (
+                                <AlertCircle size={15} color="#E11D48" style={{ marginRight: 6 }} />
+                              )}
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  color: isRequirementMet ? '#166534' : '#9F1239',
+                                  fontWeight: '500',
+                                }}
+                              >
+                                {isRequirementMet
+                                  ? 'Length requirement met (100+ words)'
+                                  : `Minimum 100 words required (${100 - words} more needed)`}
+                              </Text>
+                            </View>
+                            <View
+                              style={{
+                                backgroundColor: isRequirementMet ? '#DCFCE7' : '#FFE4E6',
+                                paddingHorizontal: 7,
+                                paddingVertical: 2.5,
+                                borderRadius: 6,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: '700',
+                                  color: isRequirementMet ? '#15803D' : '#BE123C',
+                                }}
+                              >
+                                {words}/100
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }}
                   />
                 </View>
 

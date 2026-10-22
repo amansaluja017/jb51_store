@@ -2,12 +2,19 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
+import {
+  globalRateLimiter,
+  trpcRateLimiter,
+  uploadRateLimiter,
+} from '@repo/rate-limiting';
 import { appRouter, createTRPCContext } from './router.js';
 import uploadRouter from './routes/upload.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Trust reverse proxy hops (e.g., Nginx, cloud load balancers, CDN)
+app.set('trust proxy', 1);
 
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
@@ -36,6 +43,9 @@ app.use(
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Rate Limiting: Apply global rate limiter across ALL routes
+app.use(globalRateLimiter);
+
 // Health check endpoint
 app.get(['/', '/health'], (_req, res) => {
   res.json({
@@ -46,12 +56,13 @@ app.get(['/', '/health'], (_req, res) => {
   });
 });
 
-// REST API endpoints (Upload, Product Images)
-app.use('/api', uploadRouter);
+// REST API endpoints with specialized upload rate limiting
+app.use('/api', uploadRateLimiter, uploadRouter);
 
-// tRPC request handler middleware
+// tRPC request handler middleware with procedure rate limiting
 app.use(
   '/trpc',
+  trpcRateLimiter,
   createExpressMiddleware({
     router: appRouter,
     createContext: createTRPCContext,

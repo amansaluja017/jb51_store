@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { type Product } from '@repo/products';
-import gsap from 'gsap';
 
 interface TrendingGridProps {
   products: Product[];
@@ -24,30 +23,6 @@ export function TrendingGrid({ products }: TrendingGridProps) {
   };
 
   const filteredProducts = getFilteredProducts();
-
-  // Tab change animation
-  useEffect(() => {
-    if (!products.length) return;
-
-    gsap.killTweensOf('.silhouette-card');
-
-    gsap.fromTo('.silhouette-card',
-      {
-        opacity: 0,
-        y: 35,
-        scale: 0.98,
-      },
-      {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        duration: 0.6,
-        stagger: 0.08,
-        ease: 'power2.out',
-        clearProps: 'all'
-      }
-    );
-  }, [activeTab, products]);
 
   return (
     <section id="curated-silhouettes" className="py-20 px-6 max-w-7xl mx-auto w-full bg-zinc-50 rounded-[2.5rem] relative overflow-hidden my-12">
@@ -70,11 +45,10 @@ export function TrendingGrid({ products }: TrendingGridProps) {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`font-semibold tracking-wider text-xs uppercase pb-2 transition-all duration-300 border-b-2 focus:outline-none cursor-pointer ${
-              activeTab === tab.id
+            className={`font-semibold tracking-wider text-xs uppercase pb-2 transition-all duration-300 border-b-2 focus:outline-none cursor-pointer ${activeTab === tab.id
                 ? 'border-[#FF5E36] text-[#FF5E36]'
                 : 'border-transparent text-zinc-400 hover:text-zinc-800'
-            }`}
+              }`}
             aria-label={`Filter by category ${tab.label}`}
           >
             {tab.label}

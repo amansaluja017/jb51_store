@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { type Product } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
-import { SlidersHorizontal, Sparkles, X } from 'lucide-react';
-import gsap from 'gsap';
+import { SlidersHorizontal, Sparkles, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -36,32 +35,55 @@ const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
 export function ShopClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const initialCategory = searchParams.get('category');
   const initialFilter = searchParams.get('filter');
-  
-  const { data: products = [], isLoading: loading } = api.products.getAll.useQuery();
+
   const [activeCategory, setActiveCategory] = useState<string | null>(initialCategory);
   const [activeFilter, setActiveFilter] = useState<string | null>(initialFilter);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
   // Interactive Filters state
   const [sortBy, setSortBy] = useState<string>('featured');
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<number>(35000); // Max product price
   const [hasSetInitialMax, setHasSetInitialMax] = useState(false);
 
-  // Dynamic categories derived from boutique defaults and live product catalogue
+  // 1. Fetch categories directly from API route: api.products.getCategories
+  const { data: apiCategories = [] } = api.products.getCategories.useQuery();
+
+  // 2. Fetch full catalogue for boutique metadata (colors, max price, badges)
+  const { data: allProducts = [] } = api.products.getAll.useQuery();
+
+  // Map frontend sort UI keys to API sortBy parameters
+  const apiSortBy = useMemo(() => {
+    if (sortBy === 'price-low-high') return 'price-asc';
+    if (sortBy === 'price-high-low') return 'price-desc';
+    if (sortBy === 'newest') return 'newest';
+    return 'name-asc';
+  }, [sortBy]);
+
+  // 3. Fetch paginated products directly from API route: api.products.getPaginated
+  const { data: paginatedData, isLoading: loading } = api.products.getPaginated.useQuery({
+    category: activeCategory || undefined,
+    filter: (activeFilter as any) || undefined,
+    sortBy: apiSortBy,
+    page: currentPage,
+    limit: 8,
+  });
+
+  // Dynamic categories derived from API categories and boutique defaults
   const dynamicCategories = Array.from(
-    new Set([...CATEGORIES, ...products.map(p => p.category).filter(Boolean)])
+    new Set([...CATEGORIES, ...(apiCategories || []), ...allProducts.map(p => p.category).filter(Boolean)])
   );
 
   const slugifyCategory = (cat: string) =>
     cat.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
 
-  const listedProductsOnly = products.filter(p => p.isListed !== false);
-  const maxAvailablePrice = listedProductsOnly.length > 0 
-    ? Math.max(...listedProductsOnly.map(p => p.price)) 
+  const listedProductsOnly = allProducts.filter(p => p.isListed !== false);
+  const maxAvailablePrice = listedProductsOnly.length > 0
+    ? Math.max(...listedProductsOnly.map(p => p.price))
     : 35000;
 
   const availableColors = Array.from(new Set(listedProductsOnly.flatMap(p => p.variants.map(v => v.color)).filter(Boolean))).slice(0, 8);
@@ -80,25 +102,11 @@ export function ShopClient() {
   useEffect(() => {
     setActiveCategory(searchParams.get('category'));
     setActiveFilter(searchParams.get('filter'));
+    setCurrentPage(1);
   }, [searchParams]);
 
-  useEffect(() => {
-    if (!loading) {
-      gsap.killTweensOf('.product-grid-container');
-      gsap.fromTo('.product-grid-container', 
-        { opacity: 0.3 },
-        { opacity: 1, duration: 0.5, ease: 'power2.out' }
-      );
-
-      gsap.killTweensOf('.product-card-wrapper');
-      gsap.fromTo('.product-card-wrapper', 
-        { y: 20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.5, stagger: 0.03, ease: 'power3.out' }
-      );
-    }
-  }, [loading, activeCategory, activeFilter, sortBy, selectedColors, priceRange]);
-
   const handleCategorySelect = (catSlug: string | null) => {
+    setCurrentPage(1);
     if (catSlug) {
       router.push(`/shop?category=${catSlug}`);
     } else {
@@ -107,6 +115,7 @@ export function ShopClient() {
   };
 
   const handleFilterSelect = (filterVal: string | null) => {
+    setCurrentPage(1);
     if (filterVal) {
       router.push(`/shop?filter=${filterVal}`);
     } else {
@@ -115,44 +124,29 @@ export function ShopClient() {
   };
 
   const toggleColor = (color: string) => {
-    setSelectedColors(prev => 
+    setSelectedColors(prev =>
       prev.includes(color) ? prev.filter(c => c !== color) : [...prev, color]
     );
   };
 
-  // Combine category filter and custom filters
-  let filteredProducts = products.filter(p => p.isListed !== false);
-  
-  // 1. URL params filters
-  if (activeFilter === 'new') {
-    filteredProducts = filteredProducts.filter(p => p.newArrival);
-  } else if (activeFilter === 'bestseller') {
-    filteredProducts = filteredProducts.filter(p => p.bestseller);
-  }
-  
-  if (activeCategory) {
-    filteredProducts = filteredProducts.filter(
-      p => slugifyCategory(p.category) === activeCategory
-    );
-  }
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 380, behavior: 'smooth' });
+  };
 
-  // 2. Interactive color filters
+  // Products from server paginated query
+  const paginatedItems = paginatedData?.items || [];
+  let filteredProducts = paginatedItems;
+
+  // Client-side refinements (color swatches & custom price slider)
   if (selectedColors.length > 0) {
-    filteredProducts = filteredProducts.filter(p => 
+    filteredProducts = filteredProducts.filter(p =>
       p.variants.some(v => selectedColors.includes(v.color) && v.stock > 0)
     );
   }
 
-  // 3. Price range filter
-  filteredProducts = filteredProducts.filter(p => p.price <= priceRange);
-
-  // 4. Sorting logic
-  if (sortBy === 'price-low-high') {
-    filteredProducts.sort((a, b) => a.price - b.price);
-  } else if (sortBy === 'price-high-low') {
-    filteredProducts.sort((a, b) => b.price - a.price);
-  } else if (sortBy === 'latest' || sortBy === 'newest') {
-    filteredProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  if (priceRange < maxAvailablePrice) {
+    filteredProducts = filteredProducts.filter(p => p.price <= priceRange);
   }
 
   const clearFilters = () => {
@@ -161,6 +155,7 @@ export function ShopClient() {
     setSortBy('featured');
     setSelectedColors([]);
     setPriceRange(maxAvailablePrice);
+    setCurrentPage(1);
     router.push('/shop');
   };
 
@@ -169,6 +164,9 @@ export function ShopClient() {
   const newArrivalsCount = listedProductsOnly.filter(p => p.newArrival).length;
   const bestsellersCount = listedProductsOnly.filter(p => p.bestseller).length;
 
+  const totalPages = paginatedData?.totalPages || 1;
+  const totalItems = paginatedData?.total || 0;
+
   const resetAllFilters = () => {
     router.push('/shop');
     setActiveCategory(null);
@@ -176,20 +174,21 @@ export function ShopClient() {
     setSelectedColors([]);
     setPriceRange(maxAvailablePrice);
     setSortBy('featured');
+    setCurrentPage(1);
   };
 
   return (
     <div className="w-full bg-white text-zinc-800 min-h-screen font-sans pb-24">
-      
+
       {/* Editorial Collection Header */}
       <section className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 px-6 border-b border-zinc-200/60 overflow-hidden bg-[#FAF9F5] text-zinc-900 select-none">
         {/* Decorative Grid Backdrop */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000003_1px,transparent_1px),linear-gradient(to_bottom,#00000003_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
-        
+
         {/* Glow effects */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-[#FF5E36]/5 blur-[100px] pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-black/5 blur-[80px] pointer-events-none" />
-        
+
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
           {/* Left: Typography & Editorial Description */}
           <div className="lg:col-span-7 flex flex-col justify-center text-left">
@@ -199,32 +198,32 @@ export function ShopClient() {
                 Atelier Catalog
               </span>
             </div>
-            
+
             <h1 className="font-serif text-4xl md:text-6xl font-bold text-zinc-900 tracking-tight mb-6 leading-tight">
-              {activeCategory 
+              {activeCategory
                 ? activeCategory.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                : activeFilter === 'new' 
-                ? 'New Arrivals' 
-                : activeFilter === 'bestseller'
-                ? 'Bestsellers'
-                : 'Our Curation'
+                : activeFilter === 'new'
+                  ? 'New Arrivals'
+                  : activeFilter === 'bestseller'
+                    ? 'Bestsellers'
+                    : 'Our Curation'
               }
             </h1>
-            
+
             <div className="w-20 h-[3px] bg-[#FF5E36] mb-6 rounded-full" />
-            
+
             <p className="text-zinc-600 text-xs md:text-sm font-light max-w-xl leading-relaxed tracking-wide mb-8">
-              {activeCategory === 'formal-suits' 
+              {activeCategory === 'formal-suits'
                 ? 'Tailored silhouettes meeting heritage fabrics. Discover structured elegance engineered for occasion wear and power dressing.'
                 : activeCategory === 'anarkali-suits'
-                ? 'Regal volume, sweeping lengths, and intricate zardozi hand-embroidery. Pure georgette and silk structures crafted for grandeur.'
-                : activeCategory === 'silk-co-ords'
-                ? 'Minimalism infused with handloom luxury. Lightweight, fluid silk sets designed for contemporary versatility and refined lounging.'
-                : activeCategory === 'velvet-edit'
-                ? 'Indulgent, plush micro-velvets adorned with traditional tilla and dabka handcraft. The epitome of royal winter ensembles.'
-                : activeCategory === 'occasion-wear'
-                ? 'Signature hand-crafted sarees, shararas, and heavy ensembles curated to celebrate your milestone moments.'
-                : 'Explore our catalog of luxury handloom textiles, contemporary silhouettes, and bespoke tailoring. Each piece is individually crafted to celebrate heritage Indian craftsmanship.'
+                  ? 'Regal volume, sweeping lengths, and intricate zardozi hand-embroidery. Pure georgette and silk structures crafted for grandeur.'
+                  : activeCategory === 'silk-co-ords'
+                    ? 'Minimalism infused with handloom luxury. Lightweight, fluid silk sets designed for contemporary versatility and refined lounging.'
+                    : activeCategory === 'velvet-edit'
+                      ? 'Indulgent, plush micro-velvets adorned with traditional tilla and dabka handcraft. The epitome of royal winter ensembles.'
+                      : activeCategory === 'occasion-wear'
+                        ? 'Signature hand-crafted sarees, shararas, and heavy ensembles curated to celebrate your milestone moments.'
+                        : 'Explore our catalog of luxury handloom textiles, contemporary silhouettes, and bespoke tailoring. Each piece is individually crafted to celebrate heritage Indian craftsmanship.'
               }
             </p>
 
@@ -261,7 +260,7 @@ export function ShopClient() {
           <div className="lg:col-span-5 relative w-full h-[320px] md:h-[400px] flex items-center justify-center mt-6 lg:mt-0 select-none">
             {/* Main Portrait Frame */}
             <div className="absolute w-[60%] h-[85%] rounded-[2rem] overflow-hidden border border-black/5 shadow-2xl z-10 transform -rotate-3 hover:rotate-0 transition-transform duration-550 ease-out group">
-              <Image 
+              <Image
                 src="https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=800&q=80"
                 alt="Main curation"
                 fill
@@ -273,7 +272,7 @@ export function ShopClient() {
 
             {/* Overlapping Offset Frame */}
             <div className="absolute w-[45%] h-[65%] rounded-[1.5rem] overflow-hidden border border-black/5 shadow-2xl z-20 bottom-0 left-[5%] transform rotate-6 hover:rotate-2 transition-transform duration-550 ease-out group">
-              <Image 
+              <Image
                 src="https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80"
                 alt="Detail curation"
                 fill
@@ -294,7 +293,7 @@ export function ShopClient() {
 
       {/* Main Content Area */}
       <section className="max-w-7xl mx-auto px-6 py-6 w-full">
-        
+
         {/* Horizontal Category Nav */}
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 py-4 border-b border-zinc-100 mb-6 select-none">
           <button
@@ -335,7 +334,7 @@ export function ShopClient() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6 border-y border-zinc-200 mb-8">
           {/* Stats */}
           <div className="text-[10px] tracking-[0.2em] uppercase font-bold text-zinc-500">
-            Showing <span className="text-[#FF5E36] font-extrabold">{filteredProducts.length}</span> bespoke creations
+            Showing <span className="text-[#FF5E36] font-extrabold">{filteredProducts.length}</span> of <span className="text-zinc-800 font-extrabold">{totalItems}</span> bespoke creations {totalPages > 1 && <span className="text-zinc-400 font-medium">· Page {currentPage} of {totalPages}</span>}
           </div>
 
           {/* Controls */}
@@ -510,7 +509,7 @@ export function ShopClient() {
               ))}
             </div>
           )}
-          
+
           {/* Empty State */}
           {!loading && filteredProducts.length === 0 && (
             <div className="text-center py-20 border border-dashed border-zinc-200 rounded-[2.5rem] bg-zinc-50 my-10 max-w-lg mx-auto">
@@ -519,12 +518,56 @@ export function ShopClient() {
               <p className="text-zinc-500 text-xs mb-6 max-w-xs mx-auto leading-relaxed font-light">
                 We couldn&apos;t find any designs matching your refinement profile. Select another category or reset refinements.
               </p>
-              <Button 
+              <Button
                 onClick={resetAllFilters}
                 className="bg-[#FF5E36] hover:bg-[#E04D27] text-white rounded-full h-[46px] px-7"
               >
                 Reset Refinements
               </Button>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!loading && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-16 select-none">
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-full border border-zinc-200 text-zinc-700 hover:border-[#FF5E36] hover:text-[#FF5E36] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer bg-white shadow-xs"
+                aria-label="Previous Page"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+
+              <div className="flex items-center gap-1.5 mx-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => handlePageChange(p)}
+                    className={cn(
+                      "w-9 h-9 text-xs font-bold rounded-full transition-all cursor-pointer flex items-center justify-center",
+                      p === currentPage
+                        ? "bg-[#FF5E36] text-white shadow-md shadow-[#FF5E36]/25 font-extrabold"
+                        : "border border-zinc-200 text-zinc-700 hover:border-[#FF5E36] hover:text-[#FF5E36] bg-white hover:bg-zinc-50"
+                    )}
+                    aria-label={`Page ${p}`}
+                    aria-current={p === currentPage ? 'page' : undefined}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-full border border-zinc-200 text-zinc-700 hover:border-[#FF5E36] hover:text-[#FF5E36] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer bg-white shadow-xs"
+                aria-label="Next Page"
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
             </div>
           )}
         </div>

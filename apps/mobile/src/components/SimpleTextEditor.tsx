@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import FormattedRichText from './FormattedRichText';
 import styles from './SimpleTextEditor.styles';
+import { countWords } from '../utils/text';
 
 interface SimpleTextEditorProps {
   label: string;
@@ -36,6 +37,7 @@ interface SimpleTextEditorProps {
   placeholder?: string;
   multiline?: boolean;
   numberOfLines?: number;
+  minWords?: number;
 }
 
 /**
@@ -51,6 +53,7 @@ export default function SimpleTextEditor({
   placeholder,
   multiline = false,
   numberOfLines = 3,
+  minWords,
 }: SimpleTextEditorProps) {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -287,7 +290,8 @@ export default function SimpleTextEditor({
   };
 
   const hasFormatting = (value || '').includes('<') || (value || '').includes('•');
-  const wordCount = (modalDraft || '').trim() ? (modalDraft || '').trim().split(/\s+/).length : 0;
+  const inlineWordCount = countWords(value);
+  const wordCount = countWords(modalDraft);
   const charCount = (modalDraft || '').length;
 
   return (
@@ -299,6 +303,31 @@ export default function SimpleTextEditor({
           {hasFormatting && (
             <View style={styles.formattedBadge}>
               <Text style={styles.formattedBadgeText}>Rich Text</Text>
+            </View>
+          )}
+          {minWords !== undefined && (
+            <View
+              style={{
+                paddingHorizontal: 6,
+                paddingVertical: 1.5,
+                borderRadius: 4,
+                backgroundColor: inlineWordCount >= minWords ? '#DCFCE7' : '#FFE4E6',
+                borderWidth: 1,
+                borderColor: inlineWordCount >= minWords ? '#86EFAC' : '#FECDD3',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9,
+                  fontWeight: '700',
+                  color: inlineWordCount >= minWords ? '#15803D' : '#BE123C',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {inlineWordCount >= minWords
+                  ? `${inlineWordCount} words ✓`
+                  : `${inlineWordCount}/${minWords} words`}
+              </Text>
             </View>
           )}
         </View>
@@ -459,9 +488,35 @@ export default function SimpleTextEditor({
                 {/* Top Bar acts as a protective buffer between toolbar and OS selection context menu */}
                 <View style={styles.textInputTopBar}>
                   <Text style={styles.textInputTopHint}>Select text then tap a format button</Text>
-                  <Text style={styles.charCounterText}>
-                    {wordCount} words • {charCount} chars
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {minWords !== undefined && (
+                      <View
+                        style={{
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          backgroundColor: wordCount >= minWords ? '#DCFCE7' : '#FFE4E6',
+                          borderWidth: 1,
+                          borderColor: wordCount >= minWords ? '#86EFAC' : '#FECDD3',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: wordCount >= minWords ? '#15803D' : '#BE123C',
+                          }}
+                        >
+                          {wordCount >= minWords
+                            ? `${wordCount} words (Met ✓)`
+                            : `${wordCount}/${minWords} words (${minWords - wordCount} needed)`}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.charCounterText}>
+                      {wordCount} words • {charCount} chars
+                    </Text>
+                  </View>
                 </View>
 
                 <TextInput

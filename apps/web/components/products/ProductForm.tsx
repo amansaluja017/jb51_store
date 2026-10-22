@@ -3,11 +3,29 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Loader2, ImageOff, Check } from 'lucide-react';
-import { type Product, type ProductVariant } from '@repo/products';
+import { type Product, type ProductVariant, countWords } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { toast } from 'sonner';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { SimpleRichTextEditor } from '@/components/ui/SimpleRichTextEditor';
+
+function formatError(err: any): string {
+  if (!err) return 'An error occurred';
+  if (err.data?.zodError?.fieldErrors) {
+    const messages = Object.values(err.data.zodError.fieldErrors).flat() as string[];
+    if (messages.length > 0) return messages.join('\n');
+  }
+  const msg = err.message;
+  if (typeof msg === 'string' && (msg.startsWith('[') || msg.startsWith('{'))) {
+    try {
+      const parsed = JSON.parse(msg);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((p: any) => p?.message || p).filter(Boolean).join('\n');
+      }
+    } catch {}
+  }
+  return msg || 'An error occurred';
+}
 
 export interface FormVariant {
   id?: string;
@@ -190,7 +208,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
       router.refresh();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to create outfit.');
+      toast.error(formatError(err));
     }
   });
 
@@ -201,7 +219,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
       router.refresh();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to update outfit.');
+      toast.error(formatError(err));
     }
   });
 
@@ -242,8 +260,9 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
       return;
     }
 
-    if (!description.trim()) {
-      toast.error('Product description is mandatory.');
+    const descWords = countWords(description);
+    if (descWords < 100) {
+      toast.error(`Product description must be at least 100 words (currently contains ${descWords} word${descWords === 1 ? '' : 's'}). Please add at least ${100 - descWords} more words.`);
       return;
     }
 
@@ -448,14 +467,29 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
               </div>
             </div>
 
-            <SimpleRichTextEditor
-              label="Product Description"
-              value={description}
-              onChange={setDescription}
-              placeholder="Describe the silhouette, pattern details, structure, and embellishments..."
-              rows={4}
-              required
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">
+                  Product Description <span className="text-[#FF5E36]">*</span>
+                </span>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                  countWords(description) >= 100
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                }`}>
+                  {countWords(description) >= 100
+                    ? `${countWords(description)} words ✓`
+                    : `${countWords(description)}/100 words (${100 - countWords(description)} needed)`}
+                </span>
+              </div>
+              <SimpleRichTextEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="Describe the silhouette, pattern details, structure, and embellishments..."
+                rows={4}
+                required
+              />
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">

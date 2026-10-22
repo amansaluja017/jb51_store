@@ -50,8 +50,7 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
               alt={slide.title}
               fill
               priority={idx === 0}
-              className="object-cover hero-mask opacity-85"
-              style={{ clipPath: 'inset(100% 0% 0% 0%)' }}
+              className="object-cover opacity-85 transition-transform duration-[2000ms] ease-out scale-100"
               sizes="100vw"
             />
             {/* Darkening gradient */}
@@ -64,7 +63,14 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
                 className="absolute hidden md:flex items-center gap-3 bg-white/90 backdrop-blur-md p-2.5 rounded-2xl shadow-2xl border border-white/40 bottom-[20%] right-[15%] z-30 hover:scale-105 hover:bg-white transition-all duration-300 animate-scale-up group"
               >
                 <div className="relative w-12 h-16 rounded-lg overflow-hidden border border-zinc-200">
-                  <Image src={slide.badgeProduct.img} alt={slide.badgeProduct.name} fill className="object-cover" />
+                  <Image
+                    src={slide.badgeProduct.img}
+                    alt={slide.badgeProduct.name}
+                    fill
+                    priority={idx === 0}
+                    sizes="48px"
+                    className="object-cover"
+                  />
                 </div>
                 <div className="flex flex-col text-left pr-2">
                   <span className="text-[8px] tracking-wider uppercase font-bold text-zinc-400">Featured Outfit</span>
@@ -81,24 +87,26 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
 
             {/* Center-Left Content block */}
             <div className="absolute inset-0 flex items-center z-20 px-6 md:px-12 max-w-7xl mx-auto w-full">
-              <div className="max-w-2xl text-left">
+              <div className={`max-w-2xl text-left transition-all duration-700 delay-100 ${
+                idx === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}>
                 {/* Tagline */}
-                <span className="hero-text-stagger opacity-0 text-[10px] md:text-xs tracking-[0.35em] uppercase text-[#FF5E36] font-bold mb-4 block">
+                <span className="text-[10px] md:text-xs tracking-[0.35em] uppercase text-[#FF5E36] font-bold mb-4 block">
                   {slide.tagline}
                 </span>
 
                 {/* Title */}
-                <h1 className="hero-text-stagger opacity-0 font-serif text-5xl md:text-7xl lg:text-[4.6rem] xl:text-[5.4rem] text-white leading-[1.08] mb-6 font-bold tracking-tight">
+                <h1 className="font-serif text-5xl md:text-7xl lg:text-[4.6rem] xl:text-[5.4rem] text-white leading-[1.08] mb-6 font-bold tracking-tight">
                   {slide.title}
                 </h1>
 
                 {/* Subtitle */}
-                <p className="hero-text-stagger opacity-0 text-zinc-300 font-light text-xs md:text-sm max-w-md mb-8 leading-relaxed">
+                <p className="text-zinc-300 font-light text-xs md:text-sm max-w-md mb-8 leading-relaxed">
                   {slide.subtitle}
                 </p>
 
                 {/* Action Buttons */}
-                <div className="hero-text-stagger opacity-0 flex flex-wrap items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                   <Link
                     href="/shop"
                     className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"

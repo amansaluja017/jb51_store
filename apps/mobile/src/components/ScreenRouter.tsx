@@ -51,12 +51,15 @@ export interface ScreenRouterProps {
   isLoadingOrders: boolean;
   isLoadingCustomers: boolean;
   onFetchCustomers: () => Promise<void>;
+  onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
   onCreateCustomer: (data: { name: string; phoneNumber: string; email?: string; address?: string }) => Promise<Customer>;
   onFetchInvoices: () => Promise<void>;
   onFetchOrders: () => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
   onFetchProducts?: () => Promise<void>;
+  onFetchPaginatedProducts?: (params?: any) => Promise<any>;
+  onFetchPaginatedStock?: (params?: any) => Promise<any>;
   isLoadingProducts?: boolean;
   // Reviews
   reviews: Review[];
@@ -106,12 +109,15 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   isLoadingOrders,
   isLoadingCustomers,
   onFetchCustomers,
+  onFetchPaginatedCustomers,
   onCreateCustomer,
   onFetchInvoices,
   onFetchOrders,
   onCreateOrder,
   onDeleteInvoice,
   onFetchProducts,
+  onFetchPaginatedProducts,
+  onFetchPaginatedStock,
   isLoadingProducts,
   reviews,
   isLoadingReviews,
@@ -134,7 +140,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
           showAnalyticsSelector={showAnalyticsSelector}
           setShowAnalyticsSelector={setShowAnalyticsSelector}
-          isLoading={false}
+          isLoading={isLoading}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onNavigateToTab={(tab) => setActiveTab(tab)}
@@ -156,6 +162,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onEditProduct={onEditProduct}
           onDeleteProduct={onDeleteProduct}
           onViewProductDetails={onViewProductDetails}
+          onFetchPaginatedProducts={onFetchPaginatedProducts}
         />
       )}
       {activeTab === 'inventory' && (
@@ -173,25 +180,30 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onFetchTransactions={onFetchTransactions}
           onViewProductDetails={onViewProductDetails}
           showAlert={showAlert}
+          onFetchPaginatedStock={onFetchPaginatedStock}
         />
       )}
       {activeTab === 'invoices' && (
         <InvoiceScreen
           products={products}
+          categories={categories}
           customers={customers}
           invoices={invoices}
           orders={orders}
           showAlert={showAlert}
-          isLoading={isLoadingInvoices || isLoadingOrders}
+          isLoading={isLoadingInvoices}
+          isLoadingOrders={isLoadingOrders}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onFetchCustomers={onFetchCustomers}
+          onFetchPaginatedCustomers={onFetchPaginatedCustomers}
           onCreateCustomer={onCreateCustomer}
           onFetchInvoices={onFetchInvoices}
           onFetchOrders={onFetchOrders}
           onCreateOrder={onCreateOrder}
           onDeleteInvoice={onDeleteInvoice}
           onFetchProducts={onFetchProducts}
+          onFetchPaginatedProducts={onFetchPaginatedProducts}
           isLoadingCustomers={isLoadingCustomers}
           isLoadingProducts={isLoadingProducts}
         />

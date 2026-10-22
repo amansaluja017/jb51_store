@@ -4,11 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type Product } from '@repo/products';
 import { formatPrice, cn } from '@/lib/utils';
-import { Heart, Eye, Sparkles, ArrowRight } from 'lucide-react';
-import { useRef, useEffect } from 'react';
-import gsap from 'gsap';
+import { Heart, Eye, ArrowRight } from 'lucide-react';
 import { useWishlist } from '@/context/WishlistContext';
-import { toast } from 'sonner';
 
 interface ProductCardProps {
   product: Product;
@@ -17,8 +14,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, featured = false, theme = 'light' }: ProductCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const isLiked = isInWishlist(product.id);
 
@@ -27,38 +22,12 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
   const hasDiscount = Boolean(mrp && mrp > sellingPrice);
   const discountPercent = hasDiscount ? Math.round(((mrp! - sellingPrice) / mrp!) * 100) : 0;
 
-  useEffect(() => {
-    if (!cardRef.current || !imageRef.current) return;
-
-    const card = cardRef.current;
-    const img = imageRef.current;
-
-    const hoverIn = () => {
-      gsap.to(img, { scale: 1.04, duration: 0.8, ease: 'power2.out' });
-    };
-
-    const hoverOut = () => {
-      gsap.to(img, { scale: 1, duration: 0.8, ease: 'power2.out' });
-    };
-
-    card.addEventListener('mouseenter', hoverIn);
-    card.addEventListener('mouseleave', hoverOut);
-
-    return () => {
-      card.removeEventListener('mouseenter', hoverIn);
-      card.removeEventListener('mouseleave', hoverOut);
-    };
-  }, []);
-
-
-
   const isDark = theme === 'dark';
 
   return (
     <div
-      ref={cardRef}
       className={cn(
-        "group relative flex flex-col justify-between overflow-hidden rounded-xl transition-all duration-500",
+        "group relative flex flex-col justify-between overflow-hidden rounded-xl transition-all duration-300",
         isDark
           ? "bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700"
           : "bg-white border border-zinc-150 hover:shadow-xl hover:shadow-black/5 hover:border-zinc-300",
@@ -71,11 +40,10 @@ export function ProductCard({ product, featured = false, theme = 'light' }: Prod
         className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100 block cursor-pointer"
       >
         <Image
-          ref={imageRef}
           src={product.images[0] || '/placeholder.jpg'}
           alt={product.name}
           fill
-          className="object-cover transition-opacity duration-500 group-hover:opacity-0"
+          className="object-cover transition-all duration-500 ease-out group-hover:scale-105 group-hover:opacity-0"
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           priority={product.featured || featured}
         />

@@ -120,3 +120,63 @@ export async function createCustomer(input: CreateCustomerInput) {
     return customer;
   });
 }
+
+export interface GetPaginatedCustomersInput {
+  search?: string | null;
+  sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc' | null;
+  page?: number | null;
+  limit?: number | null;
+}
+
+export async function getPaginatedCustomers(input?: GetPaginatedCustomersInput) {
+  const page = Math.max(1, input?.page || 1);
+  const limit = Math.max(1, input?.limit || 8);
+  const search = (input?.search || '').trim().toLowerCase();
+  const sortBy = input?.sortBy || 'name-asc';
+
+  let all = await getCustomers();
+
+  if (search) {
+    all = all.filter((c) => {
+      const name = (c.name || '').toLowerCase();
+      const phone = (c.phoneNumber || '').toLowerCase();
+      const email = (c.email || '').toLowerCase();
+      const address = (c.address || '').toLowerCase();
+      return (
+        name.includes(search) ||
+        phone.includes(search) ||
+        email.includes(search) ||
+        address.includes(search)
+      );
+    });
+  }
+
+  all.sort((a, b) => {
+    const nameA = (a.name || '').trim();
+    const nameB = (b.name || '').trim();
+    if (sortBy === 'name-asc') {
+      return nameA.localeCompare(nameB, 'en', { sensitivity: 'base' });
+    }
+    if (sortBy === 'name-desc') {
+      return nameB.localeCompare(nameA, 'en', { sensitivity: 'base' });
+    }
+    if (sortBy === 'createdAt-asc') {
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    }
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = all.slice(offset, offset + limit);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+  };
+}

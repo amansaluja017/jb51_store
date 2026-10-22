@@ -39,6 +39,8 @@ import AddCustomerModal from '../components/invoices/AddCustomerModal';
 import InvoicePreviewModal from '../components/invoices/InvoicePreviewModal';
 import InvoiceLedgerView from '../components/invoices/InvoiceLedgerView';
 import InvoiceFormView from '../components/invoices/InvoiceFormView';
+import SelectCustomerPage from '../components/invoices/SelectCustomerPage';
+import SelectProductPage from '../components/invoices/SelectProductPage';
 
 
 import { Product, Variant, Customer, Invoice, Order } from '../types';
@@ -69,6 +71,7 @@ export interface InvoiceItem {
 
 interface InvoiceScreenProps {
   products: Product[];
+  categories?: string[];
   customers: Customer[];
   invoices: Invoice[];
   orders: Order[];
@@ -79,6 +82,7 @@ interface InvoiceScreenProps {
     onConfirm?: () => void
   ) => void;
   isLoading?: boolean;
+  isLoadingOrders?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
   onFetchCustomers: () => Promise<void>;
@@ -93,17 +97,21 @@ interface InvoiceScreenProps {
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
   onFetchProducts?: () => Promise<void>;
+  onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
+  onFetchPaginatedProducts?: (params?: any) => Promise<any>;
   isLoadingCustomers?: boolean;
   isLoadingProducts?: boolean;
 }
 
 export default function InvoiceScreen({
   products,
+  categories = [],
   customers,
   invoices,
   orders,
   showAlert,
   isLoading,
+  isLoadingOrders,
   refreshing,
   onRefresh,
   onFetchCustomers,
@@ -113,11 +121,14 @@ export default function InvoiceScreen({
   onCreateOrder,
   onDeleteInvoice,
   onFetchProducts,
+  onFetchPaginatedCustomers,
+  onFetchPaginatedProducts,
   isLoadingCustomers,
   isLoadingProducts,
 }: InvoiceScreenProps) {
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formSubPage, setFormSubPage] = useState<'form' | 'select-customer' | 'select-product'>('form');
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -125,6 +136,13 @@ export default function InvoiceScreen({
 
   // Active Ledger Tab: Invoices vs Order History
   const [activeLedgerTab, setActiveLedgerTab] = useState<'invoices' | 'orders'>('invoices');
+
+  const handleSelectLedgerTab = (tab: 'invoices' | 'orders') => {
+    setActiveLedgerTab(tab);
+    if (tab === 'orders') {
+      onFetchOrders();
+    }
+  };
 
   // Search filter for past invoices & orders in Ledger
   const [searchFilter, setSearchFilter] = useState('');
@@ -366,6 +384,7 @@ export default function InvoiceScreen({
       // Auto-select newly created customer
       handleSelectCustomer(created);
       setIsAddCustomerModalOpen(false);
+      setFormSubPage('form');
       setNewCustomerName('');
       setNewCustomerPhone('');
       setNewCustomerEmail('');
@@ -545,6 +564,7 @@ export default function InvoiceScreen({
 
       setIsPreviewOpen(false);
       setIsFormOpen(false);
+      setFormSubPage('form');
       reset();
       setInvoiceItems([]);
       setSelectedCustomerId(null);
@@ -609,6 +629,7 @@ export default function InvoiceScreen({
     });
 
     setIsFormOpen(true);
+    setFormSubPage('form');
   };
 
   const totalCollected = invoices.reduce(
@@ -658,10 +679,11 @@ export default function InvoiceScreen({
           invoices={invoices}
           orders={orders}
           isLoading={isLoading}
+          isLoadingOrders={isLoadingOrders}
           refreshing={refreshing}
           onRefresh={onRefresh}
           activeLedgerTab={activeLedgerTab}
-          setActiveLedgerTab={setActiveLedgerTab}
+          setActiveLedgerTab={handleSelectLedgerTab}
           searchFilter={searchFilter}
           setSearchFilter={setSearchFilter}
           filteredInvoices={filteredInvoices}
@@ -673,6 +695,32 @@ export default function InvoiceScreen({
           }}
           onDeleteInvoice={onDeleteInvoice}
           onSelectOrder={(ord) => setSelectedOrderModal(ord)}
+        />
+      ) : formSubPage === 'select-customer' ? (
+        <SelectCustomerPage
+          customers={customers}
+          selectedCustomerId={selectedCustomerId}
+          onSelectCustomer={(cust) => {
+            handleSelectCustomer(cust);
+            setFormSubPage('form');
+          }}
+          onBack={() => setFormSubPage('form')}
+          onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
+          isLoading={isLoadingCustomers}
+          onFetchPaginatedCustomers={onFetchPaginatedCustomers}
+        />
+      ) : formSubPage === 'select-product' ? (
+        <SelectProductPage
+          products={products}
+          categories={categories}
+          selectedProductId={selectedProduct?.id || null}
+          onSelectProduct={(prod) => {
+            handleSelectProduct(prod);
+            setFormSubPage('form');
+          }}
+          onBack={() => setFormSubPage('form')}
+          isLoading={isLoadingProducts}
+          onFetchPaginatedProducts={onFetchPaginatedProducts}
         />
       ) : (
         <InvoiceFormView
@@ -688,6 +736,10 @@ export default function InvoiceScreen({
           filteredCustomers={filteredCustomers}
           selectedCustomerId={selectedCustomerId}
           onSelectCustomer={handleSelectCustomer}
+          onNavigateToSelectCustomer={() => {
+            onFetchCustomers();
+            setFormSubPage('select-customer');
+          }}
           onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
           onFetchCustomers={onFetchCustomers}
           isLoadingCustomers={isLoadingCustomers}
@@ -702,6 +754,10 @@ export default function InvoiceScreen({
           setShowProductDropdown={setShowProductDropdown}
           filteredProducts={filteredProducts}
           onSelectProduct={handleSelectProduct}
+          onNavigateToSelectProduct={() => {
+            onFetchProducts?.();
+            setFormSubPage('select-product');
+          }}
           itemPrice={itemPrice}
           setItemPrice={setItemPrice}
           itemQuantity={itemQuantity}
@@ -714,7 +770,10 @@ export default function InvoiceScreen({
           discountAmount={discountAmount}
           totalAmount={totalAmount}
           taxRate={formValues.taxRate}
-          onCloseForm={() => setIsFormOpen(false)}
+          onCloseForm={() => {
+            setFormSubPage('form');
+            setIsFormOpen(false);
+          }}
           onPreview={() => {
             if (!formValues.clientName.trim()) {
               showAlert('Customer Required', 'Please select a customer.', 'error');

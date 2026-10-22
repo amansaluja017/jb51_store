@@ -33,41 +33,46 @@ export interface ReviewItem {
 }
 
 export async function getReviews(filterApproved?: boolean): Promise<ReviewItem[]> {
-  const query = db
-    .select({
-      id: reviewsTable.id,
-      customerName: reviewsTable.customerName,
-      phoneNumber: reviewsTable.phoneNumber,
-      email: reviewsTable.email,
-      review: reviewsTable.review,
-      rating: reviewsTable.rating,
-      imageUrls: reviewsTable.imageUrls,
-      videoUrl: reviewsTable.videoUrl,
-      location: reviewsTable.location,
-      instagramId: reviewsTable.instagramId,
-      approved: reviewsTable.approved,
-      createdAt: reviewsTable.createdAt,
-    })
-    .from(reviewsTable);
+  try {
+    const query = db
+      .select({
+        id: reviewsTable.id,
+        customerName: reviewsTable.customerName,
+        phoneNumber: reviewsTable.phoneNumber,
+        email: reviewsTable.email,
+        review: reviewsTable.review,
+        rating: reviewsTable.rating,
+        imageUrls: reviewsTable.imageUrls,
+        videoUrl: reviewsTable.videoUrl,
+        location: reviewsTable.location,
+        instagramId: reviewsTable.instagramId,
+        approved: reviewsTable.approved,
+        createdAt: reviewsTable.createdAt,
+      })
+      .from(reviewsTable);
 
-  const rows = filterApproved !== undefined
-    ? await query.where(eq(reviewsTable.approved, filterApproved)).orderBy(desc(reviewsTable.createdAt))
-    : await query.orderBy(desc(reviewsTable.createdAt));
+    const rows = filterApproved !== undefined
+      ? await query.where(eq(reviewsTable.approved, filterApproved)).orderBy(desc(reviewsTable.createdAt))
+      : await query.orderBy(desc(reviewsTable.createdAt));
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.customerName || 'Anonymous',
-    message: r.review || '',
-    stars: r.rating ? Math.round(Number(r.rating)) : 5,
-    image: Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls[0] : null,
-    video: r.videoUrl || null,
-    instagramId: r.instagramId || null,
-    phone: r.phoneNumber || null,
-    location: r.location || null,
-    email: r.email || null,
-    approved: !!r.approved,
-    createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
-  }));
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.customerName || 'Anonymous',
+      message: r.review || '',
+      stars: r.rating ? Math.round(Number(r.rating)) : 5,
+      image: Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls[0] : null,
+      video: r.videoUrl || null,
+      instagramId: r.instagramId || null,
+      phone: r.phoneNumber || null,
+      location: r.location || null,
+      email: r.email || null,
+      approved: !!r.approved,
+      createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+    }));
+  } catch (err) {
+    console.log('[DB getReviews Notice]:', err instanceof Error ? err.message : err);
+    return [];
+  }
 }
 
 export async function createReview(input: CreateReviewInput): Promise<ReviewItem> {

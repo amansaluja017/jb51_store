@@ -1,5 +1,20 @@
 import { z } from 'zod';
 
+/**
+ * Counts words by stripping HTML tags and entities, normalizing whitespaces.
+ */
+export const countWords = (text?: string | null): number => {
+  if (!text) return 0;
+  const clean = text
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&[a-z]+;/gi, ' ')
+    .trim();
+  if (!clean) return 0;
+  return clean.split(/\s+/).filter(Boolean).length;
+};
+
 export const ProductVariantSchema = z.object({
   id: z.string().optional().nullable().transform((v) => v ?? undefined),
   color: z.string().min(1, 'Variant color is required'),
@@ -56,7 +71,18 @@ export const CreateProductInputSchema = ProductSchema.omit({
   id: z.string().optional().nullable(),
   name: z.string().min(1, 'Product name is required'),
   slug: z.string().min(1, 'Product slug is required'),
-  description: z.string().min(1, 'Product description is required'),
+  description: z
+    .string()
+    .min(1, 'Product description is required')
+    .superRefine((val, ctx) => {
+      const words = countWords(val);
+      if (words < 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Product description must be at least 100 words (currently contains ${words} word${words === 1 ? '' : 's'})`,
+        });
+      }
+    }),
   mrp: z.number().positive('MRP must be greater than 0').optional().nullable(),
   sellingPrice: z.number().positive('Selling price must be greater than 0').optional().nullable(),
   price: z.number().optional().nullable(),
@@ -70,7 +96,20 @@ export const UpdateProductDataSchema = z.object({
   id: z.string().optional().nullable(),
   name: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
-  description: z.string().optional().nullable(),
+  description: z
+    .string()
+    .optional()
+    .nullable()
+    .superRefine((val, ctx) => {
+      if (val === undefined || val === null || val.trim() === '') return;
+      const words = countWords(val);
+      if (words < 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Product description must be at least 100 words (currently contains ${words} word${words === 1 ? '' : 's'})`,
+        });
+      }
+    }),
   mrp: z.number().positive().optional().nullable(),
   sellingPrice: z.number().positive().optional().nullable(),
   price: z.number().positive().optional().nullable(),

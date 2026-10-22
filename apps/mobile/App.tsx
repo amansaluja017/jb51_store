@@ -103,12 +103,15 @@ export default function App() {
           isLoadingOrders={data.isLoadingOrders}
           isLoadingCustomers={data.isLoadingCustomers}
           onFetchCustomers={data.handleFetchCustomers}
+          onFetchPaginatedCustomers={data.handleFetchPaginatedCustomers}
           onCreateCustomer={data.handleCreateCustomer}
           onFetchInvoices={data.handleFetchInvoices}
           onFetchOrders={data.handleFetchOrders}
           onCreateOrder={data.handleCreateOrder}
           onDeleteInvoice={data.handleDeleteInvoice}
           onFetchProducts={data.handleFetchProducts}
+          onFetchPaginatedProducts={data.handleFetchPaginatedProducts}
+          onFetchPaginatedStock={data.handleFetchPaginatedStock}
           isLoadingProducts={data.isLoading}
           reviews={data.reviews}
           isLoadingReviews={data.isLoadingReviews}

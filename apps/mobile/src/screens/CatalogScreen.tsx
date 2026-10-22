@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Text, 
   View, 
@@ -7,7 +7,7 @@ import {
   TouchableOpacity, 
   RefreshControl
 } from 'react-native';
-import { Search, Plus, Tag, Package, XCircle } from 'lucide-react-native';
+import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
 import { Product } from '../types';
@@ -28,7 +28,16 @@ interface CatalogScreenProps {
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (slug: string, name: string) => void;
   onViewProductDetails?: (product: Product) => void;
+  onFetchPaginatedProducts?: (params?: {
+    search?: string;
+    category?: string;
+    inStockOnly?: boolean;
+    page?: number;
+    limit?: number;
+  }) => Promise<any>;
 }
+
+const PAGE_SIZE = 8;
 
 export default function CatalogScreen({
   products,
@@ -45,8 +54,18 @@ export default function CatalogScreen({
   onEditProduct,
   onDeleteProduct,
   onViewProductDetails,
+  onFetchPaginatedProducts,
 }: CatalogScreenProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [page, setPage] = useState(1);
+  const [remoteData, setRemoteData] = useState<{
+    items: Product[];
+    total: number;
+    totalPages: number;
+    page: number;
+  } | null>(null);
+  const [isFetchingRemote, setIsFetchingRemote] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Derive unique categories from both API categories and products
   const categoryList = useMemo(() => {
@@ -62,8 +81,44 @@ export default function CatalogScreen({
     return Array.from(list);
   }, [categories, products]);
 
-  // Filter products by search query and selected category
-  const filteredCatalogue = useMemo(() => {
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedCategory]);
+
+  // Hit the backend paginated products route
+  useEffect(() => {
+    if (!onFetchPaginatedProducts) return;
+
+    let isCancelled = false;
+    const fetchRemote = async () => {
+      setIsFetchingRemote(true);
+      try {
+        const res = await onFetchPaginatedProducts({
+          search: searchQuery.trim() || undefined,
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          page,
+          limit: PAGE_SIZE,
+        });
+        if (!isCancelled && res && Array.isArray(res.items)) {
+          setRemoteData(res);
+        }
+      } catch (err) {
+        console.error('[CatalogScreen pagination error]:', err);
+      } finally {
+        if (!isCancelled) setIsFetchingRemote(false);
+      }
+    };
+
+    const timer = setTimeout(fetchRemote, searchQuery ? 250 : 0);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, selectedCategory, page, refreshKey, onFetchPaginatedProducts]);
+
+  // Client-side fallback if remote endpoint is unavailable
+  const localFiltered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return products.filter(product => {
       const matchesSearch =
@@ -79,6 +134,58 @@ export default function CatalogScreen({
       return matchesSearch && matchesCategory;
     });
   }, [products, searchQuery, selectedCategory]);
+
+  const displayedProducts = onFetchPaginatedProducts && remoteData 
+    ? remoteData.items 
+    : localFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const totalCount = onFetchPaginatedProducts && remoteData 
+    ? remoteData.total 
+    : localFiltered.length;
+
+  const totalPages = onFetchPaginatedProducts && remoteData 
+    ? remoteData.totalPages 
+    : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const safePage = Math.min(page, totalPages);
+  const startRecord = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
+
+  // Generate page numbers for the bottom pagination bar: e.g. [1, 2, 3, 4] or [1, '...', 4, 5, '...', 10]
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [];
+    if (safePage <= 3) {
+      pages.push(1, 2, 3, 4, '...', totalPages);
+    } else if (safePage >= totalPages - 2) {
+      pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages);
+    }
+    return pages;
+  }, [totalPages, safePage]);
+
+  const handleToggleStock = (prod: Product) => {
+    onToggleStock(prod);
+    setRefreshKey(k => k + 1);
+  };
+
+  const handleUpdateVisibility = (prod: Product, status: 'listed' | 'unListed') => {
+    onUpdateVisibility(prod, status);
+    setRefreshKey(k => k + 1);
+  };
+
+  const handleDeleteProduct = (slug: string, name: string) => {
+    onDeleteProduct(slug, name);
+    setRefreshKey(k => k + 1);
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1);
+    onRefresh?.();
+  };
 
   return (
     <View style={styles.tabContent}>
@@ -171,75 +278,141 @@ export default function CatalogScreen({
         </View>
       )}
 
-      {/* Products List with Drag-to-Refresh */}
+      {/* Products List with Drag-to-Refresh & Bottom Pagination */}
       <ScrollView 
         contentContainerStyle={styles.scrollPadding}
         alwaysBounceVertical={true}
         refreshControl={
-          onRefresh ? (
-            <RefreshControl
-              refreshing={!!refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FF5E36"
-              colors={['#FF5E36']}
-              progressBackgroundColor="#ffffff"
-            />
-          ) : undefined
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FF5E36"
+            colors={['#FF5E36']}
+            progressBackgroundColor="#ffffff"
+          />
         }
       >
-        {isLoading && products.length === 0 ? (
+        {(isLoading || isFetchingRemote) && (!refreshing || displayedProducts.length === 0) ? (
           <CatalogSkeleton />
-        ) : products.length === 0 ? (
+        ) : totalCount === 0 ? (
           <View style={styles.emptyContainer}>
-            <Package size={44} color="#d4d4d8" />
-            <Text style={styles.emptyTitle}>Catalogue Empty</Text>
-            <Text style={styles.emptyLabel}>
-              No products found on the server. Tap "Add Product" above or pull down to refresh.
-            </Text>
-          </View>
-        ) : filteredCatalogue.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Search size={40} color="#d4d4d8" />
-            <Text style={styles.emptyTitle}>No Matching Products</Text>
-            <Text style={styles.emptyLabel}>
-              No products match your active search or category filter.
-            </Text>
-            {(searchQuery.length > 0 || selectedCategory !== 'All') && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('All');
-                }}
-                style={styles.clearFilterBtn}
-              >
-                <Text style={styles.clearFilterText}>Reset Filters</Text>
-              </TouchableOpacity>
+            {searchQuery || selectedCategory !== 'All' ? (
+              <>
+                <Search size={40} color="#d4d4d8" />
+                <Text style={styles.emptyTitle}>No Matching Products</Text>
+                <Text style={styles.emptyLabel}>
+                  No products match your active search or category filter.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('All');
+                  }}
+                  style={styles.clearFilterBtn}
+                >
+                  <Text style={styles.clearFilterText}>Reset Filters</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Package size={44} color="#d4d4d8" />
+                <Text style={styles.emptyTitle}>Catalogue Empty</Text>
+                <Text style={styles.emptyLabel}>
+                  No products found on the server. Tap "Add Product" above or pull down to refresh.
+                </Text>
+              </>
             )}
           </View>
         ) : (
           <>
-            <View style={styles.countSummaryRow}>
-              <Text style={styles.countSummaryText}>
-                Showing {filteredCatalogue.length} {filteredCatalogue.length === 1 ? 'outfit' : 'outfits'}
-                {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
-              </Text>
-            </View>
+            {totalPages > 1 ? (
+              <View style={styles.countSummaryRow}>
+                <Text style={styles.countSummaryText}>
+                  Showing {startRecord}–{endRecord} of {totalCount} {totalCount === 1 ? 'outfit' : 'outfits'}
+                  {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
+                </Text>
+              </View>
+            ) : selectedCategory !== 'All' ? (
+              <View style={styles.countSummaryRow}>
+                <Text style={styles.countSummaryText}>
+                  {totalCount} {totalCount === 1 ? 'outfit' : 'outfits'} in {selectedCategory}
+                </Text>
+              </View>
+            ) : null}
 
-            {filteredCatalogue.map(product => (
+            {displayedProducts.map(product => (
               <CatalogItem 
                 key={product.id || product.slug}
                 product={product}
-                onToggleStock={onToggleStock}
-                onUpdateVisibility={onUpdateVisibility}
+                onToggleStock={handleToggleStock}
+                onUpdateVisibility={handleUpdateVisibility}
                 onEdit={onEditProduct}
-                onDelete={onDeleteProduct}
+                onDelete={handleDeleteProduct}
                 onViewDetails={onViewProductDetails}
               />
             ))}
+
+            {/* Pagination Numbers at Bottom of Page */}
+            {totalPages > 1 && (
+              <View style={styles.paginationSection}>
+                <View style={styles.paginationNumbersRow}>
+                  {/* Previous Page Button */}
+                  <TouchableOpacity
+                    style={[styles.pageButton, safePage <= 1 && styles.pageButtonDisabled]}
+                    onPress={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    accessibilityLabel="Previous page"
+                    accessibilityRole="button"
+                  >
+                    <ChevronLeft size={16} color={safePage <= 1 ? '#d4d4d8' : '#18181b'} />
+                  </TouchableOpacity>
+
+                  {/* Numbered Page Buttons */}
+                  {pageNumbers.map((pNum, idx) => {
+                    if (pNum === '...') {
+                      return (
+                        <View key={`ellipsis-${idx}`} style={styles.pageEllipsis}>
+                          <Text style={styles.pageEllipsisText}>...</Text>
+                        </View>
+                      );
+                    }
+
+                    const isCurrent = pNum === safePage;
+                    return (
+                      <TouchableOpacity
+                        key={`page-${pNum}`}
+                        style={[styles.pageNumberBtn, isCurrent && styles.pageNumberBtnActive]}
+                        onPress={() => setPage(pNum as number)}
+                        accessibilityLabel={`Page ${pNum}`}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.pageNumberBtnText, isCurrent && styles.pageNumberBtnTextActive]}>
+                          {pNum}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {/* Next Page Button */}
+                  <TouchableOpacity
+                    style={[styles.pageButton, safePage >= totalPages && styles.pageButtonDisabled]}
+                    onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    accessibilityLabel="Next page"
+                    accessibilityRole="button"
+                  >
+                    <ChevronRight size={16} color={safePage >= totalPages ? '#d4d4d8' : '#18181b'} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.paginationInfoText}>
+                  Page {safePage} of {totalPages} ({totalCount} total {totalCount === 1 ? 'item' : 'items'})
+                </Text>
+              </View>
+            )}
           </>
         )}
       </ScrollView>
     </View>
   );
 }
-

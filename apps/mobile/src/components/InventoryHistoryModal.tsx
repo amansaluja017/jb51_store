@@ -25,6 +25,7 @@ import {
   Lock,
 } from 'lucide-react-native';
 import { InventoryTransaction } from '../types';
+import { TransactionHistorySkeleton } from './SkeletonLoader';
 import styles from './InventoryHistoryModal.styles';
 
 interface InventoryHistoryModalProps {
@@ -225,10 +226,7 @@ export default function InventoryHistoryModal({
             }
           >
             {isLoading && transactions.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <ActivityIndicator color="#FF5E36" size="large" />
-                <Text style={styles.emptyText}>Loading transaction history...</Text>
-              </View>
+              <TransactionHistorySkeleton />
             ) : filteredTransactions.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <Package size={36} color="#d4d4d8" />

@@ -1,6 +1,7 @@
 'use client';
 
 import { Star } from 'lucide-react';
+import { api } from '@/lib/trpc/client/react';
 
 const testimonialsRow1 = [
   {
@@ -65,6 +66,24 @@ const testimonialsRow2 = [
 ];
 
 export function Testimonials() {
+  const { data: dbReviews = [] } = api.reviews.getAll.useQuery();
+
+  // If reviews exist in database, map and prepend them to the testimonial rows
+  const liveReviews = (dbReviews || []).map((r: any) => ({
+    quote: r.message,
+    author: r.name || 'Atelier Patron',
+    location: r.location || 'India',
+    role: 'Verified Patron',
+    stars: Number(r.stars) || 5,
+  }));
+
+  const activeRow1 = liveReviews.length > 0
+    ? [...liveReviews.filter((_, i) => i % 2 === 0), ...testimonialsRow1]
+    : testimonialsRow1;
+
+  const activeRow2 = liveReviews.length > 0
+    ? [...liveReviews.filter((_, i) => i % 2 === 1), ...testimonialsRow2]
+    : testimonialsRow2;
   return (
     <section id="testimonials" className="py-24 bg-zinc-50 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 mb-12">
@@ -80,7 +99,7 @@ export function Testimonials() {
         {/* Row 1: Sliding Left */}
         <div className="flex whitespace-nowrap w-full overflow-hidden">
           <div className="flex gap-6 animate-marquee-left shrink-0">
-            {[...testimonialsRow1, ...testimonialsRow1].map((item, idx) => (
+            {[...activeRow1, ...activeRow1].map((item, idx) => (
               <div
                 key={idx}
                 className="w-[300px] md:w-[380px] shrink-0 bg-white border border-zinc-100 p-6 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group"
@@ -113,7 +132,7 @@ export function Testimonials() {
         {/* Row 2: Sliding Right */}
         <div className="flex whitespace-nowrap w-full overflow-hidden">
           <div className="flex gap-6 animate-marquee-right shrink-0">
-            {[...testimonialsRow2, ...testimonialsRow2].map((item, idx) => (
+            {[...activeRow2, ...activeRow2].map((item, idx) => (
               <div
                 key={idx}
                 className="w-[300px] md:w-[380px] shrink-0 bg-white border border-zinc-100 p-6 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group"

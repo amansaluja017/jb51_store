@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Heart, User, Menu, X, Search, MessageCircle, Instagram } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import gsap from 'gsap';
 import { cn, WHATSAPP_NUMBER, formatPrice } from '@/lib/utils';
 import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
@@ -16,23 +15,20 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { wishlist } = useWishlist();
-  
+
   const wishlistCount = wishlist.length;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
-  const { data: products = [] } = api.products.getAll.useQuery();
+  const trimmedSearch = searchQuery.trim();
+  const { data: searchResult } = api.products.getPaginated.useQuery(
+    { search: trimmedSearch, limit: 5 },
+    { enabled: trimmedSearch.length > 0 }
+  );
 
-  const suggestedProducts = searchQuery.trim()
-    ? products.filter(p => 
-        p.isListed !== false &&
-        (p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         (p.fabric && p.fabric.toLowerCase().includes(searchQuery.toLowerCase())) ||
-         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())))
-      ).slice(0, 5)
-    : [];
+  const suggestedProducts = searchResult?.items || [];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,19 +57,9 @@ export function Navbar() {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      gsap.fromTo(
-        '.mobile-nav-item',
-        { y: 20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: 'power2.out' }
-      );
-    }
-  }, [mobileMenuOpen]);
 
   // Close mobile menu and search on route change
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -110,7 +96,7 @@ export function Navbar() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 flex flex-col font-sans">
-      
+
       {/* 1. Top Announcement Bar (Promo banner) */}
       <div className="w-full bg-zinc-950 text-zinc-300 text-[8px] md:text-[9px] py-2 px-6 flex items-center justify-center tracking-[0.2em] font-semibold uppercase relative z-50 border-b border-white/5">
         <div className="relative overflow-hidden h-4 flex items-center justify-center w-full">
@@ -202,26 +188,26 @@ export function Navbar() {
           {/* Center Column: Perfectly Centered Search Bar */}
           <div className="hidden md:block flex-1 max-w-sm lg:max-w-md relative group mx-auto">
             <form onSubmit={handleSearchSubmit}>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                placeholder="Search products..." 
+                placeholder="Search products..."
                 className={cn(
                   "pl-10 pr-4 py-2 rounded-full text-xs outline-none border transition-all duration-300 w-full text-center placeholder:text-center focus:placeholder:text-zinc-400 focus:text-left focus:pl-10",
-                  isTransparent 
-                    ? "bg-white/10 border-white/20 text-white placeholder-white/50 focus:bg-white focus:text-zinc-800 focus:placeholder-zinc-400 focus:border-white" 
+                  isTransparent
+                    ? "bg-white/10 border-white/20 text-white placeholder-white/50 focus:bg-white focus:text-zinc-800 focus:placeholder-zinc-400 focus:border-white"
                     : "bg-zinc-50 border-zinc-200 text-zinc-800 placeholder-zinc-400 focus:bg-white focus:border-zinc-300 focus:ring-1 focus:ring-[#FF5E36]"
                 )}
               />
-              <Search 
-                size={14} 
+              <Search
+                size={14}
                 className={cn(
                   "absolute left-4 top-1/2 -translate-y-1/2 transition-colors",
                   isTransparent ? "text-white/50" : "text-zinc-400"
-                )} 
+                )}
               />
             </form>
 
@@ -234,16 +220,16 @@ export function Navbar() {
                 {suggestedProducts.length > 0 ? (
                   <div className="flex flex-col gap-2">
                     {suggestedProducts.map(p => (
-                      <Link 
+                      <Link
                         key={p.id}
                         href={`/product/${p.slug}`}
                         className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-zinc-50 transition-colors"
                       >
                         <div className="relative w-10 h-12 rounded-lg overflow-hidden border border-zinc-100 flex-shrink-0">
-                          <Image 
-                            src={p.images[0]} 
-                            alt={p.name} 
-                            fill 
+                          <Image
+                            src={p.images[0]}
+                            alt={p.name}
+                            fill
                             className="object-cover"
                           />
                         </div>
@@ -265,7 +251,7 @@ export function Navbar() {
                     ))}
                     <div className="border-t border-zinc-100 pt-2.5 mt-1.5 flex justify-between items-center text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
                       <span>{suggestedProducts.length} matching items</span>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => router.push(`/search/filter=${encodeURIComponent(searchQuery.trim())}`)}
                         className="text-[#FF5E36] hover:underline cursor-pointer"
@@ -300,7 +286,7 @@ export function Navbar() {
             {/* Actions Icons Group */}
             <div className="flex items-center space-x-2 md:space-x-4">
               {/* Search (Mobile only) */}
-              <button 
+              <button
                 onClick={() => setShowMobileSearch(!showMobileSearch)}
                 className={cn("md:hidden p-2 transition-colors", isTransparent ? "text-white" : "text-zinc-800")}
                 aria-label="Search site"
@@ -345,15 +331,15 @@ export function Navbar() {
                 </Link>
                 <span className="text-[7px] tracking-[0.4em] uppercase text-[#FF5E36] -mt-0.5 font-bold">EST. 1951</span>
               </div>
-              <button 
-                onClick={() => setMobileMenuOpen(false)} 
+              <button
+                onClick={() => setMobileMenuOpen(false)}
                 className="p-2 rounded-full hover:bg-zinc-100 text-zinc-800 transition-colors"
                 aria-label="Close mobile menu"
               >
                 <X size={20} strokeWidth={1.5} />
               </button>
             </div>
-            
+
             <nav className="p-6 flex flex-col space-y-4">
               {navLinks.map((link) => (
                 <Link
@@ -380,7 +366,7 @@ export function Navbar() {
               </div>
               Wishlist
             </Link>
-            <a 
+            <a
               href={`https://wa.me/${WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -397,25 +383,25 @@ export function Navbar() {
         <div className="md:hidden bg-white border-b border-zinc-200 py-3 px-6 relative z-40 animate-fade-in-down shadow-sm">
           <form onSubmit={handleSearchSubmit} className="relative flex items-center gap-3">
             <Search size={16} className="text-zinc-400 absolute left-3" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products..." 
+              placeholder="Search products..."
               autoFocus
               className="w-full bg-zinc-50 border border-zinc-200 rounded-full pl-9 pr-10 py-2 text-xs outline-none focus:border-zinc-300 focus:bg-white text-zinc-800"
             />
             {searchQuery && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-16 text-zinc-400 p-1 hover:text-zinc-655"
               >
                 <X size={14} />
               </button>
             )}
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => {
                 setShowMobileSearch(false);
                 setSearchQuery('');
@@ -435,17 +421,17 @@ export function Navbar() {
               {suggestedProducts.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {suggestedProducts.map(p => (
-                    <Link 
+                    <Link
                       key={p.id}
                       href={`/product/${p.slug}`}
                       onClick={() => setShowMobileSearch(false)}
                       className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-white transition-colors"
                     >
                       <div className="relative w-8 h-10 rounded-lg overflow-hidden border border-zinc-200 flex-shrink-0 bg-white">
-                        <Image 
-                          src={p.images[0]} 
-                          alt={p.name} 
-                          fill 
+                        <Image
+                          src={p.images[0]}
+                          alt={p.name}
+                          fill
                           className="object-cover"
                         />
                       </div>
@@ -467,7 +453,7 @@ export function Navbar() {
                   ))}
                   <div className="border-t border-zinc-200/50 pt-2 mt-1 flex justify-between items-center text-[9px] text-zinc-500 font-bold uppercase tracking-wider">
                     <span>{suggestedProducts.length} matching items</span>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => {
                         setShowMobileSearch(false);

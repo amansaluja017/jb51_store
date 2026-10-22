@@ -2,9 +2,7 @@
 
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
-import { useEffect } from 'react';
 import Link from 'next/link';
-import gsap from 'gsap';
 import { Search } from 'lucide-react';
 
 interface Props {
@@ -22,39 +20,22 @@ const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
 );
 
 export function SearchClient({ query }: Props) {
-  const { data: products = [], isLoading: loading } = api.products.getAll.useQuery();
-  
   // Extract search term from potential "filter=..." prefix
   const searchTerm = query.startsWith('filter=') ? query.substring(7) : query;
-  const decodedSearchTerm = decodeURIComponent(searchTerm);
+  const decodedSearchTerm = decodeURIComponent(searchTerm).trim();
 
-  const matchedProducts = products.filter(p => {
-    if (p.isListed === false) return false;
-    const term = decodedSearchTerm.toLowerCase().trim();
-    if (!term) return true;
-    
-    return (
-      p.name.toLowerCase().includes(term) ||
-      (p.fabric && p.fabric.toLowerCase().includes(term)) ||
-      (p.description && p.description.toLowerCase().includes(term)) ||
-      (p.category && p.category.toLowerCase().includes(term))
-    );
+  const { data: searchData, isLoading: loading } = api.products.getPaginated.useQuery({
+    search: decodedSearchTerm || undefined,
+    limit: 48,
   });
 
-  useEffect(() => {
-    if (!loading && matchedProducts.length > 0) {
-      gsap.fromTo('.search-product-card', 
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, stagger: 0.05, ease: 'power2.out' }
-      );
-    }
-  }, [loading, matchedProducts.length]);
+  const matchedProducts = searchData?.items || [];
 
   return (
     <div className="w-full bg-[#FAF9F5] text-zinc-900 min-h-screen pt-32 pb-24 font-sans relative overflow-hidden">
       {/* Decorative Grid Backdrop */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000003_1px,transparent_1px),linear-gradient(to_bottom,#00000003_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
-      
+
       {/* Glow effects */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-[#FF5E36]/5 blur-[100px] pointer-events-none" />
       <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-black/5 blur-[80px] pointer-events-none" />
@@ -97,7 +78,7 @@ export function SearchClient({ query }: Props) {
             <p className="text-zinc-500 text-sm max-w-sm mb-8 font-light leading-relaxed">
               We couldn&apos;t find any bespoke items matching &ldquo;{decodedSearchTerm}&rdquo;. Try exploring our collections or resetting your search.
             </p>
-            <Link 
+            <Link
               href="/shop"
               className="bg-[#FF5E36] hover:bg-[#E04D27] text-white py-4 px-8 text-xs tracking-[0.2em] uppercase transition-all duration-300 font-bold rounded-full shadow-md"
             >

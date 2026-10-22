@@ -22,10 +22,16 @@ const nextConfig = {
         port: '',
         pathname: '/**', // Allow Unsplash images
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        port: '',
+        pathname: '/**', // Allow Cloudinary images
+      },
     ],
   },
   output: 'standalone',
-  transpilePackages: ['motion', '@repo/api', '@repo/products'],
+  transpilePackages: ['@repo/api', '@repo/products'],
   webpack: (config, { dev, isServer }) => {
     config.resolve.extensionAlias = {
       ...config.resolve.extensionAlias,

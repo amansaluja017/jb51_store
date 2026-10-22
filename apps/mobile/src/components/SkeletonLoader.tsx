@@ -346,6 +346,111 @@ export function ReviewsSkeleton() {
   );
 }
 
+// -----------------------------------------------------------
+// 7. Customer List Skeleton
+// -----------------------------------------------------------
+export function CustomerListSkeleton() {
+  return (
+    <View style={{ gap: 10, paddingVertical: 4 }}>
+      {[1, 2, 3, 4, 5].map(idx => (
+        <View key={idx} style={[styles.cardContainer, { padding: 12, borderRadius: 14 }]}>
+          <View style={[styles.row, { gap: 12 }]}>
+            <SkeletonCircle size={42} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <SkeletonLine width="65%" height={15} />
+              <SkeletonLine width="45%" height={11} />
+              <SkeletonLine width="55%" height={11} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// -----------------------------------------------------------
+// 8. Product Selector Skeleton
+// -----------------------------------------------------------
+export function ProductSelectorSkeleton() {
+  return (
+    <View style={{ gap: 12, paddingVertical: 4 }}>
+      {[1, 2, 3, 4].map(idx => (
+        <View key={idx} style={[styles.cardContainer, { padding: 14, borderRadius: 14 }]}>
+          <View style={[styles.row, { gap: 12 }]}>
+            <SkeletonBox width={64} height={76} borderRadius={10} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <SkeletonLine width="75%" height={15} />
+              <SkeletonLine width="40%" height={12} />
+              <SkeletonBox width={70} height={20} borderRadius={6} style={{ marginTop: 4 }} />
+            </View>
+          </View>
+          <View style={[styles.row, { gap: 6, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' }]}>
+            <SkeletonBox width={60} height={24} borderRadius={8} />
+            <SkeletonBox width={60} height={24} borderRadius={8} />
+            <SkeletonBox width={60} height={24} borderRadius={8} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// -----------------------------------------------------------
+// 9. Order History Skeleton
+// -----------------------------------------------------------
+export function OrderHistorySkeleton() {
+  return (
+    <View style={{ gap: 12, paddingVertical: 4 }}>
+      {[1, 2, 3].map(idx => (
+        <View key={idx} style={[styles.cardContainer, { padding: 14, borderRadius: 14 }]}>
+          <View style={styles.rowBetween}>
+            <View style={{ gap: 5, flex: 1 }}>
+              <SkeletonLine width="60%" height={15} />
+              <SkeletonLine width="35%" height={11} />
+            </View>
+            <SkeletonLine width={65} height={12} />
+          </View>
+          <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', gap: 6 }}>
+            <SkeletonLine width="80%" height={12} />
+            <View style={[styles.rowBetween, { marginTop: 4 }]}>
+              <SkeletonLine width={75} height={16} />
+              <SkeletonBox width={60} height={22} borderRadius={6} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// -----------------------------------------------------------
+// 10. Transaction History Skeleton
+// -----------------------------------------------------------
+export function TransactionHistorySkeleton() {
+  return (
+    <View style={{ gap: 10, paddingVertical: 4 }}>
+      {[1, 2, 3, 4].map(idx => (
+        <View key={idx} style={[styles.cardContainer, { padding: 12, borderRadius: 12 }]}>
+          <View style={styles.rowBetween}>
+            <View style={[styles.row, { gap: 8 }]}>
+              <SkeletonBox width={45} height={20} borderRadius={6} />
+              <SkeletonLine width={110} height={14} />
+            </View>
+            <SkeletonLine width={50} height={11} />
+          </View>
+          <View style={{ marginTop: 8, gap: 4 }}>
+            <SkeletonLine width="75%" height={13} />
+            <View style={[styles.rowBetween, { marginTop: 4 }]}>
+              <SkeletonLine width="45%" height={11} />
+              <SkeletonLine width={60} height={13} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   skeletonBase: {
     overflow: 'hidden',

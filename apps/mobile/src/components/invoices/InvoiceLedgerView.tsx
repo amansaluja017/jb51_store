@@ -22,13 +22,14 @@ import {
   PackageCheck,
 } from 'lucide-react-native';
 import { Invoice, Order } from '../../types';
-import { InvoiceSkeleton } from '../SkeletonLoader';
+import { InvoiceSkeleton, OrderHistorySkeleton } from '../SkeletonLoader';
 import styles from '../../screens/InvoiceScreen.styles';
 
 export interface InvoiceLedgerViewProps {
   invoices: Invoice[];
   orders: Order[];
   isLoading?: boolean;
+  isLoadingOrders?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
   activeLedgerTab: 'invoices' | 'orders';
@@ -47,6 +48,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   invoices,
   orders,
   isLoading,
+  isLoadingOrders,
   refreshing,
   onRefresh,
   activeLedgerTab,
@@ -220,7 +222,9 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
             {activeLedgerTab === 'invoices' ? (
               <>
                 <Text style={styles.sectionHeader}>Stored Invoices</Text>
-                {filteredInvoices.length === 0 ? (
+                {isLoading && (!refreshing || filteredInvoices.length === 0) ? (
+                  <InvoiceSkeleton />
+                ) : filteredInvoices.length === 0 ? (
                   <View style={styles.emptyState}>
                     <FileText size={32} color="#a1a1aa" />
                     <Text style={styles.emptyStateText}>
@@ -318,7 +322,9 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
               // ================= ORDER HISTORY TAB =================
               <>
                 <Text style={styles.sectionHeader}>Order History</Text>
-                {filteredOrders.length === 0 ? (
+                {isLoadingOrders && (!refreshing || filteredOrders.length === 0) ? (
+                  <OrderHistorySkeleton />
+                ) : filteredOrders.length === 0 ? (
                   <View style={styles.emptyState}>
                     <ShoppingBag size={32} color="#a1a1aa" />
                     <Text style={styles.emptyStateText}>

@@ -4,8 +4,6 @@ import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
 import Link from 'next/link';
-import { useEffect } from 'react';
-import gsap from 'gsap';
 import { Button } from '@/components/ui/button';
 
 export function WishlistClient() {
@@ -14,15 +12,6 @@ export function WishlistClient() {
 
   // Filter products that are in the user's wishlist
   const wishlistedProducts = products.filter(p => wishlist.includes(p.id));
-
-  useEffect(() => {
-    if (!loading && wishlistedProducts.length > 0) {
-      gsap.fromTo('.wishlist-card', 
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power2.out' }
-      );
-    }
-  }, [loading, wishlistedProducts.length]);
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-32 pb-24 md:pt-36 w-full min-h-[75vh]">

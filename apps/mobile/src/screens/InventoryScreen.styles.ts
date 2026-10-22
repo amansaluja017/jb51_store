@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
@@ -161,7 +161,7 @@ export const styles = StyleSheet.create({
   scrollPadding: {
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 36,
+    paddingBottom: Platform.OS === 'ios' ? 105 : 90,
     gap: 14,
   },
 
@@ -920,6 +920,92 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  paginationSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderColor: '#e4e4e7',
+    gap: 10,
+  },
+  paginationNumbersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  pageButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  pageButtonDisabled: {
+    opacity: 0.35,
+    backgroundColor: '#f4f4f5',
+    borderColor: '#e4e4e7',
+    elevation: 0,
+  },
+  pageNumberBtn: {
+    minWidth: 36,
+    height: 36,
+    paddingHorizontal: 8,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  pageNumberBtnActive: {
+    backgroundColor: '#18181b',
+    borderColor: '#18181b',
+    shadowColor: '#18181b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pageNumberBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#09090b',
+  },
+  pageNumberBtnTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  pageEllipsis: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageEllipsisText: {
+    fontSize: 13,
+    color: '#a1a1aa',
+    fontWeight: '600',
+  },
+  paginationInfoText: {
+    fontSize: 11.5,
+    color: '#71717a',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

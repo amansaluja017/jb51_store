@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { Instagram } from 'lucide-react';
-import { MagneticButton } from '@/components/ui/magnetic-button';
 
 export function InstagramFeed() {
   const images = [
@@ -63,33 +62,15 @@ export function InstagramFeed() {
         </div>
 
         <div className="text-center">
-          {/* Desktop: Magnetic Button */}
-          <div className="hidden md:block">
-            <MagneticButton>
-              <a
-                href="https://instagram.com/jb51_clothing_house"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-8 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full"
-              >
-                <Instagram size={14} />
-                <span>Follow @jb51_clothing_house</span>
-              </a>
-            </MagneticButton>
-          </div>
-
-          {/* Mobile: Simple Button */}
-          <div className="block md:hidden">
-            <a
-              href="https://instagram.com/jb51_clothing_house"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-full max-w-[280px] gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-6 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full mx-auto"
-            >
-              <Instagram size={14} />
-              <span>Follow @jb51_clothing_house</span>
-            </a>
-          </div>
+          <a
+            href="https://instagram.com/jb51_clothing_house"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-8 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full hover:scale-105 active:scale-95 shadow-sm hover:shadow"
+          >
+            <Instagram size={14} />
+            <span>Follow @jb51_clothing_house</span>
+          </a>
         </div>
       </div>
     </section>

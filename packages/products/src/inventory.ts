@@ -1,6 +1,7 @@
 import { db, product as productTable, productVariant as productVariantTable, inventry as inventryTable, inventryTransaction as inventryTransactionTable, customerDetails as customerDetailsTable, user as userTable, productStatus as productStatusTable } from '@repo/db';
 import { eq, desc, and } from 'drizzle-orm';
 import { generateSlug } from './customers.js';
+import { getProducts, Product } from './data.js';
 
 export interface RecordTransactionInput {
   productId: string;
@@ -239,7 +240,7 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
   });
 }
 
-export async function getInventoryTransactions(options?: { productId?: string; limit?: number }) {
+export async function getInventoryTransactions(options?: { productId?: string | null; limit?: number | null }) {
   const limit = Math.min(100, Math.max(1, options?.limit || 50));
 
   let query = db
@@ -315,3 +316,138 @@ export async function getInventoryTransactions(options?: { productId?: string; l
     };
   });
 }
+
+export interface GetPaginatedInventoryInput {
+  search?: string | null;
+  category?: string | null;
+  stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved' | null;
+  sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc' | null;
+  page?: number | null;
+  limit?: number | null;
+}
+
+export async function getPaginatedInventory(input?: GetPaginatedInventoryInput) {
+  const page = Math.max(1, input?.page || 1);
+  const limit = Math.max(1, input?.limit || 8);
+  const search = (input?.search || '').trim().toLowerCase();
+  const category = (input?.category || 'All').trim();
+  const stockFilter = input?.stockFilter || 'all';
+  const sortBy = input?.sortBy || 'default';
+
+  const allProducts = await getProducts();
+
+  const LOW_STOCK_THRESHOLD = 5;
+
+  let inStockProducts = 0;
+  let outOfStockProducts = 0;
+  let lowStockProducts = 0;
+  let hasReservedProducts = 0;
+  let totalStockUnits = 0;
+  let totalReservedUnits = 0;
+
+  allProducts.forEach((p) => {
+    const variants = p.variants || [];
+    const prodStock = variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+    const prodReserved = variants.reduce((acc, v) => acc + (Number(v.reservedStock) || 0), 0);
+    const isInStock = p.inStock !== false && prodStock > 0;
+
+    if (isInStock) {
+      inStockProducts++;
+    } else {
+      outOfStockProducts++;
+    }
+
+    if (prodReserved > 0) {
+      hasReservedProducts++;
+    }
+
+    if (isInStock && prodStock > 0 && prodStock <= LOW_STOCK_THRESHOLD) {
+      lowStockProducts++;
+    }
+
+    totalStockUnits += prodStock;
+    totalReservedUnits += prodReserved;
+  });
+
+  const metrics = {
+    totalProducts: allProducts.length,
+    inStockProducts,
+    outOfStockProducts,
+    lowStockProducts,
+    hasReservedProducts,
+    totalStockUnits,
+    totalReservedUnits,
+  };
+
+  let list = allProducts.filter((product) => {
+    const matchesSearch =
+      !search ||
+      (product.name && product.name.toLowerCase().includes(search)) ||
+      (product.category && product.category.toLowerCase().includes(search)) ||
+      (product.slug && product.slug.toLowerCase().includes(search)) ||
+      (product.variants || []).some(
+        (v) => v.color && v.color.toLowerCase().includes(search)
+      );
+
+    const matchesCategory =
+      category === 'All' ||
+      (product.category && product.category.toLowerCase() === category.toLowerCase());
+
+    if (!matchesSearch || !matchesCategory) return false;
+
+    const variants = product.variants || [];
+    const prodStock = variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+    const prodReserved = variants.reduce((acc, v) => acc + (Number(v.reservedStock) || 0), 0);
+    const isInStock = product.inStock !== false && prodStock > 0;
+
+    if (stockFilter === 'inStock') {
+      return isInStock;
+    }
+    if (stockFilter === 'outOfStock') {
+      return !isInStock;
+    }
+    if (stockFilter === 'lowStock') {
+      return isInStock && prodStock > 0 && prodStock <= LOW_STOCK_THRESHOLD;
+    }
+    if (stockFilter === 'reserved') {
+      return prodReserved > 0;
+    }
+    return true;
+  });
+
+  const getProductStock = (p: Product) => {
+    return (p.variants || []).reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+  };
+
+  list.sort((a, b) => {
+    if (sortBy === 'stock-asc') {
+      return getProductStock(a) - getProductStock(b);
+    }
+    if (sortBy === 'stock-desc') {
+      return getProductStock(b) - getProductStock(a);
+    }
+    if (sortBy === 'name-asc') {
+      return (a.name || '').localeCompare(b.name || '', 'en', { sensitivity: 'base' });
+    }
+    if (sortBy === 'name-desc') {
+      return (b.name || '').localeCompare(a.name || '', 'en', { sensitivity: 'base' });
+    }
+    return 0;
+  });
+
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = list.slice(offset, offset + limit);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+    metrics,
+  };
+}
+

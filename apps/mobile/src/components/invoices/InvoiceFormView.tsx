@@ -12,6 +12,7 @@ import {
 import {
   X,
   ChevronDown,
+  ChevronRight,
   UserPlus,
   Search,
   Check,
@@ -41,6 +42,7 @@ export interface InvoiceFormViewProps {
   filteredCustomers: Customer[];
   selectedCustomerId: string | null;
   onSelectCustomer: (cust: Customer) => void;
+  onNavigateToSelectCustomer?: () => void;
   onOpenAddCustomerModal: () => void;
   onFetchCustomers?: () => Promise<void>;
   isLoadingCustomers?: boolean;
@@ -53,6 +55,7 @@ export interface InvoiceFormViewProps {
   setShowProductDropdown: (val: boolean | ((prev: boolean) => boolean)) => void;
   filteredProducts: Product[];
   onSelectProduct: (prod: Product) => void;
+  onNavigateToSelectProduct?: () => void;
   onFetchProducts?: () => Promise<void>;
   isLoadingProducts?: boolean;
   itemPrice: string;
@@ -84,6 +87,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   filteredCustomers,
   selectedCustomerId,
   onSelectCustomer,
+  onNavigateToSelectCustomer,
   onOpenAddCustomerModal,
   onFetchCustomers,
   isLoadingCustomers,
@@ -96,6 +100,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   setShowProductDropdown,
   filteredProducts,
   onSelectProduct,
+  onNavigateToSelectProduct,
   onFetchProducts,
   isLoadingProducts,
   itemPrice,
@@ -228,12 +233,18 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
 
           <View style={styles.card}>
             {/* Customer Dropdown Trigger */}
-            <View style={[styles.inputGroup, !showCustomerDropdown && !formValues.clientName && { marginBottom: 0 }]}>
+            <View style={[styles.inputGroup, (!showCustomerDropdown || onNavigateToSelectCustomer) && !formValues.clientName && { marginBottom: 0 }]}>
               <Text style={styles.inputLabel}>Choose Existing Customer</Text>
               <TouchableOpacity
-                onPress={handleToggleCustomerDropdown}
+                onPress={() => {
+                  if (onNavigateToSelectCustomer) {
+                    onNavigateToSelectCustomer();
+                  } else {
+                    handleToggleCustomerDropdown();
+                  }
+                }}
                 style={styles.dropdownTrigger}
-                accessibilityLabel="Select customer dropdown"
+                accessibilityLabel="Select customer"
                 accessibilityRole="button"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -247,7 +258,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                   >
                     {formValues.clientName
                       ? `${formValues.clientName} ${formValues.clientPhone ? `(${formValues.clientPhone})` : ''}`
-                      : 'Select from database...'}
+                      : 'Browse & select customer...'}
                   </Text>
                 </View>
                 {(isFetchingCustomers || isLoadingCustomers) && (
@@ -270,12 +281,16 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                     <X size={14} color="#a1a1aa" />
                   </TouchableOpacity>
                 ) : null}
-                <ChevronDown size={14} color="#71717a" />
+                {onNavigateToSelectCustomer ? (
+                  <ChevronRight size={15} color="#71717a" />
+                ) : (
+                  <ChevronDown size={14} color="#71717a" />
+                )}
               </TouchableOpacity>
             </View>
 
             {/* Expanded Customer Picker */}
-            {showCustomerDropdown && (
+            {showCustomerDropdown && !onNavigateToSelectCustomer && (
               <View style={styles.dropdownContainer}>
                 {/* Search input */}
                 <View style={styles.dropdownSearchBox}>
@@ -508,7 +523,13 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Choose Product *</Text>
               <TouchableOpacity
-                onPress={handleToggleProductDropdown}
+                onPress={() => {
+                  if (onNavigateToSelectProduct) {
+                    onNavigateToSelectProduct();
+                  } else {
+                    handleToggleProductDropdown();
+                  }
+                }}
                 style={styles.dropdownTrigger}
                 accessibilityLabel="Select product from catalog"
                 accessibilityRole="button"
@@ -528,18 +549,22 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                   >
                     {selectedProduct
                       ? `${selectedProduct.name} - ₹${(selectedProduct.sellingPrice || selectedProduct.price).toLocaleString('en-IN')}`
-                      : 'Select a product from catalog...'}
+                      : 'Browse & select product from catalog...'}
                   </Text>
                 </View>
                 {(isFetchingProducts || isLoadingProducts) && (
                   <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 6 }} />
                 )}
-                <ChevronDown size={14} color="#71717a" />
+                {onNavigateToSelectProduct ? (
+                  <ChevronRight size={15} color="#71717a" />
+                ) : (
+                  <ChevronDown size={14} color="#71717a" />
+                )}
               </TouchableOpacity>
             </View>
 
             {/* Expanded Product Picker */}
-            {showProductDropdown && (
+            {showProductDropdown && !onNavigateToSelectProduct && (
               <View style={styles.dropdownContainer}>
                 <View style={styles.dropdownSearchBox}>
                   <Search size={13} color="#a1a1aa" style={{ marginRight: 6 }} />

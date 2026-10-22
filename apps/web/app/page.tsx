@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/trpc/client/react';
 
 // Imported Reusable Components
@@ -18,11 +16,8 @@ import { SeasonalPrivilege } from '@/components/home/SeasonalPrivilege';
 import { Faqs } from '@/components/home/Faqs';
 import { InstagramFeed } from '@/components/home/InstagramFeed';
 
-gsap.registerPlugin(ScrollTrigger);
-
 export default function Home() {
   const { data: products = [] } = api.products.getAll.useQuery();
-  const containerRef = useRef<HTMLDivElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const slides = [
@@ -72,116 +67,11 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [slides.length]);
 
-  // GSAP animations setup
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline();
-
-      tl.fromTo('.hero-mask',
-        { clipPath: 'inset(100% 0% 0% 0%)', scale: 1.05 },
-        { clipPath: 'inset(0% 0% 0% 0%)', scale: 1, duration: 1.5, ease: 'power4.inOut' }
-      );
-
-      // Scroll reveal animations: luxurious bottom-to-top shutter reveal with image scale zoom-out
-      gsap.utils.toArray('.fabric-reveal').forEach((el: any) => {
-        const img = el.querySelector('img');
-
-        gsap.fromTo(el,
-          { clipPath: 'inset(100% 0% 0% 0%)' },
-          {
-            clipPath: 'inset(0% 0% 0% 0%)',
-            duration: 1.4,
-            ease: 'power4.inOut',
-            scrollTrigger: {
-              trigger: el,
-              start: 'top 90%',
-              toggleActions: 'play none none none'
-            }
-          }
-        );
-
-        if (img) {
-          gsap.fromTo(img,
-            { scale: 1.15 },
-            {
-              scale: 1,
-              duration: 1.6,
-              ease: 'power3.out',
-              scrollTrigger: {
-                trigger: el,
-                start: 'top 90%',
-                toggleActions: 'play none none none'
-              }
-            }
-          );
-        }
-      });
-
-      gsap.utils.toArray('.fade-up').forEach((el: any) => {
-        gsap.from(el, {
-          y: 25,
-          opacity: 0,
-          duration: 0.8,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 90%',
-            toggleActions: 'play none none none'
-          }
-        });
-      });
-
-      gsap.utils.toArray('.parallax-bg').forEach((bg: any) => {
-        gsap.to(bg, {
-          yPercent: 12,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: bg.parentElement,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true
-          }
-        });
-      });
-
-      gsap.from('.silhouette-header', {
-        y: 30,
-        opacity: 0,
-        duration: 1.0,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: '#curated-silhouettes',
-          start: 'top 85%',
-          toggleActions: 'play none none none'
-        }
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  // Slide change text animation to prevent FOUT and animate on slide transitions
-  useEffect(() => {
-    const activeText = `.hero-slide-${currentSlide} .hero-text-stagger`;
-    
-    gsap.fromTo(activeText,
-      { y: 35, opacity: 0 },
-      {
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        stagger: 0.12,
-        ease: 'power3.out',
-        overwrite: 'auto'
-      }
-    );
-  }, [currentSlide]);
-
   const bestSellerProducts = products.filter(p => p.isListed !== false && p.bestseller).slice(0, 4);
   const newArrivalProducts = products.filter(p => p.isListed !== false && p.newArrival).slice(0, 4);
 
   return (
-    <div ref={containerRef} className="flex flex-col w-full overflow-hidden bg-white text-zinc-800 font-sans">
+    <div className="flex flex-col w-full overflow-hidden bg-white text-zinc-800 font-sans">
       {/* 1. Hero Section (Visual Editorial Carousel with Floating Badges) */}
       <HeroSlider 
         slides={slides} 
@@ -201,26 +91,30 @@ export default function Home() {
       {/* 4. Curated Silhouettes Curation tabs */}
       <TrendingGrid products={products} />
 
-      {/* 5. New Arrivals Grid */}
-      <ProductRow 
-        title="New Arrivals"
-        tagline="LATEST DROPS"
-        products={newArrivalProducts}
-        viewAllHref="/shop?filter=new"
-        viewAllText="View All New"
-      />
+      {/* 5. New Arrivals Grid (Shown only if new arrival products exist) */}
+      {newArrivalProducts.length > 0 && (
+        <ProductRow 
+          title="New Arrivals"
+          tagline="LATEST DROPS"
+          products={newArrivalProducts}
+          viewAllHref="/shop?filter=new"
+          viewAllText="View All New"
+        />
+      )}
 
       {/* 6. Interactive Flash Sale Banner Section */}
       <FlashSale />
 
-      {/* 7. Best Sellers Grid */}
-      <ProductRow 
-        title="Best Sellers"
-        tagline="TRENDING BESTSELLERS"
-        products={bestSellerProducts}
-        viewAllHref="/shop?filter=bestseller"
-        viewAllText="View All Bestsellers"
-      />
+      {/* 7. Best Sellers Grid (Shown only if bestseller products exist) */}
+      {bestSellerProducts.length > 0 && (
+        <ProductRow 
+          title="Best Sellers"
+          tagline="TRENDING BESTSELLERS"
+          products={bestSellerProducts}
+          viewAllHref="/shop?filter=bestseller"
+          viewAllText="View All Bestsellers"
+        />
+      )}
 
       {/* 8. Testimonials Section */}
       <Testimonials />

@@ -55,6 +55,7 @@ import {
   SIGNATURE_ATELIER_PALETTE,
 } from '../utils/colorThiefHelper';
 import { uploadProductImage, deleteProductImageByUrl, reorderProductImagesApi } from '../services/api';
+import { countWords } from '../utils/text';
 import { useForm, Controller } from 'react-hook-form';
 
 export interface ProductFormData {
@@ -851,6 +852,18 @@ export default function ProductFormModal({
     }
     if (!formCategory) {
       showAlert('Category Required', 'Please assign a category to this product.', 'error');
+      setActiveTab('details');
+      return;
+    }
+
+    const descWords = countWords(formDescription);
+    if (descWords < 100) {
+      const remaining = 100 - descWords;
+      showAlert(
+        'Description Too Short',
+        `Product description must be at least 100 words (currently contains ${descWords} word${descWords === 1 ? '' : 's'}). Please add at least ${remaining} more word${remaining === 1 ? '' : 's'}.`,
+        'error'
+      );
       setActiveTab('details');
       return;
     }

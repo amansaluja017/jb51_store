@@ -1,9 +1,9 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { getProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories, reorderProductImages } from './data.js';
+import { getProducts, getPaginatedProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories, reorderProductImages } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviews.js';
-import { recordInventoryTransaction, getInventoryTransactions } from './inventory.js';
-import { getCustomers, createCustomer } from './customers.js';
+import { recordInventoryTransaction, getInventoryTransactions, getPaginatedInventory } from './inventory.js';
+import { getCustomers, getPaginatedCustomers, createCustomer } from './customers.js';
 import { getOrders, createOrder } from './orders.js';
 import { getInvoices, createInvoice, deleteInvoice } from './invoices.js';
 import { 
@@ -61,6 +61,27 @@ export const productsRouter = t.router({
     .output(GetAllProductsOutputSchema)
     .query(async () => {
       return await getProducts();
+    }),
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated, filtered, and sorted products' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          category: z.string().nullish(),
+          filter: z.enum(['new', 'bestseller', 'all']).nullish(),
+          inStockOnly: z.boolean().nullish(),
+          sortBy: z
+            .enum(['name-asc', 'name-desc', 'price-asc', 'price-desc', 'stock-desc', 'stock-asc', 'newest', 'default'])
+            .nullish()
+            .default('name-asc'),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(8),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedProducts(input || undefined);
     }),
   getBySlug: t.procedure
     .meta({ description: 'Fetch a single product by its unique slug' })
@@ -128,7 +149,7 @@ export const productsRouter = t.router({
 export const reviewsRouter = t.router({
   getAll: t.procedure
     .meta({ description: 'Fetch customer reviews' })
-    .input(z.object({ all: z.boolean().optional() }).optional())
+    .input(z.object({ all: z.boolean().nullish() }).nullish())
     .query(async ({ input }) => {
       if (input?.all) {
         return await getReviews();
@@ -191,13 +212,31 @@ export const inventoryRouter = t.router({
     .input(
       z
         .object({
-          productId: z.string().optional(),
-          limit: z.number().optional(),
+          productId: z.string().nullish(),
+          limit: z.number().nullish(),
         })
-        .optional()
+        .nullish()
     )
     .query(async ({ input }) => {
-      return await getInventoryTransactions(input);
+      return await getInventoryTransactions(input || undefined);
+    }),
+
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated inventory items with stock filters and store-wide metrics' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          category: z.string().nullish(),
+          stockFilter: z.enum(['all', 'inStock', 'outOfStock', 'lowStock', 'reserved']).nullish(),
+          sortBy: z.enum(['default', 'name-asc', 'name-desc', 'stock-asc', 'stock-desc']).nullish(),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(8),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedInventory(input || undefined);
     }),
 });
 
@@ -206,6 +245,24 @@ export const customersRouter = t.router({
     .meta({ description: 'Fetch all customers from the database' })
     .query(async () => {
       return await getCustomers();
+    }),
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated and sorted customers' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          sortBy: z
+            .enum(['name-asc', 'name-desc', 'createdAt-desc', 'createdAt-asc'])
+            .nullish()
+            .default('name-asc'),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(8),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedCustomers(input || undefined);
     }),
   create: adminProcedure
     .meta({ description: 'Create a new customer (Admin only)' })
@@ -329,4 +386,3 @@ export const invoicesRouter = t.router({
       return await deleteInvoice(input.id);
     }),
 });
-

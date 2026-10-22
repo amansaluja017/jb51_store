@@ -123,7 +123,10 @@ export function useAppData() {
   };
 
   // Helper function to invoke backend tRPC endpoints
-  const trpcRequest = (path: string, options: { method?: 'GET' | 'POST'; body?: any } = {}) => {
+  const trpcRequest = (
+    path: string,
+    options: { method?: 'GET' | 'POST'; body?: any; input?: any } = {}
+  ) => {
     return trpcRequestService(path, { ...options, token, apiHost });
   };
 
@@ -175,7 +178,7 @@ export function useAppData() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    if (activeTab === 'catalogue') {
+    if (activeTab === 'dashboard' || activeTab === 'analytics' || activeTab === 'catalogue') {
       if (!hasFetchedProducts.current) {
         handleFetchProducts();
       }
@@ -188,17 +191,17 @@ export function useAppData() {
       }
     } else if (activeTab === 'invoices') {
       if (!hasFetchedInvoices.current) {
+        hasFetchedInvoices.current = true;
         handleFetchInvoices();
-        handleFetchOrders();
       }
-      // On invoices tab: DO NOT hit customers and products routes on load.
-      // They are loaded on-demand when the user clicks the respective dropdown.
+      // On invoices tab: DO NOT hit customers, products, or orders routes on load.
+      // Customers and products are loaded on-demand when user clicks dropdowns.
+      // Orders route is hit on-demand when navigating to the Order History tab.
     } else if (activeTab === 'reviews') {
       if (!hasFetchedReviews.current) {
         handleFetchReviews();
       }
     }
-    // On 'dashboard' (Home) and 'analytics': DO NOT hit products, reviews, inventory, or customers routes!
   }, [isAuthenticated, activeTab]);
 
   // Ping server connectivity without hitting unnecessary domain routes
@@ -219,7 +222,7 @@ export function useAppData() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      if (activeTab === 'catalogue') {
+      if (activeTab === 'dashboard' || activeTab === 'analytics' || activeTab === 'catalogue') {
         await handleFetchProducts(true);
       } else if (activeTab === 'inventory') {
         await Promise.all([
@@ -233,9 +236,6 @@ export function useAppData() {
         ]);
       } else if (activeTab === 'reviews') {
         await handleFetchReviews();
-      } else {
-        // Home (dashboard / analytics) - do NOT hit products, reviews, inventory, customers
-        await new Promise(resolve => setTimeout(resolve, 300));
       }
     } finally {
       setRefreshing(false);
@@ -461,6 +461,61 @@ export function useAppData() {
       console.error('[handleFetchCustomers Error]:', err);
     } finally {
       setIsLoadingCustomers(false);
+    }
+  };
+
+  const handleFetchPaginatedCustomers = async (params?: {
+    search?: string;
+    sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('customers.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedCustomers Error]:', err);
+      throw err;
+    }
+  };
+
+  const handleFetchPaginatedProducts = async (params?: {
+    search?: string;
+    category?: string;
+    inStockOnly?: boolean;
+    sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('products.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedProducts Error]:', err);
+      throw err;
+    }
+  };
+
+  const handleFetchPaginatedStock = async (params?: {
+    search?: string;
+    category?: string;
+    stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
+    sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('inventory.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedStock Error]:', err);
+      throw err;
     }
   };
 
@@ -898,11 +953,14 @@ export function useAppData() {
     handleFetchTransactions,
     handleUpdateInventory,
     handleRecordTransaction,
+    handleFetchPaginatedStock,
     // Customers
     customers,
     isLoadingCustomers,
     handleFetchCustomers,
+    handleFetchPaginatedCustomers,
     handleCreateCustomer,
+    handleFetchPaginatedProducts,
     // Invoices & Orders
     invoices,
     isLoadingInvoices,
