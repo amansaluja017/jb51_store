@@ -26,14 +26,59 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: 'JB51 | Premium Women\'s Suits & Formalwear',
-  description: 'Quiet luxury and editorial fashion. Discover premium suits, blazers, and co-ords for the modern woman.',
+  title: {
+    default: "JB51 | Punjabi Suits, Premium Suits & Best Women Suits in Kaithal",
+    template: "%s | JB51 - Premium Women's Suits",
+  },
+  description:
+    "Discover JB51 — home of premium suits, designer Punjabi suits, and the best women suits for women in Kaithal. Shop handcrafted ethnic wear, boutique suits, and luxury festive collections.",
+  keywords: [
+    'punjabi suits',
+    'premium suits',
+    'best women suits for women',
+    'best women suits for women in kaithal',
+    'punjabi suits in kaithal',
+    'ladies suits in kaithal',
+    'designer punjabi suits',
+    'boutique suits kaithal',
+    'best suits shop in kaithal',
+    'luxury women suits',
+    'salwar suits for women',
+    'ethnic wear for women',
+    'party wear punjabi suits',
+    'JB51 suits',
+    'JB51 store Kaithal',
+  ],
+  authors: [{ name: 'JB51' }],
+  creator: 'JB51',
+  publisher: 'JB51',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
-    title: 'JB51 | Premium Women\'s Suits',
-    description: 'Quiet luxury and editorial fashion. Discover premium suits, blazers, and co-ords for the modern woman.',
+    title: "JB51 | Punjabi Suits, Premium Suits & Best Women Suits in Kaithal",
+    description:
+      "Explore the finest Punjabi suits, premium women's suits, and boutique ethnic wear in Kaithal at JB51. Crafted for elegance, luxury, and comfort.",
     type: 'website',
+    locale: 'en_IN',
+    siteName: 'JB51',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "JB51 | Best Punjabi Suits & Premium Women Suits in Kaithal",
+    description:
+      "Discover designer Punjabi suits, premium women's suits, and luxury ethnic wear in Kaithal at JB51.",
   },
 };
+
 
 import { WishlistProvider } from '@/context/WishlistContext';
 import { cn } from "@/lib/utils";

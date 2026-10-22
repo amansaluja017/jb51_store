@@ -1,9 +1,20 @@
 import { Suspense } from 'react';
 import { ShopClient } from '@/components/products/ShopClient';
 
-export const metadata = {
-  title: 'Shop | JB51 Premium Suits',
-  description: 'Explore our collection of premium women\'s suits, blazers, and formalwear.',
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: "Shop Punjabi Suits & Premium Women's Suits | JB51 Kaithal",
+  description:
+    "Explore our exclusive collection of Punjabi suits, premium women's suits, and boutique party wear in Kaithal. Unstitched, stitched, and luxury designer wear.",
+  keywords: [
+    'punjabi suits',
+    'premium suits',
+    'best women suits for women',
+    'best women suits for women in kaithal',
+    'buy punjabi suits',
+    'ladies suits kaithal',
+  ],
 };
 
 export default function ShopPage() {
