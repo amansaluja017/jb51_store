@@ -17,6 +17,7 @@ export interface GenerateInvoicePdfData {
   paidAmount?: number;
   dueAmount?: number;
   dueDate?: string | null;
+  paymentDate?: string | null;
   notes?: string;
 }
 
@@ -207,7 +208,8 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
               <div class="invoice-details">
                 <div class="invoice-title">INVOICE</div>
                 <strong>Invoice #:</strong> ${escapeHtml(inv.id)}<br>
-                <strong>Date:</strong> ${escapeHtml(inv.date)}<br>
+                <strong>Invoice Date:</strong> ${escapeHtml(inv.date)}<br>
+                ${inv.paymentDate ? `<strong>Payment Date:</strong> ${escapeHtml(inv.paymentDate)}<br>` : ''}
                 <strong>Payment Mode:</strong> ${escapeHtml(inv.paymentMethod)}
               </div>
             </div>
@@ -278,7 +280,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
                   </tr>
                   <tr style="background-color: #fff7ed;">
                     <td style="color: #c2410c; font-weight: 700;">Remaining Balance Due:</td>
-                    <td class="text-right" style="color: #c2410c; font-weight: 700;">&#8377;${(inv.dueAmount ?? 0).toLocaleString('en-IN')}</td>
+                    <td class="text-right" style="color: #c2410c; font-weight: 700;">&#8377;${(inv.dueAmount !== undefined && inv.dueAmount !== null ? inv.dueAmount : Math.max(0, inv.totalAmount - (inv.paidAmount ?? 0))).toLocaleString('en-IN')}</td>
                   </tr>
                   ${
                     inv.dueDate

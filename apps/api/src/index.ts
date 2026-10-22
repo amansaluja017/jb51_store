@@ -1,1 +1,3 @@
-export type { AppRouter } from './router.js';
+export { appRouter, createTRPCContext } from './router.js';
+export type { AppRouter, ReviewItem } from './router.js';
+

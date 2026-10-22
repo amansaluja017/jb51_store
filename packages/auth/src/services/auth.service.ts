@@ -11,11 +11,11 @@ import type {
   ChangeEmailInput,
 } from './validations';
 
-export const sanitizeUser = (rawUser: typeof user.$inferSelect) => {
+export const sanitizeUser = (rawUser: typeof user.$inferSelect, fallbackUserName?: string) => {
   const { password, ...sanitized } = rawUser;
   return {
     ...sanitized,
-    userName: (sanitized as any).name || (sanitized as any).userName,
+    userName: (sanitized as any).name || (sanitized as any).userName || fallbackUserName || sanitized.email.split('@')[0],
   };
 };
 
@@ -41,7 +41,7 @@ export const registerUser = async (input: RegisterInput) => {
       })
       .returning();
 
-    const sanitized = sanitizeUser(newUser);
+    const sanitized = sanitizeUser(newUser, input.userName);
     const tokens = await generateAuthTokens({
       id: sanitized.id,
       email: sanitized.email,

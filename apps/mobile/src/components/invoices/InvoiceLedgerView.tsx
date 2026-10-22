@@ -242,6 +242,11 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                     const isCredit = mode === 'credit';
                     const isCash = mode === 'cash';
                     const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);
+                    const paid = Number(inv.paidAmount ?? 0);
+                    const dueAmt =
+                      inv.dueAmount !== undefined && inv.dueAmount !== null
+                        ? Number(inv.dueAmount)
+                        : Math.max(0, amt - paid);
                     const itemCount = Array.isArray(inv.items) ? inv.items.length : 1;
                     const dateDisplay = inv.createdAt
                       ? new Date(inv.createdAt).toLocaleDateString('en-IN')
@@ -280,9 +285,25 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                           ) : null}
 
                           <View style={styles.invoiceCardFooter}>
-                            <Text style={styles.invoiceCardAmount}>
-                              &#8377;{amt.toLocaleString('en-IN')}
-                            </Text>
+                            <View>
+                              <Text style={styles.invoiceCardAmount}>
+                                &#8377;{amt.toLocaleString('en-IN')}
+                              </Text>
+                              {isCredit && (
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: '700',
+                                    color: dueAmt > 0 ? '#c2410c' : '#16a34a',
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {dueAmt > 0
+                                    ? `Due: ₹${dueAmt.toLocaleString('en-IN')}`
+                                    : 'Credit Settled'}
+                                </Text>
+                              )}
+                            </View>
                             <View
                               style={[
                                 styles.badge,

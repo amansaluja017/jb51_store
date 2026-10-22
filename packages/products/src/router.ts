@@ -399,6 +399,9 @@ export const invoicesRouter = t.router({
         finalAmount: z.number().optional().nullable(),
         items: z.array(orderItemSchema).optional(),
         notes: z.string().optional().nullable(),
+        paidAmount: z.union([z.number(), z.string()]).optional().nullable(),
+        dueAmount: z.union([z.number(), z.string()]).optional().nullable(),
+        dueDate: z.union([z.string(), z.date()]).optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

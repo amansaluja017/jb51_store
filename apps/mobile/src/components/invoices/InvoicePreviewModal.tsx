@@ -31,6 +31,7 @@ export interface InvoicePreviewModalProps {
   activePaidAmount?: number;
   activeDueAmount?: number;
   activeDueDate?: string | null;
+  activePaymentDate?: string | null;
   activeNotes?: string;
   isSubmitting?: boolean;
   isExporting?: boolean;
@@ -57,6 +58,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
   activePaidAmount,
   activeDueAmount,
   activeDueDate,
+  activePaymentDate,
   activeNotes,
   isSubmitting,
   isExporting,
@@ -98,8 +100,12 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                   <Text style={styles.invoiceLabel}>INVOICE</Text>
                   <Text style={styles.invoiceDetailLabel}>Invoice Number</Text>
                   <Text style={styles.invoiceDetailValue}>{activeInvNumber}</Text>
-                  <Text style={styles.invoiceDetailLabel}>Date</Text>
+                  <Text style={styles.invoiceDetailLabel}>Invoice Date</Text>
                   <Text style={styles.invoiceDetailValue}>{activeInvDate}</Text>
+                  <Text style={styles.invoiceDetailLabel}>Payment Date</Text>
+                  <Text style={styles.invoiceDetailValue}>
+                    {activePaymentDate || activeInvDate}
+                  </Text>
                   <Text style={styles.invoiceDetailLabel}>Payment Method</Text>
                   <Text style={styles.invoiceDetailValue}>{activePaymentMethod}</Text>
                 </View>
@@ -189,7 +195,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                   </Text>
                 </View>
 
-                {activePaymentMethod === 'Credit' && (
+                {(activePaymentMethod || '').toLowerCase() === 'credit' && (
                   <View style={{ marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderColor: '#fdba74' }}>
                     <View style={styles.totalsRow}>
                       <Text style={[styles.totalsLabel, { color: '#16a34a', fontWeight: '600' }]}>
@@ -204,7 +210,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                         Remaining Due
                       </Text>
                       <Text style={[styles.totalsValue, { color: '#c2410c', fontWeight: '700' }]}>
-                        &#8377;{(activeDueAmount ?? Math.max(0, activeTotalAmount - (activePaidAmount ?? 0))).toLocaleString('en-IN')}
+                        &#8377;{((activeDueAmount !== undefined && activeDueAmount !== null ? activeDueAmount : Math.max(0, activeTotalAmount - (activePaidAmount ?? 0)))).toLocaleString('en-IN')}
                       </Text>
                     </View>
                     {activeDueDate ? (

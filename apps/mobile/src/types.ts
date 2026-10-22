@@ -125,6 +125,10 @@ export interface Invoice {
   createdAt: string;
   updatedAt?: string;
   orderNumber?: string | null;
+  paidAmount?: string | number | null;
+  dueAmount?: string | number | null;
+  dueDate?: string | null;
+  paymentDate?: string | null;
 }
 
 export interface OrderItem {

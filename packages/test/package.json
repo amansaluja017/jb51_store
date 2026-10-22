@@ -1,0 +1,40 @@
+{
+  "name": "@repo/test",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "tsx --test src/index.test.ts",
+    "test:all": "tsx --test src/*.test.ts",
+    "test:auth": "tsx --test src/auth.test.ts",
+    "test:products": "tsx --test src/products.test.ts",
+    "test:reviews": "tsx --test src/reviews.test.ts",
+    "test:inventory": "tsx --test src/inventory.test.ts",
+    "test:customers": "tsx --test src/customers.test.ts",
+    "test:orders": "tsx --test src/orders.test.ts",
+    "test:invoices": "tsx --test src/invoices.test.ts",
+    "test:credits": "tsx --test src/credits.test.ts",
+    "test:upload": "tsx --test src/upload.test.ts",
+    "test:router": "tsx --test src/router.test.ts",
+    "test:rate-limiting": "tsx --test src/rate-limiting.test.ts"
+  },
+  "dependencies": {
+    "@repo/api": "workspace:*",
+    "@repo/auth": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/products": "workspace:*",
+    "@repo/rate-limiting": "workspace:*",
+    "@trpc/server": "^11.18.0",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.33.0",
+    "express": "^4.21.0",
+    "superjson": "^2.2.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.9",
+    "tsx": "^4.19.1",
+    "typescript": "7.0.2"
+  }
+}

@@ -385,6 +385,55 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  packages/test:
+    dependencies:
+      '@repo/api':
+        specifier: workspace:*
+        version: link:../../apps/api
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@repo/products':
+        specifier: workspace:*
+        version: link:../products
+      '@repo/rate-limiting':
+        specifier: workspace:*
+        version: link:../rate-limiting
+      '@trpc/server':
+        specifier: ^11.18.0
+        version: 11.18.0(typescript@7.0.2)
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.33.0
+        version: 0.33.0(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@types/react@19.2.18)(pg@8.23.0)(postgres@3.4.9)(react@19.2.8)
+      express:
+        specifier: ^4.21.0
+        version: 4.22.2
+      superjson:
+        specifier: ^2.2.6
+        version: 2.2.6
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^20.14.9
+        version: 20.19.43
+      tsx:
+        specifier: ^4.19.1
+        version: 4.23.12
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
 packages:
 
   '@alloc/quick-lru@5.2.0':

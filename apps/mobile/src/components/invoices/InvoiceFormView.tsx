@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,11 +24,13 @@ import {
   Mail,
   MapPin,
   CreditCard,
+  Calendar,
 } from 'lucide-react-native';
 import { Control, Controller, FieldErrors, UseFormSetValue } from 'react-hook-form';
 import { Customer, Product, Variant } from '../../types';
 import { InvoiceItem, InvoiceFormValues } from '../../screens/InvoiceScreen';
 import styles from '../../screens/InvoiceScreen.styles';
+import { CalendarPickerModal } from '../CalendarPickerModal';
 
 export interface InvoiceFormViewProps {
   control: Control<InvoiceFormValues>;
@@ -123,6 +125,8 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isFetchingCustomers, setIsFetchingCustomers] = useState(false);
   const [isFetchingProducts, setIsFetchingProducts] = useState(false);
+  const [activeDatePicker, setActiveDatePicker] = useState<'dueDate' | 'paymentDate' | null>(null);
+  const today = useMemo(() => new Date(), []);
   const scrollRef = useRef<ScrollView>(null);
   const fieldOffsets = useRef<{ [key: string]: number }>({});
   const activeFieldRef = useRef<{ key: string; offset: number } | null>(null);
@@ -856,6 +860,31 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
           </View>
         </View>
 
+        {/* Payment Date Selection */}
+        <View style={[styles.inputGroup, { marginTop: 12 }]}>
+          <Text style={styles.inputLabel}>Payment Date</Text>
+          <TouchableOpacity
+            onPress={() => setActiveDatePicker('paymentDate')}
+            style={styles.datePickerTrigger}
+            accessibilityLabel="Select payment date"
+            accessibilityRole="button"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <Calendar size={16} color="#FF5E36" style={{ marginRight: 8 }} />
+              <Text style={styles.datePickerTriggerText}>
+                {formValues.paymentDate
+                  ? new Date(formValues.paymentDate).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Select Payment Date'}
+              </Text>
+            </View>
+            <Text style={styles.datePickerHelperBadge}>Select Date</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Credit / Udhar Details Form */}
         {formValues.paymentMethod === 'Credit' && (
           <View style={styles.creditDetailsContainer}>
@@ -930,20 +959,31 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                   );
                 })}
               </View>
-              <Controller
-                control={control}
-                name="dueDate"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#a1a1aa"
-                    value={value}
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    style={[styles.textInput, { height: 40, marginTop: 6 }]}
-                  />
-                )}
-              />
+
+              {/* Calendar Trigger for Due Date */}
+              <TouchableOpacity
+                onPress={() => setActiveDatePicker('dueDate')}
+                style={[styles.datePickerTrigger, { marginTop: 8, borderColor: '#fdba74' }]}
+                accessibilityLabel="Open calendar to pick due date"
+                accessibilityRole="button"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Calendar size={16} color="#c2410c" style={{ marginRight: 8 }} />
+                  <Text style={[styles.datePickerTriggerText, { color: '#9a3412', fontWeight: '600' }]}>
+                    {formValues.dueDate
+                      ? new Date(formValues.dueDate).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : 'Choose Due Date'}
+                  </Text>
+                </View>
+                <Text style={[styles.datePickerHelperBadge, { color: '#c2410c', borderColor: '#fed7aa', backgroundColor: '#fff7ed' }]}>
+                  Open Calendar
+                </Text>
+              </TouchableOpacity>
+
               {formValues.dueDate ? (
                 <Text style={styles.dueDateHelperText}>
                   Due deadline: {new Date(formValues.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -1027,8 +1067,37 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
           <Text style={styles.generateButtonText}>Preview & Create Invoice</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
 
+      {/* Calendar Picker Modal */}
+      <CalendarPickerModal
+        visible={activeDatePicker !== null}
+        onClose={() => setActiveDatePicker(null)}
+        onSelectDate={(dateStr) => {
+          if (activeDatePicker === 'dueDate') {
+            setValue('dueDate', dateStr, { shouldDirty: true });
+          } else if (activeDatePicker === 'paymentDate') {
+            setValue('paymentDate', dateStr, { shouldDirty: true });
+          }
+        }}
+        initialDate={
+          activeDatePicker === 'dueDate'
+            ? formValues.dueDate
+            : formValues.paymentDate
+        }
+        title={
+          activeDatePicker === 'dueDate'
+            ? 'Select Payment Due Date'
+            : 'Select Payment Date'
+        }
+        minDate={activeDatePicker === 'dueDate' ? today : null}
+        maxDate={activeDatePicker === 'paymentDate' ? today : null}
+        validationMessage={
+          activeDatePicker === 'dueDate'
+            ? 'Payment due date cannot be in the past (today or later).'
+            : 'Payment date cannot be in the future (today or earlier).'
+        }
+      />
+    </ScrollView>
   );
 };
 

@@ -48,6 +48,7 @@ import { Product, Variant, Customer, Invoice, Order } from '../types';
 export interface InvoiceFormValues {
   invoiceNumber: string;
   invoiceDate: string;
+  paymentDate: string;
   clientName: string;
   clientEmail: string;
   clientPhone: string;
@@ -178,6 +179,7 @@ export default function InvoiceScreen({
     defaultValues: {
       invoiceNumber: '',
       invoiceDate: '',
+      paymentDate: new Date().toISOString().split('T')[0],
       clientName: '',
       clientEmail: '',
       clientPhone: '',
@@ -329,6 +331,7 @@ export default function InvoiceScreen({
       clientAddress:
         viewingInvoice.address || viewingInvoice.clientAddress || '',
       date: dateStr,
+      paymentDate: viewingInvoice.paymentDate || dateStr,
       items,
       subtotal: sub,
       taxRate: gstRate,
@@ -337,6 +340,9 @@ export default function InvoiceScreen({
       totalAmount: finalAmt > 0 ? finalAmt : Math.max(0, sub + taxAmount - disc),
       paymentMethod,
       notes: viewingInvoice.notes || '',
+      paidAmount: viewingInvoice.paidAmount,
+      dueAmount: viewingInvoice.dueAmount,
+      dueDate: viewingInvoice.dueDate,
     };
   }, [viewingInvoice]);
 
@@ -390,25 +396,51 @@ export default function InvoiceScreen({
     ? resolvedInvoice.totalAmount
     : Math.max(0, activeSubtotal + activeTaxAmount - activeDiscountAmount);
 
+  const isViewingPastCredit = isViewingPast
+    ? (resolvedInvoice?.paymentMethod || resolvedInvoice?.mode || '').toLowerCase() === 'credit'
+    : formValues.paymentMethod === 'Credit';
+
   const activePaidAmount = isViewingPast
-    ? Number(resolvedInvoice?.paidAmount ?? 0)
+    ? (resolvedInvoice?.paidAmount !== null && resolvedInvoice?.paidAmount !== undefined
+        ? Number(resolvedInvoice.paidAmount)
+        : isViewingPastCredit ? 0 : activeTotalAmount)
     : formValues.paymentMethod === 'Credit'
       ? parseFloat(formValues.paidAmount) || 0
       : activeTotalAmount;
 
   const activeDueAmount = isViewingPast
-    ? Number(resolvedInvoice?.dueAmount ?? 0)
+    ? (resolvedInvoice?.dueAmount !== null && resolvedInvoice?.dueAmount !== undefined
+        ? Number(resolvedInvoice.dueAmount)
+        : isViewingPastCredit
+          ? Math.max(0, activeTotalAmount - (Number(resolvedInvoice?.paidAmount ?? 0)))
+          : 0)
     : formValues.paymentMethod === 'Credit'
       ? Math.max(0, activeTotalAmount - (parseFloat(formValues.paidAmount) || 0))
       : 0;
 
   const activeDueDate = isViewingPast
     ? (resolvedInvoice?.dueDate
-        ? new Date(resolvedInvoice.dueDate).toLocaleDateString('en-IN')
+        ? (resolvedInvoice.dueDate.includes('-')
+            ? new Date(resolvedInvoice.dueDate).toLocaleDateString('en-IN')
+            : resolvedInvoice.dueDate)
         : null)
     : formValues.paymentMethod === 'Credit'
-      ? formValues.dueDate
+      ? (formValues.dueDate
+          ? new Date(formValues.dueDate).toLocaleDateString('en-IN')
+          : null)
       : null;
+
+  const activePaymentDate = isViewingPast
+    ? (resolvedInvoice?.paymentDate
+        ? (resolvedInvoice.paymentDate.includes('-')
+            ? new Date(resolvedInvoice.paymentDate).toLocaleDateString('en-IN')
+            : resolvedInvoice.paymentDate)
+        : activeInvDate)
+    : formValues.paymentDate
+      ? (formValues.paymentDate.includes('-')
+          ? new Date(formValues.paymentDate).toLocaleDateString('en-IN')
+          : formValues.paymentDate)
+      : activeInvDate;
 
   // Handle selecting a customer from dropdown
   const handleSelectCustomer = (cust: Customer) => {
@@ -556,6 +588,7 @@ export default function InvoiceScreen({
       const paidAmt = isCredit ? parseFloat(formValues.paidAmount) || 0 : totalAmount;
       const dueAmt = isCredit ? Math.max(0, totalAmount - paidAmt) : 0;
       const dDate = isCredit && formValues.dueDate.trim() ? formValues.dueDate.trim() : null;
+      const pDate = formValues.paymentDate?.trim() || new Date().toISOString().split('T')[0];
 
       // 1. Create Order, deduct Inventory, and create Invoice atomically in backend
       const orderPayload = {
@@ -576,6 +609,7 @@ export default function InvoiceScreen({
         paidAmount: paidAmt,
         dueAmount: dueAmt,
         dueDate: dDate,
+        paymentDate: pDate,
         items: invoiceItems.map((item) => ({
           productId: item.productId,
           productVariantId: item.productVariantId || null,
@@ -598,6 +632,9 @@ export default function InvoiceScreen({
         clientEmail: formValues.clientEmail.trim(),
         clientAddress: formValues.clientAddress.trim(),
         date: formValues.invoiceDate || new Date().toLocaleDateString('en-IN'),
+        paymentDate: pDate.includes('-')
+          ? new Date(pDate).toLocaleDateString('en-IN')
+          : pDate,
         items: invoiceItems,
         subtotal,
         taxRate: formValues.taxRate,
@@ -606,7 +643,9 @@ export default function InvoiceScreen({
         totalAmount,
         paidAmount: isCredit ? paidAmt : totalAmount,
         dueAmount: isCredit ? dueAmt : 0,
-        dueDate: dDate,
+        dueDate: dDate
+          ? (dDate.includes('-') ? new Date(dDate).toLocaleDateString('en-IN') : dDate)
+          : null,
         paymentMethod: formValues.paymentMethod,
         notes: formValues.notes.trim(),
       };
@@ -692,6 +731,7 @@ export default function InvoiceScreen({
     reset({
       invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       invoiceDate: new Date().toLocaleDateString('en-IN'),
+      paymentDate: new Date().toISOString().split('T')[0],
       clientName: '',
       clientEmail: '',
       clientPhone: '',
@@ -923,6 +963,7 @@ export default function InvoiceScreen({
         activePaidAmount={activePaidAmount}
         activeDueAmount={activeDueAmount}
         activeDueDate={activeDueDate}
+        activePaymentDate={activePaymentDate}
         activeNotes={activeNotes}
         isSubmitting={isSubmitting}
         isExporting={isExporting}
