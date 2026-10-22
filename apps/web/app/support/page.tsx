@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { Mail, MessageCircle, MapPin, ChevronDown } from 'lucide-react';
 import { WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -116,7 +117,13 @@ export default function SupportPage() {
                   <AccordionItem value="returns" className="border-b border-brand-brass/20">
                     <AccordionTrigger className="font-serif text-lg py-4 hover:no-underline hover:text-brand-maroon">Returns & Exchanges</AccordionTrigger>
                     <AccordionContent className="text-sm text-brand-brown/70 leading-relaxed pb-4 font-light">
-                      We offer a 7-day exchange policy for standard sizing. Custom-made outfits are crafted specifically for you and are non-refundable.
+                      We offer a 7-day exchange policy for standard sizing. Custom-made outfits are crafted specifically for you and are backed by our Complimentary Alteration Guarantee. Read the full details in our <Link href="/terms-of-service" className="underline hover:text-brand-maroon font-medium">Terms of Service</Link>.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="privacy" className="border-b border-brand-brass/20">
+                    <AccordionTrigger className="font-serif text-lg py-4 hover:no-underline hover:text-brand-maroon">Data Privacy & Fitting Records</AccordionTrigger>
+                    <AccordionContent className="text-sm text-brand-brown/70 leading-relaxed pb-4 font-light">
+                      Your personal information and bespoke sizing records are encrypted and protected under Indian DPDPA regulations. We never share or sell your details. Review our complete <Link href="/privacy-policy" className="underline hover:text-brand-maroon font-medium">Privacy Policy</Link>.
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>

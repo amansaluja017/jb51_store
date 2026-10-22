@@ -39,7 +39,14 @@ export function Faqs() {
         {faqs.map((faq, idx) => {
           const isOpen = openIndex === idx;
           return (
-            <div key={idx} className="border border-zinc-100 rounded-2xl overflow-hidden bg-zinc-50/50">
+            <div 
+              key={idx} 
+              className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+                isOpen 
+                  ? 'border-[#FF5E36]/30 bg-white shadow-sm' 
+                  : 'border-zinc-200/70 bg-zinc-50/60 hover:border-zinc-300'
+              }`}
+            >
               <button
                 onClick={() => setOpenIndex(isOpen ? null : idx)}
                 className="w-full flex items-center justify-between p-5 text-left font-serif font-bold text-base text-zinc-900 hover:text-[#FF5E36] transition-colors focus:outline-none cursor-pointer"
@@ -47,18 +54,30 @@ export function Faqs() {
                 aria-label={`Toggle FAQ: ${faq.q}`}
               >
                 <span className="pr-4">{faq.q}</span>
-                <span className={`text-[#FF5E36] transition-transform duration-300 text-lg font-light shrink-0 ${isOpen ? 'rotate-45' : ''}`}>
+                <span 
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium shrink-0 transition-all duration-300 ${
+                    isOpen 
+                      ? 'bg-[#FF5E36] text-white rotate-45' 
+                      : 'bg-zinc-200/70 text-zinc-600 hover:bg-[#FF5E36]/10 hover:text-[#FF5E36]'
+                  }`}
+                >
                   +
                 </span>
               </button>
+              
+              {/* Smooth Grid-based Accordion Height Transition */}
               <div
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                  isOpen ? 'max-h-40 opacity-100 p-5 pt-0 border-t border-zinc-100 bg-white' : 'max-h-0 opacity-0 pointer-events-none'
+                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                  isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
                 }`}
               >
-                <p className="text-zinc-500 text-xs md:text-sm font-light leading-relaxed mt-4">
-                  {faq.a}
-                </p>
+                <div className="overflow-hidden">
+                  <div className="px-5 pb-5 pt-1 border-t border-zinc-100 bg-white">
+                    <p className="text-zinc-600 text-xs md:text-sm font-light leading-relaxed pt-2">
+                      {faq.a}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           );

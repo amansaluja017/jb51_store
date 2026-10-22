@@ -124,8 +124,8 @@ export function Footer() {
       <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center text-[9px] tracking-widest uppercase text-zinc-500 font-light gap-4">
         <p>&copy; {new Date().getFullYear()} JB51. All rights reserved.</p>
         <div className="flex gap-6">
-          <Link href="/support" className="hover:text-white transition-colors">Privacy Policy</Link>
-          <Link href="/support" className="hover:text-white transition-colors">Terms of Service</Link>
+          <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+          <Link href="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link>
         </div>
       </div>
     </footer>

@@ -37,6 +37,7 @@ export const metadata: Metadata = {
 
 import { WishlistProvider } from '@/context/WishlistContext';
 import { cn } from "@/lib/utils";
+import { PageTransition } from '@/components/layout/PageTransition';
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -62,7 +63,9 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
           <WishlistProvider>
             <Navbar />
             <main className="flex-1 flex flex-col">
-              {children}
+              <PageTransition>
+                {children}
+              </PageTransition>
             </main>
             <Footer />
             <Toaster position="bottom-center" />

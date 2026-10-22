@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Play } from 'lucide-react';
@@ -26,6 +27,8 @@ interface HeroSliderProps {
 }
 
 export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSliderProps) {
+  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+
   const handleScrollToAtelier = () => {
     const curatedSection = document.getElementById('curated-silhouettes');
     if (curatedSection) {
@@ -44,13 +47,18 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
               idx === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0 pointer-events-none'
             }`}
           >
-            {/* Slide Background Image */}
+            {/* Slide Background Image with On-Load Reveal Animation */}
             <Image
               src={slide.image}
               alt={slide.title}
               fill
               priority={idx === 0}
-              className="object-cover opacity-85 transition-transform duration-[2000ms] ease-out scale-100"
+              onLoad={() => setLoadedImages((prev) => ({ ...prev, [idx]: true }))}
+              className={`object-cover transition-all duration-[1800ms] cubic-bezier(0.16, 1, 0.3, 1) ${
+                loadedImages[idx] 
+                  ? 'opacity-85 scale-100 blur-0' 
+                  : 'opacity-0 scale-110 blur-[2px]'
+              }`}
               sizes="100vw"
             />
             {/* Darkening gradient */}
