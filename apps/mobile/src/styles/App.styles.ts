@@ -17,6 +17,17 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  hamburgerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.DEFAULT,
+    backgroundColor: colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   headerTitleWrapper: {
     flex: 1,
     marginRight: 10,

@@ -11,6 +11,9 @@ import ProductDetailsModal from './src/components/ProductDetailsModal';
 import CategoryManagerModal from './src/components/CategoryManagerModal';
 import AccountSettingsModal from './src/components/AccountSettingsModal';
 import InquiriesModal from './src/components/InquiriesModal';
+import DrawerMenuModal from './src/components/DrawerMenuModal';
+import CustomerManagerModal from './src/components/CustomerManagerModal';
+import CreditManagerModal from './src/components/CreditManagerModal';
 import CustomAlert from './src/components/CustomAlert';
 
 import { useAppData } from './src/hooks/useAppData';
@@ -59,10 +62,7 @@ export default function App() {
         {/* Application Header */}
         <AppHeader
           activeTab={data.activeTab}
-          pendingInquiriesCount={data.pendingInquiriesCount}
-          onOpenInquiries={() => data.setInquiriesModalOpen(true)}
-          onOpenAccount={() => data.setAccountModalOpen(true)}
-          onLogout={data.handleLogout}
+          onOpenMenu={() => data.setDrawerMenuOpen(true)}
         />
 
         {/* Screen View Router */}
@@ -109,6 +109,7 @@ export default function App() {
           onFetchOrders={data.handleFetchOrders}
           onCreateOrder={data.handleCreateOrder}
           onDeleteInvoice={data.handleDeleteInvoice}
+          onFetchCredits={() => data.handleFetchCredits(true)}
           onFetchProducts={data.handleFetchProducts}
           onFetchPaginatedProducts={data.handleFetchPaginatedProducts}
           onFetchPaginatedStock={data.handleFetchPaginatedStock}
@@ -188,6 +189,63 @@ export default function App() {
           onClose={() => data.setInquiriesModalOpen(false)}
           inquiries={data.inquiries}
           onResolveInquiry={data.handleResolveInquiry}
+        />
+
+        {/* Slide-out Hamburger Drawer Navigation Menu */}
+        <DrawerMenuModal
+          visible={data.drawerMenuOpen}
+          activeTab={data.activeTab}
+          onClose={() => data.setDrawerMenuOpen(false)}
+          onOpenCustomers={() => {
+            if (data.customers.length === 0) {
+              data.handleFetchCustomers();
+            }
+            data.setCustomerModalOpen(true);
+          }}
+          onOpenCredits={() => {
+            if (data.credits.length === 0) {
+              data.handleFetchCredits();
+            }
+            data.setCreditModalOpen(true);
+          }}
+          onOpenCategories={() => data.setCategoryModalOpen(true)}
+          onOpenInquiries={() => data.setInquiriesModalOpen(true)}
+          onOpenAccount={() => data.setAccountModalOpen(true)}
+          onSelectTab={(tab) => data.setActiveTab(tab)}
+          onLogout={data.handleLogout}
+          customersCount={data.customers.length}
+          creditsDueCount={data.creditMetrics?.pendingCount}
+          pendingInquiriesCount={data.pendingInquiriesCount}
+          currentUser={data.currentUser}
+        />
+
+        {/* Customer Directory Management Modal (CRUD & On-Demand Order History) */}
+        <CustomerManagerModal
+          visible={data.customerModalOpen}
+          customers={data.customers}
+          isLoading={data.isLoadingCustomers}
+          onClose={() => data.setCustomerModalOpen(false)}
+          onRefresh={data.handleFetchCustomers}
+          onFetchCustomerHistory={data.handleFetchCustomerOrderHistory}
+          onCreateCustomer={data.handleCreateCustomer}
+          onUpdateCustomer={data.handleUpdateCustomer}
+          onDeleteCustomer={data.handleDeleteCustomer}
+          showAlert={data.showAlert}
+        />
+
+        {/* Customer Credit / Udhar Ledger Management Modal */}
+        <CreditManagerModal
+          visible={data.creditModalOpen}
+          credits={data.credits}
+          metrics={data.creditMetrics}
+          isLoading={data.isLoadingCredits}
+          onClose={() => data.setCreditModalOpen(false)}
+          onRefresh={() => data.handleFetchCredits(true)}
+          onCreateCredit={data.handleCreateCredit}
+          onUpdateCredit={data.handleUpdateCredit}
+          onRecordPayment={data.handleRecordCreditPayment}
+          onDeleteCredit={data.handleDeleteCredit}
+          showAlert={data.showAlert}
         />
 
         {/* Global Toast Alert */}

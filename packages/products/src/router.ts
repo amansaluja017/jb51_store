@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { getProducts, getPaginatedProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories, reorderProductImages } from './data.js';
 import { getReviews, createReview, updateReview, deleteReview } from './reviews.js';
 import { recordInventoryTransaction, getInventoryTransactions, getPaginatedInventory } from './inventory.js';
-import { getCustomers, getPaginatedCustomers, createCustomer } from './customers.js';
-import { getOrders, createOrder } from './orders.js';
+import { getCustomers, getPaginatedCustomers, createCustomer, updateCustomer, deleteCustomer } from './customers.js';
+import { getOrders, createOrder, getCustomerOrderHistory } from './orders.js';
 import { getInvoices, createInvoice, deleteInvoice } from './invoices.js';
+import { getCredits, createCredit, updateCredit, recordCreditPayment, deleteCredit } from './credits.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
@@ -282,6 +283,32 @@ export const customersRouter = t.router({
         address: input.address,
       });
     }),
+  update: adminProcedure
+    .meta({ description: 'Update an existing customer (Admin only)' })
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1, 'Customer name is required').optional(),
+        phoneNumber: z.string().min(1, 'Phone number is required').optional(),
+        email: z.string().optional().nullable(),
+        address: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await updateCustomer(input);
+    }),
+  delete: adminProcedure
+    .meta({ description: 'Delete a customer (Admin only)' })
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      return await deleteCustomer(input.id);
+    }),
+  getOrderHistory: adminProcedure
+    .meta({ description: 'Fetch a customer order history with computed metrics (Admin only)' })
+    .input(z.object({ customerId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      return await getCustomerOrderHistory(input.customerId);
+    }),
 });
 
 const orderItemSchema = z.object({
@@ -326,8 +353,12 @@ export const ordersRouter = t.router({
         paymentMethod: z.string().optional(),
         subtotal: z.number().optional().nullable(),
         gst: z.number().optional().nullable(),
+        taxRate: z.union([z.number(), z.string()]).optional().nullable(),
         discount: z.number().optional().nullable(),
         totalAmount: z.number(),
+        paidAmount: z.number().optional().nullable(),
+        dueAmount: z.number().optional().nullable(),
+        dueDate: z.string().optional().nullable(),
         items: z.array(orderItemSchema),
         notes: z.string().optional().nullable(),
       })
@@ -359,9 +390,10 @@ export const invoicesRouter = t.router({
         productId: z.string().optional().nullable(),
         userId: z.string().optional().nullable(),
         quantity: z.number().optional(),
-        mode: z.enum(['cash', 'online']).optional(),
+        mode: z.enum(['cash', 'online', 'credit']).optional(),
         subtotal: z.number().optional().nullable(),
         gst: z.number().optional().nullable(),
+        taxRate: z.union([z.number(), z.string()]).optional().nullable(),
         discount: z.number().optional().nullable(),
         totalAmount: z.number().optional().nullable(),
         finalAmount: z.number().optional().nullable(),
@@ -384,5 +416,64 @@ export const invoicesRouter = t.router({
     )
     .mutation(async ({ input }) => {
       return await deleteInvoice(input.id);
+    }),
+});
+
+export const creditsRouter = t.router({
+  getAll: adminProcedure
+    .meta({ description: 'Fetch all credits with joined order/invoice details and summary metrics' })
+    .query(async () => {
+      return await getCredits();
+    }),
+  create: adminProcedure
+    .meta({ description: 'Record a new credit transaction (Admin only)' })
+    .input(
+      z.object({
+        orderId: z.string().uuid().optional().nullable(),
+        userId: z.string().uuid().optional().nullable(),
+        invoiceId: z.string().uuid().optional().nullable(),
+        paidAmount: z.number().nonnegative().default(0),
+        dueAmount: z.number().nonnegative(),
+        dueDate: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await createCredit({
+        ...input,
+        userId: input.userId || ctx.user?.id || null,
+      });
+    }),
+  update: adminProcedure
+    .meta({ description: 'Update a credit record (Admin only)' })
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        orderId: z.string().uuid().optional().nullable(),
+        userId: z.string().uuid().optional().nullable(),
+        invoiceId: z.string().uuid().optional().nullable(),
+        paidAmount: z.number().nonnegative().optional(),
+        dueAmount: z.number().nonnegative().optional(),
+        dueDate: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await updateCredit(input);
+    }),
+  recordPayment: adminProcedure
+    .meta({ description: 'Record a payment towards a credit (Admin only)' })
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        amount: z.number().positive('Payment amount must be greater than 0'),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await recordCreditPayment(input);
+    }),
+  delete: adminProcedure
+    .meta({ description: 'Delete a credit record (Admin only)' })
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      return await deleteCredit(input.id);
     }),
 });

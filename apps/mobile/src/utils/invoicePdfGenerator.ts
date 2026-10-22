@@ -14,6 +14,9 @@ export interface GenerateInvoicePdfData {
   discount: number;
   totalAmount: number;
   paymentMethod: string;
+  paidAmount?: number;
+  dueAmount?: number;
+  dueDate?: string | null;
   notes?: string;
 }
 
@@ -266,6 +269,30 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
                   <td><strong>Grand Total:</strong></td>
                   <td class="text-right"><strong class="grand-total-val">&#8377;${inv.totalAmount.toLocaleString('en-IN')}</strong></td>
                 </tr>
+                ${
+                  inv.paymentMethod?.toLowerCase() === 'credit'
+                    ? `
+                  <tr style="border-top: 1px dashed #cbd5e1;">
+                    <td style="color: #16a34a; font-weight: 600;">Advance Paid:</td>
+                    <td class="text-right" style="color: #16a34a; font-weight: 600;">&#8377;${(inv.paidAmount ?? 0).toLocaleString('en-IN')}</td>
+                  </tr>
+                  <tr style="background-color: #fff7ed;">
+                    <td style="color: #c2410c; font-weight: 700;">Remaining Balance Due:</td>
+                    <td class="text-right" style="color: #c2410c; font-weight: 700;">&#8377;${(inv.dueAmount ?? 0).toLocaleString('en-IN')}</td>
+                  </tr>
+                  ${
+                    inv.dueDate
+                      ? `
+                  <tr>
+                    <td style="color: #64748b; font-size: 11px;">Payment Due By:</td>
+                    <td class="text-right" style="color: #64748b; font-size: 11px;">${escapeHtml(inv.dueDate)}</td>
+                  </tr>
+                  `
+                      : ''
+                  }
+                `
+                    : ''
+                }
               </tbody>
             </table>
 

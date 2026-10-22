@@ -9,6 +9,8 @@ import {
   Customer,
   Invoice,
   Order,
+  Credit,
+  CreditMetrics,
   isProductInStock,
 } from '../types';
 import { CustomAlertConfig } from '../components/CustomAlert';
@@ -16,7 +18,6 @@ import { TabType } from '../components/NavigationTabBar';
 import {
   getInitialApiHost,
   trpcRequest as trpcRequestService,
-  reorderProductImagesApi,
 } from '../services/api';
 
 export function useAppData() {
@@ -70,6 +71,10 @@ export function useAppData() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [creditMetrics, setCreditMetrics] = useState<CreditMetrics | null>(null);
+  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
+  const [creditModalOpen, setCreditModalOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,6 +92,8 @@ export function useAppData() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [inquiriesModalOpen, setInquiriesModalOpen] = useState(false);
+  const [drawerMenuOpen, setDrawerMenuOpen] = useState(false);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id?: string; email?: string; userName?: string; role?: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
@@ -130,16 +137,13 @@ export function useAppData() {
     return trpcRequestService(path, { ...options, token, apiHost });
   };
 
-  // Modular fetch: Products & Categories (Hit only in Products/Catalogue, Inventory, or Invoices section)
+  // Modular fetch: Products (categories derived directly from catalogue)
   const handleFetchProducts = async (isRefresh = false) => {
     if (!isRefresh) {
       setIsLoading(true);
     }
     try {
-      const [decodedProducts, decodedCategories] = await Promise.all([
-        trpcRequest('products.getAll'),
-        trpcRequest('products.getCategories').catch(() => null),
-      ]);
+      const decodedProducts = await trpcRequest('products.getAll');
 
       if (Array.isArray(decodedProducts)) {
         setProducts(decodedProducts as Product[]);
@@ -152,14 +156,9 @@ export function useAppData() {
           )
         ) as string[];
 
-        if (Array.isArray(decodedCategories) && decodedCategories.length > 0) {
-          const combined = Array.from(new Set([...decodedCategories, ...productCategories]));
-          setCategories(combined);
-        } else if (productCategories.length > 0) {
-          setCategories(productCategories);
+        if (productCategories.length > 0) {
+          setCategories(prev => Array.from(new Set([...prev, ...productCategories])));
         }
-      } else if (Array.isArray(decodedCategories) && decodedCategories.length > 0) {
-        setCategories(decodedCategories as string[]);
       }
       hasFetchedProducts.current = true;
       setSyncMessage('Products synced with server');
@@ -187,6 +186,7 @@ export function useAppData() {
         handleFetchProducts();
       }
       if (!hasFetchedTransactions.current) {
+        hasFetchedTransactions.current = true;
         handleFetchTransactions();
       }
     } else if (activeTab === 'invoices') {
@@ -199,6 +199,7 @@ export function useAppData() {
       // Orders route is hit on-demand when navigating to the Order History tab.
     } else if (activeTab === 'reviews') {
       if (!hasFetchedReviews.current) {
+        hasFetchedReviews.current = true;
         handleFetchReviews();
       }
     }
@@ -375,17 +376,6 @@ export function useAppData() {
         }
       });
 
-      if (product.inStock !== newInStock) {
-        try {
-          await trpcRequest('products.updateStatus', {
-            method: 'POST',
-            body: { slug: product.slug, inStock: newInStock }
-          });
-        } catch (statusErr) {
-          console.log('[Stock Status Sync Notice]:', statusErr);
-        }
-      }
-
       setProducts(prev =>
         prev.map(p =>
           p.slug === product.slug
@@ -393,11 +383,9 @@ export function useAppData() {
             : p
         )
       );
-      await handleFetchTransactions();
       showAlert('Inventory Updated', `Stock updated for ${product.name}.`, 'success');
     } catch (err: any) {
       console.error('[handleUpdateInventory Error]:', err);
-      await handleFetchProducts(true);
       showAlert('Error', err.message || 'Failed to update inventory', 'error');
       throw err;
     }
@@ -410,6 +398,7 @@ export function useAppData() {
       if (Array.isArray(res)) {
         setTransactions(res as InventoryTransaction[]);
       }
+      hasFetchedTransactions.current = true;
     } catch (err: any) {
       console.error('[handleFetchTransactions Error]:', err);
     } finally {
@@ -541,15 +530,83 @@ export function useAppData() {
     }
   };
 
+  const handleUpdateCustomer = async (data: {
+    id: string;
+    name?: string;
+    phoneNumber?: string;
+    email?: string | null;
+    address?: string | null;
+  }) => {
+    try {
+      const res: any = await trpcRequest('customers.update', {
+        method: 'POST',
+        body: data,
+      });
+      const updatedCust = res as Customer;
+      setCustomers(prev =>
+        prev.map(c => (c.id === updatedCust.id ? { ...c, ...updatedCust } : c))
+      );
+      showAlert('Customer Updated', `Customer "${updatedCust.name}" updated successfully.`, 'success');
+      return updatedCust;
+    } catch (err: any) {
+      console.error('[handleUpdateCustomer Error]:', err);
+      showAlert('Error Updating Customer', err.message || 'Failed to update customer', 'error');
+      throw err;
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name?: string) => {
+    showAlert(
+      'Delete Customer',
+      `Are you sure you want to delete customer "${name || 'this customer'}"? This action cannot be undone.`,
+      'confirm',
+      async () => {
+        try {
+          await trpcRequest('customers.delete', {
+            method: 'POST',
+            body: { id },
+          });
+          setCustomers(prev => prev.filter(c => c.id !== id));
+          showAlert('Customer Deleted', 'Customer has been removed successfully.', 'success');
+        } catch (err: any) {
+          console.error('[handleDeleteCustomer Error]:', err);
+          showAlert('Error Deleting Customer', err.message || 'Failed to delete customer', 'error');
+        }
+      }
+    );
+  };
+
+  const handleFetchCustomerOrderHistory = async (customerId: string) => {
+    try {
+      const res: any = await trpcRequest('customers.getOrderHistory', {
+        input: { customerId },
+      });
+      return res as {
+        customer: Customer;
+        totalOrders: number;
+        totalSpend: number;
+        avgOrderValue: number;
+        orders: Order[];
+      };
+    } catch (err: any) {
+      console.error('[handleFetchCustomerOrderHistory Error]:', err);
+      showAlert(
+        'Error Loading History',
+        err.message || 'Failed to fetch customer order history',
+        'error'
+      );
+      throw err;
+    }
+  };
+
   const handleFetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      const res =
-        (await trpcRequest('reviews.getModerationQueue').catch(() => null)) ||
-        (await trpcRequest('reviews.getAll').catch(() => null));
+      const res = await trpcRequest('reviews.getModerationQueue');
       if (Array.isArray(res)) {
         setReviews(res as Review[]);
       }
+      hasFetchedReviews.current = true;
     } catch (err: any) {
       console.error('[handleFetchReviews Error]:', err);
     } finally {
@@ -618,6 +675,102 @@ export function useAppData() {
       showAlert('Error Deleting Invoice', err.message || 'Failed to delete invoice', 'error');
       throw err;
     }
+  };
+
+  const handleFetchCredits = async (isRefresh = false) => {
+    setIsLoadingCredits(true);
+    try {
+      const res: any = await trpcRequest('credits.getAll');
+      if (res?.credits && Array.isArray(res.credits)) {
+        setCredits(res.credits as Credit[]);
+        setCreditMetrics(res.metrics as CreditMetrics);
+      }
+    } catch (err: any) {
+      console.error('[handleFetchCredits Error]:', err);
+    } finally {
+      setIsLoadingCredits(false);
+    }
+  };
+
+  const handleCreateCredit = async (data: {
+    orderId?: string | null;
+    invoiceId?: string | null;
+    paidAmount: number;
+    dueAmount: number;
+    dueDate?: string | null;
+  }) => {
+    try {
+      const res: any = await trpcRequest('credits.create', {
+        method: 'POST',
+        body: data,
+      });
+      showAlert('Credit Recorded', 'Credit balance recorded successfully.', 'success');
+      await handleFetchCredits(true);
+      return res;
+    } catch (err: any) {
+      console.error('[handleCreateCredit Error]:', err);
+      showAlert('Error Creating Credit', err.message || 'Failed to create credit record', 'error');
+      throw err;
+    }
+  };
+
+  const handleUpdateCredit = async (data: {
+    id: string;
+    paidAmount?: number;
+    dueAmount?: number;
+    dueDate?: string | null;
+  }) => {
+    try {
+      const res: any = await trpcRequest('credits.update', {
+        method: 'POST',
+        body: data,
+      });
+      showAlert('Credit Updated', 'Credit record updated successfully.', 'success');
+      await handleFetchCredits(true);
+      return res;
+    } catch (err: any) {
+      console.error('[handleUpdateCredit Error]:', err);
+      showAlert('Error Updating Credit', err.message || 'Failed to update credit record', 'error');
+      throw err;
+    }
+  };
+
+  const handleRecordCreditPayment = async (id: string, amount: number) => {
+    try {
+      const res: any = await trpcRequest('credits.recordPayment', {
+        method: 'POST',
+        body: { id, amount },
+      });
+      showAlert('Payment Recorded', `Payment of ₹${amount.toLocaleString('en-IN')} received.`, 'success');
+      await handleFetchCredits(true);
+      return res;
+    } catch (err: any) {
+      console.error('[handleRecordCreditPayment Error]:', err);
+      showAlert('Error Recording Payment', err.message || 'Failed to record credit payment', 'error');
+      throw err;
+    }
+  };
+
+  const handleDeleteCredit = async (id: string) => {
+    showAlert(
+      'Delete Credit',
+      'Are you sure you want to delete this credit record? This cannot be undone.',
+      'confirm',
+      async () => {
+        try {
+          await trpcRequest('credits.delete', {
+            method: 'POST',
+            body: { id },
+          });
+          setCredits(prev => prev.filter(c => c.id !== id));
+          showAlert('Credit Deleted', 'Credit record has been removed.', 'success');
+          handleFetchCredits(true);
+        } catch (err: any) {
+          console.error('[handleDeleteCredit Error]:', err);
+          showAlert('Error Deleting Credit', err.message || 'Failed to delete credit', 'error');
+        }
+      }
+    );
   };
 
   const handleUpdateVisibility = async (product: Product, status: 'listed' | 'unListed') => {
@@ -766,7 +919,6 @@ export function useAppData() {
   const handleReorderProductImages = async (newImages: string[]): Promise<string[]> => {
     if (!editingSlug) return newImages;
     try {
-      console.log('[handleReorderProductImages] Hitting products.reorderImages for slug:', editingSlug);
       const res: any = await trpcRequest('products.reorderImages', {
         method: 'POST',
         body: { slug: editingSlug, images: newImages },
@@ -782,24 +934,9 @@ export function useAppData() {
       }));
       return confirmedImages;
     } catch (err: any) {
-      console.warn('[handleReorderProductImages fallback to REST]:', err);
-      try {
-        const res = await reorderProductImagesApi(editingSlug, newImages, { apiHost, token });
-        const confirmedImages = Array.isArray(res?.images) && res.images.length > 0 ? res.images : newImages;
-        setProducts(prev => prev.map(p => {
-          if (p.slug !== editingSlug) return p;
-          const updatedVariants = (p.variants || []).map(v => ({
-            ...v,
-            images: confirmedImages,
-          }));
-          return { ...p, images: confirmedImages, variants: updatedVariants.length > 0 ? updatedVariants : p.variants };
-        }));
-        return confirmedImages;
-      } catch (fallbackErr: any) {
-        console.error('[handleReorderProductImages failed]:', fallbackErr);
-        showAlert('Reorder Failed', fallbackErr?.message || err?.message || 'Could not update image order.', 'error');
-        return newImages;
-      }
+      console.error('[handleReorderProductImages failed]:', err);
+      showAlert('Reorder Failed', err?.message || 'Could not update image order.', 'error');
+      return newImages;
     }
   };
 
@@ -830,19 +967,6 @@ export function useAppData() {
           body: payload
         });
         const finalProd = created && created.slug ? created : payload;
-
-        // Hit product status API
-        try {
-          await trpcRequest('products.updateStatus', {
-            method: 'POST',
-            body: {
-              slug: finalProd.slug,
-              status: finalProd.isListed !== false ? 'listed' : 'unListed'
-            }
-          });
-        } catch (statusErr) {
-          console.log('[Product Status Sync Notice]:', statusErr);
-        }
 
         setProducts(prev => [finalProd, ...prev.filter(p => p.slug !== finalProd.slug)]);
         showAlert('Outfit Created', 'New item added to catalogue.', 'success');
@@ -960,6 +1084,9 @@ export function useAppData() {
     handleFetchCustomers,
     handleFetchPaginatedCustomers,
     handleCreateCustomer,
+    handleUpdateCustomer,
+    handleDeleteCustomer,
+    handleFetchCustomerOrderHistory,
     handleFetchPaginatedProducts,
     // Invoices & Orders
     invoices,
@@ -1001,6 +1128,21 @@ export function useAppData() {
     setAccountModalOpen,
     inquiriesModalOpen,
     setInquiriesModalOpen,
+    drawerMenuOpen,
+    setDrawerMenuOpen,
+    customerModalOpen,
+    setCustomerModalOpen,
+    // Credits
+    credits,
+    creditMetrics,
+    isLoadingCredits,
+    creditModalOpen,
+    setCreditModalOpen,
+    handleFetchCredits,
+    handleCreateCredit,
+    handleUpdateCredit,
+    handleRecordCreditPayment,
+    handleDeleteCredit,
     isEditing,
     editingSlug,
     triggerAddProduct,

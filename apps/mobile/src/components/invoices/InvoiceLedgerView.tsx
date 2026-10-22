@@ -238,7 +238,9 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   </View>
                 ) : (
                   filteredInvoices.map((inv) => {
-                    const isCash = (inv.mode || 'cash').toLowerCase() === 'cash';
+                    const mode = (inv.mode || (inv as any).paymentMethod || 'cash').toLowerCase();
+                    const isCredit = mode === 'credit';
+                    const isCash = mode === 'cash';
                     const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);
                     const itemCount = Array.isArray(inv.items) ? inv.items.length : 1;
                     const dateDisplay = inv.createdAt
@@ -284,17 +286,23 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                             <View
                               style={[
                                 styles.badge,
-                                !isCash ? styles.badgeOnline : styles.badgeCash,
+                                isCredit
+                                  ? styles.badgeCredit
+                                  : isCash
+                                    ? styles.badgeCash
+                                    : styles.badgeOnline,
                               ]}
                             >
                               <Text
                                 style={
-                                  !isCash
-                                    ? styles.badgeOnlineText
-                                    : styles.badgeCashText
+                                  isCredit
+                                    ? styles.badgeCreditText
+                                    : isCash
+                                      ? styles.badgeCashText
+                                      : styles.badgeOnlineText
                                 }
                               >
-                                {!isCash ? 'Online' : 'Cash'}
+                                {isCredit ? 'Credit' : isCash ? 'Cash' : 'Online'}
                               </Text>
                             </View>
                           </View>
@@ -338,7 +346,9 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   </View>
                 ) : (
                   filteredOrders.map((ord) => {
-                    const isCash = (ord.paymentMethod || 'cash').toLowerCase() === 'cash';
+                    const ordMode = (ord.paymentMethod || 'cash').toLowerCase();
+                    const isCredit = ordMode === 'credit';
+                    const isCash = ordMode === 'cash';
                     const amt = Number(ord.totalAmount || 0);
                     const items = ord.items || [];
                     const dateDisplay = ord.createdAt
@@ -382,17 +392,23 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                           <View
                             style={[
                               styles.badge,
-                              !isCash ? styles.badgeOnline : styles.badgeCash,
+                              isCredit
+                                ? styles.badgeCredit
+                                : isCash
+                                  ? styles.badgeCash
+                                  : styles.badgeOnline,
                             ]}
                           >
                             <Text
                               style={
-                                !isCash
-                                  ? styles.badgeOnlineText
-                                  : styles.badgeCashText
+                                isCredit
+                                  ? styles.badgeCreditText
+                                  : isCash
+                                    ? styles.badgeCashText
+                                    : styles.badgeOnlineText
                               }
                             >
-                              {!isCash ? 'Online' : 'Cash'}
+                              {isCredit ? 'Credit' : isCash ? 'Cash' : 'Online'}
                             </Text>
                           </View>
                         </View>

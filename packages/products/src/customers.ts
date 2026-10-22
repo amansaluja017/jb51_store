@@ -180,3 +180,82 @@ export async function getPaginatedCustomers(input?: GetPaginatedCustomersInput) 
     totalPages,
   };
 }
+
+export interface UpdateCustomerInput {
+  id: string;
+  name?: string;
+  phoneNumber?: string;
+  email?: string | null;
+  address?: string | null;
+}
+
+export async function updateCustomer(input: UpdateCustomerInput) {
+  const [existing] = await db
+    .select()
+    .from(customerDetailsTable)
+    .where(eq(customerDetailsTable.id, input.id));
+
+  if (!existing) {
+    throw new Error('Customer not found');
+  }
+
+  const name = input.name !== undefined ? input.name.trim() : existing.name;
+  if (!name) {
+    throw new Error('Customer name cannot be empty');
+  }
+
+  const phoneNumber = input.phoneNumber !== undefined ? input.phoneNumber.trim() : existing.phoneNumber;
+  if (!phoneNumber) {
+    throw new Error('Phone number cannot be empty');
+  }
+
+  const nameSlug = generateSlug(name);
+  const email = input.email !== undefined ? (input.email?.trim() || null) : existing.email;
+  const address = input.address !== undefined ? (input.address?.trim() || null) : existing.address;
+
+  // Check if updating causes a duplicate with another customer
+  if (nameSlug !== existing.nameSlug || phoneNumber !== existing.phoneNumber) {
+    const duplicates = await db
+      .select()
+      .from(customerDetailsTable)
+      .where(
+        and(
+          eq(customerDetailsTable.nameSlug, nameSlug),
+          eq(customerDetailsTable.phoneNumber, phoneNumber)
+        )
+      );
+    const otherDuplicate = duplicates.find((d) => d.id !== input.id);
+    if (otherDuplicate) {
+      throw new Error('Another customer with this name and phone number already exists');
+    }
+  }
+
+  const [updated] = await db
+    .update(customerDetailsTable)
+    .set({
+      name,
+      nameSlug,
+      phoneNumber,
+      email,
+      address,
+      updatedAt: new Date(),
+    })
+    .where(eq(customerDetailsTable.id, input.id))
+    .returning();
+
+  return updated;
+}
+
+export async function deleteCustomer(id: string) {
+  const [deleted] = await db
+    .delete(customerDetailsTable)
+    .where(eq(customerDetailsTable.id, id))
+    .returning();
+
+  if (!deleted) {
+    throw new Error('Customer not found');
+  }
+
+  return { success: true, id: deleted.id };
+}
+

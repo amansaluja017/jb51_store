@@ -11,6 +11,7 @@ import {
   customersRouter,
   ordersRouter,
   invoicesRouter,
+  creditsRouter,
 } from '@repo/products/router';
 export type { ReviewItem } from '@repo/products';
 import * as trpcExpress from '@trpc/server/adapters/express';
@@ -58,6 +59,7 @@ export const appRouter = createTRPCRouter({
   customers: customersRouter,
   orders: ordersRouter,
   invoices: invoicesRouter,
+  credits: creditsRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),

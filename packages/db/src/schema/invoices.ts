@@ -47,6 +47,7 @@ export const invoices = pgTable('invoices', {
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }),
   totalAmount: numeric('total_amount', { precision: 10, scale: 2 }),
   gst: numeric('gst', { precision: 10, scale: 2 }),
+  taxRate: numeric('tax_rate', { precision: 5, scale: 2 }).default('0'),
   discount: numeric('discount', { precision: 10, scale: 2 }),
   finalAmount: numeric('final_amount', { precision: 10, scale: 2 }),
   items: jsonb('items').$type<InvoiceItem[]>(),

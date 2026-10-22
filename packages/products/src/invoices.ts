@@ -17,9 +17,10 @@ export interface CreateInvoiceInput {
   productId?: string | null;
   userId?: string | null;
   quantity?: number;
-  mode?: 'cash' | 'online';
+  mode?: 'cash' | 'online' | 'credit';
   subtotal?: number | null;
   gst?: number | null;
+  taxRate?: number | string | null;
   discount?: number | null;
   totalAmount?: number | null;
   finalAmount?: number | null;
@@ -69,6 +70,10 @@ export async function createInvoice(input: CreateInvoiceInput) {
           input.gst !== undefined && input.gst !== null
             ? input.gst.toString()
             : existingInv.gst,
+        taxRate:
+          input.taxRate !== undefined && input.taxRate !== null
+            ? input.taxRate.toString()
+            : existingInv.taxRate,
         discount:
           input.discount !== undefined && input.discount !== null
             ? input.discount.toString()
@@ -102,6 +107,7 @@ export async function createInvoice(input: CreateInvoiceInput) {
       mode: input.mode || 'cash',
       subtotal: input.subtotal !== undefined && input.subtotal !== null ? input.subtotal.toString() : null,
       gst: input.gst !== undefined && input.gst !== null ? input.gst.toString() : '0',
+      taxRate: input.taxRate !== undefined && input.taxRate !== null ? input.taxRate.toString() : '0',
       discount: input.discount !== undefined && input.discount !== null ? input.discount.toString() : '0',
       totalAmount: input.totalAmount !== undefined && input.totalAmount !== null ? input.totalAmount.toString() : null,
       finalAmount: finalAmount.toString(),
@@ -129,6 +135,7 @@ export async function getInvoices() {
       mode: invoicesTable.mode,
       subtotal: invoicesTable.subtotal,
       gst: invoicesTable.gst,
+      taxRate: invoicesTable.taxRate,
       discount: invoicesTable.discount,
       totalAmount: invoicesTable.totalAmount,
       finalAmount: invoicesTable.finalAmount,

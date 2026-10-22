@@ -86,36 +86,7 @@ export default function CatalogScreen({
     setPage(1);
   }, [searchQuery, selectedCategory]);
 
-  // Hit the backend paginated products route
-  useEffect(() => {
-    if (!onFetchPaginatedProducts) return;
 
-    let isCancelled = false;
-    const fetchRemote = async () => {
-      setIsFetchingRemote(true);
-      try {
-        const res = await onFetchPaginatedProducts({
-          search: searchQuery.trim() || undefined,
-          category: selectedCategory !== 'All' ? selectedCategory : undefined,
-          page,
-          limit: PAGE_SIZE,
-        });
-        if (!isCancelled && res && Array.isArray(res.items)) {
-          setRemoteData(res);
-        }
-      } catch (err) {
-        console.error('[CatalogScreen pagination error]:', err);
-      } finally {
-        if (!isCancelled) setIsFetchingRemote(false);
-      }
-    };
-
-    const timer = setTimeout(fetchRemote, searchQuery ? 250 : 0);
-    return () => {
-      isCancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchQuery, selectedCategory, page, refreshKey, onFetchPaginatedProducts]);
 
   // Client-side fallback if remote endpoint is unavailable
   const localFiltered = useMemo(() => {

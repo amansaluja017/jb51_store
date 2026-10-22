@@ -4,4 +4,5 @@ export * from './inventory.js';
 export * from './customers.js';
 export * from './orders.js';
 export * from './invoices.js';
+export * from './credits.js';
 export * from './services/validations.js';

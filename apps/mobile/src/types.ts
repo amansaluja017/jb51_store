@@ -113,9 +113,10 @@ export interface Invoice {
   productId?: string | null;
   userId?: string | null;
   quantity?: number;
-  mode?: 'cash' | 'online';
+  mode?: 'cash' | 'online' | 'credit';
   subtotal?: string | number | null;
   gst?: string | number | null;
+  taxRate?: string | number | null;
   discount?: string | number | null;
   totalAmount?: string | number | null;
   finalAmount?: string | number | null;
@@ -152,6 +153,7 @@ export interface Order {
   paymentMethod: string;
   subtotal?: string | number | null;
   gst?: string | number | null;
+  taxRate?: string | number | null;
   discount?: string | number | null;
   totalAmount: string | number;
   items: OrderItem[];
@@ -159,3 +161,33 @@ export interface Order {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface Credit {
+  id: string;
+  orderId?: string | null;
+  userId?: string | null;
+  invoiceId?: string | null;
+  paidAmount: string | number;
+  dueAmount: string | number;
+  dueDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  orderNumber?: string | null;
+  orderTotal?: string | number | null;
+  invoiceNumber?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  customerAddress?: string | null;
+  userEmail?: string | null;
+}
+
+export interface CreditMetrics {
+  totalCredits: number;
+  totalPaid: number;
+  totalDue: number;
+  pendingCount: number;
+  settledCount: number;
+  overdueCount: number;
+}
+

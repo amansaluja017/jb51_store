@@ -130,7 +130,9 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 ) : null}
                 {Number(order.gst || 0) > 0 ? (
                   <View style={styles.orderSummaryRow}>
-                    <Text style={styles.orderSummaryLabel}>GST / Tax</Text>
+                    <Text style={styles.orderSummaryLabel}>
+                      GST / Tax{order.taxRate && Number(order.taxRate) > 0 ? ` (${order.taxRate}%)` : ''}
+                    </Text>
                     <Text style={styles.orderSummaryValue}>
                       &#8377;{Number(order.gst).toLocaleString('en-IN')}
                     </Text>

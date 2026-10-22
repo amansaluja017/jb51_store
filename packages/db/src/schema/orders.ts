@@ -32,6 +32,7 @@ export const orders = pgTable('orders', {
   paymentMethod: varchar('payment_method', { length: 50 }).default('cash').notNull(),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }),
   gst: numeric('gst', { precision: 10, scale: 2 }).default('0'),
+  taxRate: numeric('tax_rate', { precision: 5, scale: 2 }).default('0'),
   discount: numeric('discount', { precision: 10, scale: 2 }).default('0'),
   totalAmount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
   notes: text('notes'),

@@ -18,4 +18,5 @@ export * from './order-items.js';
 export * from './wishlist.js';
 export * from './wishlist-items.js';
 export * from './product-images.js';
+export * from './credits.js';
 export * from './relations.js';

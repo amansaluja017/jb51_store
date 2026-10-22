@@ -28,6 +28,9 @@ export interface InvoicePreviewModalProps {
   activeTaxAmount: number;
   activeDiscountAmount: number;
   activeTotalAmount: number;
+  activePaidAmount?: number;
+  activeDueAmount?: number;
+  activeDueDate?: string | null;
   activeNotes?: string;
   isSubmitting?: boolean;
   isExporting?: boolean;
@@ -51,6 +54,9 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
   activeTaxAmount,
   activeDiscountAmount,
   activeTotalAmount,
+  activePaidAmount,
+  activeDueAmount,
+  activeDueDate,
   activeNotes,
   isSubmitting,
   isExporting,
@@ -182,6 +188,37 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                     &#8377;{activeTotalAmount.toLocaleString('en-IN')}
                   </Text>
                 </View>
+
+                {activePaymentMethod === 'Credit' && (
+                  <View style={{ marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderColor: '#fdba74' }}>
+                    <View style={styles.totalsRow}>
+                      <Text style={[styles.totalsLabel, { color: '#16a34a', fontWeight: '600' }]}>
+                        Advance Paid
+                      </Text>
+                      <Text style={[styles.totalsValue, { color: '#16a34a', fontWeight: '700' }]}>
+                        &#8377;{(activePaidAmount ?? 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                    <View style={styles.totalsRow}>
+                      <Text style={[styles.totalsLabel, { color: '#c2410c', fontWeight: '700' }]}>
+                        Remaining Due
+                      </Text>
+                      <Text style={[styles.totalsValue, { color: '#c2410c', fontWeight: '700' }]}>
+                        &#8377;{(activeDueAmount ?? Math.max(0, activeTotalAmount - (activePaidAmount ?? 0))).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                    {activeDueDate ? (
+                      <View style={styles.totalsRow}>
+                        <Text style={[styles.totalsLabel, { color: '#71717a', fontSize: 11 }]}>
+                          Payment Due Date
+                        </Text>
+                        <Text style={[styles.totalsValue, { color: '#71717a', fontSize: 11 }]}>
+                          {activeDueDate}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
               </View>
 
               {/* Notes */}

@@ -7,6 +7,7 @@ import {
   inventryTransaction as inventryTransactionTable,
   productStatus as productStatusTable,
   invoices as invoicesTable,
+  credits as creditsTable,
   OrderItemInput,
   InvoiceItem,
 } from '@repo/db';
@@ -26,8 +27,12 @@ export interface CreateOrderInput {
   paymentMethod?: string;
   subtotal?: number | null;
   gst?: number | null;
+  taxRate?: number | string | null;
   discount?: number | null;
   totalAmount: number;
+  paidAmount?: number | null;
+  dueAmount?: number | null;
+  dueDate?: string | null;
   items: OrderItemInput[];
   notes?: string | null;
 }
@@ -122,6 +127,10 @@ export async function createOrder(input: CreateOrderInput) {
         gst:
           input.gst !== undefined && input.gst !== null
             ? input.gst.toString()
+            : '0',
+        taxRate:
+          input.taxRate !== undefined && input.taxRate !== null
+            ? input.taxRate.toString()
             : '0',
         discount:
           input.discount !== undefined && input.discount !== null
@@ -280,7 +289,11 @@ export async function createOrder(input: CreateOrderInput) {
     );
 
     const paymentMode =
-      input.paymentMethod?.toLowerCase() === 'cash' ? 'cash' : 'online';
+      input.paymentMethod?.toLowerCase() === 'credit'
+        ? 'credit'
+        : input.paymentMethod?.toLowerCase() === 'cash'
+          ? 'cash'
+          : 'online';
 
     // 6. Create Invoice in invoices table (or update if already exists)
     let existingInvoice = null;
@@ -319,6 +332,10 @@ export async function createOrder(input: CreateOrderInput) {
             input.gst !== undefined && input.gst !== null
               ? input.gst.toString()
               : existingInvoice.gst,
+          taxRate:
+            input.taxRate !== undefined && input.taxRate !== null
+              ? input.taxRate.toString()
+              : existingInvoice.taxRate,
           discount:
             input.discount !== undefined && input.discount !== null
               ? input.discount.toString()
@@ -354,6 +371,10 @@ export async function createOrder(input: CreateOrderInput) {
             input.gst !== undefined && input.gst !== null
               ? input.gst.toString()
               : '0',
+          taxRate:
+            input.taxRate !== undefined && input.taxRate !== null
+              ? input.taxRate.toString()
+              : '0',
           discount:
             input.discount !== undefined && input.discount !== null
               ? input.discount.toString()
@@ -365,6 +386,33 @@ export async function createOrder(input: CreateOrderInput) {
         })
         .returning();
       invoice = inserted;
+    }
+
+    // 7. If paymentMethod is credit or dueAmount > 0, record credit entry
+    let credit = null;
+    if (
+      paymentMode === 'credit' ||
+      (input.dueAmount !== undefined && input.dueAmount !== null && Number(input.dueAmount) > 0)
+    ) {
+      const paidAmt = Math.max(0, Number(input.paidAmount) || 0);
+      const dueAmt =
+        input.dueAmount !== undefined && input.dueAmount !== null
+          ? Math.max(0, Number(input.dueAmount))
+          : Math.max(0, input.totalAmount - paidAmt);
+      const dDate = input.dueDate ? new Date(input.dueDate) : null;
+
+      const [creditRecord] = await tx
+        .insert(creditsTable)
+        .values({
+          orderId: order.id,
+          userId: input.userId || order.userId || null,
+          invoiceId: invoice?.id || null,
+          paidAmount: paidAmt.toFixed(2),
+          dueAmount: dueAmt.toFixed(2),
+          dueDate: dDate,
+        })
+        .returning();
+      credit = creditRecord;
     }
 
     return {
@@ -382,6 +430,7 @@ export async function createOrder(input: CreateOrderInput) {
         createdAt: it.createdAt,
       })),
       invoice,
+      credit,
     };
   });
 }
@@ -401,6 +450,7 @@ export async function getOrders() {
       paymentMethod: ordersTable.paymentMethod,
       subtotal: ordersTable.subtotal,
       gst: ordersTable.gst,
+      taxRate: ordersTable.taxRate,
       discount: ordersTable.discount,
       totalAmount: ordersTable.totalAmount,
       notes: ordersTable.notes,
@@ -447,4 +497,90 @@ export async function getOrders() {
     ...row,
     items: itemsByOrderId.get(row.id) || [],
   }));
+}
+
+export async function getCustomerOrderHistory(customerId: string) {
+  const [customer] = await db
+    .select()
+    .from(customerDetailsTable)
+    .where(eq(customerDetailsTable.id, customerId));
+
+  if (!customer) {
+    throw new Error('Customer not found');
+  }
+
+  const rows = await db
+    .select({
+      id: ordersTable.id,
+      orderNumber: ordersTable.orderNumber,
+      customerId: ordersTable.customerId,
+      userId: ordersTable.userId,
+      customerName: customerDetailsTable.name,
+      customerPhone: customerDetailsTable.phoneNumber,
+      customerEmail: customerDetailsTable.email,
+      customerAddress: customerDetailsTable.address,
+      status: ordersTable.status,
+      paymentMethod: ordersTable.paymentMethod,
+      subtotal: ordersTable.subtotal,
+      gst: ordersTable.gst,
+      taxRate: ordersTable.taxRate,
+      discount: ordersTable.discount,
+      totalAmount: ordersTable.totalAmount,
+      notes: ordersTable.notes,
+      createdAt: ordersTable.createdAt,
+      updatedAt: ordersTable.updatedAt,
+    })
+    .from(ordersTable)
+    .leftJoin(
+      customerDetailsTable,
+      eq(ordersTable.customerId, customerDetailsTable.id)
+    )
+    .where(eq(ordersTable.customerId, customerId))
+    .orderBy(desc(ordersTable.createdAt));
+
+  const itemsByOrderId = new Map<string, any[]>();
+  if (rows.length > 0) {
+    const orderIds = rows.map((r) => r.id);
+    const itemsRows = await db
+      .select()
+      .from(orderItemsTable)
+      .where(inArray(orderItemsTable.orderId, orderIds));
+
+    for (const item of itemsRows) {
+      const list = itemsByOrderId.get(item.orderId) || [];
+      list.push({
+        id: item.id,
+        orderId: item.orderId,
+        productId: item.productId,
+        productVariantId: item.productVariantId,
+        productName: item.productName,
+        variantColor: item.variantColor,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        total: Number(item.total),
+        createdAt: item.createdAt,
+      });
+      itemsByOrderId.set(item.orderId, list);
+    }
+  }
+
+  const orders = rows.map((row) => ({
+    ...row,
+    items: itemsByOrderId.get(row.id) || [],
+  }));
+
+  const totalOrders = orders.length;
+  const totalSpend = orders.reduce(
+    (sum, o) => sum + (Number(o.totalAmount) || 0),
+    0
+  );
+  const avgOrderValue = totalOrders > 0 ? Math.round(totalSpend / totalOrders) : 0;
+
+  return {
+    customer,
+    totalOrders,
+    totalSpend,
+    avgOrderValue,
+    orders,
+  };
 }

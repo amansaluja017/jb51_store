@@ -142,52 +142,14 @@ export default function InventoryScreen({
   const [refreshKey, setRefreshKey] = useState(0);
   const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
-  
+
   // History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
-
-  // Fetch transactions on mount
-  React.useEffect(() => {
-    onFetchTransactions?.();
-  }, []);
 
   // Reset page to 1 whenever search, filter, category or sort changes
   React.useEffect(() => {
     setPage(1);
   }, [searchQuery, activeFilter, selectedCategory, sortBy]);
-
-  // Query backend route for paginated stock & store-wide metrics
-  React.useEffect(() => {
-    if (!onFetchPaginatedStock) return;
-
-    let isCancelled = false;
-    const fetchRemote = async () => {
-      setIsFetchingRemote(true);
-      try {
-        const res = await onFetchPaginatedStock({
-          search: searchQuery.trim() || undefined,
-          category: selectedCategory !== 'All' ? selectedCategory : undefined,
-          stockFilter: activeFilter,
-          sortBy: sortBy === 'stockAsc' ? 'stock-asc' : sortBy === 'stockDesc' ? 'stock-desc' : 'default',
-          page,
-          limit: PAGE_SIZE,
-        });
-        if (!isCancelled && res && Array.isArray(res.items)) {
-          setRemoteStockData(res);
-        }
-      } catch (err) {
-        console.error('[InventoryScreen pagination error]:', err);
-      } finally {
-        if (!isCancelled) setIsFetchingRemote(false);
-      }
-    };
-
-    const timer = setTimeout(fetchRemote, searchQuery ? 250 : 0);
-    return () => {
-      isCancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchQuery, activeFilter, selectedCategory, sortBy, page, refreshKey, onFetchPaginatedStock]);
 
   // Local pending variant stock edits: { [productSlug]: Variant[] }
   const [pendingStockEdits, setPendingStockEdits] = useState<Record<string, Variant[]>>({});
@@ -908,160 +870,160 @@ export default function InventoryScreen({
 
                             return (
                               <View key={`variant_${vIdx}`} style={styles.variantCard}>
-                            {/* Variant Top Meta */}
-                            <View style={styles.variantTopRow}>
-                              <View style={styles.variantLeft}>
-                                <View
-                                  style={[
-                                    styles.colorSwatch,
-                                    { backgroundColor: swatchColor },
-                                    swatchColor.toLowerCase() === '#ffffff' || swatchColor.toLowerCase() === '#faf8f5'
-                                      ? styles.swatchBorder
-                                      : null,
-                                  ]}
-                                />
-                                <View style={styles.variantNameCol}>
-                                  <Text style={styles.variantColorTitle}>{variant.color || 'Standard'}</Text>
-                                  {variant.size ? (
-                                    <View style={styles.variantSizeBadge}>
-                                      <Text style={styles.variantSizeText}>{variant.size}</Text>
+                                {/* Variant Top Meta */}
+                                <View style={styles.variantTopRow}>
+                                  <View style={styles.variantLeft}>
+                                    <View
+                                      style={[
+                                        styles.colorSwatch,
+                                        { backgroundColor: swatchColor },
+                                        swatchColor.toLowerCase() === '#ffffff' || swatchColor.toLowerCase() === '#faf8f5'
+                                          ? styles.swatchBorder
+                                          : null,
+                                      ]}
+                                    />
+                                    <View style={styles.variantNameCol}>
+                                      <Text style={styles.variantColorTitle}>{variant.color || 'Standard'}</Text>
+                                      {variant.size ? (
+                                        <View style={styles.variantSizeBadge}>
+                                          <Text style={styles.variantSizeText}>{variant.size}</Text>
+                                        </View>
+                                      ) : null}
                                     </View>
-                                  ) : null}
-                                </View>
-                              </View>
-
-                              <View style={styles.variantStatusBadges}>
-                                <View
-                                  style={[
-                                    styles.variantStatusBadge,
-                                    isOos ? styles.variantStatusOos : styles.variantStatusAvail,
-                                  ]}
-                                >
-                                  <View
-                                    style={[
-                                      styles.variantDot,
-                                      isOos ? styles.variantDotOos : styles.variantDotAvail,
-                                    ]}
-                                  />
-                                  <Text
-                                    style={[
-                                      styles.variantStatusText,
-                                      isOos ? styles.variantStatusTextOos : styles.variantStatusTextAvail,
-                                    ]}
-                                  >
-                                    {stockVal} avail
-                                  </Text>
-                                </View>
-                                {hasReserved && (
-                                  <View style={[styles.variantStatusBadge, styles.variantStatusReserved]}>
-                                    <Lock size={10} color="#c2410c" style={{ marginRight: 3 }} />
-                                    <Text style={styles.variantStatusTextReserved}>
-                                      {reservedVal} held
-                                    </Text>
                                   </View>
-                                )}
-                              </View>
-                            </View>
 
-                            {/* Dual Management Row: Available Stock & Reserved Stock */}
-                            <View style={styles.variantDualEditors}>
-                              {/* Available Stock Group */}
-                              <View style={styles.variantEditorCol}>
-                                <Text style={styles.editorColLabel}>AVAILABLE STOCK</Text>
-                                <View style={styles.stepperContainer}>
-                                  <TouchableOpacity
-                                    onPress={() => handleVariantStockChange(product, vIdx, stockVal - 1)}
-                                    style={[styles.stepperBtn, stockVal <= 0 && styles.stepperBtnDisabled]}
-                                    disabled={stockVal <= 0}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Minus size={13} color={stockVal <= 0 ? '#d4d4d8' : '#18181b'} />
-                                  </TouchableOpacity>
-
-                                  <TextInput
-                                    style={[styles.stockInput, isOos && styles.stockInputOos]}
-                                    keyboardType="number-pad"
-                                    value={String(stockVal)}
-                                    onChangeText={val => {
-                                      const parsed = parseInt(val.replace(/[^0-9]/g, ''), 10);
-                                      handleVariantStockChange(product, vIdx, isNaN(parsed) ? 0 : parsed);
-                                    }}
-                                    selectTextOnFocus
-                                  />
-
-                                  <TouchableOpacity
-                                    onPress={() => handleVariantStockChange(product, vIdx, stockVal + 1)}
-                                    style={[styles.stepperBtn, styles.stepperBtnPlus]}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Plus size={13} color="#FF5E36" />
-                                  </TouchableOpacity>
-                                </View>
-                              </View>
-
-                              <View style={styles.editorDivider} />
-
-                              {/* Reserved Stock Group */}
-                              <View style={styles.variantEditorCol}>
-                                <View style={styles.editorColHeaderRow}>
-                                  <Text style={[styles.editorColLabel, hasReserved && styles.editorColLabelReserved]}>
-                                    CUSTOMER HOLDS
-                                  </Text>
-                                  {hasReserved && (
-                                    <TouchableOpacity
-                                      onPress={() => handleVariantReservedStockChange(product, vIdx, 0)}
-                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                      style={styles.resetReservedMiniBtn}
-                                      accessibilityLabel="Release reserved stock to 0"
+                                  <View style={styles.variantStatusBadges}>
+                                    <View
+                                      style={[
+                                        styles.variantStatusBadge,
+                                        isOos ? styles.variantStatusOos : styles.variantStatusAvail,
+                                      ]}
                                     >
-                                      <RotateCcw size={10} color="#c2410c" />
-                                    </TouchableOpacity>
-                                  )}
+                                      <View
+                                        style={[
+                                          styles.variantDot,
+                                          isOos ? styles.variantDotOos : styles.variantDotAvail,
+                                        ]}
+                                      />
+                                      <Text
+                                        style={[
+                                          styles.variantStatusText,
+                                          isOos ? styles.variantStatusTextOos : styles.variantStatusTextAvail,
+                                        ]}
+                                      >
+                                        {stockVal} avail
+                                      </Text>
+                                    </View>
+                                    {hasReserved && (
+                                      <View style={[styles.variantStatusBadge, styles.variantStatusReserved]}>
+                                        <Lock size={10} color="#c2410c" style={{ marginRight: 3 }} />
+                                        <Text style={styles.variantStatusTextReserved}>
+                                          {reservedVal} held
+                                        </Text>
+                                      </View>
+                                    )}
+                                  </View>
                                 </View>
-                                <View style={styles.stepperContainer}>
-                                  <TouchableOpacity
-                                    onPress={() => handleVariantReservedStockChange(product, vIdx, reservedVal - 1)}
-                                    style={[
-                                      styles.stepperBtn,
-                                      reservedVal <= 0 && styles.stepperBtnDisabled,
-                                    ]}
-                                    disabled={reservedVal <= 0}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Minus size={13} color={reservedVal <= 0 ? '#d4d4d8' : '#c2410c'} />
-                                  </TouchableOpacity>
 
-                                  <TextInput
-                                    style={[
-                                      styles.stockInput,
-                                      styles.reservedStockInput,
-                                      hasReserved && styles.reservedStockInputActive,
-                                    ]}
-                                    keyboardType="number-pad"
-                                    value={String(reservedVal)}
-                                    onChangeText={val => {
-                                      const parsed = parseInt(val.replace(/[^0-9]/g, ''), 10);
-                                      handleVariantReservedStockChange(product, vIdx, isNaN(parsed) ? 0 : parsed);
-                                    }}
-                                    selectTextOnFocus
-                                  />
+                                {/* Dual Management Row: Available Stock & Reserved Stock */}
+                                <View style={styles.variantDualEditors}>
+                                  {/* Available Stock Group */}
+                                  <View style={styles.variantEditorCol}>
+                                    <Text style={styles.editorColLabel}>AVAILABLE STOCK</Text>
+                                    <View style={styles.stepperContainer}>
+                                      <TouchableOpacity
+                                        onPress={() => handleVariantStockChange(product, vIdx, stockVal - 1)}
+                                        style={[styles.stepperBtn, stockVal <= 0 && styles.stepperBtnDisabled]}
+                                        disabled={stockVal <= 0}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Minus size={13} color={stockVal <= 0 ? '#d4d4d8' : '#18181b'} />
+                                      </TouchableOpacity>
 
-                                  <TouchableOpacity
-                                    onPress={() => handleVariantReservedStockChange(product, vIdx, reservedVal + 1)}
-                                    style={[styles.stepperBtn, styles.stepperBtnReservedPlus]}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Plus size={13} color="#c2410c" />
-                                  </TouchableOpacity>
+                                      <TextInput
+                                        style={[styles.stockInput, isOos && styles.stockInputOos]}
+                                        keyboardType="number-pad"
+                                        value={String(stockVal)}
+                                        onChangeText={val => {
+                                          const parsed = parseInt(val.replace(/[^0-9]/g, ''), 10);
+                                          handleVariantStockChange(product, vIdx, isNaN(parsed) ? 0 : parsed);
+                                        }}
+                                        selectTextOnFocus
+                                      />
+
+                                      <TouchableOpacity
+                                        onPress={() => handleVariantStockChange(product, vIdx, stockVal + 1)}
+                                        style={[styles.stepperBtn, styles.stepperBtnPlus]}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Plus size={13} color="#FF5E36" />
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+
+                                  <View style={styles.editorDivider} />
+
+                                  {/* Reserved Stock Group */}
+                                  <View style={styles.variantEditorCol}>
+                                    <View style={styles.editorColHeaderRow}>
+                                      <Text style={[styles.editorColLabel, hasReserved && styles.editorColLabelReserved]}>
+                                        CUSTOMER HOLDS
+                                      </Text>
+                                      {hasReserved && (
+                                        <TouchableOpacity
+                                          onPress={() => handleVariantReservedStockChange(product, vIdx, 0)}
+                                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                          style={styles.resetReservedMiniBtn}
+                                          accessibilityLabel="Release reserved stock to 0"
+                                        >
+                                          <RotateCcw size={10} color="#c2410c" />
+                                        </TouchableOpacity>
+                                      )}
+                                    </View>
+                                    <View style={styles.stepperContainer}>
+                                      <TouchableOpacity
+                                        onPress={() => handleVariantReservedStockChange(product, vIdx, reservedVal - 1)}
+                                        style={[
+                                          styles.stepperBtn,
+                                          reservedVal <= 0 && styles.stepperBtnDisabled,
+                                        ]}
+                                        disabled={reservedVal <= 0}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Minus size={13} color={reservedVal <= 0 ? '#d4d4d8' : '#c2410c'} />
+                                      </TouchableOpacity>
+
+                                      <TextInput
+                                        style={[
+                                          styles.stockInput,
+                                          styles.reservedStockInput,
+                                          hasReserved && styles.reservedStockInputActive,
+                                        ]}
+                                        keyboardType="number-pad"
+                                        value={String(reservedVal)}
+                                        onChangeText={val => {
+                                          const parsed = parseInt(val.replace(/[^0-9]/g, ''), 10);
+                                          handleVariantReservedStockChange(product, vIdx, isNaN(parsed) ? 0 : parsed);
+                                        }}
+                                        selectTextOnFocus
+                                      />
+
+                                      <TouchableOpacity
+                                        onPress={() => handleVariantReservedStockChange(product, vIdx, reservedVal + 1)}
+                                        style={[styles.stepperBtn, styles.stepperBtnReservedPlus]}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Plus size={13} color="#c2410c" />
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
                                 </View>
                               </View>
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </>
-                ) : (
+                            );
+                          })}
+                        </View>
+                      </>
+                    ) : (
                       /* Collapsed Summary Strip */
                       <TouchableOpacity
                         onPress={() => toggleProductCollapse(product.slug)}

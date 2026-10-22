@@ -54,8 +54,8 @@ export const globalRateLimiter = createRateLimiter({
  * Prevents brute-force attempts: 15 requests per 15-minute window per IP.
  */
 export const authRateLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 15,
+  windowMs: 1 * 60 * 1000,
+  max: 5,
   message: {
     status: 429,
     error: 'Too many authentication attempts. Please try again after 15 minutes.',
@@ -83,7 +83,7 @@ export const uploadRateLimiter = createRateLimiter({
  */
 export const trpcRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 400,
+  max: 200,
   message: {
     status: 429,
     error: 'Too many API requests. Please slow down.',

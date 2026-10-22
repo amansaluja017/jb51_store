@@ -527,6 +527,39 @@ export const styles = StyleSheet.create({
   paymentOptionTextActive: {
     color: '#FF5E36',
   },
+  creditDetailsContainer: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  dueAmountCard: {
+    height: 42,
+    backgroundColor: '#ffedd5',
+    borderWidth: 1,
+    borderColor: '#fdba74',
+    borderRadius: 8,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  dueAmountText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#c2410c',
+  },
+  dueDateHelperText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ea580c',
+    marginTop: 4,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   summaryBox: {
     marginTop: 10,
     paddingTop: 10,
@@ -673,6 +706,14 @@ export const styles = StyleSheet.create({
   },
   badgeCashText: {
     color: '#d97706',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  badgeCredit: {
+    backgroundColor: '#ffedd5',
+  },
+  badgeCreditText: {
+    color: '#c2410c',
     fontSize: 9,
     fontWeight: 'bold',
   },

@@ -54,7 +54,9 @@ export interface InvoiceFormValues {
   clientAddress: string;
   taxRate: string;
   discount: string;
-  paymentMethod: 'Cash' | 'Online';
+  paymentMethod: 'Cash' | 'Online' | 'Credit';
+  paidAmount: string;
+  dueDate: string;
   notes: string;
 }
 
@@ -96,6 +98,7 @@ interface InvoiceScreenProps {
   onFetchOrders: () => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
+  onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
   onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
   onFetchPaginatedProducts?: (params?: any) => Promise<any>;
@@ -120,6 +123,7 @@ export default function InvoiceScreen({
   onFetchOrders,
   onCreateOrder,
   onDeleteInvoice,
+  onFetchCredits,
   onFetchProducts,
   onFetchPaginatedCustomers,
   onFetchPaginatedProducts,
@@ -181,6 +185,8 @@ export default function InvoiceScreen({
       taxRate: '12',
       discount: '0',
       paymentMethod: 'Online',
+      paidAmount: '0',
+      dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
       notes: '',
     },
   });
@@ -244,38 +250,71 @@ export default function InvoiceScreen({
   // Normalized viewing invoice helper
   const resolvedInvoice = useMemo(() => {
     if (!viewingInvoice) return null;
-    const isCash =
-      (viewingInvoice.mode || viewingInvoice.paymentMethod || 'cash').toLowerCase() ===
-      'cash';
-    const paymentMethod = isCash ? 'Cash' : 'Online';
+    const rawMode = (viewingInvoice.mode || viewingInvoice.paymentMethod || 'cash').toLowerCase();
+    const isCredit = rawMode === 'credit';
+    const isCash = rawMode === 'cash';
+    const paymentMethod = isCredit ? 'Credit' : isCash ? 'Cash' : 'Online';
     const finalAmt = Number(
       viewingInvoice.finalAmount ?? viewingInvoice.totalAmount ?? 0
     );
-    const sub = Number(viewingInvoice.subtotal ?? finalAmt);
-    const gstRate = viewingInvoice.gst
-      ? String(viewingInvoice.gst)
-      : viewingInvoice.taxRate
-        ? String(viewingInvoice.taxRate)
-        : '0';
+    const gstAmount = Number(viewingInvoice.gst ?? 0);
     const disc = Number(viewingInvoice.discount ?? 0);
+
+    const items = Array.isArray(viewingInvoice.items)
+      ? viewingInvoice.items.map((it: any) => ({
+        id: it.id || it.productId || Math.random().toString(),
+        productId: it.productId,
+        productVariantId: it.productVariantId,
+        name: it.name || it.productName || 'Product',
+        variantColor: it.variantColor,
+        price: Number(it.price || it.unitPrice || 0),
+        quantity: Number(it.quantity || 1),
+        total: Number(
+          it.total ||
+          Number(it.price || it.unitPrice || 0) * Number(it.quantity || 1)
+        ),
+      }))
+      : [];
+
+    const itemsSum = items.reduce((sum: number, it: any) => sum + (it.total || 0), 0);
+    const sub = Number(
+      viewingInvoice.subtotal ??
+      (itemsSum > 0
+        ? itemsSum
+        : finalAmt > 0 && gstAmount > 0
+          ? finalAmt - gstAmount + disc
+          : finalAmt)
+    );
+
+    // Determine tax rate accurately:
+    // 1. If taxRate was explicitly stored and > 0 (e.g. "12"), use it.
+    // 2. If taxRate is missing or 0, but gstAmount > 0 (e.g. ₹300 tax on ₹2,500 subtotal), derive: 12%.
+    // 3. Otherwise default to 0%.
+    const storedRateNum =
+      viewingInvoice.taxRate !== undefined && viewingInvoice.taxRate !== null
+        ? parseFloat(String(viewingInvoice.taxRate))
+        : NaN;
+
+    let gstRate = '0';
+    if (!isNaN(storedRateNum) && storedRateNum > 0) {
+      gstRate = String(storedRateNum);
+    } else if (sub > 0 && gstAmount > 0) {
+      const derived = (gstAmount / sub) * 100;
+      gstRate =
+        Number.isInteger(derived) || Math.abs(derived - Math.round(derived)) < 0.05
+          ? String(Math.round(derived))
+          : derived.toFixed(1);
+    }
+
+    const taxAmount = gstAmount > 0
+      ? gstAmount
+      : sub > 0 && parseFloat(gstRate) > 0
+        ? Math.round((sub * parseFloat(gstRate)) / 100)
+        : 0;
+
     const dateStr = viewingInvoice.createdAt
       ? new Date(viewingInvoice.createdAt).toLocaleDateString('en-IN')
       : viewingInvoice.date || new Date().toLocaleDateString('en-IN');
-    const items = Array.isArray(viewingInvoice.items)
-      ? viewingInvoice.items.map((it: any) => ({
-          id: it.id || it.productId || Math.random().toString(),
-          productId: it.productId,
-          productVariantId: it.productVariantId,
-          name: it.name || it.productName || 'Product',
-          variantColor: it.variantColor,
-          price: Number(it.price || it.unitPrice || 0),
-          quantity: Number(it.quantity || 1),
-          total: Number(
-            it.total ||
-              Number(it.price || it.unitPrice || 0) * Number(it.quantity || 1)
-          ),
-        }))
-      : [];
 
     return {
       ...viewingInvoice,
@@ -293,9 +332,9 @@ export default function InvoiceScreen({
       items,
       subtotal: sub,
       taxRate: gstRate,
-      taxAmount: Math.round((sub * (parseFloat(gstRate) || 0)) / 100),
+      taxAmount,
       discount: disc,
-      totalAmount: finalAmt,
+      totalAmount: finalAmt > 0 ? finalAmt : Math.max(0, sub + taxAmount - disc),
       paymentMethod,
       notes: viewingInvoice.notes || '',
     };
@@ -335,18 +374,41 @@ export default function InvoiceScreen({
     ? resolvedInvoice.notes
     : formValues.notes;
 
-  const activeSubtotal = activeItems.reduce(
-    (sum: number, item: any) => sum + item.total,
-    0
-  );
-  const activeTaxAmount = Math.round(
-    (activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100
-  );
-  const activeDiscountAmount = parseFloat(activeDiscount) || 0;
-  const activeTotalAmount = Math.max(
-    0,
-    activeSubtotal + activeTaxAmount - activeDiscountAmount
-  );
+  const activeSubtotal = isViewingPast
+    ? resolvedInvoice.subtotal
+    : activeItems.reduce((sum: number, item: any) => sum + item.total, 0);
+
+  const activeTaxAmount = isViewingPast
+    ? resolvedInvoice.taxAmount
+    : Math.round((activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100);
+
+  const activeDiscountAmount = isViewingPast
+    ? resolvedInvoice.discount
+    : (parseFloat(activeDiscount) || 0);
+
+  const activeTotalAmount = isViewingPast
+    ? resolvedInvoice.totalAmount
+    : Math.max(0, activeSubtotal + activeTaxAmount - activeDiscountAmount);
+
+  const activePaidAmount = isViewingPast
+    ? Number(resolvedInvoice?.paidAmount ?? 0)
+    : formValues.paymentMethod === 'Credit'
+      ? parseFloat(formValues.paidAmount) || 0
+      : activeTotalAmount;
+
+  const activeDueAmount = isViewingPast
+    ? Number(resolvedInvoice?.dueAmount ?? 0)
+    : formValues.paymentMethod === 'Credit'
+      ? Math.max(0, activeTotalAmount - (parseFloat(formValues.paidAmount) || 0))
+      : 0;
+
+  const activeDueDate = isViewingPast
+    ? (resolvedInvoice?.dueDate
+        ? new Date(resolvedInvoice.dueDate).toLocaleDateString('en-IN')
+        : null)
+    : formValues.paymentMethod === 'Credit'
+      ? formValues.dueDate
+      : null;
 
   // Handle selecting a customer from dropdown
   const handleSelectCustomer = (cust: Customer) => {
@@ -490,6 +552,10 @@ export default function InvoiceScreen({
         `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
       const orderNumber = invNumber.replace('INV', 'ORD');
+      const isCredit = formValues.paymentMethod === 'Credit';
+      const paidAmt = isCredit ? parseFloat(formValues.paidAmount) || 0 : totalAmount;
+      const dueAmt = isCredit ? Math.max(0, totalAmount - paidAmt) : 0;
+      const dDate = isCredit && formValues.dueDate.trim() ? formValues.dueDate.trim() : null;
 
       // 1. Create Order, deduct Inventory, and create Invoice atomically in backend
       const orderPayload = {
@@ -504,8 +570,12 @@ export default function InvoiceScreen({
         paymentMethod: formValues.paymentMethod.toLowerCase(),
         subtotal,
         gst: taxAmount,
+        taxRate: parseFloat(formValues.taxRate) || 0,
         discount: discountAmount,
         totalAmount,
+        paidAmount: paidAmt,
+        dueAmount: dueAmt,
+        dueDate: dDate,
         items: invoiceItems.map((item) => ({
           productId: item.productId,
           productVariantId: item.productVariantId || null,
@@ -534,6 +604,9 @@ export default function InvoiceScreen({
         taxAmount,
         discount: discountAmount,
         totalAmount,
+        paidAmount: isCredit ? paidAmt : totalAmount,
+        dueAmount: isCredit ? dueAmt : 0,
+        dueDate: dDate,
         paymentMethod: formValues.paymentMethod,
         notes: formValues.notes.trim(),
       };
@@ -560,6 +633,7 @@ export default function InvoiceScreen({
         onFetchInvoices(),
         onFetchOrders(),
         onFetchCustomers(),
+        onFetchCredits ? onFetchCredits() : Promise.resolve(),
       ]);
 
       setIsPreviewOpen(false);
@@ -625,6 +699,8 @@ export default function InvoiceScreen({
       taxRate: '12',
       discount: '0',
       paymentMethod: 'Online',
+      paidAmount: '0',
+      dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
       notes: '',
     });
 
@@ -737,7 +813,6 @@ export default function InvoiceScreen({
           selectedCustomerId={selectedCustomerId}
           onSelectCustomer={handleSelectCustomer}
           onNavigateToSelectCustomer={() => {
-            onFetchCustomers();
             setFormSubPage('select-customer');
           }}
           onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
@@ -755,7 +830,6 @@ export default function InvoiceScreen({
           filteredProducts={filteredProducts}
           onSelectProduct={handleSelectProduct}
           onNavigateToSelectProduct={() => {
-            onFetchProducts?.();
             setFormSubPage('select-product');
           }}
           itemPrice={itemPrice}
@@ -782,6 +856,21 @@ export default function InvoiceScreen({
             if (invoiceItems.length === 0) {
               showAlert('Items Required', 'Please add at least one item.', 'error');
               return;
+            }
+            if (formValues.paymentMethod === 'Credit') {
+              const paidNum = parseFloat(formValues.paidAmount) || 0;
+              if (paidNum > totalAmount) {
+                showAlert(
+                  'Invalid Paid Amount',
+                  `Advance paid amount (₹${paidNum.toLocaleString('en-IN')}) cannot exceed total invoice amount (₹${totalAmount.toLocaleString('en-IN')}).`,
+                  'error'
+                );
+                return;
+              }
+              if (!formValues.dueDate.trim()) {
+                showAlert('Due Date Required', 'Please choose a payment due date for this credit.', 'error');
+                return;
+              }
             }
             setIsPreviewOpen(true);
           }}
@@ -831,6 +920,9 @@ export default function InvoiceScreen({
         activeTaxAmount={activeTaxAmount}
         activeDiscountAmount={activeDiscountAmount}
         activeTotalAmount={activeTotalAmount}
+        activePaidAmount={activePaidAmount}
+        activeDueAmount={activeDueAmount}
+        activeDueDate={activeDueDate}
         activeNotes={activeNotes}
         isSubmitting={isSubmitting}
         isExporting={isExporting}

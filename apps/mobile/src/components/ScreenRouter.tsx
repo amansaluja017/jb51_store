@@ -57,6 +57,7 @@ export interface ScreenRouterProps {
   onFetchOrders: () => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
+  onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
   onFetchPaginatedProducts?: (params?: any) => Promise<any>;
   onFetchPaginatedStock?: (params?: any) => Promise<any>;
@@ -115,6 +116,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onFetchOrders,
   onCreateOrder,
   onDeleteInvoice,
+  onFetchCredits,
   onFetchProducts,
   onFetchPaginatedProducts,
   onFetchPaginatedStock,
@@ -162,7 +164,6 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onEditProduct={onEditProduct}
           onDeleteProduct={onDeleteProduct}
           onViewProductDetails={onViewProductDetails}
-          onFetchPaginatedProducts={onFetchPaginatedProducts}
         />
       )}
       {activeTab === 'inventory' && (
@@ -180,7 +181,6 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onFetchTransactions={onFetchTransactions}
           onViewProductDetails={onViewProductDetails}
           showAlert={showAlert}
-          onFetchPaginatedStock={onFetchPaginatedStock}
         />
       )}
       {activeTab === 'invoices' && (
@@ -196,14 +196,13 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           refreshing={refreshing}
           onRefresh={onRefresh}
           onFetchCustomers={onFetchCustomers}
-          onFetchPaginatedCustomers={onFetchPaginatedCustomers}
           onCreateCustomer={onCreateCustomer}
           onFetchInvoices={onFetchInvoices}
           onFetchOrders={onFetchOrders}
           onCreateOrder={onCreateOrder}
           onDeleteInvoice={onDeleteInvoice}
+          onFetchCredits={onFetchCredits}
           onFetchProducts={onFetchProducts}
-          onFetchPaginatedProducts={onFetchPaginatedProducts}
           isLoadingCustomers={isLoadingCustomers}
           isLoadingProducts={isLoadingProducts}
         />
