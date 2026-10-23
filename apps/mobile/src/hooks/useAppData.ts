@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Animated } from 'react-native';
 import {
   Product,
@@ -84,6 +84,8 @@ export function useAppData() {
   const hasFetchedTransactions = useRef(false);
   const hasFetchedInvoices = useRef(false);
   const hasFetchedReviews = useRef(false);
+  const hasFetchedOrders = useRef(false);
+  const isFetchingOrders = useRef(false);
 
   // Search & Modals
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,14 +191,19 @@ export function useAppData() {
         hasFetchedTransactions.current = true;
         handleFetchTransactions();
       }
+      // Hit order history in stock section as requested
+      if (!hasFetchedOrders.current) {
+        handleFetchOrders();
+      }
     } else if (activeTab === 'invoices') {
       if (!hasFetchedInvoices.current) {
         hasFetchedInvoices.current = true;
         handleFetchInvoices();
       }
-      // On invoices tab: DO NOT hit customers, products, or orders routes on load.
-      // Customers and products are loaded on-demand when user clicks dropdowns.
-      // Orders route is hit on-demand when navigating to the Order History tab.
+      // Hit order history route directly in invoices section, not waiting until opening order history
+      if (!hasFetchedOrders.current) {
+        handleFetchOrders();
+      }
     } else if (activeTab === 'reviews') {
       if (!hasFetchedReviews.current) {
         hasFetchedReviews.current = true;
@@ -229,11 +236,14 @@ export function useAppData() {
         await Promise.all([
           handleFetchProducts(true),
           handleFetchTransactions(),
+          handleFetchOrders(true),
         ]);
       } else if (activeTab === 'invoices') {
         await Promise.all([
           handleFetchInvoices(),
-          handleFetchOrders(),
+          handleFetchOrders(true),
+          handleFetchCustomers(),
+          handleFetchCredits(true),
         ]);
       } else if (activeTab === 'reviews') {
         await handleFetchReviews();
@@ -305,6 +315,7 @@ export function useAppData() {
       hasFetchedTransactions.current = false;
       hasFetchedInvoices.current = false;
       hasFetchedReviews.current = false;
+      hasFetchedOrders.current = false;
       showAlert('Logged Out', 'Your admin session has ended.', 'info');
     }
   };
@@ -508,6 +519,77 @@ export function useAppData() {
     }
   };
 
+  const handleFetchPaginatedInvoices = async (params?: {
+    search?: string;
+    mode?: 'all' | 'cash' | 'online' | 'credit';
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'amount-desc' | 'amount-asc';
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('invoices.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedInvoices Error]:', err);
+      throw err;
+    }
+  };
+
+  const handleFetchPaginatedOrders = async (params?: {
+    search?: string;
+    status?: string;
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'totalAmount-desc' | 'totalAmount-asc';
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('orders.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedOrders Error]:', err);
+      throw err;
+    }
+  };
+
+  const handleFetchPaginatedCredits = async (params?: {
+    search?: string;
+    filterTab?: 'all' | 'pending' | 'overdue' | 'settled';
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'dueAmount-desc' | 'dueDate-asc';
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('credits.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedCredits Error]:', err);
+      throw err;
+    }
+  };
+
+  const handleFetchPaginatedReviews = async (params?: {
+    search?: string;
+    approved?: boolean;
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const res: any = await trpcRequest('reviews.getPaginated', {
+        input: params,
+      });
+      return res;
+    } catch (err: any) {
+      console.error('[handleFetchPaginatedReviews Error]:', err);
+      throw err;
+    }
+  };
+
   const handleCreateCustomer = async (data: {
     name: string;
     phoneNumber: string;
@@ -602,8 +684,12 @@ export function useAppData() {
   const handleFetchReviews = async () => {
     setIsLoadingReviews(true);
     try {
-      const res = await trpcRequest('reviews.getModerationQueue');
-      if (Array.isArray(res)) {
+      const res: any = await trpcRequest('reviews.getPaginated', {
+        input: { page: 1, limit: 20 },
+      });
+      if (res?.items && Array.isArray(res.items)) {
+        setReviews(res.items as Review[]);
+      } else if (Array.isArray(res)) {
         setReviews(res as Review[]);
       }
       hasFetchedReviews.current = true;
@@ -617,8 +703,12 @@ export function useAppData() {
   const handleFetchInvoices = async () => {
     setIsLoadingInvoices(true);
     try {
-      const res = await trpcRequest('invoices.getAll');
-      if (Array.isArray(res)) {
+      const res: any = await trpcRequest('invoices.getPaginated', {
+        input: { page: 1, limit: 20 },
+      });
+      if (res?.items && Array.isArray(res.items)) {
+        setInvoices(res.items as Invoice[]);
+      } else if (Array.isArray(res)) {
         setInvoices(res as Invoice[]);
       }
     } catch (err: any) {
@@ -648,40 +738,63 @@ export function useAppData() {
     }
   };
 
-  const handleFetchOrders = async () => {
-    setIsLoadingOrders(true);
+  const handleFetchOrders = useCallback(async (force = false) => {
+    if ((hasFetchedOrders.current || isFetchingOrders.current) && !force) {
+      return;
+    }
+    isFetchingOrders.current = true;
+    if (!hasFetchedOrders.current || force) {
+      setIsLoadingOrders(true);
+    }
     try {
-      const res = await trpcRequest('orders.getAll');
-      if (Array.isArray(res)) {
+      const res: any = await trpcRequest('orders.getPaginated', {
+        input: { page: 1, limit: 20 },
+      });
+      if (res?.items && Array.isArray(res.items)) {
+        setOrders(res.items as Order[]);
+      } else if (Array.isArray(res)) {
         setOrders(res as Order[]);
       }
+      hasFetchedOrders.current = true;
     } catch (err: any) {
       console.error('[handleFetchOrders Error]:', err);
     } finally {
+      isFetchingOrders.current = false;
       setIsLoadingOrders(false);
     }
-  };
+  }, [token, apiHost]);
 
   const handleDeleteInvoice = async (id: string, label: string) => {
-    try {
-      await trpcRequest('invoices.delete', {
-        method: 'POST',
-        body: { id },
-      });
-      setInvoices(prev => prev.filter(inv => inv.id !== id));
-      showAlert('Invoice Deleted', `Invoice "${label}" deleted successfully.`, 'success');
-    } catch (err: any) {
-      console.error('[handleDeleteInvoice Error]:', err);
-      showAlert('Error Deleting Invoice', err.message || 'Failed to delete invoice', 'error');
-      throw err;
-    }
+    showAlert(
+      'Delete Invoice',
+      `Are you sure you want to delete invoice "${label}"? This action cannot be undone and will permanently remove this invoice document.`,
+      'confirm',
+      async () => {
+        try {
+          await trpcRequest('invoices.delete', {
+            method: 'POST',
+            body: { id },
+          });
+          setInvoices(prev => prev.filter(inv => inv.id !== id));
+          showAlert('Invoice Deleted', `Invoice "${label}" deleted successfully.`, 'success');
+        } catch (err: any) {
+          console.error('[handleDeleteInvoice Error]:', err);
+          showAlert('Error Deleting Invoice', err.message || 'Failed to delete invoice', 'error');
+        }
+      }
+    );
   };
 
   const handleFetchCredits = async (isRefresh = false) => {
     setIsLoadingCredits(true);
     try {
-      const res: any = await trpcRequest('credits.getAll');
-      if (res?.credits && Array.isArray(res.credits)) {
+      const res: any = await trpcRequest('credits.getPaginated', {
+        input: { page: 1, limit: 20 },
+      });
+      if (res?.items && Array.isArray(res.items)) {
+        setCredits(res.items as Credit[]);
+        setCreditMetrics(res.metrics as CreditMetrics);
+      } else if (res?.credits && Array.isArray(res.credits)) {
         setCredits(res.credits as Credit[]);
         setCreditMetrics(res.metrics as CreditMetrics);
       }
@@ -698,6 +811,8 @@ export function useAppData() {
     paidAmount: number;
     dueAmount: number;
     dueDate?: string | null;
+    advancePaymentMode?: string | null;
+    notes?: string | null;
   }) => {
     try {
       const res: any = await trpcRequest('credits.create', {
@@ -705,7 +820,10 @@ export function useAppData() {
         body: data,
       });
       showAlert('Credit Recorded', 'Credit balance recorded successfully.', 'success');
-      await handleFetchCredits(true);
+      await Promise.all([
+        handleFetchCredits(true),
+        handleFetchInvoices(),
+      ]);
       return res;
     } catch (err: any) {
       console.error('[handleCreateCredit Error]:', err);
@@ -719,6 +837,7 @@ export function useAppData() {
     paidAmount?: number;
     dueAmount?: number;
     dueDate?: string | null;
+    advancePaymentMode?: string | null;
   }) => {
     try {
       const res: any = await trpcRequest('credits.update', {
@@ -726,7 +845,10 @@ export function useAppData() {
         body: data,
       });
       showAlert('Credit Updated', 'Credit record updated successfully.', 'success');
-      await handleFetchCredits(true);
+      await Promise.all([
+        handleFetchCredits(true),
+        handleFetchInvoices(),
+      ]);
       return res;
     } catch (err: any) {
       console.error('[handleUpdateCredit Error]:', err);
@@ -735,14 +857,22 @@ export function useAppData() {
     }
   };
 
-  const handleRecordCreditPayment = async (id: string, amount: number) => {
+  const handleRecordCreditPayment = async (
+    id: string,
+    amount: number,
+    paymentMode = 'cash',
+    notes?: string
+  ) => {
     try {
       const res: any = await trpcRequest('credits.recordPayment', {
         method: 'POST',
-        body: { id, amount },
+        body: { id, amount, paymentMode, notes },
       });
-      showAlert('Payment Recorded', `Payment of ₹${amount.toLocaleString('en-IN')} received.`, 'success');
-      await handleFetchCredits(true);
+      showAlert('Payment Recorded', `Payment of ₹${amount.toLocaleString('en-IN')} received (${paymentMode.toUpperCase()}).`, 'success');
+      await Promise.all([
+        handleFetchCredits(true),
+        handleFetchInvoices(),
+      ]);
       return res;
     } catch (err: any) {
       console.error('[handleRecordCreditPayment Error]:', err);
@@ -751,26 +881,32 @@ export function useAppData() {
     }
   };
 
-  const handleDeleteCredit = async (id: string) => {
-    showAlert(
-      'Delete Credit',
-      'Are you sure you want to delete this credit record? This cannot be undone.',
-      'confirm',
-      async () => {
-        try {
-          await trpcRequest('credits.delete', {
-            method: 'POST',
-            body: { id },
-          });
-          setCredits(prev => prev.filter(c => c.id !== id));
-          showAlert('Credit Deleted', 'Credit record has been removed.', 'success');
-          handleFetchCredits(true);
-        } catch (err: any) {
-          console.error('[handleDeleteCredit Error]:', err);
-          showAlert('Error Deleting Credit', err.message || 'Failed to delete credit', 'error');
-        }
+  const handleDeleteCredit = async (id: string, skipConfirm = false) => {
+    const doDelete = async () => {
+      try {
+        await trpcRequest('credits.delete', {
+          method: 'POST',
+          body: { id },
+        });
+        setCredits(prev => prev.filter(c => c.id !== id));
+        showAlert('Credit Deleted', 'Credit record has been removed.', 'success');
+        handleFetchCredits(true);
+      } catch (err: any) {
+        console.error('[handleDeleteCredit Error]:', err);
+        showAlert('Error Deleting Credit', err.message || 'Failed to delete credit', 'error');
       }
-    );
+    };
+
+    if (skipConfirm) {
+      await doDelete();
+    } else {
+      showAlert(
+        'Delete Credit',
+        'Are you sure you want to delete this credit record? This cannot be undone.',
+        'confirm',
+        doDelete
+      );
+    }
   };
 
   const handleUpdateVisibility = async (product: Product, status: 'listed' | 'unListed') => {
@@ -1094,16 +1230,21 @@ export function useAppData() {
     orders,
     isLoadingOrders,
     handleFetchInvoices,
+    handleFetchPaginatedInvoices,
     handleFetchOrders,
+    handleFetchPaginatedOrders,
     handleCreateOrder,
     handleDeleteInvoice,
     // Reviews
     reviews,
     isLoadingReviews,
     handleFetchReviews,
+    handleFetchPaginatedReviews,
     handleAddReview,
     handleDeleteReview,
     handleToggleReviewApproval,
+    // Credits pagination
+    handleFetchPaginatedCredits,
     // Inquiries
     inquiries,
     pendingInquiriesCount,

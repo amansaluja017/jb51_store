@@ -1,12 +1,12 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { getProducts, getPaginatedProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories, reorderProductImages } from './data.js';
-import { getReviews, createReview, updateReview, deleteReview } from './reviews.js';
+import { getReviews, getPaginatedReviews, createReview, updateReview, deleteReview } from './reviews.js';
 import { recordInventoryTransaction, getInventoryTransactions, getPaginatedInventory } from './inventory.js';
 import { getCustomers, getPaginatedCustomers, createCustomer, updateCustomer, deleteCustomer } from './customers.js';
-import { getOrders, createOrder, getCustomerOrderHistory } from './orders.js';
-import { getInvoices, createInvoice, deleteInvoice } from './invoices.js';
-import { getCredits, createCredit, updateCredit, recordCreditPayment, deleteCredit } from './credits.js';
+import { getOrders, getPaginatedOrders, createOrder, getCustomerOrderHistory } from './orders.js';
+import { getInvoices, getPaginatedInvoices, createInvoice, deleteInvoice } from './invoices.js';
+import { getCredits, getPaginatedCredits, createCredit, updateCredit, recordCreditPayment, deleteCredit, getCreditTransactions } from './credits.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
@@ -161,6 +161,21 @@ export const reviewsRouter = t.router({
     .meta({ description: 'Fetch all reviews for moderation (including unapproved)' })
     .query(async () => {
       return await getReviews();
+    }),
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated reviews' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          approved: z.boolean().nullish(),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(10),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedReviews(input || undefined);
     }),
   create: t.procedure
     .meta({ description: 'Submit a new customer review' })
@@ -337,6 +352,22 @@ export const ordersRouter = t.router({
     .query(async () => {
       return await getOrders();
     }),
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated and filtered orders' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          status: z.string().nullish(),
+          sortBy: z.enum(['createdAt-desc', 'createdAt-asc', 'totalAmount-desc', 'totalAmount-asc']).nullish(),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(10),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedOrders(input || undefined);
+    }),
   create: adminProcedure
     .meta({ description: 'Create a new customer order (Admin only)' })
     .input(
@@ -359,6 +390,7 @@ export const ordersRouter = t.router({
         paidAmount: z.number().optional().nullable(),
         dueAmount: z.number().optional().nullable(),
         dueDate: z.string().optional().nullable(),
+        advancePaymentMode: z.string().optional().nullable(),
         items: z.array(orderItemSchema),
         notes: z.string().optional().nullable(),
       })
@@ -376,6 +408,22 @@ export const invoicesRouter = t.router({
     .meta({ description: 'Fetch all invoices' })
     .query(async () => {
       return await getInvoices();
+    }),
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated and filtered invoices' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          mode: z.enum(['all', 'cash', 'online', 'credit']).nullish(),
+          sortBy: z.enum(['createdAt-desc', 'createdAt-asc', 'amount-desc', 'amount-asc']).nullish(),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(10),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedInvoices(input || undefined);
     }),
   create: adminProcedure
     .meta({ description: 'Create a new invoice (Admin only)' })
@@ -402,6 +450,7 @@ export const invoicesRouter = t.router({
         paidAmount: z.union([z.number(), z.string()]).optional().nullable(),
         dueAmount: z.union([z.number(), z.string()]).optional().nullable(),
         dueDate: z.union([z.string(), z.date()]).optional().nullable(),
+        advancePaymentMode: z.string().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -428,6 +477,22 @@ export const creditsRouter = t.router({
     .query(async () => {
       return await getCredits();
     }),
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated and filtered credits' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          filterTab: z.enum(['all', 'pending', 'overdue', 'settled']).nullish(),
+          sortBy: z.enum(['createdAt-desc', 'createdAt-asc', 'dueAmount-desc', 'dueDate-asc']).nullish(),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(10),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedCredits(input || undefined);
+    }),
   create: adminProcedure
     .meta({ description: 'Record a new credit transaction (Admin only)' })
     .input(
@@ -438,6 +503,8 @@ export const creditsRouter = t.router({
         paidAmount: z.number().nonnegative().default(0),
         dueAmount: z.number().nonnegative(),
         dueDate: z.string().optional().nullable(),
+        advancePaymentMode: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -457,6 +524,7 @@ export const creditsRouter = t.router({
         paidAmount: z.number().nonnegative().optional(),
         dueAmount: z.number().nonnegative().optional(),
         dueDate: z.string().optional().nullable(),
+        advancePaymentMode: z.string().optional().nullable(),
       })
     )
     .mutation(async ({ input }) => {
@@ -468,10 +536,28 @@ export const creditsRouter = t.router({
       z.object({
         id: z.string().uuid(),
         amount: z.number().positive('Payment amount must be greater than 0'),
+        paymentMode: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
       })
     )
-    .mutation(async ({ input }) => {
-      return await recordCreditPayment(input);
+    .mutation(async ({ ctx, input }) => {
+      return await recordCreditPayment({
+        ...input,
+        userId: ctx.user?.id || null,
+      });
+    }),
+  getTransactions: adminProcedure
+    .meta({ description: 'Fetch credit transactions history (Admin only)' })
+    .input(
+      z
+        .object({
+          creditId: z.string().uuid().optional().nullable(),
+          invoiceId: z.string().uuid().optional().nullable(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      return await getCreditTransactions(input?.creditId || undefined, input?.invoiceId || undefined);
     }),
   delete: adminProcedure
     .meta({ description: 'Delete a credit record (Admin only)' })
@@ -480,3 +566,4 @@ export const creditsRouter = t.router({
       return await deleteCredit(input.id);
     }),
 });
+

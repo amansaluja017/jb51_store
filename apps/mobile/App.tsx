@@ -106,7 +106,9 @@ export default function App() {
           onFetchPaginatedCustomers={data.handleFetchPaginatedCustomers}
           onCreateCustomer={data.handleCreateCustomer}
           onFetchInvoices={data.handleFetchInvoices}
+          onFetchPaginatedInvoices={data.handleFetchPaginatedInvoices}
           onFetchOrders={data.handleFetchOrders}
+          onFetchPaginatedOrders={data.handleFetchPaginatedOrders}
           onCreateOrder={data.handleCreateOrder}
           onDeleteInvoice={data.handleDeleteInvoice}
           onFetchCredits={() => data.handleFetchCredits(true)}
@@ -245,6 +247,7 @@ export default function App() {
           onUpdateCredit={data.handleUpdateCredit}
           onRecordPayment={data.handleRecordCreditPayment}
           onDeleteCredit={data.handleDeleteCredit}
+          onFetchPaginatedCredits={data.handleFetchPaginatedCredits}
           showAlert={data.showAlert}
         />
 

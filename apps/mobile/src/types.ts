@@ -38,6 +38,16 @@ export const isProductInStock = (product: Product): boolean => {
   return product.variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) > 0;
 };
 
+export const isProductDiscontinued = (product: Product): boolean => {
+  if (!product) return false;
+  return (
+    product.status === 'discontinued' ||
+    (product as any).isDiscontinued === true ||
+    (product as any).features?.isDiscontinued === true ||
+    (product as any).features?.status === 'discontinued'
+  );
+};
+
 export interface Inquiry {
   id: string;
   customerName: string;
@@ -129,6 +139,8 @@ export interface Invoice {
   dueAmount?: string | number | null;
   dueDate?: string | null;
   paymentDate?: string | null;
+  advancePaymentMode?: string | null;
+  creditTransactions?: CreditTransaction[];
 }
 
 export interface OrderItem {
@@ -166,6 +178,19 @@ export interface Order {
   updatedAt?: string;
 }
 
+export interface CreditTransaction {
+  id: string;
+  creditId: string;
+  orderId?: string | null;
+  invoiceId?: string | null;
+  userId?: string | null;
+  amount: string | number;
+  paymentMode: string;
+  transactionType: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
 export interface Credit {
   id: string;
   orderId?: string | null;
@@ -174,6 +199,7 @@ export interface Credit {
   paidAmount: string | number;
   dueAmount: string | number;
   dueDate?: string | null;
+  advancePaymentMode?: string | null;
   createdAt: string;
   updatedAt: string;
   orderNumber?: string | null;
@@ -184,6 +210,7 @@ export interface Credit {
   customerEmail?: string | null;
   customerAddress?: string | null;
   userEmail?: string | null;
+  transactions?: CreditTransaction[];
 }
 
 export interface CreditMetrics {

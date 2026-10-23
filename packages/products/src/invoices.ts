@@ -4,9 +4,10 @@ import {
   customerDetails as customerDetailsTable,
   orders as ordersTable,
   credits as creditsTable,
+  creditTransactions as creditTransactionsTable,
   InvoiceItem,
 } from '@repo/db';
-import { desc, eq, or, and, isNotNull } from 'drizzle-orm';
+import { desc, eq, or, and, isNotNull, inArray } from 'drizzle-orm';
 
 export interface CreateInvoiceInput {
   invoiceNumber?: string;
@@ -30,6 +31,7 @@ export interface CreateInvoiceInput {
   paidAmount?: number | string | null;
   dueAmount?: number | string | null;
   dueDate?: string | Date | null;
+  advancePaymentMode?: string | null;
 }
 
 export async function createInvoice(input: CreateInvoiceInput) {
@@ -133,6 +135,11 @@ export async function createInvoice(input: CreateInvoiceInput) {
         ? Math.max(0, Number(input.dueAmount))
         : Math.max(0, Number(finalAmount) - paidAmt);
     const dDate = input.dueDate ? new Date(input.dueDate) : null;
+    const advMode = input.advancePaymentMode
+      ? input.advancePaymentMode.toLowerCase()
+      : paidAmt > 0
+        ? 'cash'
+        : null;
 
     const [existingCredit] = await db
       .select()
@@ -143,6 +150,7 @@ export async function createInvoice(input: CreateInvoiceInput) {
           : eq(creditsTable.invoiceId, inv.id)
       );
 
+    let creditId = existingCredit?.id;
     if (existingCredit) {
       await db
         .update(creditsTable)
@@ -150,18 +158,47 @@ export async function createInvoice(input: CreateInvoiceInput) {
           paidAmount: paidAmt.toFixed(2),
           dueAmount: dueAmt.toFixed(2),
           dueDate: dDate,
+          advancePaymentMode: advMode || existingCredit.advancePaymentMode,
           updatedAt: new Date(),
         })
         .where(eq(creditsTable.id, existingCredit.id));
     } else {
-      await db.insert(creditsTable).values({
+      const [newCredit] = await db.insert(creditsTable).values({
         invoiceId: inv.id,
         orderId: inv.orderId || null,
         userId: inv.userId || null,
         paidAmount: paidAmt.toFixed(2),
         dueAmount: dueAmt.toFixed(2),
         dueDate: dDate,
-      });
+        advancePaymentMode: advMode,
+      }).returning();
+      creditId = newCredit.id;
+    }
+
+    // Check if initial advance transaction needs to be logged
+    if (creditId && paidAmt > 0) {
+      const existingTx = await db
+        .select()
+        .from(creditTransactionsTable)
+        .where(
+          and(
+            eq(creditTransactionsTable.creditId, creditId),
+            eq(creditTransactionsTable.transactionType, 'advance')
+          )
+        );
+
+      if (existingTx.length === 0) {
+        await db.insert(creditTransactionsTable).values({
+          creditId,
+          invoiceId: inv.id,
+          orderId: inv.orderId || null,
+          userId: inv.userId || null,
+          amount: paidAmt.toFixed(2),
+          paymentMode: advMode || 'cash',
+          transactionType: 'advance',
+          notes: 'Advance payment on invoice creation',
+        });
+      }
     }
   }
 
@@ -200,9 +237,11 @@ export async function getInvoices() {
       // Joined order number
       orderNumber: ordersTable.orderNumber,
       // Joined credit details
+      creditId: creditsTable.id,
       creditPaidAmount: creditsTable.paidAmount,
       creditDueAmount: creditsTable.dueAmount,
       creditDueDate: creditsTable.dueDate,
+      creditAdvancePaymentMode: creditsTable.advancePaymentMode,
     })
     .from(invoicesTable)
     .leftJoin(
@@ -232,6 +271,28 @@ export async function getInvoices() {
     }
   }
 
+  const creditIds = deduplicated
+    .map((r) => r.creditId)
+    .filter((id): id is string => Boolean(id));
+
+  const invoiceIds = deduplicated.map((r) => r.id);
+
+  let allTx: (typeof creditTransactionsTable.$inferSelect)[] = [];
+  if (creditIds.length > 0 || invoiceIds.length > 0) {
+    allTx = await db
+      .select()
+      .from(creditTransactionsTable)
+      .where(
+        creditIds.length > 0
+          ? or(
+              inArray(creditTransactionsTable.creditId, creditIds),
+              inArray(creditTransactionsTable.invoiceId, invoiceIds)
+            )
+          : inArray(creditTransactionsTable.invoiceId, invoiceIds)
+      )
+      .orderBy(desc(creditTransactionsTable.createdAt));
+  }
+
   return deduplicated.map((row) => {
     const isCredit = (row.mode || '').toLowerCase() === 'credit';
     const total = Number(row.finalAmount ?? row.totalAmount ?? 0);
@@ -248,6 +309,13 @@ export async function getInvoices() {
           ? 0
           : null;
 
+    const invoiceTransactions = allTx.filter(
+      (tx) =>
+        (row.creditId && tx.creditId === row.creditId) ||
+        tx.invoiceId === row.id ||
+        (row.orderId && tx.orderId === row.orderId)
+    );
+
     return {
       ...row,
       customerName: row.custName || row.customerName || 'Walk-in Customer',
@@ -257,6 +325,8 @@ export async function getInvoices() {
       paidAmount: creditPaid !== null ? creditPaid.toString() : null,
       dueAmount: creditDue !== null ? creditDue.toString() : null,
       dueDate: row.creditDueDate ? row.creditDueDate.toISOString() : null,
+      advancePaymentMode: row.creditAdvancePaymentMode || null,
+      creditTransactions: invoiceTransactions,
     };
   });
 }
@@ -269,3 +339,83 @@ export async function deleteInvoice(id: string) {
   return deleted;
 }
 
+export interface GetPaginatedInvoicesInput {
+  search?: string | null;
+  mode?: 'all' | 'cash' | 'online' | 'credit' | null;
+  sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'amount-desc' | 'amount-asc' | null;
+  page?: number | null;
+  limit?: number | null;
+}
+
+export async function getPaginatedInvoices(input?: GetPaginatedInvoicesInput) {
+  const page = Math.max(1, input?.page || 1);
+  const limit = Math.max(1, input?.limit || 10);
+  const search = (input?.search || '').trim().toLowerCase();
+  const mode = input?.mode;
+  const sortBy = input?.sortBy || 'createdAt-desc';
+
+  let all = await getInvoices();
+
+  if (search) {
+    all = all.filter((inv) => {
+      const invNum = (inv.invoiceNumber || inv.id || '').toLowerCase();
+      const custName = (inv.customerName || '').toLowerCase();
+      const phone = (inv.phoneNumber || '').toLowerCase();
+      const email = (inv.email || '').toLowerCase();
+      const orderNum = (inv.orderNumber || '').toLowerCase();
+      return (
+        invNum.includes(search) ||
+        custName.includes(search) ||
+        phone.includes(search) ||
+        email.includes(search) ||
+        orderNum.includes(search)
+      );
+    });
+  }
+
+  if (mode && mode !== 'all') {
+    all = all.filter((inv) => (inv.mode || '').toLowerCase() === mode.toLowerCase());
+  }
+
+  all.sort((a, b) => {
+    if (sortBy === 'createdAt-asc') {
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    }
+    if (sortBy === 'amount-desc') {
+      const amtA = Number(a.finalAmount ?? a.totalAmount ?? 0);
+      const amtB = Number(b.finalAmount ?? b.totalAmount ?? 0);
+      return amtB - amtA;
+    }
+    if (sortBy === 'amount-asc') {
+      const amtA = Number(a.finalAmount ?? a.totalAmount ?? 0);
+      const amtB = Number(b.finalAmount ?? b.totalAmount ?? 0);
+      return amtA - amtB;
+    }
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = all.slice(offset, offset + limit);
+
+  const totalCollected = all.reduce(
+    (sum, inv) => sum + (Number(inv.finalAmount ?? inv.totalAmount ?? 0) || 0),
+    0
+  );
+  const cashCollected = all.reduce((sum, inv) => {
+    const m = (inv.mode || '').toLowerCase();
+    return m === 'cash' ? sum + (Number(inv.finalAmount ?? inv.totalAmount ?? 0) || 0) : sum;
+  }, 0);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+    totalCollected,
+    cashCollected,
+  };
+}

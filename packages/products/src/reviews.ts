@@ -169,3 +169,42 @@ export async function deleteReview(id: string): Promise<boolean> {
 
   return deleted.length > 0;
 }
+
+export interface GetPaginatedReviewsInput {
+  search?: string | null;
+  approved?: boolean | null;
+  page?: number | null;
+  limit?: number | null;
+}
+
+export async function getPaginatedReviews(input?: GetPaginatedReviewsInput) {
+  const page = Math.max(1, input?.page || 1);
+  const limit = Math.max(1, input?.limit || 10);
+  const search = (input?.search || '').trim().toLowerCase();
+  const approved = input?.approved;
+
+  let all = await getReviews(approved !== null && approved !== undefined ? approved : undefined);
+
+  if (search) {
+    all = all.filter((r) => {
+      const name = (r.name || '').toLowerCase();
+      const msg = (r.message || '').toLowerCase();
+      const loc = (r.location || '').toLowerCase();
+      return name.includes(search) || msg.includes(search) || loc.includes(search);
+    });
+  }
+
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = all.slice(offset, offset + limit);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+  };
+}

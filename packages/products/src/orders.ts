@@ -8,6 +8,7 @@ import {
   productStatus as productStatusTable,
   invoices as invoicesTable,
   credits as creditsTable,
+  creditTransactions as creditTransactionsTable,
   OrderItemInput,
   InvoiceItem,
 } from '@repo/db';
@@ -33,6 +34,7 @@ export interface CreateOrderInput {
   paidAmount?: number | null;
   dueAmount?: number | null;
   dueDate?: string | null;
+  advancePaymentMode?: string | null;
   items: OrderItemInput[];
   notes?: string | null;
 }
@@ -390,6 +392,7 @@ export async function createOrder(input: CreateOrderInput) {
 
     // 7. If paymentMethod is credit or dueAmount > 0, record credit entry
     let credit = null;
+    let creditTransactionsList: any[] = [];
     if (
       paymentMode === 'credit' ||
       (input.dueAmount !== undefined && input.dueAmount !== null && Number(input.dueAmount) > 0)
@@ -400,6 +403,11 @@ export async function createOrder(input: CreateOrderInput) {
           ? Math.max(0, Number(input.dueAmount))
           : Math.max(0, input.totalAmount - paidAmt);
       const dDate = input.dueDate ? new Date(input.dueDate) : null;
+      const advMode = input.advancePaymentMode
+        ? input.advancePaymentMode.toLowerCase()
+        : paidAmt > 0
+          ? 'cash'
+          : null;
 
       const [creditRecord] = await tx
         .insert(creditsTable)
@@ -410,9 +418,27 @@ export async function createOrder(input: CreateOrderInput) {
           paidAmount: paidAmt.toFixed(2),
           dueAmount: dueAmt.toFixed(2),
           dueDate: dDate,
+          advancePaymentMode: advMode,
         })
         .returning();
       credit = creditRecord;
+
+      if (paidAmt > 0) {
+        const [advTx] = await tx
+          .insert(creditTransactionsTable)
+          .values({
+            creditId: creditRecord.id,
+            orderId: order.id,
+            invoiceId: invoice?.id || null,
+            userId: input.userId || order.userId || null,
+            amount: paidAmt.toFixed(2),
+            paymentMode: advMode || 'cash',
+            transactionType: 'advance',
+            notes: 'Advance payment on order creation',
+          })
+          .returning();
+        creditTransactionsList.push(advTx);
+      }
     }
 
     return {
@@ -582,5 +608,76 @@ export async function getCustomerOrderHistory(customerId: string) {
     totalSpend,
     avgOrderValue,
     orders,
+  };
+}
+
+export interface GetPaginatedOrdersInput {
+  search?: string | null;
+  status?: string | null;
+  sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'totalAmount-desc' | 'totalAmount-asc' | null;
+  page?: number | null;
+  limit?: number | null;
+}
+
+export async function getPaginatedOrders(input?: GetPaginatedOrdersInput) {
+  const page = Math.max(1, input?.page || 1);
+  const limit = Math.max(1, input?.limit || 10);
+  const search = (input?.search || '').trim().toLowerCase();
+  const status = input?.status;
+  const sortBy = input?.sortBy || 'createdAt-desc';
+
+  let all = await getOrders();
+
+  if (search) {
+    all = all.filter((ord) => {
+      const ordNum = (ord.orderNumber || ord.id || '').toLowerCase();
+      const custName = (ord.customerName || '').toLowerCase();
+      const phone = (ord.customerPhone || '').toLowerCase();
+      const email = (ord.customerEmail || '').toLowerCase();
+      const itemMatch = ord.items?.some((it: any) =>
+        (it.productName || '').toLowerCase().includes(search)
+      );
+      return (
+        ordNum.includes(search) ||
+        custName.includes(search) ||
+        phone.includes(search) ||
+        email.includes(search) ||
+        itemMatch
+      );
+    });
+  }
+
+  if (status && status !== 'all') {
+    all = all.filter((ord) => (ord.status || '').toLowerCase() === status.toLowerCase());
+  }
+
+  all.sort((a, b) => {
+    if (sortBy === 'createdAt-asc') {
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+    }
+    if (sortBy === 'totalAmount-desc') {
+      return Number(b.totalAmount || 0) - Number(a.totalAmount || 0);
+    }
+    if (sortBy === 'totalAmount-asc') {
+      return Number(a.totalAmount || 0) - Number(b.totalAmount || 0);
+    }
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = all.slice(offset, offset + limit);
+
+  const totalOrdersValue = all.reduce((sum, ord) => sum + (Number(ord.totalAmount) || 0), 0);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+    totalOrdersValue,
   };
 }

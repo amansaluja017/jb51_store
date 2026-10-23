@@ -5,8 +5,11 @@ import {
   ScrollView, 
   TextInput, 
   TouchableOpacity, 
-  RefreshControl
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
@@ -57,6 +60,7 @@ export default function CatalogScreen({
   onFetchPaginatedProducts,
 }: CatalogScreenProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const keyboardHeight = useKeyboardHeight();
   const [page, setPage] = useState(1);
   const [remoteData, setRemoteData] = useState<{
     items: Product[];
@@ -159,7 +163,11 @@ export default function CatalogScreen({
   };
 
   return (
-    <View style={styles.tabContent}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 70 : 0}
+      style={styles.tabContent}
+    >
       {/* Search & Actions Header */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
@@ -251,8 +259,14 @@ export default function CatalogScreen({
 
       {/* Products List with Drag-to-Refresh & Bottom Pagination */}
       <ScrollView 
-        contentContainerStyle={styles.scrollPadding}
+        contentContainerStyle={[
+          styles.scrollPadding,
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 80 }
+        ]}
         alwaysBounceVertical={true}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         refreshControl={
           <RefreshControl
             refreshing={!!refreshing}
@@ -384,6 +398,6 @@ export default function CatalogScreen({
           </>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

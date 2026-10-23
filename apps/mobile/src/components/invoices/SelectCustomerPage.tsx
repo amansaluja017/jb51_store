@@ -7,7 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,6 +42,8 @@ export interface SelectCustomerPageProps {
     page?: number;
     limit?: number;
   }) => Promise<any>;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 const PAGE_SIZE = 8;
@@ -50,7 +56,10 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
   onOpenAddCustomerModal,
   isLoading = false,
   onFetchPaginatedCustomers,
+  refreshing,
+  onRefresh,
 }) => {
+  const keyboardHeight = useKeyboardHeight();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -162,7 +171,11 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
   const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 70 : 0}
+      style={styles.container}
+    >
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -253,9 +266,24 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
 
       {/* Main Content / Customer Cards */}
       <ScrollView
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 80 }
+        ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF5E36"
+              colors={['#FF5E36']}
+            />
+          ) : undefined
+        }
       >
         {isLoading || isFetchingRemote ? (
           <CustomerListSkeleton />
@@ -387,7 +415,7 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
           </View>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

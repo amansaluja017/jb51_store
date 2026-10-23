@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import 'dotenv/config';
 import { db, credits as creditsTable } from '@repo/db';
 import { eq } from 'drizzle-orm';
-import { creditsRouter } from '@repo/products/router';
+import { creditsRouter, invoicesRouter, ordersRouter } from '@repo/products/router';
 import {
   adminContext,
   customerContext,
@@ -94,6 +94,76 @@ describe('Credits Router and Controller Suite', () => {
       assert.ok(paymentResult);
       assert.strictEqual(Number(paymentResult.paidAmount), 9000); // 5000 + 4000
       assert.strictEqual(Number(paymentResult.dueAmount), 10000); // 14000 - 4000
+    });
+
+    it('end-to-end credit flow: 20000 total with 8000 advance cash, then 5000 subsequent payment', async () => {
+      const adminCaller = creditsRouter.createCaller(adminContext);
+      const invoiceCaller = invoicesRouter.createCaller(adminContext);
+
+      // 1. Create invoice with credit payment: Total 20,000, 8,000 advance in cash, due 12,000
+      const invNumber = `INV-TEST-${Date.now()}`;
+      const invoice = await invoiceCaller.create({
+        invoiceNumber: invNumber,
+        customerName: 'Customer A',
+        phoneNumber: '+919876543210',
+        mode: 'credit',
+        totalAmount: 20000,
+        finalAmount: 20000,
+        paidAmount: 8000,
+        dueAmount: 12000,
+        advancePaymentMode: 'cash',
+        dueDate: new Date(Date.now() + 15 * 86400000).toISOString(),
+        items: [
+          {
+            productName: 'Designer Silk Sherwani',
+            quantity: 1,
+            unitPrice: 20000,
+            total: 20000,
+          },
+        ],
+      });
+
+      assert.ok(invoice);
+      assert.ok(invoice.id);
+
+      // 2. Verify credit was created with advance payment mode = 'cash'
+      const allCreditsRes = await adminCaller.getAll();
+      const creditRow = allCreditsRes.credits.find((c: any) => c.invoiceId === invoice.id);
+      assert.ok(creditRow);
+      createdCreditIds.push(creditRow.id);
+
+      assert.strictEqual(Number(creditRow.paidAmount), 8000);
+      assert.strictEqual(Number(creditRow.dueAmount), 12000);
+      assert.strictEqual(creditRow.advancePaymentMode, 'cash');
+      assert.strictEqual(creditRow.transactions?.length, 1);
+      assert.strictEqual(Number(creditRow.transactions[0].amount), 8000);
+      assert.strictEqual(creditRow.transactions[0].paymentMode, 'cash');
+      assert.strictEqual(creditRow.transactions[0].transactionType, 'advance');
+
+      // 3. User later pays 5000 before due date with paymentMode online
+      const paymentRes = await adminCaller.recordPayment({
+        id: creditRow.id,
+        amount: 5000,
+        paymentMode: 'online',
+        notes: 'Partial settlement before due date',
+      });
+
+      assert.ok(paymentRes);
+      assert.strictEqual(Number(paymentRes.paidAmount), 13000); // 8000 + 5000
+      assert.strictEqual(Number(paymentRes.dueAmount), 7000); // 12000 - 5000
+      assert.ok(paymentRes.transaction);
+      assert.strictEqual(Number(paymentRes.transaction.amount), 5000);
+      assert.strictEqual(paymentRes.transaction.paymentMode, 'online');
+      assert.strictEqual(paymentRes.transaction.transactionType, 'payment');
+
+      // 4. Verify invoice reflects updated payments and transactions list
+      const invoicesList = await invoiceCaller.getAll();
+      const updatedInv = invoicesList.find((i: any) => i.id === invoice.id || i.invoiceNumber === invNumber);
+      assert.ok(updatedInv);
+      assert.strictEqual(Number(updatedInv.paidAmount), 13000);
+      assert.strictEqual(Number(updatedInv.dueAmount), 7000);
+      assert.strictEqual(Array.isArray(updatedInv.creditTransactions), true);
+      assert.strictEqual(updatedInv.creditTransactions.length, 2);
     });
 
     it('delete: admin can delete credit record', async () => {

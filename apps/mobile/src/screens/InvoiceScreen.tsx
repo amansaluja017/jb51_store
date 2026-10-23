@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Text,
   View,
@@ -34,6 +34,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { InvoiceSkeleton } from '../components/SkeletonLoader';
 import styles from './InvoiceScreen.styles';
 import { generateInvoiceHtml } from '../utils/invoicePdfGenerator';
+import { formatDateSafe } from '../utils/date';
 import OrderDetailsModal from '../components/invoices/OrderDetailsModal';
 import AddCustomerModal from '../components/invoices/AddCustomerModal';
 import InvoicePreviewModal from '../components/invoices/InvoicePreviewModal';
@@ -43,7 +44,7 @@ import SelectCustomerPage from '../components/invoices/SelectCustomerPage';
 import SelectProductPage from '../components/invoices/SelectProductPage';
 
 
-import { Product, Variant, Customer, Invoice, Order } from '../types';
+import { Product, Variant, Customer, Invoice, Order, isProductInStock, isProductDiscontinued } from '../types';
 
 export interface InvoiceFormValues {
   invoiceNumber: string;
@@ -58,6 +59,7 @@ export interface InvoiceFormValues {
   paymentMethod: 'Cash' | 'Online' | 'Credit';
   paidAmount: string;
   dueDate: string;
+  advancePaymentMode?: 'Cash' | 'Online';
   notes: string;
 }
 
@@ -96,13 +98,15 @@ interface InvoiceScreenProps {
     address?: string;
   }) => Promise<Customer>;
   onFetchInvoices: () => Promise<void>;
-  onFetchOrders: () => Promise<void>;
+  onFetchOrders: (force?: boolean) => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
   onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
   onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
   onFetchPaginatedProducts?: (params?: any) => Promise<any>;
+  onFetchPaginatedInvoices?: (params?: any) => Promise<any>;
+  onFetchPaginatedOrders?: (params?: any) => Promise<any>;
   isLoadingCustomers?: boolean;
   isLoadingProducts?: boolean;
 }
@@ -128,6 +132,8 @@ export default function InvoiceScreen({
   onFetchProducts,
   onFetchPaginatedCustomers,
   onFetchPaginatedProducts,
+  onFetchPaginatedInvoices,
+  onFetchPaginatedOrders,
   isLoadingCustomers,
   isLoadingProducts,
 }: InvoiceScreenProps) {
@@ -142,15 +148,108 @@ export default function InvoiceScreen({
   // Active Ledger Tab: Invoices vs Order History
   const [activeLedgerTab, setActiveLedgerTab] = useState<'invoices' | 'orders'>('invoices');
 
-  const handleSelectLedgerTab = (tab: 'invoices' | 'orders') => {
-    setActiveLedgerTab(tab);
-    if (tab === 'orders') {
-      onFetchOrders();
-    }
-  };
+  // Paginated state for Invoices
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoiceTotalPages, setInvoiceTotalPages] = useState(1);
+  const [invoiceTotalCount, setInvoiceTotalCount] = useState(0);
+  const [remoteInvoices, setRemoteInvoices] = useState<Invoice[] | null>(null);
+  const [isLoadingRemoteInvoices, setIsLoadingRemoteInvoices] = useState(false);
+
+  // Paginated state for Orders
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderTotalPages, setOrderTotalPages] = useState(1);
+  const [orderTotalCount, setOrderTotalCount] = useState(0);
+  const [remoteOrders, setRemoteOrders] = useState<Order[] | null>(null);
+  const [isLoadingRemoteOrders, setIsLoadingRemoteOrders] = useState(false);
 
   // Search filter for past invoices & orders in Ledger
   const [searchFilter, setSearchFilter] = useState('');
+
+  const handleSearchFilterChange = (q: string) => {
+    setSearchFilter(q);
+    setInvoicePage(1);
+    setOrderPage(1);
+  };
+
+  // Fetch paginated invoices from backend
+  useEffect(() => {
+    if (!onFetchPaginatedInvoices) return;
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setIsLoadingRemoteInvoices(true);
+        const res = await onFetchPaginatedInvoices({
+          page: invoicePage,
+          limit: 15,
+          search: searchFilter.trim() || undefined,
+        });
+        if (!isCancelled && res) {
+          setRemoteInvoices(res.items || []);
+          setInvoiceTotalPages(res.totalPages || 1);
+          setInvoiceTotalCount(res.totalCount || 0);
+        }
+      } catch (err) {
+        console.error('[fetchPaginatedInvoices] Error:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingRemoteInvoices(false);
+        }
+      }
+    }, searchFilter ? 250 : 0);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [invoicePage, searchFilter, onFetchPaginatedInvoices, refreshing]);
+
+  // Fetch paginated orders from backend
+  useEffect(() => {
+    if (!onFetchPaginatedOrders || activeLedgerTab !== 'orders') return;
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setIsLoadingRemoteOrders(true);
+        const res = await onFetchPaginatedOrders({
+          page: orderPage,
+          limit: 15,
+          search: searchFilter.trim() || undefined,
+        });
+        if (!isCancelled && res) {
+          setRemoteOrders(res.items || []);
+          setOrderTotalPages(res.totalPages || 1);
+          setOrderTotalCount(res.totalCount || 0);
+        }
+      } catch (err) {
+        console.error('[fetchPaginatedOrders] Error:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingRemoteOrders(false);
+        }
+      }
+    }, searchFilter ? 250 : 0);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [orderPage, searchFilter, onFetchPaginatedOrders, activeLedgerTab, refreshing]);
+
+  // Hit order history route upon loading invoices section if needed
+  useEffect(() => {
+    if (!orders || orders.length === 0) {
+      onFetchOrders();
+    }
+  }, []);
+
+  const handleSelectLedgerTab = (tab: 'invoices' | 'orders') => {
+    setActiveLedgerTab(tab);
+    if (tab === 'orders' && (!orders || orders.length === 0)) {
+      onFetchOrders();
+    }
+  };
 
   // Selected Order for detail view modal
   const [selectedOrderModal, setSelectedOrderModal] = useState<Order | null>(null);
@@ -189,6 +288,7 @@ export default function InvoiceScreen({
       paymentMethod: 'Online',
       paidAmount: '0',
       dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+      advancePaymentMode: 'Cash',
       notes: '',
     },
   });
@@ -215,15 +315,23 @@ export default function InvoiceScreen({
     );
   }, [customers, customerSearchQuery]);
 
+  // Non-discontinued products available for invoicing
+  const availableProducts = useMemo(() => {
+    return (products || []).filter((p) => !isProductDiscontinued(p));
+  }, [products]);
+
   // Filtered products for dropdown
   const filteredProducts = useMemo(() => {
     const q = productSearchQuery.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q));
-  }, [products, productSearchQuery]);
+    if (!q) return availableProducts;
+    return availableProducts.filter((p) => p.name.toLowerCase().includes(q));
+  }, [availableProducts, productSearchQuery]);
 
   // Filtered invoices for ledger
   const filteredInvoices = useMemo(() => {
+    if (remoteInvoices !== null) {
+      return remoteInvoices;
+    }
     const q = searchFilter.trim().toLowerCase();
     if (!q) return invoices;
     return invoices.filter((inv) => {
@@ -232,10 +340,13 @@ export default function InvoiceScreen({
       const phone = (inv.phoneNumber || '').toLowerCase();
       return num.includes(q) || name.includes(q) || phone.includes(q);
     });
-  }, [invoices, searchFilter]);
+  }, [remoteInvoices, invoices, searchFilter]);
 
   // Filtered orders for order history
   const filteredOrders = useMemo(() => {
+    if (remoteOrders !== null) {
+      return remoteOrders;
+    }
     const q = searchFilter.trim().toLowerCase();
     if (!q) return orders;
     return orders.filter((ord) => {
@@ -247,7 +358,7 @@ export default function InvoiceScreen({
       );
       return num.includes(q) || name.includes(q) || phone.includes(q) || itemMatch;
     });
-  }, [orders, searchFilter]);
+  }, [remoteOrders, orders, searchFilter]);
 
   // Normalized viewing invoice helper
   const resolvedInvoice = useMemo(() => {
@@ -314,9 +425,9 @@ export default function InvoiceScreen({
         ? Math.round((sub * parseFloat(gstRate)) / 100)
         : 0;
 
-    const dateStr = viewingInvoice.createdAt
-      ? new Date(viewingInvoice.createdAt).toLocaleDateString('en-IN')
-      : viewingInvoice.date || new Date().toLocaleDateString('en-IN');
+    const dateStr = formatDateSafe(viewingInvoice.createdAt) ||
+      viewingInvoice.date ||
+      new Date().toLocaleDateString('en-IN');
 
     return {
       ...viewingInvoice,
@@ -343,6 +454,8 @@ export default function InvoiceScreen({
       paidAmount: viewingInvoice.paidAmount,
       dueAmount: viewingInvoice.dueAmount,
       dueDate: viewingInvoice.dueDate,
+      advancePaymentMode: viewingInvoice.advancePaymentMode || viewingInvoice.creditAdvancePaymentMode || null,
+      creditTransactions: viewingInvoice.creditTransactions || viewingInvoice.transactions || [],
     };
   }, [viewingInvoice]);
 
@@ -419,28 +532,32 @@ export default function InvoiceScreen({
       : 0;
 
   const activeDueDate = isViewingPast
-    ? (resolvedInvoice?.dueDate
-        ? (resolvedInvoice.dueDate.includes('-')
-            ? new Date(resolvedInvoice.dueDate).toLocaleDateString('en-IN')
-            : resolvedInvoice.dueDate)
-        : null)
+    ? (resolvedInvoice?.dueDate ? formatDateSafe(resolvedInvoice.dueDate) : null)
     : formValues.paymentMethod === 'Credit'
-      ? (formValues.dueDate
-          ? new Date(formValues.dueDate).toLocaleDateString('en-IN')
-          : null)
+      ? (formValues.dueDate ? formatDateSafe(formValues.dueDate) : null)
       : null;
 
   const activePaymentDate = isViewingPast
-    ? (resolvedInvoice?.paymentDate
-        ? (resolvedInvoice.paymentDate.includes('-')
-            ? new Date(resolvedInvoice.paymentDate).toLocaleDateString('en-IN')
-            : resolvedInvoice.paymentDate)
-        : activeInvDate)
-    : formValues.paymentDate
-      ? (formValues.paymentDate.includes('-')
-          ? new Date(formValues.paymentDate).toLocaleDateString('en-IN')
-          : formValues.paymentDate)
-      : activeInvDate;
+    ? (resolvedInvoice?.paymentDate ? formatDateSafe(resolvedInvoice.paymentDate) : activeInvDate)
+    : (formValues.paymentDate ? formatDateSafe(formValues.paymentDate) : activeInvDate);
+
+  const activeAdvancePaymentMode = isViewingPast
+    ? resolvedInvoice?.advancePaymentMode
+    : formValues.advancePaymentMode || 'Cash';
+
+  const activeTransactions = isViewingPast
+    ? (resolvedInvoice?.creditTransactions || [])
+    : (isViewingPastCredit && (parseFloat(formValues.paidAmount) || 0) > 0
+        ? [
+            {
+              createdAt: activeInvDate,
+              transactionType: 'advance',
+              paymentMode: (formValues.advancePaymentMode || 'Cash').toLowerCase(),
+              amount: parseFloat(formValues.paidAmount) || 0,
+              notes: 'Initial advance payment',
+            },
+          ]
+        : []);
 
   // Handle selecting a customer from dropdown
   const handleSelectCustomer = (cust: Customer) => {
@@ -492,13 +609,22 @@ export default function InvoiceScreen({
 
   // Handle product selection
   const handleSelectProduct = (prod: Product) => {
+    if (isProductDiscontinued(prod)) {
+      showAlert('Discontinued Product', 'This product has been discontinued and cannot be selected.', 'error');
+      return;
+    }
+    if (!isProductInStock(prod)) {
+      showAlert('Out of Stock', 'This product is currently out of stock and cannot be added.', 'error');
+      return;
+    }
     setSelectedProduct(prod);
     const initialPrice = prod.sellingPrice || prod.price;
     setItemPrice(String(initialPrice));
     setItemQuantity('1');
 
     if (prod.variants && prod.variants.length > 0) {
-      setSelectedVariant(prod.variants[0] || null);
+      const firstInStockVariant = prod.variants.find((v) => (Number(v.stock) || 0) > 0);
+      setSelectedVariant(firstInStockVariant || prod.variants[0] || null);
     } else {
       setSelectedVariant(null);
     }
@@ -512,9 +638,29 @@ export default function InvoiceScreen({
       return;
     }
 
+    if (!isProductInStock(selectedProduct)) {
+      showAlert('Out of Stock', 'This product is out of stock and cannot be added.', 'error');
+      return;
+    }
+
+    if (selectedVariant && (Number(selectedVariant.stock) || 0) <= 0) {
+      showAlert('Variant Out of Stock', `The selected variant (${selectedVariant.color}) is out of stock.`, 'error');
+      return;
+    }
+
     const qty = parseInt(itemQuantity) || 1;
     if (qty <= 0) {
       showAlert('Invalid Quantity', 'Quantity must be at least 1.', 'error');
+      return;
+    }
+
+    const availableStock = selectedVariant ? Number(selectedVariant.stock) || 0 : undefined;
+    if (availableStock !== undefined && qty > availableStock) {
+      showAlert(
+        'Insufficient Stock',
+        `Only ${availableStock} unit(s) available for ${selectedVariant?.color || selectedProduct.name}.`,
+        'error'
+      );
       return;
     }
 
@@ -589,6 +735,7 @@ export default function InvoiceScreen({
       const dueAmt = isCredit ? Math.max(0, totalAmount - paidAmt) : 0;
       const dDate = isCredit && formValues.dueDate.trim() ? formValues.dueDate.trim() : null;
       const pDate = formValues.paymentDate?.trim() || new Date().toISOString().split('T')[0];
+      const advanceMode = isCredit && paidAmt > 0 ? (formValues.advancePaymentMode || 'Cash').toLowerCase() : null;
 
       // 1. Create Order, deduct Inventory, and create Invoice atomically in backend
       const orderPayload = {
@@ -610,6 +757,7 @@ export default function InvoiceScreen({
         dueAmount: dueAmt,
         dueDate: dDate,
         paymentDate: pDate,
+        advancePaymentMode: advanceMode,
         items: invoiceItems.map((item) => ({
           productId: item.productId,
           productVariantId: item.productVariantId || null,
@@ -646,6 +794,18 @@ export default function InvoiceScreen({
         dueDate: dDate
           ? (dDate.includes('-') ? new Date(dDate).toLocaleDateString('en-IN') : dDate)
           : null,
+        advancePaymentMode: advanceMode,
+        transactions: isCredit && paidAmt > 0
+          ? [
+              {
+                createdAt: pDate,
+                transactionType: 'advance',
+                paymentMode: advanceMode || 'cash',
+                amount: paidAmt,
+                notes: 'Advance payment on invoice creation',
+              },
+            ]
+          : [],
         paymentMethod: formValues.paymentMethod,
         notes: formValues.notes.trim(),
       };
@@ -670,10 +830,28 @@ export default function InvoiceScreen({
       // 5. Refresh databases & Reset form
       await Promise.all([
         onFetchInvoices(),
-        onFetchOrders(),
+        onFetchOrders(true),
         onFetchCustomers(),
         onFetchCredits ? onFetchCredits() : Promise.resolve(),
       ]);
+      if (onFetchPaginatedInvoices) {
+        setInvoicePage(1);
+        const res = await onFetchPaginatedInvoices({ page: 1, limit: 15 });
+        if (res) {
+          setRemoteInvoices(res.items || []);
+          setInvoiceTotalPages(res.totalPages || 1);
+          setInvoiceTotalCount(res.totalCount || 0);
+        }
+      }
+      if (onFetchPaginatedOrders) {
+        setOrderPage(1);
+        const res = await onFetchPaginatedOrders({ page: 1, limit: 15 });
+        if (res) {
+          setRemoteOrders(res.items || []);
+          setOrderTotalPages(res.totalPages || 1);
+          setOrderTotalCount(res.totalCount || 0);
+        }
+      }
 
       setIsPreviewOpen(false);
       setIsFormOpen(false);
@@ -794,22 +972,46 @@ export default function InvoiceScreen({
         <InvoiceLedgerView
           invoices={invoices}
           orders={orders}
-          isLoading={isLoading}
-          isLoadingOrders={isLoadingOrders}
+          isLoading={isLoading || isLoadingRemoteInvoices}
+          isLoadingOrders={isLoadingOrders || isLoadingRemoteOrders}
           refreshing={refreshing}
           onRefresh={onRefresh}
           activeLedgerTab={activeLedgerTab}
           setActiveLedgerTab={handleSelectLedgerTab}
           searchFilter={searchFilter}
-          setSearchFilter={setSearchFilter}
+          setSearchFilter={handleSearchFilterChange}
           filteredInvoices={filteredInvoices}
           filteredOrders={filteredOrders}
+          invoicePage={invoicePage}
+          invoiceTotalPages={invoiceTotalPages}
+          invoiceTotalCount={invoiceTotalCount || (remoteInvoices ? remoteInvoices.length : invoices.length)}
+          onInvoicePrevPage={() => setInvoicePage((p) => Math.max(1, p - 1))}
+          onInvoiceNextPage={() => setInvoicePage((p) => Math.min(invoiceTotalPages, p + 1))}
+          orderPage={orderPage}
+          orderTotalPages={orderTotalPages}
+          orderTotalCount={orderTotalCount || (remoteOrders ? remoteOrders.length : orders.length)}
+          onOrderPrevPage={() => setOrderPage((p) => Math.max(1, p - 1))}
+          onOrderNextPage={() => setOrderPage((p) => Math.min(orderTotalPages, p + 1))}
           onOpenNewInvoice={handleOpenNewInvoice}
           onViewInvoice={(inv) => {
             setViewingInvoice(inv);
             setIsPreviewOpen(true);
           }}
-          onDeleteInvoice={onDeleteInvoice}
+          onDeleteInvoice={async (id, label) => {
+            await onDeleteInvoice(id, label);
+            if (onFetchPaginatedInvoices) {
+              const res = await onFetchPaginatedInvoices({
+                page: invoicePage,
+                limit: 15,
+                search: searchFilter.trim() || undefined,
+              });
+              if (res) {
+                setRemoteInvoices(res.items || []);
+                setInvoiceTotalPages(res.totalPages || 1);
+                setInvoiceTotalCount(res.totalCount || 0);
+              }
+            }
+          }}
           onSelectOrder={(ord) => setSelectedOrderModal(ord)}
         />
       ) : formSubPage === 'select-customer' ? (
@@ -824,10 +1026,12 @@ export default function InvoiceScreen({
           onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
           isLoading={isLoadingCustomers}
           onFetchPaginatedCustomers={onFetchPaginatedCustomers}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
         />
       ) : formSubPage === 'select-product' ? (
         <SelectProductPage
-          products={products}
+          products={availableProducts}
           categories={categories}
           selectedProductId={selectedProduct?.id || null}
           onSelectProduct={(prod) => {
@@ -837,6 +1041,8 @@ export default function InvoiceScreen({
           onBack={() => setFormSubPage('form')}
           isLoading={isLoadingProducts}
           onFetchPaginatedProducts={onFetchPaginatedProducts}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
         />
       ) : (
         <InvoiceFormView
@@ -853,6 +1059,9 @@ export default function InvoiceScreen({
           selectedCustomerId={selectedCustomerId}
           onSelectCustomer={handleSelectCustomer}
           onNavigateToSelectCustomer={() => {
+            if (onFetchCustomers && (!customers || customers.length === 0)) {
+              onFetchCustomers();
+            }
             setFormSubPage('select-customer');
           }}
           onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
@@ -870,6 +1079,9 @@ export default function InvoiceScreen({
           filteredProducts={filteredProducts}
           onSelectProduct={handleSelectProduct}
           onNavigateToSelectProduct={() => {
+            if (onFetchProducts && (!products || products.length === 0)) {
+              onFetchProducts();
+            }
             setFormSubPage('select-product');
           }}
           itemPrice={itemPrice}
@@ -884,6 +1096,8 @@ export default function InvoiceScreen({
           discountAmount={discountAmount}
           totalAmount={totalAmount}
           taxRate={formValues.taxRate}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           onCloseForm={() => {
             setFormSubPage('form');
             setIsFormOpen(false);
@@ -964,6 +1178,8 @@ export default function InvoiceScreen({
         activeDueAmount={activeDueAmount}
         activeDueDate={activeDueDate}
         activePaymentDate={activePaymentDate}
+        activeAdvancePaymentMode={activeAdvancePaymentMode}
+        activeTransactions={activeTransactions}
         activeNotes={activeNotes}
         isSubmitting={isSubmitting}
         isExporting={isExporting}

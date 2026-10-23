@@ -54,7 +54,9 @@ export interface ScreenRouterProps {
   onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
   onCreateCustomer: (data: { name: string; phoneNumber: string; email?: string; address?: string }) => Promise<Customer>;
   onFetchInvoices: () => Promise<void>;
-  onFetchOrders: () => Promise<void>;
+  onFetchPaginatedInvoices?: (params?: any) => Promise<any>;
+  onFetchOrders: (force?: boolean) => Promise<void>;
+  onFetchPaginatedOrders?: (params?: any) => Promise<any>;
   onCreateOrder: (orderData: any) => Promise<any>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
   onFetchCredits?: () => Promise<any> | void;
@@ -113,7 +115,9 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onFetchPaginatedCustomers,
   onCreateCustomer,
   onFetchInvoices,
+  onFetchPaginatedInvoices,
   onFetchOrders,
+  onFetchPaginatedOrders,
   onCreateOrder,
   onDeleteInvoice,
   onFetchCredits,
@@ -198,13 +202,17 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onFetchCustomers={onFetchCustomers}
           onCreateCustomer={onCreateCustomer}
           onFetchInvoices={onFetchInvoices}
+          onFetchPaginatedInvoices={onFetchPaginatedInvoices}
           onFetchOrders={onFetchOrders}
+          onFetchPaginatedOrders={onFetchPaginatedOrders}
           onCreateOrder={onCreateOrder}
           onDeleteInvoice={onDeleteInvoice}
           onFetchCredits={onFetchCredits}
           onFetchProducts={onFetchProducts}
           isLoadingCustomers={isLoadingCustomers}
           isLoadingProducts={isLoadingProducts}
+          onFetchPaginatedCustomers={onFetchPaginatedCustomers}
+          onFetchPaginatedProducts={onFetchPaginatedProducts}
         />
       )}
       {activeTab === 'reviews' && (

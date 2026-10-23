@@ -8,7 +8,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   Image,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,8 +23,9 @@ import {
   Check,
   ArrowUpDown,
   Filter,
+  Ban,
 } from 'lucide-react-native';
-import { Product, isProductInStock } from '../../types';
+import { Product, isProductInStock, isProductDiscontinued } from '../../types';
 import { ProductSelectorSkeleton } from '../SkeletonLoader';
 
 export interface SelectProductPageProps {
@@ -38,6 +43,8 @@ export interface SelectProductPageProps {
     page?: number;
     limit?: number;
   }) => Promise<any>;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc';
@@ -52,7 +59,10 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
   onBack,
   isLoading = false,
   onFetchPaginatedProducts,
+  refreshing,
+  onRefresh,
 }) => {
+  const keyboardHeight = useKeyboardHeight();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
@@ -84,7 +94,12 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
           limit: PAGE_SIZE,
         });
         if (!isCancelled && res && Array.isArray(res.items)) {
-          setRemoteData(res);
+          const sanitizedItems = res.items.filter((p: Product) => !isProductDiscontinued(p));
+          setRemoteData({
+            ...res,
+            items: sanitizedItems,
+            total: res.total !== undefined ? res.total : sanitizedItems.length,
+          });
         }
       } catch (err) {
         console.error('[SelectProductPage remote fetch error]:', err);
@@ -100,7 +115,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
     };
   }, [searchQuery, selectedCategory, inStockOnly, sortBy, page, onFetchPaginatedProducts]);
 
-  // Derive unique categories
+  // Derive unique categories (exclude discontinued)
   const categoryList = useMemo(() => {
     const set = new Set<string>();
     if (categories && categories.length > 0) {
@@ -108,15 +123,17 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
         if (c && c.trim()) set.add(c.trim());
       });
     }
-    products.forEach((p) => {
-      if (p.category && p.category.trim()) set.add(p.category.trim());
-    });
+    products
+      .filter((p) => !isProductDiscontinued(p))
+      .forEach((p) => {
+        if (p.category && p.category.trim()) set.add(p.category.trim());
+      });
     return ['All', ...Array.from(set)];
   }, [categories, products]);
 
-  // Filter & sort
+  // Filter & sort (exclude discontinued)
   const filteredAndSorted = useMemo(() => {
-    let list = [...products];
+    let list = products.filter((p) => !isProductDiscontinued(p));
 
     // Search filter
     const q = searchQuery.trim().toLowerCase();
@@ -183,7 +200,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
 
   const displayProducts = useMemo(() => {
     if (remoteData) {
-      return remoteData.items;
+      return (remoteData.items || []).filter((p) => !isProductDiscontinued(p));
     }
     const start = (safePage - 1) * PAGE_SIZE;
     return filteredAndSorted.slice(start, start + PAGE_SIZE);
@@ -201,7 +218,11 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
   const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 70 : 0}
+      style={styles.container}
+    >
       {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -321,9 +342,24 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
 
       {/* Product List */}
       <ScrollView
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 80 }
+        ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor="#FF5E36"
+              colors={['#FF5E36']}
+            />
+          ) : undefined
+        }
       >
         {isLoading || isFetchingRemote ? (
           <ProductSelectorSkeleton />
@@ -358,18 +394,32 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
             return (
               <TouchableOpacity
                 key={prod.id}
-                style={[styles.productCard, isSelected && styles.productCardSelected]}
-                onPress={() => onSelectProduct(prod)}
-                activeOpacity={0.7}
+                style={[
+                  styles.productCard,
+                  isSelected && styles.productCardSelected,
+                  !inStock && styles.productCardDisabled,
+                ]}
+                onPress={() => {
+                  if (inStock) {
+                    onSelectProduct(prod);
+                  }
+                }}
+                disabled={!inStock}
+                activeOpacity={inStock ? 0.7 : 1}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: !inStock }}
               >
                 {/* Thumbnail */}
-                <View style={styles.imageWrapper}>
+                <View style={[styles.imageWrapper, !inStock && styles.imageWrapperDisabled]}>
                   {thumbnail ? (
-                    <Image source={{ uri: thumbnail }} style={styles.productImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri: thumbnail }}
+                      style={[styles.productImage, !inStock && { opacity: 0.55 }]}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={styles.imagePlaceholder}>
-                      <Package size={22} color="#a1a1aa" />
+                      <Package size={22} color={!inStock ? '#d4d4d8' : '#a1a1aa'} />
                     </View>
                   )}
                 </View>
@@ -377,7 +427,14 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
                 {/* Details */}
                 <View style={styles.productDetails}>
                   <View style={styles.titleRow}>
-                    <Text style={[styles.productName, isSelected && styles.productNameSelected]} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.productName,
+                        isSelected && styles.productNameSelected,
+                        !inStock && styles.productNameDisabled,
+                      ]}
+                      numberOfLines={2}
+                    >
                       {prod.name}
                     </Text>
                     {isSelected && (
@@ -395,7 +452,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
                     </View>
                     <View style={[styles.stockBadge, inStock ? styles.stockBadgeIn : styles.stockBadgeOut]}>
                       <Text style={[styles.stockBadgeText, inStock ? styles.stockBadgeTextIn : styles.stockBadgeTextOut]}>
-                        {inStock ? 'In Stock' : 'Out of Stock'}
+                        {inStock ? 'In Stock' : 'Out of Stock (Disabled)'}
                       </Text>
                     </View>
                     {variantsCount > 0 && (
@@ -407,16 +464,28 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
 
                   {/* Price */}
                   <View style={styles.priceRow}>
-                    <Text style={styles.productPrice}>₹{price.toLocaleString('en-IN')}</Text>
+                    <Text style={[styles.productPrice, !inStock && styles.productPriceDisabled]}>
+                      ₹{price.toLocaleString('en-IN')}
+                    </Text>
                     {hasMrpDiscount && (
                       <Text style={styles.mrpText}>₹{prod.mrp.toLocaleString('en-IN')}</Text>
                     )}
                   </View>
                 </View>
 
-                {/* Check / Arrow */}
-                <View style={[styles.selectIndicator, isSelected && styles.selectIndicatorActive]}>
-                  <Check size={14} color={isSelected ? '#ffffff' : '#a1a1aa'} />
+                {/* Check / Ban Indicator */}
+                <View
+                  style={[
+                    styles.selectIndicator,
+                    isSelected && styles.selectIndicatorActive,
+                    !inStock && styles.selectIndicatorDisabled,
+                  ]}
+                >
+                  {inStock ? (
+                    <Check size={14} color={isSelected ? '#ffffff' : '#a1a1aa'} />
+                  ) : (
+                    <Ban size={13} color="#ef4444" />
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -460,7 +529,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
           </View>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -650,6 +719,11 @@ const styles = StyleSheet.create({
     borderColor: '#FF5E36',
     backgroundColor: '#fff7ed',
   },
+  productCardDisabled: {
+    backgroundColor: '#fafafa',
+    borderColor: '#e4e4e7',
+    opacity: 0.6,
+  },
   imageWrapper: {
     width: 60,
     height: 60,
@@ -657,6 +731,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#f4f4f5',
     marginRight: 12,
+  },
+  imageWrapperDisabled: {
+    backgroundColor: '#f4f4f5',
   },
   productImage: {
     width: '100%',
@@ -686,6 +763,9 @@ const styles = StyleSheet.create({
   },
   productNameSelected: {
     color: '#c2410c',
+  },
+  productNameDisabled: {
+    color: '#71717a',
   },
   selectedBadge: {
     flexDirection: 'row',
@@ -755,6 +835,9 @@ const styles = StyleSheet.create({
     color: '#FF5E36',
     marginRight: 6,
   },
+  productPriceDisabled: {
+    color: '#a1a1aa',
+  },
   mrpText: {
     fontSize: 11,
     color: '#a1a1aa',
@@ -771,6 +854,11 @@ const styles = StyleSheet.create({
   },
   selectIndicatorActive: {
     backgroundColor: '#FF5E36',
+  },
+  selectIndicatorDisabled: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   emptyContainer: {
     alignItems: 'center',

@@ -11,7 +11,9 @@ import {
   Image,
   Keyboard,
   Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Clock } from 'lucide-react-native';
@@ -218,7 +220,11 @@ export default function ReviewsScreen({
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 70 : 0}
+      style={styles.container}
+    >
       {/* Search & Actions Header */}
       <View style={styles.headerRow}>
         <View style={styles.searchBar}>
@@ -271,8 +277,14 @@ export default function ReviewsScreen({
 
       {/* Reviews List */}
       <ScrollView 
-        contentContainerStyle={styles.scrollPadding}
+        contentContainerStyle={[
+          styles.scrollPadding,
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 80 }
+        ]}
         alwaysBounceVertical={true}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         refreshControl={
           onRefresh ? (
             <RefreshControl
@@ -714,7 +726,7 @@ export default function ReviewsScreen({
         </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

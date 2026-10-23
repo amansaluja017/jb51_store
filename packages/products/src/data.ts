@@ -998,7 +998,12 @@ export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
   const sortBy = input?.sortBy || 'name-asc';
 
   let list = (await getProducts()).filter(
-    (p) => p.isListed !== false && p.status !== 'unListed' && p.status !== 'discontinued'
+    (p) =>
+      p.isListed !== false &&
+      p.status !== 'unListed' &&
+      p.status !== 'discontinued' &&
+      !(p as any).isDiscontinued &&
+      !(p as any).features?.isDiscontinued
   );
 
   if (search) {

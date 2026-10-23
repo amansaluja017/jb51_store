@@ -9,7 +9,10 @@ import {
   Switch,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import {
   Package,
   CheckCircle2,
@@ -117,6 +120,7 @@ export default function InventoryScreen({
   onFetchPaginatedStock,
 }: InventoryScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const keyboardHeight = useKeyboardHeight();
   const [activeFilter, setActiveFilter] = useState<StockFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   type SortOption = 'default' | 'stockAsc' | 'stockDesc';
@@ -421,11 +425,21 @@ export default function InventoryScreen({
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 70 : 0}
+      style={styles.container}
+    >
       {/* Main Inventory Scroll Area */}
       <ScrollView
         style={styles.scrollBody}
-        contentContainerStyle={styles.scrollPadding}
+        contentContainerStyle={[
+          styles.scrollPadding,
+          keyboardHeight > 0 && { paddingBottom: keyboardHeight + (Platform.OS === 'ios' ? 120 : 100) }
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         refreshControl={
           <RefreshControl
             refreshing={!!refreshing}
@@ -1149,7 +1163,7 @@ export default function InventoryScreen({
         isLoading={isLoadingTransactions}
         onRefresh={() => onFetchTransactions?.()}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

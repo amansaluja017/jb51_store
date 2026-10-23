@@ -8,6 +8,7 @@ import {
   Keyboard,
   Platform,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {
   X,
@@ -27,7 +28,7 @@ import {
   Calendar,
 } from 'lucide-react-native';
 import { Control, Controller, FieldErrors, UseFormSetValue } from 'react-hook-form';
-import { Customer, Product, Variant } from '../../types';
+import { Customer, Product, Variant, isProductInStock, isProductDiscontinued } from '../../types';
 import { InvoiceItem, InvoiceFormValues } from '../../screens/InvoiceScreen';
 import styles from '../../screens/InvoiceScreen.styles';
 import { CalendarPickerModal } from '../CalendarPickerModal';
@@ -75,6 +76,8 @@ export interface InvoiceFormViewProps {
   taxRate: string;
   onCloseForm: () => void;
   onPreview: () => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
@@ -120,6 +123,8 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   taxRate,
   onCloseForm,
   onPreview,
+  refreshing,
+  onRefresh,
 }) => {
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -212,12 +217,22 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
       style={styles.container}
       contentContainerStyle={[
         styles.scrollContainer,
-        { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 180 : 80 }
+        { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 200 : 80 }
       ]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
-      automaticallyAdjustKeyboardInsets={false}
+      automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FF5E36"
+            colors={['#FF5E36']}
+          />
+        ) : undefined
+      }
     >
       {/* Form Header */}
       <View style={styles.formHeader}>
@@ -595,23 +610,34 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                   <Text style={styles.dropdownEmptyText}>No products found.</Text>
                 </View>
               ) : (
-                filteredProducts.map((p) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={styles.dropdownOption}
-                    onPress={() => onSelectProduct(p)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.dropdownOptionText}>{p.name}</Text>
-                      <Text style={styles.dropdownOptionMeta}>
-                        {p.category} {p.variants?.length ? `• ${p.variants.length} variant(s)` : ''}
-                      </Text>
-                    </View>
-                    <Text style={styles.dropdownOptionPrice}>
-                      &#8377;{(p.sellingPrice || p.price).toLocaleString('en-IN')}
-                    </Text>
-                  </TouchableOpacity>
-                ))
+                filteredProducts
+                  .filter((p) => !isProductDiscontinued(p))
+                  .map((p) => {
+                    const inStock = isProductInStock(p);
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          styles.dropdownOption,
+                          !inStock && { opacity: 0.5, backgroundColor: '#f4f4f5' },
+                        ]}
+                        disabled={!inStock}
+                        onPress={() => inStock && onSelectProduct(p)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.dropdownOptionText, !inStock && { color: '#a1a1aa' }]}>
+                            {p.name}
+                          </Text>
+                          <Text style={styles.dropdownOptionMeta}>
+                            {p.category} {p.variants?.length ? `• ${p.variants.length} variant(s)` : ''} • {inStock ? 'In Stock' : 'Out of Stock (Disabled)'}
+                          </Text>
+                        </View>
+                        <Text style={[styles.dropdownOptionPrice, !inStock && { color: '#a1a1aa' }]}>
+                          &#8377;{(p.sellingPrice || p.price).toLocaleString('en-IN')}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
               )}
             </ScrollView>
           </View>
@@ -624,13 +650,20 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
             <View style={styles.variantChipsContainer}>
               {selectedProduct.variants.map((v, i) => {
                 const isSelected = selectedVariant?.color === v.color;
+                const isVariantInStock = (Number(v.stock) || 0) > 0;
                 return (
                   <TouchableOpacity
                     key={i}
-                    onPress={() => setSelectedVariant(v)}
+                    disabled={!isVariantInStock}
+                    onPress={() => isVariantInStock && setSelectedVariant(v)}
                     style={[
                       styles.variantChip,
                       isSelected && styles.variantChipActive,
+                      !isVariantInStock && {
+                        opacity: 0.45,
+                        backgroundColor: '#f4f4f5',
+                        borderColor: '#e4e4e7',
+                      },
                     ]}
                   >
                     <View
@@ -643,9 +676,12 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       style={[
                         styles.variantChipText,
                         isSelected && styles.variantChipTextActive,
+                        !isVariantInStock && {
+                          color: '#a1a1aa',
+                        },
                       ]}
                     >
-                      {v.color} ({v.stock} in stock)
+                      {v.color} ({v.stock} in stock){!isVariantInStock ? ' - Out of Stock' : ''}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -909,6 +945,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                       keyboardType="numeric"
                       value={value}
                       onBlur={onBlur}
+                      onFocus={() => handleFieldFocus('adjustments', 120)}
                       onChangeText={onChange}
                       style={[styles.textInput, { height: 42 }]}
                     />
@@ -927,8 +964,56 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
               </View>
             </View>
 
+            {/* Advance Payment Mode (Cash vs Online) when advance is paid */}
+            {parseFloat(formValues.paidAmount) > 0 && (
+              <View style={[styles.inputGroup, { marginTop: 4, marginBottom: 12 }]}>
+                <Text style={styles.inputLabel}>Advance Payment Mode *</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentOption,
+                      { flex: 1, paddingVertical: 8 },
+                      (formValues.advancePaymentMode || 'Cash') === 'Cash' && styles.paymentOptionActive,
+                    ]}
+                    onPress={() => setValue('advancePaymentMode', 'Cash', { shouldDirty: true })}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentOptionText,
+                        { fontSize: 12 },
+                        (formValues.advancePaymentMode || 'Cash') === 'Cash' && styles.paymentOptionTextActive,
+                      ]}
+                    >
+                      Cash Payment
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentOption,
+                      { flex: 1, paddingVertical: 8 },
+                      formValues.advancePaymentMode === 'Online' && styles.paymentOptionActive,
+                    ]}
+                    onPress={() => setValue('advancePaymentMode', 'Online', { shouldDirty: true })}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.paymentOptionText,
+                        { fontSize: 12 },
+                        formValues.advancePaymentMode === 'Online' && styles.paymentOptionTextActive,
+                      ]}
+                    >
+                      Online Payment
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Due Date & Presets */}
-            <View style={[styles.inputGroup, { marginTop: 8 }]}>
+            <View style={[styles.inputGroup, { marginTop: 4 }]}>
               <Text style={styles.inputLabel}>Payment Due Date</Text>
               <View style={styles.presetsRow}>
                 {[

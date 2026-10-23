@@ -15,7 +15,7 @@ import { orderItems } from './order-items.js';
 import { wishlist } from './wishlist.js';
 import { wishlistItems } from './wishlist-items.js';
 import { productImages } from './product-images.js';
-import { credits } from './credits.js';
+import { credits, creditTransactions } from './credits.js';
 
 import { customerDetails } from './customer-details.js';
 
@@ -206,7 +206,7 @@ export const productImagesRelations = relations(productImages, ({ one }) => ({
   }),
 }));
 
-export const creditsRelations = relations(credits, ({ one }) => ({
+export const creditsRelations = relations(credits, ({ one, many }) => ({
   order: one(orders, {
     fields: [credits.orderId],
     references: [orders.id],
@@ -219,4 +219,25 @@ export const creditsRelations = relations(credits, ({ one }) => ({
     fields: [credits.invoiceId],
     references: [invoices.id],
   }),
+  transactions: many(creditTransactions),
 }));
+
+export const creditTransactionsRelations = relations(creditTransactions, ({ one }) => ({
+  credit: one(credits, {
+    fields: [creditTransactions.creditId],
+    references: [credits.id],
+  }),
+  order: one(orders, {
+    fields: [creditTransactions.orderId],
+    references: [orders.id],
+  }),
+  invoice: one(invoices, {
+    fields: [creditTransactions.invoiceId],
+    references: [invoices.id],
+  }),
+  user: one(user, {
+    fields: [creditTransactions.userId],
+    references: [user.id],
+  }),
+}));
+

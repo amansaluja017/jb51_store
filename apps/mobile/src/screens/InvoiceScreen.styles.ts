@@ -1309,6 +1309,50 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  paginationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  paginationInfo: {
+    fontSize: 12,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  paginationControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pageButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f4f4f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#fafafa',
+  },
+  pageNumberBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: '#f4f4f5',
+  },
+  pageNumberText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#18181b',
+  },
 });
 
 export default styles;
