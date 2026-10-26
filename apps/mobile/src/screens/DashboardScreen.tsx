@@ -156,7 +156,7 @@ export default function DashboardScreen({
         >
           <Text style={styles.scopeLabel}>Outfit Focus:</Text>
           <Text style={styles.scopeValue} numberOfLines={1}>
-            {activeAnalyticsProduct ? activeAnalyticsProduct.name : 'All Products (Atelier Overview)'}
+            {activeAnalyticsProduct ? activeAnalyticsProduct.name : 'All Products (Store Overview)'}
           </Text>
           <ChevronDown size={14} color="#71717a" />
         </TouchableOpacity>
@@ -178,7 +178,7 @@ export default function DashboardScreen({
             style={styles.dropdownOption}
           >
             <Text style={[styles.dropdownOptionText, selectedAnalyticsSlug === 'all' && styles.activeOption]}>
-              All Products (Atelier Overview)
+              All Products (Store Overview)
             </Text>
           </TouchableOpacity>
           {products.map(p => (
@@ -291,7 +291,7 @@ export default function DashboardScreen({
               <Text style={styles.spotlightPrice}>
                 {formatCurrency(topProduct.sellingPrice ?? topProduct.price ?? 0)}
               </Text>
-              <Text style={styles.spotlightCategory}>{topProduct.category || 'Atelier Collection'}</Text>
+              <Text style={styles.spotlightCategory}>{topProduct.category || 'Signature Collection'}</Text>
             </View>
           </View>
         </View>

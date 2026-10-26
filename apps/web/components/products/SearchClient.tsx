@@ -46,7 +46,7 @@ export function SearchClient({ query }: Props) {
           <div>
             <div className="inline-flex items-center gap-2 mb-3">
               <LotusIcon className="w-5 h-5 text-[#FF5E36]" />
-              <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold">Atelier Search</span>
+              <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold">Catalog Search</span>
             </div>
             <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight text-zinc-900">
               Search Results

@@ -12,29 +12,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  FileText,
-  Trash2,
-  Plus,
-  Printer,
-  X,
-  ChevronDown,
-  UserPlus,
-  Search,
-  Check,
-  User,
-  ShoppingBag,
-  PackageCheck,
-  Receipt,
-  Eye,
-} from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { InvoiceSkeleton } from '../components/SkeletonLoader';
 import styles from './InvoiceScreen.styles';
 import { generateInvoiceHtml } from '../utils/invoicePdfGenerator';
-import { formatDateSafe } from '../utils/date';
+import { formatDateSafe, formatDateToYMD } from '../utils/date';
 import OrderDetailsModal from '../components/invoices/OrderDetailsModal';
 import AddCustomerModal from '../components/invoices/AddCustomerModal';
 import InvoicePreviewModal from '../components/invoices/InvoicePreviewModal';
@@ -567,7 +551,7 @@ export default function InvoiceScreen({
 
   const activeTransactions = isViewingPast
     ? (resolvedInvoice?.creditTransactions || [])
-    : (isViewingPastCredit && (parseFloat(formValues.paidAmount) || 0) > 0
+    : (formValues.paymentMethod === 'Credit' && (parseFloat(formValues.paidAmount) || 0) > 0
         ? [
             {
               createdAt: activeInvDate,
@@ -1019,7 +1003,7 @@ export default function InvoiceScreen({
     reset({
       invoiceNumber: inv.invoiceNumber || `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       invoiceDate: inv.createdAt ? formatDateSafe(inv.createdAt) : new Date().toLocaleDateString('en-IN'),
-      paymentDate: inv.createdAt ? new Date(inv.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      paymentDate: formatDateToYMD(inv.createdAt) || new Date().toISOString().split('T')[0],
       clientName: inv.customerName || '',
       clientEmail: inv.email || '',
       clientPhone: inv.phoneNumber || '',
@@ -1028,7 +1012,7 @@ export default function InvoiceScreen({
       discount: inv.discount ? String(inv.discount) : '0',
       paymentMethod,
       paidAmount: inv.paidAmount ? String(inv.paidAmount) : '0',
-      dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+      dueDate: formatDateToYMD(inv.dueDate) || new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
       advancePaymentMode: inv.advancePaymentMode?.toLowerCase() === 'online' ? 'Online' : 'Cash',
       notes: inv.notes || '',
     });
@@ -1127,6 +1111,23 @@ export default function InvoiceScreen({
                   setOrderTotalCount(res.totalCount || 0);
                 }
               }
+              if (onFetchPaginatedInvoices) {
+                const invRes = await onFetchPaginatedInvoices({
+                  page: invoicePage,
+                  limit: 15,
+                  search: searchFilter.trim() || undefined,
+                });
+                if (invRes) {
+                  setRemoteInvoices(invRes.items || []);
+                  setInvoiceTotalPages(invRes.totalPages || 1);
+                  setInvoiceTotalCount(invRes.totalCount || 0);
+                }
+              }
+            }
+          }}
+          onDeleteInvoice={async (id, label) => {
+            if (onDeleteInvoice) {
+              await onDeleteInvoice(id, label);
               if (onFetchPaginatedInvoices) {
                 const invRes = await onFetchPaginatedInvoices({
                   page: invoicePage,

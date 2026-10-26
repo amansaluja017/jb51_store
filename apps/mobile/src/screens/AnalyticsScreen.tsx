@@ -261,7 +261,7 @@ export default function AnalyticsScreen({
           style={styles.selectorButton}
         >
           <Text style={styles.selectorButtonText}>
-            {activeAnalyticsProduct ? activeAnalyticsProduct.name : 'All Outfits (Atelier Overview)'}
+            {activeAnalyticsProduct ? activeAnalyticsProduct.name : 'All Outfits (Store Overview)'}
           </Text>
           <ChevronDown size={14} color="#71717a" />
         </TouchableOpacity>
@@ -275,7 +275,7 @@ export default function AnalyticsScreen({
             style={styles.dropdownOption}
           >
             <Text style={[styles.dropdownOptionText, selectedAnalyticsSlug === 'all' && styles.activeOption]}>
-              All Outfits (Atelier Overview)
+              All Outfits (Store Overview)
             </Text>
           </TouchableOpacity>
           {products.map(p => (

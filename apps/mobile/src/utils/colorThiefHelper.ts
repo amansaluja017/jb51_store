@@ -138,9 +138,9 @@ export function isLightColor(hex: string): boolean {
 }
 
 /**
- * Curated luxury atelier colors for ethnic & contemporary apparel
+ * Curated luxury signature colors for ethnic & contemporary apparel
  */
-export const SIGNATURE_ATELIER_PALETTE: Array<{ name: string; hex: string }> = [
+export const SIGNATURE_PALETTE: Array<{ name: string; hex: string }> = [
   { name: 'Warm Ivory', hex: '#FAF5EE' },
   { name: 'Pure Noir', hex: '#0A0A0A' },
   { name: 'Wine Red', hex: '#722F37' },

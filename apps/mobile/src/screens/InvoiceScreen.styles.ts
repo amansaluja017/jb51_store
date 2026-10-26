@@ -748,7 +748,7 @@ export const styles = StyleSheet.create({
   editInvoiceBtn: {
     position: 'absolute',
     top: 12,
-    right: 12,
+    right: 52,
     width: 34,
     height: 34,
     borderRadius: 8,

@@ -11,23 +11,34 @@ import {
   MessageCircle, 
   Clock, 
   MapPin, 
-  Sparkles, 
+  Award, 
   Scale,
   Cookie,
   UserCheck,
   RefreshCw,
   HelpCircle
 } from 'lucide-react';
-import { WHATSAPP_NUMBER } from '@/lib/utils';
+import { WHATSAPP_NUMBER, SITE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | JB51 Atelier',
-  description: 'Learn how JB51 Atelier collects, protects, and uses your personal data, custom sizing measurements, and order information with utmost security and care.',
-  keywords: ['privacy policy', 'JB51 data protection', 'bespoke atelier privacy', 'customer data security'],
+  title: 'Privacy Policy | JB51',
+  description: 'Learn how JB51 collects, protects, and uses your personal data, custom sizing measurements, and order information with utmost security and care.',
+  keywords: ['privacy policy', 'JB51 data protection', 'bespoke luxury privacy', 'customer data security'],
+  alternates: {
+    canonical: `${SITE_URL}/privacy-policy`,
+  },
   openGraph: {
-    title: 'Privacy Policy | JB51 Atelier',
+    title: 'Privacy Policy | JB51',
     description: 'Our commitment to protecting your personal information and bespoke sizing records.',
+    url: `${SITE_URL}/privacy-policy`,
+    siteName: 'JB51',
+    locale: 'en_IN',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Privacy Policy | JB51',
+    description: 'Our commitment to protecting your personal information and bespoke sizing records.',
   },
 };
 
@@ -59,7 +70,7 @@ export default function PrivacyPolicyPage() {
     {
       icon: UserCheck,
       title: "Customer Control",
-      desc: "Easily access, modify, or permanently request deletion of your atelier profile at any time."
+      desc: "Easily access, modify, or permanently request deletion of your customer profile at any time."
     },
     {
       icon: Scale,
@@ -83,7 +94,7 @@ export default function PrivacyPolicyPage() {
 
   return (
     <div className="w-full bg-[#FAF9F5] text-zinc-800 min-h-screen font-sans selection:bg-[#FF5E36]/20 selection:text-[#FF5E36]">
-      {/* Decorative Atelier Backdrop */}
+      {/* Decorative Backdrop */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000004_1px,transparent_1px),linear-gradient(to_bottom,#00000004_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none" />
       <div className="absolute top-0 right-0 w-[550px] h-[550px] rounded-full bg-[#FF5E36]/5 blur-[120px] pointer-events-none" />
       <div className="absolute top-96 left-0 w-96 h-96 rounded-full bg-amber-500/5 blur-[100px] pointer-events-none" />
@@ -99,11 +110,11 @@ export default function PrivacyPolicyPage() {
               className="group inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#FF5E36] hover:text-[#E04D27] transition-colors"
             >
               <ArrowLeft size={12} className="group-hover:-translate-x-1 transition-transform" />
-              <span>Back to Atelier</span>
+              <span>Back to Store</span>
             </Link>
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">
               <span>Legal</span>
-              <span>✦</span>
+              <span>•</span>
               <span className="text-zinc-700">Privacy Policy</span>
             </div>
           </div>
@@ -121,7 +132,7 @@ export default function PrivacyPolicyPage() {
             </h1>
 
             <p className="text-zinc-600 text-sm md:text-base font-light leading-relaxed mb-6">
-              At JB51 Atelier, we treat your privacy with the same meticulous precision and devotion that we bring to our bespoke handloom creations. This document details how we collect, safeguard, and handle your personal data and couture fitting preferences.
+              At JB51, we treat your privacy with the same meticulous precision and devotion that we bring to our bespoke handloom creations. This document details how we collect, safeguard, and handle your personal data and couture fitting preferences.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-[10px] tracking-wider uppercase text-zinc-500 font-bold pt-2 border-t border-zinc-200">
@@ -132,7 +143,7 @@ export default function PrivacyPolicyPage() {
               <span>·</span>
               <span>Effective Date: <strong className="text-zinc-800">{effectiveDate}</strong></span>
               <span>·</span>
-              <span>Applicable: Storefront, WhatsApp Concierge & Atelier Services</span>
+              <span>Applicable: Storefront, WhatsApp Concierge & Tailoring Services</span>
             </div>
           </div>
 
@@ -182,7 +193,7 @@ export default function PrivacyPolicyPage() {
                     className="text-xs text-zinc-600 hover:text-[#FF5E36] hover:bg-[#FF5E36]/5 px-3 py-2 rounded-xl transition-all font-medium flex items-center justify-between group"
                   >
                     <span>{sec.label}</span>
-                    <span className="text-[10px] text-zinc-300 group-hover:text-[#FF5E36] transition-colors">✦</span>
+                    <span className="text-[10px] text-zinc-300 group-hover:text-[#FF5E36] transition-colors">•</span>
                   </a>
                 ))}
               </nav>
@@ -196,7 +207,7 @@ export default function PrivacyPolicyPage() {
                   Our privacy team and customer concierge are available on WhatsApp for any inquiries regarding your data.
                 </p>
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51 Atelier, I have a question regarding your Privacy Policy and my personal data.")}`}
+                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51, I have a question regarding your Privacy Policy and my personal data.")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
@@ -218,7 +229,7 @@ export default function PrivacyPolicyPage() {
                 <h2 className="font-serif text-2xl font-bold text-zinc-950">Overview & Our Commitment</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
-                JB51 Clothing House (&ldquo;JB51 Atelier&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) operates the website <strong className="text-zinc-800">jb51.in</strong> and associated storefronts, mobile digital experiences, and concierge ordering channels. We specialize in luxury women&apos;s ethnic wear, handcrafted Banarasi and Chanderi suits, velvet ensembles, and custom-tailored silhouettes.
+                JB51 Clothing House (&ldquo;JB51&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) operates the website <strong className="text-zinc-800">jb51.in</strong> and associated storefronts, mobile digital experiences, and concierge ordering channels. We specialize in luxury women&apos;s ethnic wear, handcrafted Banarasi and Chanderi suits, velvet ensembles, and custom-tailored silhouettes.
               </p>
               <p className="text-sm font-light text-zinc-600 leading-relaxed">
                 We believe that bespoke craftsmanship requires unconditional mutual trust. This Privacy Policy informs you of our policies regarding the collection, use, disclosure, and protection of Personal Data when you browse our boutique, interact with our artisans, place bespoke orders, or communicate through WhatsApp or Instagram concierge lines.
@@ -234,7 +245,7 @@ export default function PrivacyPolicyPage() {
                 <h2 className="font-serif text-2xl font-bold text-zinc-950">Information We Collect</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
-                Depending on how you interact with our atelier, we collect information in the following categories:
+                Depending on how you interact with our store, we collect information in the following categories:
               </p>
               
               <div className="space-y-4 text-sm font-light">
@@ -255,14 +266,14 @@ export default function PrivacyPolicyPage() {
                 <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
                   <h4 className="font-bold text-zinc-900 mb-1 text-xs uppercase tracking-wider">C. Customer Reviews & User-Submitted Media</h4>
                   <p className="text-zinc-600 text-xs leading-relaxed">
-                    When you share your atelier experience, we collect your name, email, telephone number, numerical rating, written testimonial, geographic location, and Instagram handle. Any styling photographs or video clips you upload are processed through our secure media pipeline and held in an administrative moderation queue prior to public presentation.
+                    When you share your shopping experience, we collect your name, email, telephone number, numerical rating, written testimonial, geographic location, and Instagram handle. Any styling photographs or video clips you upload are processed through our secure media pipeline and held in an administrative moderation queue prior to public presentation.
                   </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
                   <h4 className="font-bold text-zinc-900 mb-1 text-xs uppercase tracking-wider">D. Account Credentials & Session Tokens</h4>
                   <p className="text-zinc-600 text-xs leading-relaxed">
-                    When you register an atelier profile, passwords are cryptographic one-way hashes (never stored in plain text). Authentication relies on cryptographically signed JSON Web Tokens (JWT access and refresh tokens) to maintain secure sessions across web and mobile storefronts.
+                    When you register a customer account, passwords are cryptographic one-way hashes (never stored in plain text). Authentication relies on cryptographically signed JSON Web Tokens (JWT access and refresh tokens) to maintain secure sessions across web and mobile storefronts.
                   </p>
                 </div>
 
@@ -285,7 +296,7 @@ export default function PrivacyPolicyPage() {
               </div>
               <div className="p-5 rounded-2xl bg-[#FF5E36]/5 border border-[#FF5E36]/20 mb-4">
                 <div className="flex items-center gap-2 mb-2 text-[#FF5E36] font-bold text-xs uppercase tracking-wider">
-                  <Sparkles size={14} />
+                  <Award size={14} />
                   <span>The Karigar Custom Fitting Guarantee</span>
                 </div>
                 <p className="text-xs text-zinc-700 leading-relaxed font-light">
@@ -416,7 +427,7 @@ export default function PrivacyPolicyPage() {
               <ul className="list-disc pl-5 space-y-1.5 text-xs text-zinc-600 font-light">
                 <li><strong>Essential Cookies:</strong> Required for site navigation, catalog filtering, and wishlisting.</li>
                 <li><strong>Performance Cookies:</strong> Enable anonymous metrics to optimize page load speeds and visual asset rendering.</li>
-                <li>You can manage or disable cookies in your browser settings, though certain custom atelier features may operate with reduced functionality.</li>
+                <li>You can manage or disable cookies in your browser settings, though certain custom features may operate with reduced functionality.</li>
               </ul>
             </section>
 
@@ -432,10 +443,10 @@ export default function PrivacyPolicyPage() {
                 Under the Digital Personal Data Protection Act (DPDPA) and applicable privacy regulations, you possess the following rights regarding your personal information:
               </p>
               <div className="space-y-2 text-xs text-zinc-700 font-light">
-                <p>✦ <strong>Right of Access:</strong> You may request a copy of all personal records and fitting notes stored with us.</p>
-                <p>✦ <strong>Right of Rectification:</strong> You may correct inaccurate or obsolete contact or shipping details at any time.</p>
-                <p>✦ <strong>Right of Erasure:</strong> You may instruct us to delete your client profile, subject to statutory tax retention guidelines.</p>
-                <p>✦ <strong>Right to Withdraw Consent:</strong> You may revoke permission for promotional outreach at any time.</p>
+                <p>• <strong>Right of Access:</strong> You may request a copy of all personal records and fitting notes stored with us.</p>
+                <p>• <strong>Right of Rectification:</strong> You may correct inaccurate or obsolete contact or shipping details at any time.</p>
+                <p>• <strong>Right of Erasure:</strong> You may instruct us to delete your client profile, subject to statutory tax retention guidelines.</p>
+                <p>• <strong>Right to Withdraw Consent:</strong> You may revoke permission for promotional outreach at any time.</p>
               </div>
             </section>
 

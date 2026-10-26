@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import { Playfair_Display, Plus_Jakarta_Sans, Caveat, Geist } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
@@ -25,13 +25,19 @@ const caveat = Caveat({
   display: 'swap',
 });
 
+import { SITE_URL } from '@/lib/utils';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: '/',
+  },
   title: {
-    default: "JB51 | Punjabi Suits, Premium Suits & Best Women Suits in Kaithal",
-    template: "%s | JB51 - Premium Women's Suits",
+    default: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
+    template: "%s | JB51",
   },
   description:
-    "Discover JB51 — home of premium suits, designer Punjabi suits, and the best women suits for women in Kaithal. Shop handcrafted ethnic wear, boutique suits, and luxury festive collections.",
+    "Discover JB51 — home of luxury Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke women's suits in Kaithal. Handcrafted heritage since 1951.",
   keywords: [
     'punjabi suits',
     'premium suits',
@@ -48,10 +54,14 @@ export const metadata: Metadata = {
     'party wear punjabi suits',
     'JB51 suits',
     'JB51 store Kaithal',
+    'chanderi silk suits',
+    'anarkali suits',
+    'velvet suits',
   ],
   authors: [{ name: 'JB51' }],
   creator: 'JB51',
   publisher: 'JB51',
+  category: 'clothing',
   robots: {
     index: true,
     follow: true,
@@ -64,18 +74,30 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "JB51 | Punjabi Suits, Premium Suits & Best Women Suits in Kaithal",
+    title: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
     description:
-      "Explore the finest Punjabi suits, premium women's suits, and boutique ethnic wear in Kaithal at JB51. Crafted for elegance, luxury, and comfort.",
+      "Explore the finest Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique ethnic wear in Kaithal at JB51. Crafted for elegance, luxury, and comfort.",
     type: 'website',
     locale: 'en_IN',
     siteName: 'JB51',
+    url: SITE_URL,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80',
+        width: 1200,
+        height: 630,
+        alt: 'JB51 Luxury Silhouettes',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "JB51 | Best Punjabi Suits & Premium Women Suits in Kaithal",
+    title: "JB51 | Best Punjabi Suits & Designer Ethnic Wear",
     description:
-      "Discover designer Punjabi suits, premium women's suits, and luxury ethnic wear in Kaithal at JB51.",
+      "Discover designer Punjabi suits, bespoke women's suits, and luxury ethnic wear at JB51.",
+    images: [
+      'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80',
+    ],
   },
 };
 
@@ -84,10 +106,10 @@ import { WishlistProvider } from '@/context/WishlistContext';
 import { cn } from "@/lib/utils";
 import { PageTransition } from '@/components/layout/PageTransition';
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
@@ -104,6 +126,30 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
             gtag('config', 'G-ZMV3P7PPRH');
           `}
         </Script>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "ClothingStore",
+              "name": "JB51",
+              "url": SITE_URL,
+              "description": "Discover JB51 — luxury designer Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique suits in Kaithal.",
+              "telephone": "+91 98765 43210",
+              "email": "support@jb51.shop",
+              "currenciesAccepted": "INR",
+              "priceRange": "₹₹ - ₹₹₹₹",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Main Bazaar",
+                "addressLocality": "Kaithal",
+                "addressRegion": "Haryana",
+                "postalCode": "136027",
+                "addressCountry": "IN",
+              },
+            }),
+          }}
+        />
         <TRPCReactProvider>
           <WishlistProvider>
             <Navbar />

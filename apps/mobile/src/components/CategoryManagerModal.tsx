@@ -122,7 +122,7 @@ export default function CategoryManagerModal({
           {/* Categories List Section */}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Catalog Categories</Text>
-            <Text style={styles.sectionSubtitle}>Existing categories currently defined in the atelier database.</Text>
+            <Text style={styles.sectionSubtitle}>Existing categories currently defined in the catalog database.</Text>
             
             <View style={styles.categoriesList}>
               {categories.map(cat => {

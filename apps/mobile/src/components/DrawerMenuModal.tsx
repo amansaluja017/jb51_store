@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Platform,
   TouchableWithoutFeedback,
@@ -22,7 +21,7 @@ import {
   Package,
   FileText,
   Star,
-  Sparkles,
+  Crown,
   LayoutDashboard,
   Shirt,
   CreditCard,
@@ -144,8 +143,8 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
           <View style={drawerStyles.drawerHeader}>
             <View>
               <View style={drawerStyles.brandBadge}>
-                <Sparkles size={11} color={colors.primary.DEFAULT} />
-                <Text style={drawerStyles.brandBadgeText}>ATELIER ADMIN</Text>
+                <Crown size={11} color={colors.primary.DEFAULT} />
+                <Text style={drawerStyles.brandBadgeText}>STORE ADMIN</Text>
               </View>
               <Text style={drawerStyles.drawerTitle}>JB51 Store</Text>
               <Text style={drawerStyles.drawerSubtitle}>
@@ -374,7 +373,7 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
               activeOpacity={0.7}
             >
               <LogOut size={18} color="#dc2626" />
-              <Text style={drawerStyles.logoutBtnText}>Sign Out of Atelier</Text>
+              <Text style={drawerStyles.logoutBtnText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>

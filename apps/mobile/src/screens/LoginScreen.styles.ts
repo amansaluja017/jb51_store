@@ -28,7 +28,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 8,
   },
-  atelierLogo: {
+  brandLogo: {
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontSize: 48,
     fontWeight: 'bold',
@@ -36,7 +36,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 8,
   },
-  atelierSubLogo: {
+  brandSubLogo: {
     fontSize: 9,
     fontWeight: 'bold',
     color: '#FF5E36',

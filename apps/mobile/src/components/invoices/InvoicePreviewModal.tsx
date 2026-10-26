@@ -229,7 +229,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                 <View style={styles.invoiceHeaderRow}>
                   <View>
                     <Text style={styles.brandTitle}>JB51</Text>
-                    <Text style={styles.brandSubtitle}>EST. 1951 - ATELIER</Text>
+                    <Text style={styles.brandSubtitle}>EST. 1951</Text>
                     <Text style={styles.brandAddress}>
                       Chandni Chowk, New Delhi, India{'\n'}support@jb51.shop
                     </Text>
@@ -487,7 +487,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                   <View>
                     <Text style={styles.brandTitle}>JB51</Text>
                     <Text style={[styles.brandSubtitle, { color: '#c2410c' }]}>
-                      EST. 1951 - ATELIER
+                      EST. 1951
                     </Text>
                     <Text style={styles.brandAddress}>
                       Chandni Chowk, New Delhi, India{'\n'}support@jb51.shop | +91 98100 00051

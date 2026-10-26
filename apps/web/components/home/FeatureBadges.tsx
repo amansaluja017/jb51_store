@@ -1,6 +1,6 @@
 'use client';
 
-import { Truck, ShieldCheck, RotateCcw, Sparkles } from 'lucide-react';
+import { Truck, ShieldCheck, RotateCcw, Headphones } from 'lucide-react';
 
 export function FeatureBadges() {
   return (
@@ -38,7 +38,7 @@ export function FeatureBadges() {
 
         <div className="flex items-center gap-3.5 pl-2 md:pl-6 py-2 md:py-0">
           <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-[#FF5E36] shrink-0">
-            <Sparkles size={18} />
+            <Headphones size={18} />
           </div>
           <div>
             <p className="text-xs font-bold text-zinc-950 uppercase tracking-wider">24/7 Support</p>

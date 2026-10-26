@@ -26,7 +26,7 @@ import {
   Layers,
   Eye,
   ImageOff,
-  Sparkles,
+  AlertTriangle,
   Lock,
   ChevronLeft,
   ChevronRight,
@@ -498,7 +498,7 @@ export default function InventoryScreen({
             <View style={[styles.metricCard, styles.metricCardLowStock]}>
               <View style={styles.metricCardHeader}>
                 <View style={[styles.metricIconBox, { backgroundColor: '#FCEECC' }]}>
-                  <Sparkles size={13} color="#D97A35" />
+                  <AlertTriangle size={13} color="#D97A35" />
                 </View>
                 <Text style={[styles.metricLabel, { color: '#C06826' }]}>Low Stock</Text>
               </View>

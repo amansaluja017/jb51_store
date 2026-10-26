@@ -99,8 +99,8 @@ export default function LoginScreen({
         >
           <View style={styles.loginBox}>
             {/* Logo */}
-            <Text style={styles.atelierLogo}>JB51</Text>
-            <Text style={styles.atelierSubLogo}>A T E L I E R</Text>
+            <Text style={styles.brandLogo}>JB51</Text>
+            <Text style={styles.brandSubLogo}>S T O R E</Text>
             
             <View style={styles.formSpacer} />
 

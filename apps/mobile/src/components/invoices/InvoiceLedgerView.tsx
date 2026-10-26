@@ -359,11 +359,30 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                         {onEditInvoice ? (
                           <TouchableOpacity
                             onPress={() => onEditInvoice(inv)}
-                            style={styles.editInvoiceBtn}
+                            style={[
+                              styles.editInvoiceBtn,
+                              !onDeleteInvoice && { right: 12 },
+                            ]}
                             accessibilityLabel={`Edit invoice ${inv.invoiceNumber || inv.customerName || inv.id}`}
                             accessibilityRole="button"
                           >
                             <Edit3 size={15} color="#ea580c" />
+                          </TouchableOpacity>
+                        ) : null}
+
+                        {onDeleteInvoice ? (
+                          <TouchableOpacity
+                            onPress={() =>
+                              onDeleteInvoice(
+                                inv.id,
+                                inv.invoiceNumber || inv.customerName || 'Invoice'
+                              )
+                            }
+                            style={styles.deleteInvoiceBtn}
+                            accessibilityLabel={`Delete invoice ${inv.invoiceNumber || inv.customerName || inv.id}`}
+                            accessibilityRole="button"
+                          >
+                            <Trash2 size={15} color="#ef4444" />
                           </TouchableOpacity>
                         ) : null}
                       </View>

@@ -16,7 +16,7 @@ export function BespokeBanner() {
         {/* Left Block: Narrative & Call to Action */}
         <div className="md:col-span-5 flex flex-col justify-center relative z-10">
           <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-3 block">
-            ATELIER SERVICE
+            BESPOKE SERVICE
           </span>
           <h2 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
             The Art <br className="hidden md:block" />of Custom <span className="font-serif italic text-zinc-300">Drape</span>
@@ -36,7 +36,7 @@ export function BespokeBanner() {
               href="/shop"
               className="border border-white/20 hover:border-white/40 hover:bg-white/5 text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300"
             >
-              Explore Atelier
+              Explore Collection
             </Link>
           </div>
         </div>
@@ -45,7 +45,7 @@ export function BespokeBanner() {
         <div className="md:col-span-7 relative z-10 w-full h-full min-h-[350px] md:min-h-[480px] rounded-2xl overflow-hidden fabric-reveal shadow-xl">
           <Image
             src="/assets/luxury_ad_banner.png"
-            alt="The Art of Drape - Atelier Collection"
+            alt="The Art of Drape - Signature Collection"
             fill
             className="object-cover hover:scale-105 transition-transform duration-[1.5s]"
             sizes="(max-width: 768px) 100vw, 50vw"

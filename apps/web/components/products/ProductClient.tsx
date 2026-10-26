@@ -7,7 +7,7 @@ import { type Product } from '@repo/products';
 import { formatPrice, cn, generateWhatsAppMessage, generateInstagramMessage, WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
-import { Heart, MessageCircle, Instagram, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Heart, MessageCircle, Instagram, ZoomIn, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
@@ -144,14 +144,14 @@ export function ProductClient({ product }: { product: any }) {
             className="group inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#FF5E36] hover:text-[#E04D27] transition-colors"
           >
             <ArrowLeft size={12} className="group-hover:-translate-x-1 transition-transform" />
-            <span>Back to Atelier Catalog</span>
+            <span>Back to Catalog</span>
           </Link>
           <div className="hidden sm:flex items-center gap-1.5 text-[9px] tracking-[0.25em] uppercase text-zinc-400 font-semibold select-none">
             <span>Home</span>
-            <span>✦</span>
+            <span>•</span>
             <span>Shop</span>
-            <span>✦</span>
-            <span className="text-[#FF5E36] font-bold">{product.category || 'Atelier'}</span>
+            <span>•</span>
+            <span className="text-[#FF5E36] font-bold">{product.category || 'Collection'}</span>
           </div>
         </div>
 
@@ -248,8 +248,8 @@ export function ProductClient({ product }: { product: any }) {
                     sizes="(max-width: 1024px) 100vw, 60vw"
                   />
                   <div className="absolute bottom-6 left-6 bg-zinc-900/80 backdrop-blur-sm text-white text-[8px] tracking-[0.2em] uppercase font-bold py-1.5 px-3.5 rounded-full z-20 flex items-center gap-1.5 border border-white/5">
-                    <Sparkles size={8} className="text-[#FF5E36] animate-pulse" />
-                    Atelier Magnifier
+                    <ZoomIn size={8} className="text-[#FF5E36] animate-pulse" />
+                    Fabric Magnifier
                   </div>
                 </div>
               )}
@@ -271,10 +271,10 @@ export function ProductClient({ product }: { product: any }) {
             {/* Subtitle / Attributes Row */}
             <div className="flex flex-wrap items-center gap-2.5 mb-4">
               <span className="text-[9px] tracking-wider uppercase font-bold text-[#FF5E36] bg-[#FF5E36]/5 px-2.5 py-1 rounded-full border border-[#FF5E36]/10">
-                ✦ Handloom Heritage
+                • Handloom Heritage
               </span>
               <span className="text-[9px] tracking-wider uppercase font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                ✦ Artisanal Weave
+                • Artisanal Weave
               </span>
             </div>
 
@@ -343,7 +343,7 @@ export function ProductClient({ product }: { product: any }) {
                 {isSelectedOutOfStock ? (
                   <span className="text-[#FF5E36]">Out of Stock - Custom Order Available</span>
                 ) : currentStock <= 3 ? (
-                  <span className="text-rose-600">Only {currentStock} atelier tailoring slots left!</span>
+                  <span className="text-rose-600">Only {currentStock} bespoke tailoring slots left!</span>
                 ) : (
                   <span className="text-emerald-600">Tailoring slots open ({currentStock} available)</span>
                 )}

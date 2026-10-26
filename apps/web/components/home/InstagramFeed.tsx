@@ -34,7 +34,7 @@ export function InstagramFeed() {
           <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">FOLLOW THE JOURNEY</span>
           <h2 className="font-serif text-3xl font-bold text-zinc-950">@jb51_clothing_house</h2>
           <p className="text-zinc-400 text-xs mt-2 uppercase tracking-widest font-semibold">
-            ✦ Share your style using #JB51Atelier ✦
+            • Share your style using #JB51Store •
           </p>
         </div>
 

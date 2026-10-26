@@ -9,7 +9,7 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check, Pipette, Sparkles } from 'lucide-react-native';
+import { X, Check, Pipette, Tag } from 'lucide-react-native';
 import {
   rgbToHex,
   hexToRgb,
@@ -257,7 +257,7 @@ export default function ColorPickerModal({
 
                 <View style={styles.previewInfo}>
                   <View style={styles.suggestedBadge}>
-                    <Sparkles size={11} color="#FF5E36" style={{ marginRight: 4 }} />
+                    <Tag size={11} color="#FF5E36" style={{ marginRight: 4 }} />
                     <Text style={styles.suggestedNameText}>{colorName}</Text>
                   </View>
 

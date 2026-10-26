@@ -14,7 +14,7 @@ import {
   X,
   Edit3,
   ImageOff,
-  Sparkles,
+  Zap,
   Award,
   Star,
   CheckCircle2,
@@ -265,7 +265,7 @@ export default function ProductDetailsModal({
                 )}
                 {product.newArrival && (
                   <View style={[styles.flagPill, styles.flagNewArrival]}>
-                    <Sparkles size={12} color="#047857" />
+                    <Zap size={12} color="#047857" />
                     <Text style={[styles.flagPillText, styles.flagNewArrivalText]}>New Arrival</Text>
                   </View>
                 )}
@@ -479,7 +479,7 @@ export default function ProductDetailsModal({
             <View style={styles.card}>
               <View style={styles.sectionHeaderLeft}>
                 <FileText size={16} color="#FF5E36" />
-                <Text style={styles.sectionHeader}>Description & Atelier Notes</Text>
+                <Text style={styles.sectionHeader}>Description & Notes</Text>
               </View>
               <FormattedRichText text={product.description} textColor="#3f3f46" baseFontSize={14} />
             </View>

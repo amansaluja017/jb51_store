@@ -16,7 +16,8 @@ import {
   Image as ImageIcon,
   Layers,
   Palette,
-  Sparkles,
+  Wand2,
+  Lightbulb,
 } from 'lucide-react-native';
 import { Variant } from '../../types';
 import DraggableImageList from '../DraggableImageList';
@@ -24,7 +25,7 @@ import {
   isLightColor,
   isValidHex,
   getClosestColorName,
-  SIGNATURE_ATELIER_PALETTE,
+  SIGNATURE_PALETTE,
 } from '../../utils/colorThiefHelper';
 import styles from '../ProductFormModal.styles';
 
@@ -264,7 +265,7 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                           <View style={styles.paletteSourceBox}>
                             <View style={styles.paletteSourceHeaderRow}>
                               <View style={styles.paletteSourceHeaderLeft}>
-                                <Sparkles size={12} color="#FF5E36" style={{ marginRight: 4 }} />
+                                <Wand2 size={12} color="#FF5E36" style={{ marginRight: 4 }} />
                                 <Text style={styles.paletteSourceTitle}>
                                   FROM COVER PHOTO (AI EXTRACTED)
                                 </Text>
@@ -375,17 +376,17 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                             )}
                           </View>
 
-                          {/* 2. Curated Signature Atelier Palette */}
+                          {/* 2. Curated Signature Palette */}
                           <View style={styles.signatureSectionBox}>
                             <Text style={styles.signatureSectionTitle}>
-                              SIGNATURE ATELIER SHADES
+                              SIGNATURE SHADES
                             </Text>
                             <ScrollView
                               horizontal
                               showsHorizontalScrollIndicator={false}
                               contentContainerStyle={styles.signatureScrollContent}
                             >
-                              {SIGNATURE_ATELIER_PALETTE.map((preset, pIdx) => {
+                              {SIGNATURE_PALETTE.map((preset, pIdx) => {
                                 const isSelected =
                                   (v.hexCode || '').toUpperCase() === preset.hex.toUpperCase();
                                 const light = isLightColor(preset.hex);
@@ -462,7 +463,7 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                                     style={styles.suggestionPillBtn}
                                     activeOpacity={0.7}
                                   >
-                                    <Sparkles size={10} color="#FF5E36" style={{ marginRight: 3 }} />
+                                    <Lightbulb size={10} color="#FF5E36" style={{ marginRight: 3 }} />
                                     <Text style={styles.suggestionPillText} numberOfLines={1}>
                                       Suggested: "{getClosestColorName(v.hexCode!)}" (tap to apply)
                                     </Text>

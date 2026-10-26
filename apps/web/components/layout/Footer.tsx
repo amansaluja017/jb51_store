@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Instagram, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, Instagram, MessageCircle, Globe } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ export function Footer() {
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim()) {
-      toast.success('Thank you for subscribing to JB51 Atelier newsletter!');
+      toast.success('Thank you for subscribing to the JB51 newsletter!');
       setEmail('');
     }
   };
@@ -35,14 +35,14 @@ export function Footer() {
               <Link href="/" className="font-serif text-3xl tracking-[0.15em] uppercase font-bold text-white hover:text-[#FF5E36] transition-colors">
                 JB51
               </Link>
-              <span className="text-[7px] tracking-[0.4em] uppercase text-[#FF5E36] font-bold mt-0.5">ATELIER EST. 1951</span>
+              <span className="text-[7px] tracking-[0.4em] uppercase text-[#FF5E36] font-bold mt-0.5">EST. 1951</span>
             </div>
             <p className="text-zinc-400 text-xs md:text-sm max-w-sm leading-relaxed font-light mb-6">
               Contemporary silhouettes, luxury Indian handlooms, and timeless craftsmanship designed for the modern woman. Rooted in heritage, styled for the world.
             </p>
           </div>
           <div className="flex items-center gap-2 text-zinc-500 text-[10px] uppercase tracking-wider font-semibold">
-            <Sparkles size={12} className="text-[#FF5E36]" />
+            <Globe size={12} className="text-[#FF5E36]" />
             <span>Crafted in India. Designed for everywhere.</span>
           </div>
         </div>
@@ -73,7 +73,7 @@ export function Footer() {
 
         {/* Column 4: Newsletter & Socials (col-span-4) */}
         <div className="md:col-span-4">
-          <p className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Atelier Newsletter</p>
+          <p className="font-serif text-xs uppercase tracking-[0.25em] text-[#FF5E36] font-bold mb-6">Newsletter</p>
           <p className="text-zinc-400 text-xs font-light leading-relaxed mb-4">
             Subscribe to receive private collection previews, seasonal privileges, and sartorial updates.
           </p>

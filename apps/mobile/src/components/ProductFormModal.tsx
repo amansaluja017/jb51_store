@@ -27,7 +27,6 @@ import {
   FolderOpen,
   ChevronRight,
   Eye,
-  Sparkles,
   RefreshCw,
   Pipette,
   Palette,
@@ -52,7 +51,6 @@ import {
   getClosestColorName,
   isValidHex,
   isLightColor,
-  SIGNATURE_ATELIER_PALETTE,
 } from '../utils/colorThiefHelper';
 import { uploadProductImage, deleteProductImageByUrl, reorderProductImagesApi } from '../services/api';
 import { countWords } from '../utils/text';

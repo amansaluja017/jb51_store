@@ -83,7 +83,7 @@
 }
 
 .editorial-divider::after {
-  content: '✦';
+  content: '•';
   position: absolute;
   font-size: 8px;
   letter-spacing: 2px;

@@ -25,7 +25,7 @@ import {
   AtSign,
   Shield,
   Lock,
-  Sparkles,
+  Crown,
   Info,
   Server,
 } from 'lucide-react-native';
@@ -185,7 +185,7 @@ export default function AccountSettingsModal({
               </View>
               <View style={styles.headerTextWrap}>
                 <Text style={styles.modalTitle}>Account & Security</Text>
-                <Text style={styles.modalSubtitle}>Atelier Admin Credentials</Text>
+                <Text style={styles.modalSubtitle}>Admin Credentials</Text>
               </View>
             </View>
           ) : (
@@ -231,7 +231,7 @@ export default function AccountSettingsModal({
                       <Text style={styles.avatarText}>{getInitials(user?.userName)}</Text>
                     </View>
                     <View style={styles.avatarBadge}>
-                      <Sparkles size={11} color="#FFFFFF" />
+                      <Crown size={11} color="#FFFFFF" />
                     </View>
                   </View>
 
@@ -352,7 +352,7 @@ export default function AccountSettingsModal({
                       <Server size={18} color="#71717a" />
                     </View>
                     <View style={styles.actionTextBox}>
-                      <Text style={styles.actionTitle}>JB51 Atelier Portal</Text>
+                      <Text style={styles.actionTitle}>JB51 Portal</Text>
                       <Text style={styles.actionSub}>Version 2.4 • Production API Connected</Text>
                     </View>
                   </View>

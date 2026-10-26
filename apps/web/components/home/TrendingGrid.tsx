@@ -27,7 +27,7 @@ export function TrendingGrid({ products }: TrendingGridProps) {
   return (
     <section id="curated-silhouettes" className="py-20 px-6 max-w-7xl mx-auto w-full bg-zinc-50 rounded-[2.5rem] relative overflow-hidden my-12">
       <div className="absolute top-12 left-12 text-zinc-200/40 font-serif text-[130px] select-none pointer-events-none hidden xl:block font-bold">
-        ATELIER
+        COLLECTION
       </div>
 
       <div className="text-center mb-10 silhouette-header relative z-10">

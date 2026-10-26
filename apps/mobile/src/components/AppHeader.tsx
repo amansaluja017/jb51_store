@@ -23,7 +23,7 @@ const getTabTitle = (tab: TabType): string => {
     case 'reviews':
       return 'Customer Reviews';
     default:
-      return 'Atelier Portal';
+      return 'Store Portal';
   }
 };
 
@@ -42,7 +42,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <Menu size={20} color="#09090b" />
       </TouchableOpacity>
       <View style={styles.headerTitleWrapper}>
-        <Text style={styles.headerSubtitle}>JB51 Atelier</Text>
+        <Text style={styles.headerSubtitle}>JB51</Text>
         <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
           {getTabTitle(activeTab)}
         </Text>

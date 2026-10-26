@@ -121,7 +121,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
           <div class="header-row">
             <div>
               <h1 class="brand-title">JB51</h1>
-              <div class="brand-subtitle">EST. 1951 - ATELIER</div>
+              <div class="brand-subtitle">EST. 1951</div>
               <div class="brand-details">
                 Chandni Chowk, New Delhi, India<br>
                 support@jb51.shop | +91 98100 00051
@@ -261,7 +261,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
           <div class="header-row">
             <div>
               <h1 class="brand-title">JB51</h1>
-              <div class="brand-subtitle">EST. 1951 - ATELIER</div>
+              <div class="brand-subtitle">EST. 1951</div>
               <div class="brand-details">
                 Chandni Chowk, New Delhi, India<br>
                 support@jb51.shop | +91 98100 00051

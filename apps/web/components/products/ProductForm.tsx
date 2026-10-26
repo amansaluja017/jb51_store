@@ -399,7 +399,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
               {isEdit ? 'Modification' : 'Creation'}
             </span>
             <h1 className="font-serif text-3xl font-bold text-zinc-950">
-              {isEdit ? `Edit Outfit: ${initialData?.name}` : 'New Atelier Outfit'}
+              {isEdit ? `Edit Outfit: ${initialData?.name}` : 'New Outfit'}
             </h1>
           </div>
         </div>

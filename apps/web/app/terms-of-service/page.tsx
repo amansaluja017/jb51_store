@@ -6,7 +6,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Clock, 
-  Sparkles, 
+  Award, 
   Scale, 
   Scissors, 
   Truck, 
@@ -18,16 +18,27 @@ import {
   HelpCircle,
   Gem
 } from 'lucide-react';
-import { WHATSAPP_NUMBER } from '@/lib/utils';
+import { WHATSAPP_NUMBER, SITE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | JB51 Atelier',
-  description: 'Review the terms and conditions governing the purchase of handcrafted ensembles, bespoke tailoring services, and concierge orders at JB51 Atelier.',
+  title: 'Terms of Service | JB51',
+  description: 'Review the terms and conditions governing the purchase of handcrafted ensembles, bespoke tailoring services, and concierge orders at JB51.',
   keywords: ['terms of service', 'JB51 terms and conditions', 'bespoke tailoring policy', 'couture return policy'],
+  alternates: {
+    canonical: `${SITE_URL}/terms-of-service`,
+  },
   openGraph: {
-    title: 'Terms of Service | JB51 Atelier',
-    description: 'Guidelines, artisanal craftsmanship standards, and purchase terms for JB51 Atelier.',
+    title: 'Terms of Service | JB51',
+    description: 'Guidelines, artisanal craftsmanship standards, and purchase terms for JB51.',
+    url: `${SITE_URL}/terms-of-service`,
+    siteName: 'JB51',
+    locale: 'en_IN',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Terms of Service | JB51',
+    description: 'Guidelines, artisanal craftsmanship standards, and purchase terms for JB51.',
   },
 };
 
@@ -85,7 +96,7 @@ export default function TermsOfServicePage() {
 
   return (
     <div className="w-full bg-[#FAF9F5] text-zinc-800 min-h-screen font-sans selection:bg-[#FF5E36]/20 selection:text-[#FF5E36]">
-      {/* Decorative Atelier Backdrop */}
+      {/* Decorative Backdrop */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000004_1px,transparent_1px),linear-gradient(to_bottom,#00000004_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none" />
       <div className="absolute top-0 right-0 w-[550px] h-[550px] rounded-full bg-[#FF5E36]/5 blur-[120px] pointer-events-none" />
       <div className="absolute top-96 left-0 w-96 h-96 rounded-full bg-amber-500/5 blur-[100px] pointer-events-none" />
@@ -101,11 +112,11 @@ export default function TermsOfServicePage() {
               className="group inline-flex items-center gap-2 text-[10px] tracking-widest uppercase font-bold text-[#FF5E36] hover:text-[#E04D27] transition-colors"
             >
               <ArrowLeft size={12} className="group-hover:-translate-x-1 transition-transform" />
-              <span>Back to Atelier</span>
+              <span>Back to Store</span>
             </Link>
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">
               <span>Legal</span>
-              <span>✦</span>
+              <span>•</span>
               <span className="text-zinc-700">Terms of Service</span>
             </div>
           </div>
@@ -123,7 +134,7 @@ export default function TermsOfServicePage() {
             </h1>
 
             <p className="text-zinc-600 text-sm md:text-base font-light leading-relaxed mb-6">
-              Welcome to JB51 Atelier. These terms govern your engagement with our storefront, artisanal collections, bespoke tailoring appointments, and customer concierge channels.
+              Welcome to JB51. These terms govern your engagement with our storefront, artisanal collections, bespoke tailoring appointments, and customer concierge channels.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-[10px] tracking-wider uppercase text-zinc-500 font-bold pt-2 border-t border-zinc-200">
@@ -184,7 +195,7 @@ export default function TermsOfServicePage() {
                     className="text-xs text-zinc-600 hover:text-[#FF5E36] hover:bg-[#FF5E36]/5 px-3 py-2 rounded-xl transition-all font-medium flex items-center justify-between group"
                   >
                     <span>{sec.label}</span>
-                    <span className="text-[10px] text-zinc-300 group-hover:text-[#FF5E36] transition-colors">✦</span>
+                    <span className="text-[10px] text-zinc-300 group-hover:text-[#FF5E36] transition-colors">•</span>
                   </a>
                 ))}
               </nav>
@@ -198,7 +209,7 @@ export default function TermsOfServicePage() {
                   Our tailoring concierge is available to guide you on sizing, delivery dates, and custom specifications.
                 </p>
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51 Atelier, I have a question regarding your Terms of Service and an upcoming order.")}`}
+                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51, I have a question regarding your Terms of Service and an upcoming order.")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
@@ -223,7 +234,7 @@ export default function TermsOfServicePage() {
                 By browsing, accessing, or placing an order through the website <strong className="text-zinc-800">jb51.in</strong>, our digital catalogs, or via our official WhatsApp and Instagram concierge lines, you acknowledge and agree to be legally bound by these Terms of Service.
               </p>
               <p className="text-sm font-light text-zinc-600 leading-relaxed">
-                If you do not agree with any part of these terms, please refrain from using our services. These terms apply to all visitors, registered clients, and patrons of JB51 Clothing House Private Limited (&ldquo;JB51 Atelier&rdquo;).
+                If you do not agree with any part of these terms, please refrain from using our services. These terms apply to all visitors, registered clients, and patrons of JB51 Clothing House Private Limited (&ldquo;JB51&rdquo;).
               </p>
             </section>
 
@@ -237,7 +248,7 @@ export default function TermsOfServicePage() {
               </div>
               <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 mb-4">
                 <div className="flex items-center gap-2 mb-2 text-amber-700 font-bold text-xs uppercase tracking-wider">
-                  <Sparkles size={14} />
+                  <Award size={14} />
                   <span>The Hallmark of Authentic Craftsmanship</span>
                 </div>
                 <p className="text-xs text-zinc-700 leading-relaxed font-light">
@@ -263,7 +274,7 @@ export default function TermsOfServicePage() {
                 <h2 className="font-serif text-2xl font-bold text-zinc-950">Bespoke Sizing & Alterations</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
-                JB51 Atelier prides itself on complimentary custom sizing. Under our bespoke tailoring commitment:
+                JB51 prides itself on complimentary custom sizing. Under our bespoke tailoring commitment:
               </p>
               <div className="space-y-3 text-xs font-light">
                 <div className="p-3.5 rounded-xl border border-zinc-200">
@@ -276,7 +287,7 @@ export default function TermsOfServicePage() {
                 </div>
                 <div className="p-3.5 rounded-xl border border-zinc-200">
                   <strong className="text-zinc-900 block mb-1">Complimentary Alteration Guarantee:</strong>
-                  If a custom-made suit does not fit to your exact satisfaction upon delivery, we provide one complimentary round of alteration at our flagship atelier. Courier pick-up for alterations is coordinated by our concierge.
+                  If a custom-made suit does not fit to your exact satisfaction upon delivery, we provide one complimentary round of alteration at our flagship boutique. Courier pick-up for alterations is coordinated by our concierge.
                 </div>
               </div>
             </section>
@@ -294,7 +305,7 @@ export default function TermsOfServicePage() {
                 <li><strong>Inventory Reservations:</strong> When an order is initiated, our real-time inventory system marks units as reserved stock. Reservations remain active during checkout; uncompleted sessions or unpaid orders automatically release reserved inventory back to available stock.</li>
                 <li><strong>Payment Channels:</strong> We accept payments via major credit/debit cards, Net Banking, UPI (Google Pay, PhonePe, Paytm), and direct bank transfers for bespoke commission orders.</li>
                 <li><strong>Made-to-Measure Commissions:</strong> For made-to-measure orders initiated via our WhatsApp Concierge, production commences upon receipt of full advance payment or an agreed bespoke booking deposit.</li>
-                <li><strong>Pricing Errors:</strong> In the unlikely event an item is listed with an erroneous price due to a typographical or system error, JB51 Atelier reserves the right to cancel the order and provide a full refund.</li>
+                <li><strong>Pricing Errors:</strong> In the unlikely event an item is listed with an erroneous price due to a typographical or system error, JB51 reserves the right to cancel the order and provide a full refund.</li>
               </ul>
             </section>
 
@@ -341,7 +352,7 @@ export default function TermsOfServicePage() {
                 <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
                   <h4 className="font-bold text-zinc-900 mb-1">Standard Ready-to-Wear (7-Day Exchange)</h4>
                   <p className="text-zinc-600 leading-relaxed">
-                    Standard sized pieces (unaltered XS, S, M, L, XL) are eligible for an exchange or store credit within seven (7) days of delivery. Garments must be unworn, unwashed, unaltered, and returned in their original packaging with all atelier tags intact.
+                    Standard sized pieces (unaltered XS, S, M, L, XL) are eligible for an exchange or store credit within seven (7) days of delivery. Garments must be unworn, unwashed, unaltered, and returned in their original packaging with all original tags intact.
                   </p>
                 </div>
 
@@ -375,7 +386,7 @@ export default function TermsOfServicePage() {
               <ul className="list-disc pl-5 space-y-1.5 text-xs text-zinc-600 font-light">
                 <li><strong>Strictly Professional Dry Clean Only:</strong> Handloom silks, organza dupattas, and velvet pieces must never be machine-washed or hand-soaked.</li>
                 <li><strong>Storage:</strong> Store garments in breathable cotton muslin covers. Avoid direct contact with heavy perfumes or alcoholic sprays on metallic zardozi threads.</li>
-                <li>JB51 Atelier cannot assume liability for fabric shrinkage, thread unraveling, or discoloration resulting from domestic washing or failure to observe care instructions.</li>
+                <li>JB51 cannot assume liability for fabric shrinkage, thread unraveling, or discoloration resulting from domestic washing or failure to observe care instructions.</li>
               </ul>
             </section>
 
@@ -392,7 +403,7 @@ export default function TermsOfServicePage() {
               </p>
               <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs font-light leading-relaxed">
                 <strong className="text-zinc-900 block mb-1">Customer Reviews & Visual Content Licensing:</strong>
-                When you submit a review or upload outfit photographs/videos via our platform, you warrant that you hold all legal rights to the submitted media. By submitting, you grant JB51 Atelier a non-exclusive, royalty-free, worldwide license to display approved submissions across our storefront and promotional media. All reviews are subject to our administrative moderation queue and may be published, held, or removed at our discretion.
+                When you submit a review or upload outfit photographs/videos via our platform, you warrant that you hold all legal rights to the submitted media. By submitting, you grant JB51 a non-exclusive, royalty-free, worldwide license to display approved submissions across our storefront and promotional media. All reviews are subject to our administrative moderation queue and may be published, held, or removed at our discretion.
               </div>
             </section>
 
@@ -422,7 +433,7 @@ export default function TermsOfServicePage() {
                 <h2 className="font-serif text-2xl font-bold text-zinc-950">Limitation of Liability & Force Majeure</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
-                To the fullest extent permitted by law, JB51 Atelier shall not be liable for any indirect, incidental, or consequential damages arising from the use of our website, delay in shipping, or reliance on information presented herein. Our maximum aggregate liability shall not exceed the purchase price of the specific ensemble giving rise to the claim.
+                To the fullest extent permitted by law, JB51 shall not be liable for any indirect, incidental, or consequential damages arising from the use of our website, delay in shipping, or reliance on information presented herein. Our maximum aggregate liability shall not exceed the purchase price of the specific ensemble giving rise to the claim.
               </p>
               <p className="text-sm font-light text-zinc-600 leading-relaxed">
                 Neither party shall be held accountable for failure or delay in performance resulting from acts of God, strikes, pandemics, regional civil disturbances, raw silk embargoes, or catastrophic courier transit disruption (Force Majeure events).
@@ -461,7 +472,7 @@ export default function TermsOfServicePage() {
                     <div>
                       <strong className="text-zinc-900 block mb-0.5">Flagship Studio</strong>
                       <p className="text-zinc-600 leading-relaxed">
-                        JB51 Atelier, 12, Heritage Villa, Banjara Hills<br />
+                        JB51 Studio, 12, Heritage Villa, Banjara Hills<br />
                         Hyderabad, Telangana 500034, India
                       </p>
                     </div>

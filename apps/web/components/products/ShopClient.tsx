@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { type Product } from '@repo/products';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
-import { SlidersHorizontal, Sparkles, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -195,7 +195,7 @@ export function ShopClient() {
             <div className="inline-flex items-center gap-2 mb-4">
               <LotusIcon className="w-5 h-5 text-[#FF5E36]" />
               <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold font-sans">
-                Atelier Catalog
+                Store Catalog
               </span>
             </div>
 
@@ -282,7 +282,7 @@ export function ShopClient() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
             </div>
 
-            {/* Floating Atelier Seal */}
+            {/* Floating Seal */}
             <div className="absolute -top-4 right-[10%] w-16 h-16 rounded-full bg-[#FF5E36] text-white flex flex-col items-center justify-center z-30 shadow-lg animate-pulse">
               <span className="text-[7px] tracking-[0.25em] uppercase font-bold text-white/80 font-sans">Est.</span>
               <span className="text-[10px] tracking-widest font-serif font-bold">2026</span>

@@ -42,7 +42,7 @@ export function Navbar() {
   const announcements = [
     'Summer Sale: Up to 70% Off',
     'Complimentary shipping on orders above ₹15,000',
-    'Bespoke customization available at our atelier',
+    'Bespoke customization available at our store',
   ];
   const [announcementIdx, setAnnouncementIdx] = useState(0);
 
@@ -112,9 +112,9 @@ export function Navbar() {
                     : "opacity-0 translate-y-4 scale-95"
               )}
             >
-              <span className="text-[#FF5E36] text-[10px] animate-pulse">✦</span>
+              <span className="text-[#FF5E36] text-[10px]">•</span>
               <span>{text}</span>
-              <span className="text-[#FF5E36] text-[10px] animate-pulse">✦</span>
+              <span className="text-[#FF5E36] text-[10px]">•</span>
             </div>
           ))}
         </div>
@@ -159,7 +159,7 @@ export function Navbar() {
                 "text-[6px] tracking-[0.45em] uppercase -mt-1 font-bold transition-colors",
                 isTransparent ? "text-white/60" : "text-[#FF5E36]"
               )}>
-                ATELIER
+                STORE
               </span>
             </Link>
 
@@ -348,7 +348,7 @@ export function Navbar() {
                   className="mobile-nav-item text-lg font-serif text-zinc-800 uppercase tracking-wider border-b border-zinc-100 pb-3 flex items-center justify-between hover:text-[#FF5E36] transition-colors"
                 >
                   <span>{link.label}</span>
-                  <span className="text-xs text-[#FF5E36]">✦</span>
+                  <span className="text-xs text-[#FF5E36]">•</span>
                 </Link>
               ))}
             </nav>

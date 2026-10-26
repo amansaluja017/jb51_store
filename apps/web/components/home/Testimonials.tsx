@@ -15,7 +15,7 @@ const testimonialsRow1 = [
     quote: "Outstanding customer service on WhatsApp. They adjusted the neckline exactly as I requested.",
     author: "Priya S.",
     location: "London",
-    role: "Atelier Regular",
+    role: "Regular Patron",
     stars: 5,
   },
   {
@@ -71,7 +71,7 @@ export function Testimonials() {
   // If reviews exist in database, map and prepend them to the testimonial rows
   const liveReviews = (dbReviews || []).map((r: any) => ({
     quote: r.message,
-    author: r.name || 'Atelier Patron',
+    author: r.name || 'Verified Patron',
     location: r.location || 'India',
     role: 'Verified Patron',
     stars: Number(r.stars) || 5,
@@ -88,7 +88,7 @@ export function Testimonials() {
     <section id="testimonials" className="py-24 bg-zinc-50 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 mb-12">
         <div className="text-center mb-10 fade-up">
-          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">ATELIER DIARIES</span>
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">CLIENT DIARIES</span>
           <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">Customer Testimonials</h2>
         </div>
       </div>

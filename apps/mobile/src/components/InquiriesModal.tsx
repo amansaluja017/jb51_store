@@ -73,7 +73,7 @@ export default function InquiriesModal({
             </View>
             <View>
               <View style={styles.titleWithBadge}>
-                <Text style={styles.headerTitle}>Atelier Inquiries</Text>
+                <Text style={styles.headerTitle}>Customer Inquiries</Text>
                 {pendingCount > 0 && (
                   <View style={styles.pendingBadge}>
                     <Text style={styles.pendingBadgeText}>{pendingCount} new</Text>

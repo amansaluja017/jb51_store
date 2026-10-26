@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  StyleSheet,
   RefreshControl,
   KeyboardAvoidingView,
   Platform,

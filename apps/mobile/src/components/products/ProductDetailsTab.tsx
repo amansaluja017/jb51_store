@@ -12,7 +12,6 @@ import {
   ChevronDown,
   X,
   Layers,
-  Sparkles,
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react-native';

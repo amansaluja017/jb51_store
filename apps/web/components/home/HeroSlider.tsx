@@ -29,7 +29,7 @@ interface HeroSliderProps {
 export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSliderProps) {
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
 
-  const handleScrollToAtelier = () => {
+  const handleScrollToCollection = () => {
     const curatedSection = document.getElementById('curated-silhouettes');
     if (curatedSection) {
       curatedSection.scrollIntoView({ behavior: 'smooth' });
@@ -124,14 +124,14 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
                   </Link>
 
                   <button
-                    onClick={handleScrollToAtelier}
+                    onClick={handleScrollToCollection}
                     className="group inline-flex items-center gap-3 text-white hover:text-[#FF5E36] transition-colors py-2"
-                    aria-label="Explore Curated Atelier Collection"
+                    aria-label="Explore Curated Collection"
                   >
                     <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center bg-white/5 backdrop-blur-sm group-hover:border-white/40 group-hover:bg-white/10 transition-all duration-300">
                       <Play size={10} fill="currentColor" className="text-white ml-0.5" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-widest font-bold">Explore Atelier</span>
+                    <span className="text-[10px] uppercase tracking-widest font-bold">Explore Collection</span>
                   </button>
                 </div>
               </div>
