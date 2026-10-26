@@ -5,9 +5,11 @@ import { ArrowRight, Instagram, MessageCircle, Globe } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export function Footer() {
   const [email, setEmail] = useState('');
+  const { trackEvent } = useAnalytics();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +103,7 @@ export function Footer() {
               href="https://instagram.com/jb51_clothing_house"
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent({ type: 'instagram' })}
               className="w-8 h-8 rounded-full border border-zinc-850 hover:border-white text-zinc-400 hover:text-white flex items-center justify-center transition-all duration-300"
               title="Instagram"
             >
@@ -110,6 +113,7 @@ export function Footer() {
               href={`https://wa.me/${WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent({ type: 'whatsapp' })}
               className="w-8 h-8 rounded-full border border-zinc-850 hover:border-white text-zinc-400 hover:text-white flex items-center justify-center transition-all duration-300"
               title="WhatsApp"
             >

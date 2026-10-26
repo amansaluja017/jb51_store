@@ -154,12 +154,53 @@ describe('Invoices Router and Controller Suite', () => {
     await ordersCaller.delete({ id: order.id });
   });
 
-  it('delete: admin can delete an invoice by id', async () => {
+  it('delete: admin can delete an unlinked invoice by id', async () => {
     const adminCaller = invoicesRouter.createCaller(adminContext);
     const idToDelete = createdInvoiceIds.pop();
     if (!idToDelete) return;
 
     const deleted = await adminCaller.delete({ id: idToDelete });
     assert.ok(deleted);
+  });
+
+  it('delete: should reject deleting an invoice directly when linked to an order, and deleting the order deletes its invoice', async () => {
+    const ordersCaller = ordersRouter.createCaller(adminContext);
+    const order = await ordersCaller.create({
+      customerName: `Order Linked Inv Test ${timestamp}`,
+      phoneNumber: `+9197${Math.floor(10000000 + Math.random() * 90000000)}`,
+      totalAmount: 9000,
+      paymentMethod: 'cash',
+      items: [
+        {
+          name: 'Bridal Dupatta',
+          quantity: 1,
+          price: 9000,
+          total: 9000,
+        },
+      ],
+    });
+
+    assert.ok(order?.id);
+    assert.ok(order.invoice?.id);
+
+    const invoicesCaller = invoicesRouter.createCaller(adminContext);
+    await assert.rejects(
+      async () => {
+        await invoicesCaller.delete({ id: order.invoice.id });
+      },
+      (err: any) => {
+        return err.message.includes('linked to an order cannot be deleted directly');
+      }
+    );
+
+    // Deleting the order properly deletes the invoice
+    const deleteOrderRes = await ordersCaller.delete({ id: order.id });
+    assert.ok(deleteOrderRes.success);
+
+    const [invAfter] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, order.invoice.id));
+    assert.strictEqual(invAfter, undefined, 'Invoice should be deleted when the order is deleted');
   });
 });

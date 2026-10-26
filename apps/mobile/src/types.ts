@@ -1,4 +1,6 @@
 export interface Variant {
+  id?: string;
+  productVariantId?: string;
   color: string;
   hexCode?: string;
   size?: string;
@@ -166,6 +168,7 @@ export interface Order {
   customerEmail?: string | null;
   customerAddress?: string | null;
   status: string;
+  orderType?: 'online' | 'offline' | string;
   paymentMethod: string;
   subtotal?: string | number | null;
   gst?: string | number | null;
@@ -220,5 +223,186 @@ export interface CreditMetrics {
   pendingCount: number;
   settledCount: number;
   overdueCount: number;
+}
+
+export interface OrderChannelRatio {
+  onlineRatio: number;   // % of total orders
+  offlineRatio: number;  // % of total orders
+}
+
+export interface GrowthMetrics {
+  totalOrderGrowth: number;   // % change (recent 30d vs previous 30d)
+  onlineOrderGrowth: number;  // % change
+  offlineOrderGrowth: number; // % change
+  current30DaysOrders: number;
+  previous30DaysOrders: number;
+  current30DaysOnline: number;
+  previous30DaysOnline: number;
+  current30DaysOffline: number;
+  previous30DaysOffline: number;
+}
+
+export interface PaymentAnalytics {
+  onlineAmount: number;
+  cashAmount: number;
+  creditAmount: number;
+  totalAmount: number;
+  onlineShare: number; // % of total revenue
+  cashShare: number;   // % of total revenue
+  creditShare: number; // % of total revenue
+  onlineCount: number;
+  cashCount: number;
+  creditCount: number;
+  creditDueAmount: number;
+  creditPaidAmount: number;
+}
+
+export interface AnalyticsOverviewData {
+  scope: 'overall' | 'product';
+  product?: {
+    id: string;
+    slug: string;
+    name: string;
+    category?: string | null;
+    price?: number | null;
+  } | null;
+  views: number;
+  whatsappClicks: number;
+  instagramClicks: number;
+  totalClicks: number;
+  conversionRate: number;
+  whatsappConversionRate: number;
+  instagramConversionRate: number;
+  orderCount?: number;
+  onlineOrderCount?: number;
+  offlineOrderCount?: number;
+  orderConversionRate?: number;
+  onlineOrderConversionRate?: number;
+  channelRatio?: OrderChannelRatio;
+  growth?: GrowthMetrics;
+  payments?: PaymentAnalytics;
+  updatedAt?: string | null;
+}
+
+export interface ProductAnalyticsItem {
+  productId: string;
+  slug: string;
+  name: string;
+  category: string;
+  price: number;
+  views: number;
+  whatsappClicks: number;
+  instagramClicks: number;
+  totalClicks: number;
+  conversionRate: number;
+  orderCount: number;
+  onlineOrderCount?: number;
+  offlineOrderCount?: number;
+  onlineOrderConversionRate?: number;
+  onlineOrderRatio?: number;
+  offlineOrderRatio?: number;
+  onlineRevenue?: number;
+  cashRevenue?: number;
+  creditRevenue?: number;
+  totalRevenue?: number;
+}
+
+export interface ViewsAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  views: number;
+}
+
+export interface ClicksAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  whatsappClicks: number;
+  instagramClicks: number;
+  totalClicks: number;
+}
+
+export interface ConversionAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  conversionRate: number;
+  whatsappConversionRate: number;
+  instagramConversionRate: number;
+  orderConversionRate: number;
+  onlineOrderConversionRate: number;
+}
+
+export interface ConversionFunnelAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  views: number;
+  inquiries: number;
+  onlineOrders: number;
+  inquiryRate: number;
+  onlineOrderRate: number;
+  inquiryToOrderRate: number;
+}
+
+export interface ChannelRatioAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  onlineRatio: number;
+  offlineRatio: number;
+  onlineOrderCount: number;
+  offlineOrderCount: number;
+  totalOrderCount: number;
+}
+
+export interface GrowthPulseAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  totalOrderGrowth: number;
+  onlineOrderGrowth: number;
+  offlineOrderGrowth: number;
+  current30DaysOrders: number;
+  previous30DaysOrders: number;
+  current30DaysOnline: number;
+  previous30DaysOnline: number;
+  current30DaysOffline: number;
+  previous30DaysOffline: number;
+}
+
+export interface PaymentModesAnalytics {
+  scope: 'overall' | 'product';
+  productId?: string | null;
+  slug?: string | null;
+  onlineAmount: number;
+  cashAmount: number;
+  creditAmount: number;
+  totalAmount: number;
+  onlineShare: number;
+  cashShare: number;
+  creditShare: number;
+  onlineCount: number;
+  cashCount: number;
+  creditCount: number;
+  creditDueAmount: number;
+  creditPaidAmount: number;
+}
+
+export interface DemandHighlightsAnalytics {
+  mostViewedProduct: ProductAnalyticsItem | null;
+  mostDemandedProduct: ProductAnalyticsItem | null;
+  topConvertingProduct: ProductAnalyticsItem | null;
+}
+
+export interface InventorySummaryAnalytics {
+  totalProducts: number;
+  inStockProducts: number;
+  outOfStockProducts: number;
+  lowStockProducts: number;
+  hasReservedProducts: number;
+  totalStockUnits: number;
+  totalReservedUnits: number;
 }
 

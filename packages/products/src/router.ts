@@ -2,11 +2,28 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { getProducts, getPaginatedProducts, getProductBySlug, createProduct, updateProduct, deleteProduct, getProductStatus, updateProductStatus, getCategories, reorderProductImages } from './data.js';
 import { getReviews, getPaginatedReviews, createReview, updateReview, deleteReview } from './reviews.js';
-import { recordInventoryTransaction, getInventoryTransactions, getPaginatedInventory } from './inventory.js';
+import { recordInventoryTransaction, getInventoryTransactions, getPaginatedInventory, updateInventory } from './inventory.js';
 import { getCustomers, getPaginatedCustomers, createCustomer, updateCustomer, deleteCustomer } from './customers.js';
 import { getOrders, getPaginatedOrders, createOrder, deleteOrder, getCustomerOrderHistory } from './orders.js';
 import { getInvoices, getPaginatedInvoices, createInvoice, updateInvoice, deleteInvoice } from './invoices.js';
 import { getCredits, getPaginatedCredits, createCredit, updateCredit, recordCreditPayment, deleteCredit, getCreditTransactions } from './credits.js';
+import {
+  getOverallAnalytics,
+  getProductAnalytics,
+  getAnalyticsOverview,
+  getAllProductsAnalytics,
+  trackAnalyticsEvent,
+  getViewsAnalytics,
+  getClicksAnalytics,
+  getConversionAnalytics,
+  getFunnelAnalytics,
+  getChannelRatioAnalytics,
+  getGrowthPulseAnalytics,
+  getPaymentModesAnalytics,
+  getDemandHighlightsAnalytics,
+  getCatalogueTelemetryAnalytics,
+  getInventorySummaryAnalytics,
+} from './analytics.js';
 import { 
   GetAllProductsOutputSchema, 
   GetProductBySlugInputSchema, 
@@ -254,6 +271,54 @@ export const inventoryRouter = t.router({
     .query(async ({ input }) => {
       return await getPaginatedInventory(input || undefined);
     }),
+
+  update: adminProcedure
+    .meta({ description: 'Update inventory stock for product variants' })
+    .input(
+      z.object({
+        productId: z.string().nullish(),
+        slug: z.string().nullish(),
+        status: z.enum(['listed', 'unListed', 'discontinued']).nullish(),
+        variants: z.array(
+          z.object({
+            id: z.string().nullish(),
+            productVariantId: z.string().nullish(),
+            color: z.string().nullish(),
+            size: z.string().nullish(),
+            stock: z.number().int().min(0),
+            reservedStock: z.number().int().min(0).nullish(),
+          })
+        ).nullish(),
+        forceInStock: z.boolean().nullish(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await updateInventory(input as any);
+    }),
+
+  updateStock: adminProcedure
+    .meta({ description: 'Update inventory stock for product variants (alias)' })
+    .input(
+      z.object({
+        productId: z.string().nullish(),
+        slug: z.string().nullish(),
+        status: z.enum(['listed', 'unListed', 'discontinued']).nullish(),
+        variants: z.array(
+          z.object({
+            id: z.string().nullish(),
+            productVariantId: z.string().nullish(),
+            color: z.string().nullish(),
+            size: z.string().nullish(),
+            stock: z.number().int().min(0),
+            reservedStock: z.number().int().min(0).nullish(),
+          })
+        ).nullish(),
+        forceInStock: z.boolean().nullish(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await updateInventory(input as any);
+    }),
 });
 
 export const customersRouter = t.router({
@@ -381,6 +446,7 @@ export const ordersRouter = t.router({
         address: z.string().optional().nullable(),
         userId: z.string().optional().nullable(),
         status: z.string().optional(),
+        orderType: z.string().optional(),
         paymentMethod: z.string().optional(),
         subtotal: z.number().optional().nullable(),
         gst: z.number().optional().nullable(),
@@ -604,6 +670,175 @@ export const creditsRouter = t.router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ input }) => {
       return await deleteCredit(input.id);
+    }),
+});
+
+export const analyticsRouter = t.router({
+  getOverview: t.procedure
+    .meta({ description: 'Get analytics overview for overall store or specific product' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getAnalyticsOverview(input || undefined);
+    }),
+
+  getOverall: t.procedure
+    .meta({ description: 'Get overall store views, clicks, and conversion rates' })
+    .query(async () => {
+      return await getOverallAnalytics();
+    }),
+
+  getProduct: t.procedure
+    .meta({ description: 'Get individual product views, clicks, and conversion rates' })
+    .input(
+      z.object({
+        slug: z.string().nullish(),
+        productId: z.string().nullish(),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getProductAnalytics(input);
+    }),
+
+  getAllProducts: adminProcedure
+    .meta({ description: 'Get analytics breakdown across all products (Admin only)' })
+    .query(async () => {
+      return await getAllProductsAnalytics();
+    }),
+
+  getViews: t.procedure
+    .meta({ description: 'Get views telemetry for store or specific product' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getViewsAnalytics(input || undefined);
+    }),
+
+  getClicks: t.procedure
+    .meta({ description: 'Get click events telemetry (WhatsApp, Instagram, Total)' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getClicksAnalytics(input || undefined);
+    }),
+
+  getConversion: t.procedure
+    .meta({ description: 'Get conversion rates (inquiries, orders, online orders)' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getConversionAnalytics(input || undefined);
+    }),
+
+  getFunnel: t.procedure
+    .meta({ description: 'Get conversion funnel focusing specifically on online orders' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getFunnelAnalytics(input || undefined);
+    }),
+
+  getChannelRatio: t.procedure
+    .meta({ description: 'Get online vs offline order ratio breakdown' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getChannelRatioAnalytics(input || undefined);
+    }),
+
+  getGrowthPulse: t.procedure
+    .meta({ description: 'Get 30-day velocity and growth pulse for total, online, and walk-in' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getGrowthPulseAnalytics(input || undefined);
+    }),
+
+  getPaymentModes: t.procedure
+    .meta({ description: 'Get customer payment methods breakdown (Online, Cash, Credit/Khata)' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaymentModesAnalytics(input || undefined);
+    }),
+
+  getDemandHighlights: adminProcedure
+    .meta({ description: 'Get outfit demand highlights (most viewed, demanded, top converting)' })
+    .query(async () => {
+      return await getDemandHighlightsAnalytics();
+    }),
+
+  getCatalogueTelemetry: adminProcedure
+    .meta({ description: 'Get detailed catalogue telemetry across products' })
+    .query(async () => {
+      return await getCatalogueTelemetryAnalytics();
+    }),
+
+  getInventorySummary: t.procedure
+    .meta({ description: 'Get real-time inventory health and stock summary' })
+    .query(async () => {
+      return await getInventorySummaryAnalytics();
+    }),
+
+  track: t.procedure
+    .meta({ description: 'Track view, WhatsApp click, or Instagram click events' })
+    .input(
+      z.object({
+        type: z.enum(['view', 'whatsapp', 'instagram']),
+        productId: z.string().nullish(),
+        slug: z.string().nullish(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await trackAnalyticsEvent(input);
     }),
 });
 

@@ -9,7 +9,15 @@ import superjson from 'superjson';
 
 import { type AppRouter } from '@repo/api';
 
-const createQueryClient = () => new QueryClient();
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30 * 1000,
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
 const getQueryClient = () => {

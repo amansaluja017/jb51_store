@@ -1,7 +1,7 @@
 import { db, product as productTable, productVariant as productVariantTable, inventry as inventryTable, inventryTransaction as inventryTransactionTable, customerDetails as customerDetailsTable, user as userTable, productStatus as productStatusTable } from '@repo/db';
 import { eq, desc, and } from 'drizzle-orm';
 import { generateSlug } from './customers.js';
-import { getProducts, Product } from './data.js';
+import { getProducts, matchesSlug, Product } from './data.js';
 
 export interface RecordTransactionInput {
   productId: string;
@@ -449,5 +449,212 @@ export async function getPaginatedInventory(input?: GetPaginatedInventoryInput) 
     totalPages,
     metrics,
   };
+}
+
+export interface UpdateInventoryVariantItem {
+  id?: string | null;
+  productVariantId?: string | null;
+  color?: string | null;
+  size?: string | null;
+  stock: number;
+  reservedStock?: number | null;
+}
+
+export interface UpdateInventoryInput {
+  productId?: string | null;
+  slug?: string | null;
+  status?: 'listed' | 'unListed' | 'discontinued' | null;
+  variants?: UpdateInventoryVariantItem[] | null;
+  forceInStock?: boolean | null;
+}
+
+export async function updateInventory(input: UpdateInventoryInput) {
+  if (!input.productId && !input.slug) {
+    throw new Error('Either productId or slug must be provided to update inventory');
+  }
+
+  let foundProduct: typeof productTable.$inferSelect | undefined;
+  if (input.productId) {
+    const [p] = await db
+      .select()
+      .from(productTable)
+      .where(eq(productTable.id, input.productId));
+    foundProduct = p;
+  }
+  if (!foundProduct && input.slug) {
+    const dbProducts = await db.select().from(productTable);
+    foundProduct = dbProducts.find((r: any) => matchesSlug(r, input.slug!));
+  }
+
+  if (!foundProduct) {
+    throw new Error(`Product not found with identifier ${input.productId || input.slug}`);
+  }
+
+  return await db.transaction(async (tx) => {
+    // 1. Fetch existing variants and inventory
+    const existingDbVariants = await tx
+      .select()
+      .from(productVariantTable)
+      .where(eq(productVariantTable.productId, foundProduct!.id));
+
+    const existingInventory = await tx
+      .select()
+      .from(inventryTable)
+      .where(eq(inventryTable.productId, foundProduct!.id));
+
+    const invByVariant = new Map(
+      existingInventory.map((inv) => [inv.productVariant, inv])
+    );
+
+    // 2. Process each variant stock update if provided
+    if (input.variants && Array.isArray(input.variants) && input.variants.length > 0) {
+      for (const vInput of input.variants) {
+        const targetVariantId = vInput.productVariantId || vInput.id;
+        let variantRow = existingDbVariants.find(
+          (v) => (targetVariantId && v.id === targetVariantId) ||
+                 (vInput.color && v.color && v.color.toLowerCase() === vInput.color.toLowerCase())
+        );
+
+        // If variant doesn't exist yet in productVariantTable, create it
+        if (!variantRow && vInput.color) {
+          const [newV] = await tx
+            .insert(productVariantTable)
+            .values({
+              productId: foundProduct!.id,
+              color: vInput.color.trim(),
+            })
+            .returning();
+          variantRow = newV;
+        }
+
+        const variantId = variantRow ? variantRow.id : (targetVariantId || null);
+        const newAvail = Math.max(0, Math.floor(Number(vInput.stock) || 0));
+        const existingInv = variantId
+          ? invByVariant.get(variantId)
+          : (existingInventory.length === 1 ? existingInventory[0] : null);
+
+        const newReserved = vInput.reservedStock !== undefined && vInput.reservedStock !== null
+          ? Math.max(0, Math.floor(Number(vInput.reservedStock) || 0))
+          : (existingInv ? existingInv.reservedStock : 0);
+
+        if (existingInv) {
+          await tx
+            .update(inventryTable)
+            .set({
+              availableStock: newAvail,
+              reservedStock: newReserved,
+              totalStock: newAvail + newReserved,
+              updatedAt: new Date(),
+            })
+            .where(eq(inventryTable.id, existingInv.id));
+        } else {
+          await tx
+            .insert(inventryTable)
+            .values({
+              productId: foundProduct!.id,
+              productVariant: variantId,
+              availableStock: newAvail,
+              reservedStock: newReserved,
+              totalStock: newAvail + newReserved,
+            });
+        }
+      }
+    }
+
+    // 3. Compute total available and reserved stock across all inventory rows
+    const allProdInv = await tx
+      .select()
+      .from(inventryTable)
+      .where(eq(inventryTable.productId, foundProduct!.id));
+
+    const totalAvail = allProdInv.reduce((sum, item) => sum + (item.availableStock || 0), 0);
+    const totalReserved = allProdInv.reduce((sum, item) => sum + (item.reservedStock || 0), 0);
+
+    const isInStock = input.forceInStock !== undefined && input.forceInStock !== null
+      ? Boolean(input.forceInStock)
+      : totalAvail > 0;
+
+    // 4. Synchronize productStatusTable
+    const [existingStatus] = await tx
+      .select()
+      .from(productStatusTable)
+      .where(eq(productStatusTable.productId, foundProduct!.id));
+
+    const finalStatus = input.status || (existingStatus ? existingStatus.status : 'listed');
+
+    await tx
+      .insert(productStatusTable)
+      .values({
+        productId: foundProduct!.id,
+        status: finalStatus,
+        inStock: isInStock,
+      })
+      .onConflictDoUpdate({
+        target: productStatusTable.productId,
+        set: {
+          inStock: isInStock,
+          ...(input.status ? { status: input.status } : {}),
+          updatedAt: new Date(),
+        },
+      });
+
+    // If status was updated, keep productTable.features.isListed in sync
+    if (input.status) {
+      const isListed = input.status === 'listed';
+      const curFeat = (foundProduct!.features as Record<string, any>) || {};
+      await tx
+        .update(productTable)
+        .set({
+          features: { ...curFeat, isListed },
+          updatedAt: new Date(),
+        })
+        .where(eq(productTable.id, foundProduct!.id));
+    }
+
+    // 5. Synchronize productTable.features.variants (fallback / cache)
+    if (input.variants && Array.isArray(input.variants) && input.variants.length > 0) {
+      const currentFeat = (foundProduct!.features as Record<string, any>) || {};
+      if (currentFeat.variants && Array.isArray(currentFeat.variants)) {
+        const updatedFeatVariants = currentFeat.variants.map((fv: any) => {
+          const matching = input.variants!.find(
+            (iv) => (iv.id && iv.id === fv.id) ||
+                    (iv.productVariantId && iv.productVariantId === fv.id) ||
+                    (iv.color && fv.color && iv.color.toLowerCase() === fv.color.toLowerCase())
+          );
+          if (matching) {
+            return {
+              ...fv,
+              stock: Math.max(0, Math.floor(Number(matching.stock) || 0)),
+              ...(matching.reservedStock !== undefined && matching.reservedStock !== null
+                ? { reservedStock: Math.max(0, Math.floor(Number(matching.reservedStock) || 0)) }
+                : {})
+            };
+          }
+          return fv;
+        });
+
+        await tx
+          .update(productTable)
+          .set({
+            features: {
+              ...currentFeat,
+              variants: updatedFeatVariants,
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(productTable.id, foundProduct!.id));
+      }
+    }
+
+    return {
+      success: true,
+      productId: foundProduct!.id,
+      totalStock: totalAvail,
+      totalReserved,
+      inStock: isInStock,
+      status: finalStatus,
+      isListed: finalStatus === 'listed',
+    };
+  });
 }
 

@@ -163,6 +163,9 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                   Status: <Text style={{ fontWeight: '700', color: '#16a34a' }}>{order.status || 'Confirmed'}</Text>
                 </Text>
                 <Text style={styles.orderMetaItem}>
+                  Order Type: <Text style={{ fontWeight: '700', color: (order.orderType || 'offline') === 'online' ? '#2563eb' : '#71717a' }}>{(order.orderType || 'offline') === 'online' ? '🌐 Online Order' : '🏪 Offline / Walk-in'}</Text>
+                </Text>
+                <Text style={styles.orderMetaItem}>
                   Payment Mode: <Text style={{ fontWeight: '700', color: '#09090b' }}>{order.paymentMethod === 'online' ? 'Online Payment' : 'Cash Payment'}</Text>
                 </Text>
                 {order.notes ? (

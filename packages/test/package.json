@@ -16,6 +16,7 @@
     "test:credits": "tsx --test src/credits.test.ts",
     "test:upload": "tsx --test src/upload.test.ts",
     "test:router": "tsx --test src/router.test.ts",
+    "test:analytics": "tsx --test src/analytics.test.ts",
     "test:rate-limiting": "tsx --test src/rate-limiting.test.ts"
   },
   "dependencies": {

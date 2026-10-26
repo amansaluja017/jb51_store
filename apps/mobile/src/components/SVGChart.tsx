@@ -8,7 +8,7 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface SVGChartProps {
-  activeMetric: 'views' | 'waHits' | 'igHits' | 'conversion';
+  activeMetric: 'views' | 'waHits' | 'igHits' | 'conversion' | 'orders';
   metricData: number[];
   labels: string[];
   title: string;

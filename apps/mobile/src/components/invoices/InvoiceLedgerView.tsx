@@ -45,7 +45,6 @@ export interface InvoiceLedgerViewProps {
   onViewInvoice: (inv: Invoice) => void;
   onEditInvoice?: (inv: Invoice) => void;
   onDeleteOrder?: (id: string, orderNumber: string) => void;
-  onDeleteInvoice?: (id: string, invoiceNumber: string) => void;
   onSelectOrder: (order: Order) => void;
   invoicePage?: number;
   invoiceTotalPages?: number;
@@ -76,7 +75,6 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   onViewInvoice,
   onEditInvoice,
   onDeleteOrder,
-  onDeleteInvoice,
   onSelectOrder,
   invoicePage = 1,
   invoiceTotalPages = 1,
@@ -361,28 +359,12 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                             onPress={() => onEditInvoice(inv)}
                             style={[
                               styles.editInvoiceBtn,
-                              !onDeleteInvoice && { right: 12 },
+                              { right: 12 },
                             ]}
                             accessibilityLabel={`Edit invoice ${inv.invoiceNumber || inv.customerName || inv.id}`}
                             accessibilityRole="button"
                           >
                             <Edit3 size={15} color="#ea580c" />
-                          </TouchableOpacity>
-                        ) : null}
-
-                        {onDeleteInvoice ? (
-                          <TouchableOpacity
-                            onPress={() =>
-                              onDeleteInvoice(
-                                inv.id,
-                                inv.invoiceNumber || inv.customerName || 'Invoice'
-                              )
-                            }
-                            style={styles.deleteInvoiceBtn}
-                            accessibilityLabel={`Delete invoice ${inv.invoiceNumber || inv.customerName || inv.id}`}
-                            accessibilityRole="button"
-                          >
-                            <Trash2 size={15} color="#ef4444" />
                           </TouchableOpacity>
                         ) : null}
                       </View>
@@ -510,6 +492,25 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                               }
                             >
                               {isCredit ? 'Credit' : isCash ? 'Cash' : 'Online'}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={[
+                              styles.badge,
+                              (ord.orderType || 'offline') === 'online'
+                                ? { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }
+                                : { backgroundColor: '#f4f4f5', borderColor: '#e4e4e7' },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '700',
+                                color: (ord.orderType || 'offline') === 'online' ? '#2563eb' : '#52525b',
+                              }}
+                            >
+                              {(ord.orderType || 'offline') === 'online' ? '🌐 Online' : '🏪 Offline'}
                             </Text>
                           </View>
                         </View>

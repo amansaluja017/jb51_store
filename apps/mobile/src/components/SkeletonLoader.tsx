@@ -82,29 +82,74 @@ export function SkeletonLine({
 export function DashboardSkeleton() {
   return (
     <View style={styles.container}>
-      {/* Filter Row Placeholder */}
+      {/* Filter / Outfit Focus Bar */}
       <View style={[styles.rowBetween, { marginBottom: 14, gap: 10 }]}>
         <SkeletonBox width="74%" height={42} borderRadius={14} />
         <SkeletonBox width="22%" height={42} borderRadius={12} />
       </View>
 
+      {/* 6 Metric Telemetry Chips */}
+      <View style={[styles.grid2x2, { marginBottom: 14, gap: 10 }]}>
+        {[1, 2, 3, 4, 5, 6].map(idx => (
+          <SkeletonBox key={idx} width="48%" height={68} borderRadius={14} />
+        ))}
+      </View>
 
-      {/* Telemetry & Trend Box */}
-      <View style={[styles.cardContainer, { marginTop: 14 }]}>
+      {/* Chart Box */}
+      <View style={[styles.cardContainer, { marginBottom: 14 }]}>
         <View style={styles.rowBetween}>
           <SkeletonLine width={140} height={14} />
           <SkeletonLine width={80} height={10} />
         </View>
+        <SkeletonBox width="100%" height={160} borderRadius={14} style={{ marginTop: 14 }} />
+      </View>
 
-        {/* 4 interactive telemetry chips */}
-        <View style={[styles.grid2x2, { marginTop: 12 }]}>
-          {[1, 2, 3, 4].map(idx => (
-            <SkeletonBox key={idx} width="48%" height={52} borderRadius={12} />
-          ))}
+      {/* Conversion Funnel Card */}
+      <View style={[styles.cardContainer, { marginBottom: 14 }]}>
+        <View style={styles.rowBetween}>
+          <SkeletonLine width={150} height={15} />
+          <SkeletonLine width={70} height={10} />
         </View>
+        <View style={[styles.rowBetween, { marginTop: 14, paddingHorizontal: 10 }]}>
+          <SkeletonBox width="28%" height={70} borderRadius={12} />
+          <SkeletonBox width="28%" height={70} borderRadius={12} />
+          <SkeletonBox width="28%" height={70} borderRadius={12} />
+        </View>
+      </View>
 
-        {/* Chart Box */}
-        <SkeletonBox width="100%" height={150} borderRadius={14} style={{ marginTop: 14 }} />
+      {/* Channel Ratio & Growth Pulse Card */}
+      <View style={[styles.cardContainer, { marginBottom: 14 }]}>
+        <View style={styles.rowBetween}>
+          <SkeletonLine width={170} height={15} />
+          <SkeletonLine width={90} height={10} />
+        </View>
+        <SkeletonBox width="100%" height={10} borderRadius={5} style={{ marginTop: 14 }} />
+        <View style={[styles.rowBetween, { marginTop: 12, gap: 8 }]}>
+          <SkeletonBox width="31%" height={72} borderRadius={10} />
+          <SkeletonBox width="31%" height={72} borderRadius={10} />
+          <SkeletonBox width="31%" height={72} borderRadius={10} />
+        </View>
+      </View>
+
+      {/* Payment Modes Breakdown Card */}
+      <View style={[styles.cardContainer, { marginBottom: 14 }]}>
+        <View style={styles.rowBetween}>
+          <SkeletonLine width={160} height={15} />
+          <SkeletonLine width={80} height={10} />
+        </View>
+        <View style={[styles.rowBetween, { marginTop: 12, gap: 8 }]}>
+          <SkeletonBox width="31%" height={76} borderRadius={10} />
+          <SkeletonBox width="31%" height={76} borderRadius={10} />
+          <SkeletonBox width="31%" height={76} borderRadius={10} />
+        </View>
+        <SkeletonBox width="100%" height={36} borderRadius={8} style={{ marginTop: 12 }} />
+      </View>
+
+      {/* Demand Highlights / Leaderboard */}
+      <View style={[styles.rowBetween, { marginBottom: 14, gap: 10 }]}>
+        <SkeletonBox width="31%" height={90} borderRadius={14} />
+        <SkeletonBox width="31%" height={90} borderRadius={14} />
+        <SkeletonBox width="31%" height={90} borderRadius={14} />
       </View>
     </View>
   );

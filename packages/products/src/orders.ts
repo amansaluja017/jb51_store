@@ -25,6 +25,7 @@ export interface CreateOrderInput {
   address?: string | null;
   userId?: string | null;
   status?: string;
+  orderType?: 'online' | 'offline' | string | null;
   paymentMethod?: string;
   subtotal?: number | null;
   gst?: number | null;
@@ -121,6 +122,7 @@ export async function createOrder(input: CreateOrderInput) {
         customerId,
         userId: input.userId || null,
         status: input.status || 'confirmed',
+        orderType: input.orderType || 'offline',
         paymentMethod: input.paymentMethod || 'cash',
         subtotal:
           input.subtotal !== undefined && input.subtotal !== null
@@ -473,6 +475,7 @@ export async function getOrders() {
       customerEmail: customerDetailsTable.email,
       customerAddress: customerDetailsTable.address,
       status: ordersTable.status,
+      orderType: ordersTable.orderType,
       paymentMethod: ordersTable.paymentMethod,
       subtotal: ordersTable.subtotal,
       gst: ordersTable.gst,
@@ -546,6 +549,7 @@ export async function getCustomerOrderHistory(customerId: string) {
       customerEmail: customerDetailsTable.email,
       customerAddress: customerDetailsTable.address,
       status: ordersTable.status,
+      orderType: ordersTable.orderType,
       paymentMethod: ordersTable.paymentMethod,
       subtotal: ordersTable.subtotal,
       gst: ordersTable.gst,
@@ -771,15 +775,15 @@ export async function deleteOrder(id: string) {
     }
 
     // 4. Find associated invoices
+    const invoiceConditions = [eq(invoicesTable.orderId, order.id)];
+    if (order.orderNumber) {
+      invoiceConditions.push(eq(invoicesTable.invoiceNumber, order.orderNumber.replace('ORD', 'INV')));
+      invoiceConditions.push(eq(invoicesTable.invoiceNumber, order.orderNumber));
+    }
     const associatedInvoices = await tx
       .select()
       .from(invoicesTable)
-      .where(
-        or(
-          eq(invoicesTable.orderId, order.id),
-          eq(invoicesTable.invoiceNumber, order.orderNumber.replace('ORD', 'INV'))
-        )
-      );
+      .where(or(...invoiceConditions));
     const invoiceIds = associatedInvoices.map((i) => i.id);
 
     // 5. Delete associated credits and credit transactions
@@ -808,6 +812,9 @@ export async function deleteOrder(id: string) {
         .delete(invoicesTable)
         .where(inArray(invoicesTable.id, invoiceIds));
     }
+    await tx
+      .delete(invoicesTable)
+      .where(eq(invoicesTable.orderId, order.id));
 
     // 7. Delete order items
     await tx

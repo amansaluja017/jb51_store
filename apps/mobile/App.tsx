@@ -71,6 +71,19 @@ export default function App() {
           setActiveTab={data.setActiveTab}
           stats={data.stats}
           analyticsMetrics={data.analyticsMetrics}
+          analyticsOverview={data.analyticsOverview}
+          allProductsAnalytics={data.allProductsAnalytics}
+          viewsAnalytics={data.viewsAnalytics}
+          clicksAnalytics={data.clicksAnalytics}
+          conversionAnalytics={data.conversionAnalytics}
+          funnelAnalytics={data.funnelAnalytics}
+          channelRatioAnalytics={data.channelRatioAnalytics}
+          growthPulseAnalytics={data.growthPulseAnalytics}
+          paymentModesAnalytics={data.paymentModesAnalytics}
+          demandHighlightsAnalytics={data.demandHighlightsAnalytics}
+          catalogueTelemetryAnalytics={data.catalogueTelemetryAnalytics}
+          inventorySummaryAnalytics={data.inventorySummaryAnalytics}
+          isLoadingAnalytics={data.isLoadingAnalytics}
           activeAnalyticsProduct={data.activeAnalyticsProduct}
           selectedAnalyticsSlug={data.selectedAnalyticsSlug}
           setSelectedAnalyticsSlug={data.setSelectedAnalyticsSlug}
@@ -112,7 +125,6 @@ export default function App() {
           onCreateOrder={data.handleCreateOrder}
           onUpdateInvoice={data.handleUpdateInvoice}
           onDeleteOrder={data.handleDeleteOrder}
-          onDeleteInvoice={data.handleDeleteInvoice}
           onFetchCredits={() => data.handleFetchCredits(true)}
           onFetchProducts={data.handleFetchProducts}
           onFetchPaginatedProducts={data.handleFetchPaginatedProducts}

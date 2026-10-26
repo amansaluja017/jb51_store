@@ -631,6 +631,19 @@ export async function updateInvoice(input: UpdateInvoiceInput) {
 }
 
 export async function deleteInvoice(id: string) {
+  const [inv] = await db
+    .select()
+    .from(invoicesTable)
+    .where(eq(invoicesTable.id, id));
+
+  if (!inv) {
+    throw new Error(`Invoice with ID ${id} not found`);
+  }
+
+  if (inv.orderId) {
+    throw new Error('Invoices linked to an order cannot be deleted directly. Please delete the associated order instead.');
+  }
+
   const [deleted] = await db
     .delete(invoicesTable)
     .where(eq(invoicesTable.id, id))

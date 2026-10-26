@@ -5,4 +5,5 @@ export * from './customers.js';
 export * from './orders.js';
 export * from './invoices.js';
 export * from './credits.js';
+export * from './analytics.js';
 export * from './services/validations.js';

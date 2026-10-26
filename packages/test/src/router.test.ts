@@ -76,5 +76,62 @@ describe('Root AppRouter & Context Suite', () => {
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.count, 3);
     });
+
+    it('products routes: should route getAll through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const products = await caller.products.getAll();
+      assert.strictEqual(Array.isArray(products), true);
+    });
+
+    it('inventory routes: should route getPaginated through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const inv = await caller.inventory.getPaginated({ page: 1, limit: 2 });
+      assert.ok(inv);
+      assert.strictEqual(Array.isArray(inv.items), true);
+    });
+
+    it('reviews routes: should route getAll through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const reviews = await caller.reviews.getAll();
+      assert.strictEqual(Array.isArray(reviews), true);
+    });
+
+    it('customers routes: should route getAll through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const customers = await caller.customers.getAll();
+      assert.strictEqual(Array.isArray(customers), true);
+    });
+
+    it('orders routes: should route getAll through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const orders = await caller.orders.getAll();
+      assert.strictEqual(Array.isArray(orders), true);
+    });
+
+    it('invoices routes: should route getAll through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const invoices = await caller.invoices.getAll();
+      assert.strictEqual(Array.isArray(invoices), true);
+    });
+
+    it('credits routes: should route getAll through root appRouter with admin context', async () => {
+      const adminCaller = appRouter.createCaller({
+        user: { role: 'admin', userName: 'admin', email: 'admin@store.test' } as any,
+        isStaff: true,
+      });
+      const credits = await adminCaller.credits.getAll();
+      assert.ok(credits);
+      assert.strictEqual(Array.isArray(credits.credits), true);
+    });
+
+    it('analytics routes: should route getOverview through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const overview = await caller.analytics.getOverview();
+      assert.ok(overview);
+      assert.strictEqual(typeof overview.views, 'number');
+      assert.strictEqual(typeof overview.whatsappClicks, 'number');
+      assert.strictEqual(typeof overview.instagramClicks, 'number');
+      assert.strictEqual(typeof overview.conversionRate, 'number');
+    });
   });
 });

@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { type Product } from '@repo/products';
 import { formatPrice, cn, generateWhatsAppMessage, generateInstagramMessage, WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
@@ -14,6 +13,7 @@ import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
 import { HeritageCraftBanner } from '@/components/products/HeritageCraftBanner';
 import { FormattedRichText } from '@/components/ui/FormattedRichText';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 // Beautiful luxury Indian lotus icon motif
 const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
@@ -97,6 +97,21 @@ export function ProductClient({ product }: { product: any }) {
   // Extract unique colors
   const colors = Array.from(new Set(variants.map((v: any) => v.color).filter(Boolean))) as string[];
 
+  const { trackEvent } = useAnalytics();
+  const hasTrackedView = useRef(false);
+
+  // Track product view exactly once on page mount
+  useEffect(() => {
+    if (!hasTrackedView.current && (product?.id || product?.slug)) {
+      hasTrackedView.current = true;
+      trackEvent({
+        type: 'view',
+        productId: product.id,
+        slug: product.slug,
+      });
+    }
+  }, [product?.id, product?.slug, trackEvent]);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
@@ -115,11 +130,21 @@ export function ProductClient({ product }: { product: any }) {
   };
 
   const handleWhatsAppInquiry = () => {
+    trackEvent({
+      type: 'whatsapp',
+      productId: product.id,
+      slug: product.slug,
+    });
     const message = generateWhatsAppMessage(product, selectedColor, window.location.href);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
   const handleInstagramInquiry = () => {
+    trackEvent({
+      type: 'instagram',
+      productId: product.id,
+      slug: product.slug,
+    });
     const message = generateInstagramMessage(product, selectedColor, window.location.href);
     navigator.clipboard.writeText(message);
     toast.success("Product details copied to clipboard!");

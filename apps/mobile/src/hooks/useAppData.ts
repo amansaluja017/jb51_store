@@ -11,6 +11,17 @@ import {
   Order,
   Credit,
   CreditMetrics,
+  AnalyticsOverviewData,
+  ProductAnalyticsItem,
+  ViewsAnalytics,
+  ClicksAnalytics,
+  ConversionAnalytics,
+  ConversionFunnelAnalytics,
+  ChannelRatioAnalytics,
+  GrowthPulseAnalytics,
+  PaymentModesAnalytics,
+  DemandHighlightsAnalytics,
+  InventorySummaryAnalytics,
   isProductInStock,
 } from '../types';
 import { CustomAlertConfig } from '../components/CustomAlert';
@@ -184,6 +195,9 @@ export function useAppData() {
       if (!hasFetchedProducts.current) {
         handleFetchProducts();
       }
+      if (activeTab === 'dashboard' || activeTab === 'analytics') {
+        handleFetchAnalytics(selectedAnalyticsSlug);
+      }
     } else if (activeTab === 'inventory') {
       if (!hasFetchedProducts.current) {
         handleFetchProducts();
@@ -228,7 +242,12 @@ export function useAppData() {
     setRefreshing(true);
     try {
       if (activeTab === 'dashboard' || activeTab === 'analytics' || activeTab === 'catalogue') {
-        await handleFetchProducts(true);
+        await Promise.all([
+          handleFetchProducts(true),
+          (activeTab === 'dashboard' || activeTab === 'analytics')
+            ? handleFetchAnalytics(selectedAnalyticsSlug)
+            : Promise.resolve(),
+        ]);
       } else if (activeTab === 'inventory') {
         await Promise.all([
           handleFetchProducts(true),
@@ -348,18 +367,21 @@ export function useAppData() {
     const newInStock = !isCurrentlyInStock;
 
     try {
-      await trpcRequest('products.updateStatus', {
+      const res: any = await trpcRequest('inventory.update', {
         method: 'POST',
         body: {
           slug: product.slug,
-          inStock: newInStock
+          productId: product.id,
+          forceInStock: newInStock,
         }
       });
 
+      const finalInStock = typeof res?.inStock === 'boolean' ? res.inStock : newInStock;
+
       setProducts(prev =>
-        prev.map(p => p.slug === product.slug ? { ...p, inStock: newInStock } : p)
+        prev.map(p => p.slug === product.slug ? { ...p, inStock: finalInStock } : p)
       );
-      showAlert('Stock Status Updated', `${product.name} is now ${newInStock ? 'In Stock' : 'Out of Stock'}.`, 'success');
+      showAlert('Stock Status Updated', `${product.name} is now ${finalInStock ? 'In Stock' : 'Out of Stock'}.`, 'success');
     } catch (err: any) {
       await handleFetchProducts(true);
       showAlert('Error', err.message || 'Failed to update stock status', 'error');
@@ -368,27 +390,38 @@ export function useAppData() {
 
   const handleUpdateInventory = async (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => {
     const totalVariantStock = updatedVariants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
-    const newInStock = forceInStock !== undefined ? forceInStock : (product.inStock === false ? false : totalVariantStock > 0);
+    const newInStock = forceInStock !== undefined ? forceInStock : totalVariantStock > 0;
 
     try {
-      const updatedProductData = {
-        ...product,
-        variants: updatedVariants,
-        inStock: newInStock,
-      };
-
-      await trpcRequest('products.update', {
+      const res: any = await trpcRequest('inventory.update', {
         method: 'POST',
         body: {
+          productId: product.id,
           slug: product.slug,
-          data: updatedProductData,
+          variants: updatedVariants.map(v => ({
+            id: v.id,
+            productVariantId: v.productVariantId || v.id,
+            color: v.color,
+            size: v.size,
+            stock: Math.max(0, Math.floor(Number(v.stock) || 0)),
+            reservedStock: Math.max(0, Math.floor(Number(v.reservedStock) || 0)),
+          })),
+          forceInStock: newInStock,
         }
       });
+
+      const finalInStock = typeof res?.inStock === 'boolean' ? res.inStock : newInStock;
+      const finalStatus = res?.status || product.status;
 
       setProducts(prev =>
         prev.map(p =>
           p.slug === product.slug
-            ? { ...p, variants: updatedVariants, inStock: newInStock }
+            ? {
+                ...p,
+                variants: updatedVariants,
+                inStock: finalInStock,
+                ...(finalStatus ? { status: finalStatus, isListed: finalStatus === 'listed' } : {}),
+              }
             : p
         )
       );
@@ -819,26 +852,6 @@ export function useAppData() {
     );
   };
 
-  const handleDeleteInvoice = async (id: string, label: string) => {
-    showAlert(
-      'Delete Invoice',
-      `Are you sure you want to delete invoice "${label}"? This action cannot be undone and will permanently remove this invoice document.`,
-      'confirm',
-      async () => {
-        try {
-          await trpcRequest('invoices.delete', {
-            method: 'POST',
-            body: { id },
-          });
-          setInvoices(prev => prev.filter(inv => inv.id !== id));
-          showAlert('Invoice Deleted', `Invoice "${label}" deleted successfully.`, 'success');
-        } catch (err: any) {
-          console.error('[handleDeleteInvoice Error]:', err);
-          showAlert('Error Deleting Invoice', err.message || 'Failed to delete invoice', 'error');
-        }
-      }
-    );
-  };
 
   const handleFetchCredits = async (isRefresh = false) => {
     setIsLoadingCredits(true);
@@ -1191,18 +1204,156 @@ export function useAppData() {
     return products.find(p => p.slug === selectedAnalyticsSlug) || null;
   }, [products, selectedAnalyticsSlug]);
 
+  const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverviewData | null>(null);
+  const [allProductsAnalytics, setAllProductsAnalytics] = useState<ProductAnalyticsItem[]>([]);
+  const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null);
+  const [clicksAnalytics, setClicksAnalytics] = useState<ClicksAnalytics | null>(null);
+  const [conversionAnalytics, setConversionAnalytics] = useState<ConversionAnalytics | null>(null);
+  const [funnelAnalytics, setFunnelAnalytics] = useState<ConversionFunnelAnalytics | null>(null);
+  const [channelRatioAnalytics, setChannelRatioAnalytics] = useState<ChannelRatioAnalytics | null>(null);
+  const [growthPulseAnalytics, setGrowthPulseAnalytics] = useState<GrowthPulseAnalytics | null>(null);
+  const [paymentModesAnalytics, setPaymentModesAnalytics] = useState<PaymentModesAnalytics | null>(null);
+  const [demandHighlightsAnalytics, setDemandHighlightsAnalytics] = useState<DemandHighlightsAnalytics | null>(null);
+  const [catalogueTelemetryAnalytics, setCatalogueTelemetryAnalytics] = useState<ProductAnalyticsItem[]>([]);
+  const [inventorySummaryAnalytics, setInventorySummaryAnalytics] = useState<InventorySummaryAnalytics | null>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+
+  const handleFetchAnalytics = async (slug?: string) => {
+    try {
+      setIsLoadingAnalytics(true);
+      const targetSlug = slug !== undefined ? slug : selectedAnalyticsSlug;
+      const inputPayload = targetSlug && targetSlug !== 'all' ? { slug: targetSlug } : undefined;
+
+      // Hit routes independently with Promise.allSettled so if one fails, none crash
+      const results = await Promise.allSettled([
+        trpcRequest('analytics.getViews', { input: inputPayload }),
+        trpcRequest('analytics.getClicks', { input: inputPayload }),
+        trpcRequest('analytics.getConversion', { input: inputPayload }),
+        trpcRequest('analytics.getFunnel', { input: inputPayload }),
+        trpcRequest('analytics.getChannelRatio', { input: inputPayload }),
+        trpcRequest('analytics.getGrowthPulse', { input: inputPayload }),
+        trpcRequest('analytics.getPaymentModes', { input: inputPayload }),
+        trpcRequest('analytics.getDemandHighlights'),
+        trpcRequest('analytics.getCatalogueTelemetry'),
+        trpcRequest('analytics.getInventorySummary'),
+      ]);
+
+      const [
+        viewsResult,
+        clicksResult,
+        convResult,
+        funnelResult,
+        ratioResult,
+        growthResult,
+        paymentsResult,
+        highlightsResult,
+        catalogueResult,
+        inventoryResult,
+      ] = results;
+
+      if (viewsResult.status === 'fulfilled' && viewsResult.value) {
+        setViewsAnalytics(viewsResult.value);
+      }
+      if (clicksResult.status === 'fulfilled' && clicksResult.value) {
+        setClicksAnalytics(clicksResult.value);
+      }
+      if (convResult.status === 'fulfilled' && convResult.value) {
+        setConversionAnalytics(convResult.value);
+      }
+      if (funnelResult.status === 'fulfilled' && funnelResult.value) {
+        setFunnelAnalytics(funnelResult.value);
+      }
+      if (ratioResult.status === 'fulfilled' && ratioResult.value) {
+        setChannelRatioAnalytics(ratioResult.value);
+      }
+      if (growthResult.status === 'fulfilled' && growthResult.value) {
+        setGrowthPulseAnalytics(growthResult.value);
+      }
+      if (paymentsResult.status === 'fulfilled' && paymentsResult.value) {
+        setPaymentModesAnalytics(paymentsResult.value);
+      }
+      if (highlightsResult.status === 'fulfilled' && highlightsResult.value) {
+        setDemandHighlightsAnalytics(highlightsResult.value);
+      }
+      if (catalogueResult.status === 'fulfilled' && Array.isArray(catalogueResult.value)) {
+        setCatalogueTelemetryAnalytics(catalogueResult.value);
+        setAllProductsAnalytics(catalogueResult.value);
+      }
+      if (inventoryResult.status === 'fulfilled' && inventoryResult.value) {
+        setInventorySummaryAnalytics(inventoryResult.value);
+      }
+
+      // Backward compatible composed overview:
+      const v = viewsResult.status === 'fulfilled' ? viewsResult.value?.views : 0;
+      const wa = clicksResult.status === 'fulfilled' ? clicksResult.value?.whatsappClicks : 0;
+      const ig = clicksResult.status === 'fulfilled' ? clicksResult.value?.instagramClicks : 0;
+      const totClicks = (wa || 0) + (ig || 0);
+      const conv = convResult.status === 'fulfilled' ? convResult.value?.conversionRate : 0;
+      const waConv = convResult.status === 'fulfilled' ? convResult.value?.whatsappConversionRate : 0;
+      const igConv = convResult.status === 'fulfilled' ? convResult.value?.instagramConversionRate : 0;
+      const ordConv = convResult.status === 'fulfilled' ? convResult.value?.orderConversionRate : 0;
+      const onlineOrdConv = convResult.status === 'fulfilled' ? convResult.value?.onlineOrderConversionRate : 0;
+      const ordCount = ratioResult.status === 'fulfilled' ? ratioResult.value?.totalOrderCount : 0;
+      const onlineCount = ratioResult.status === 'fulfilled' ? ratioResult.value?.onlineOrderCount : 0;
+      const offlineCount = ratioResult.status === 'fulfilled' ? ratioResult.value?.offlineOrderCount : 0;
+
+      setAnalyticsOverview({
+        scope: targetSlug && targetSlug !== 'all' ? 'product' : 'overall',
+        product: activeAnalyticsProduct ? {
+          id: activeAnalyticsProduct.id,
+          slug: activeAnalyticsProduct.slug,
+          name: activeAnalyticsProduct.name,
+          category: activeAnalyticsProduct.category,
+          price: activeAnalyticsProduct.price ? Number(activeAnalyticsProduct.price) : 0,
+        } : null,
+        views: v || 0,
+        whatsappClicks: wa || 0,
+        instagramClicks: ig || 0,
+        totalClicks: totClicks || 0,
+        conversionRate: conv || 0,
+        whatsappConversionRate: waConv || 0,
+        instagramConversionRate: igConv || 0,
+        orderCount: ordCount || 0,
+        onlineOrderCount: onlineCount || 0,
+        offlineOrderCount: offlineCount || 0,
+        orderConversionRate: ordConv || 0,
+        onlineOrderConversionRate: onlineOrdConv || 0,
+        channelRatio: ratioResult.status === 'fulfilled' && ratioResult.value ? {
+          onlineRatio: ratioResult.value.onlineRatio,
+          offlineRatio: ratioResult.value.offlineRatio,
+        } : undefined,
+        growth: growthResult.status === 'fulfilled' ? growthResult.value : undefined,
+        payments: paymentsResult.status === 'fulfilled' ? paymentsResult.value : undefined,
+      });
+    } catch (err: any) {
+      console.warn('[handleFetchAnalytics Error]:', err?.message || err);
+    } finally {
+      setIsLoadingAnalytics(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (activeTab === 'dashboard' || activeTab === 'analytics') {
+      handleFetchAnalytics(selectedAnalyticsSlug);
+    }
+  }, [selectedAnalyticsSlug]);
+
   const analyticsMetrics = useMemo(() => {
-    // When analytics endpoint is not connected, mark as unavailable rather than displaying fabricated metrics
+    const views = viewsAnalytics?.views ?? analyticsOverview?.views ?? 0;
+    const waHits = clicksAnalytics?.whatsappClicks ?? analyticsOverview?.whatsappClicks ?? 0;
+    const igHits = clicksAnalytics?.instagramClicks ?? analyticsOverview?.instagramClicks ?? 0;
+    const conv = conversionAnalytics?.conversionRate ?? analyticsOverview?.conversionRate ?? 0;
     return {
-      isUnavailable: true,
-      views: 0,
-      waHits: 0,
-      igHits: 0,
+      isUnavailable: false,
+      views,
+      waHits,
+      igHits,
       wlHits: 0,
-      conversion: 0,
-      pipeline: 0,
+      conversion: conv,
+      pipeline: waHits + igHits,
     };
-  }, []);
+  }, [viewsAnalytics, clicksAnalytics, conversionAnalytics, analyticsOverview]);
 
   // Open forms triggers
   const triggerAddProduct = () => {
@@ -1291,7 +1442,6 @@ export function useAppData() {
     handleCreateOrder,
     handleUpdateInvoice,
     handleDeleteOrder,
-    handleDeleteInvoice,
     // Reviews
     reviews,
     isLoadingReviews,
@@ -1309,6 +1459,20 @@ export function useAppData() {
     // Analytics
     stats,
     analyticsMetrics,
+    analyticsOverview,
+    allProductsAnalytics,
+    viewsAnalytics,
+    clicksAnalytics,
+    conversionAnalytics,
+    funnelAnalytics,
+    channelRatioAnalytics,
+    growthPulseAnalytics,
+    paymentModesAnalytics,
+    demandHighlightsAnalytics,
+    catalogueTelemetryAnalytics,
+    inventorySummaryAnalytics,
+    isLoadingAnalytics,
+    handleFetchAnalytics,
     activeAnalyticsProduct,
     selectedAnalyticsSlug,
     setSelectedAnalyticsSlug,

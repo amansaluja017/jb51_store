@@ -4,8 +4,11 @@ import { product } from './products.js';
 export const productAnalytics = pgTable('product_analytics', {
   id: uuid('id').defaultRandom().primaryKey(),
   views: integer('views').default(0).notNull(),
+  whatsappClicks: integer('whatsapp_clicks').default(0).notNull(),
+  instagramClicks: integer('instagram_clicks').default(0).notNull(),
   productId: uuid('product_id')
     .notNull()
+    .unique()
     .references(() => product.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),

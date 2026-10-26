@@ -128,5 +128,117 @@ describe('Inventory Router and Controller Suite', () => {
       assert.strictEqual(result.type, 'purchase');
       assert.strictEqual(result.quantity, 10);
     });
+
+    it('update: should reject unauthenticated caller', async () => {
+      const unauthCaller = inventoryRouter.createCaller(unauthContext);
+      await assert.rejects(
+        async () => {
+          await unauthCaller.update({
+            productId: createdProductId!,
+            variants: [{ id: createdVariantId, stock: 25 }],
+          });
+        },
+        (err: any) => err.code === 'UNAUTHORIZED'
+      );
+    });
+
+    it('update: admin can update variant stock and verify inStock status', async () => {
+      const adminCaller = inventoryRouter.createCaller(adminContext);
+      const updateRes = await adminCaller.update({
+        productId: createdProductId!,
+        variants: [
+          { id: createdVariantId, color: 'Teal', stock: 45, reservedStock: 2 },
+        ],
+        forceInStock: true,
+      });
+
+      assert.ok(updateRes);
+      assert.strictEqual(updateRes.success, true);
+      assert.strictEqual(updateRes.totalStock, 45);
+      assert.strictEqual(updateRes.inStock, true);
+    });
+
+    it('updateStock: admin can use updateStock alias with slug', async () => {
+      const adminCaller = inventoryRouter.createCaller(adminContext);
+      const updateRes = await adminCaller.updateStock({
+        slug,
+        variants: [
+          { color: 'Teal', stock: 12 },
+        ],
+      });
+
+      assert.ok(updateRes);
+      assert.strictEqual(updateRes.success, true);
+      assert.strictEqual(updateRes.totalStock, 12);
+      assert.strictEqual(updateRes.inStock, true);
+    });
+
+    it('update: changing inventory stock to 0 changes product inStock status to false', async () => {
+      const adminCaller = inventoryRouter.createCaller(adminContext);
+      const updateRes = await adminCaller.update({
+        productId: createdProductId!,
+        variants: [
+          { id: createdVariantId, color: 'Teal', stock: 0 },
+        ],
+      });
+
+      assert.ok(updateRes);
+      assert.strictEqual(updateRes.success, true);
+      assert.strictEqual(updateRes.totalStock, 0);
+      assert.strictEqual(updateRes.inStock, false);
+
+      // Verify product query returns inStock false
+      const productQueryCaller = productsRouter.createCaller(unauthContext);
+      const prod = await productQueryCaller.getBySlug({ slug });
+      assert.ok(prod);
+      assert.strictEqual((prod as any).inStock, false);
+    });
+
+    it('update: changing inventory stock from 0 to >0 changes product inStock status back to true', async () => {
+      const adminCaller = inventoryRouter.createCaller(adminContext);
+      const updateRes = await adminCaller.update({
+        slug,
+        variants: [
+          { id: createdVariantId, color: 'Teal', stock: 25 },
+        ],
+      });
+
+      assert.ok(updateRes);
+      assert.strictEqual(updateRes.success, true);
+      assert.strictEqual(updateRes.totalStock, 25);
+      assert.strictEqual(updateRes.inStock, true);
+
+      // Verify product query returns inStock true
+      const productQueryCaller = productsRouter.createCaller(unauthContext);
+      const prod = await productQueryCaller.getBySlug({ slug });
+      assert.ok(prod);
+      assert.strictEqual((prod as any).inStock, true);
+    });
+
+    it('update: master toggle forceInStock updates product status even without variant changes', async () => {
+      const adminCaller = inventoryRouter.createCaller(adminContext);
+
+      // Toggle off
+      const toggleOffRes = await adminCaller.update({
+        slug,
+        forceInStock: false,
+      });
+      assert.strictEqual(toggleOffRes.success, true);
+      assert.strictEqual(toggleOffRes.inStock, false);
+
+      let prod = await productsRouter.createCaller(unauthContext).getBySlug({ slug });
+      assert.strictEqual((prod as any).inStock, false);
+
+      // Toggle on
+      const toggleOnRes = await adminCaller.update({
+        slug,
+        forceInStock: true,
+      });
+      assert.strictEqual(toggleOnRes.success, true);
+      assert.strictEqual(toggleOnRes.inStock, true);
+
+      prod = await productsRouter.createCaller(unauthContext).getBySlug({ slug });
+      assert.strictEqual((prod as any).inStock, true);
+    });
   });
 });

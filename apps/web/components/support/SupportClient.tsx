@@ -3,15 +3,17 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, MessageCircle, MapPin } from 'lucide-react';
-import { WHATSAPP_NUMBER, INSTAGRAM_HANDLE, COMPANY_EMAIL } from '@/lib/utils';
+import { WHATSAPP_NUMBER, COMPANY_EMAIL } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const Dropdown = dynamic(() => import('@/components/ui/Dropdown').then(mod => mod.Dropdown), { ssr: false });
 
 export function SupportClient() {
+  const { trackEvent } = useAnalytics();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
 
@@ -63,7 +65,13 @@ export function SupportClient() {
                   <div>
                     <h3 className="text-sm tracking-widest uppercase font-medium mb-1">WhatsApp Concierge</h3>
                     <p className="text-brand-brown/70 font-light mb-2">Available Mon-Sat, 10am to 7pm IST</p>
-                    <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5">
+                    <a
+                      href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackEvent({ type: 'whatsapp' })}
+                      className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5"
+                    >
                       +{WHATSAPP_NUMBER}
                     </a>
                   </div>

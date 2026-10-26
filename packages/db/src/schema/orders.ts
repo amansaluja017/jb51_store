@@ -29,6 +29,7 @@ export const orders = pgTable('orders', {
     onDelete: 'set null',
   }),
   status: varchar('status', { length: 50 }).default('confirmed').notNull(),
+  orderType: varchar('order_type', { length: 50 }).default('offline').notNull(),
   paymentMethod: varchar('payment_method', { length: 50 }).default('cash').notNull(),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }),
   gst: numeric('gst', { precision: 10, scale: 2 }).default('0'),

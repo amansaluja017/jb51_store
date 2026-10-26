@@ -28,7 +28,7 @@ export const invoices = pgTable('invoices', {
   id: uuid('id').defaultRandom().primaryKey(),
   invoiceNumber: varchar('invoice_number', { length: 100 }).unique(),
   orderId: uuid('order_id').references(() => orders.id, {
-    onDelete: 'set null',
+    onDelete: 'cascade',
   }),
   customerId: uuid('customer_id').references(() => customerDetails.id, {
     onDelete: 'set null',

@@ -2,6 +2,7 @@
 
 import { ArrowRight } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '@/lib/utils';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
@@ -13,6 +14,7 @@ const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
 );
 
 export function HeritageCraftBanner() {
+  const { trackEvent } = useAnalytics();
   return (
     <section className="max-w-7xl mx-auto px-6 mb-24 mt-12 w-full">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-brand-maroon text-brand-cream rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative shadow-xl shadow-brand-maroon/5 pattern-jaali">
@@ -36,6 +38,7 @@ export function HeritageCraftBanner() {
               href={`https://wa.me/${WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent({ type: 'whatsapp' })}
               className="bg-brand-gold hover:bg-brand-gold/90 text-brand-brown px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md"
             >
               <span>Consult Weaver Guild</span>

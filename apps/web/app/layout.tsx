@@ -105,6 +105,7 @@ export const metadata: Metadata = {
 import { WishlistProvider } from '@/context/WishlistContext';
 import { cn } from "@/lib/utils";
 import { PageTransition } from '@/components/layout/PageTransition';
+import { StoreAnalyticsTracker } from '@/components/layout/StoreAnalyticsTracker';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -152,6 +153,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <TRPCReactProvider>
           <WishlistProvider>
+            <StoreAnalyticsTracker />
             <Navbar />
             <main className="flex-1 flex flex-col">
               <PageTransition>

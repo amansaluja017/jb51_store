@@ -76,12 +76,14 @@ export async function getCategories(): Promise<string[]> {
   return CATEGORIES;
 }
 
-function matchesSlug(row: any, slug: string): boolean {
-  const feat = (row.features as Record<string, any>) || {};
+export function matchesSlug(row: any, slug: string): boolean {
+  if (!row || !slug) return false;
   const normSlug = slug.toLowerCase();
+  const directSlug = (row.slug || '').toLowerCase();
+  const feat = (row.features as Record<string, any>) || {};
   const rowSlug = (feat.slug || '').toLowerCase();
   const nameSlug = (row.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return rowSlug === normSlug || nameSlug === normSlug;
+  return directSlug === normSlug || rowSlug === normSlug || nameSlug === normSlug;
 }
 
 function mapDbToProduct(row: any): Product {
@@ -337,7 +339,8 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 
     if (statusRow && statusRow.length > 0) {
       prod.isListed = statusRow[0].status === 'listed';
-      (prod as any).inStock = statusRow[0].inStock ?? true;
+      prod.status = statusRow[0].status;
+      prod.inStock = statusRow[0].inStock ?? true;
     }
     return prod;
   } catch (err) {

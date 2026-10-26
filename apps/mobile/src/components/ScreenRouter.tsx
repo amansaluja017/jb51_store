@@ -15,11 +15,24 @@ export interface ScreenRouterProps {
   // Dashboard & Analytics
   stats: any;
   analyticsMetrics: any;
+  analyticsOverview?: any;
+  allProductsAnalytics?: any[];
   activeAnalyticsProduct: any;
   selectedAnalyticsSlug: string;
   setSelectedAnalyticsSlug: (slug: string) => void;
   showAnalyticsSelector: boolean;
   setShowAnalyticsSelector: (show: boolean) => void;
+  isLoadingAnalytics?: boolean;
+  viewsAnalytics?: any;
+  clicksAnalytics?: any;
+  conversionAnalytics?: any;
+  funnelAnalytics?: any;
+  channelRatioAnalytics?: any;
+  growthPulseAnalytics?: any;
+  paymentModesAnalytics?: any;
+  demandHighlightsAnalytics?: any;
+  catalogueTelemetryAnalytics?: any;
+  inventorySummaryAnalytics?: any;
   // Shared
   products: Product[];
   categories: string[];
@@ -60,7 +73,6 @@ export interface ScreenRouterProps {
   onCreateOrder: (orderData: any) => Promise<any>;
   onUpdateInvoice?: (invoiceData: any) => Promise<any>;
   onDeleteOrder?: (id: string, label: string) => Promise<void>;
-  onDeleteInvoice: (id: string, label: string) => Promise<void>;
   onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
   onFetchPaginatedProducts?: (params?: any) => Promise<any>;
@@ -82,11 +94,24 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   setActiveTab,
   stats,
   analyticsMetrics,
+  analyticsOverview,
+  allProductsAnalytics,
   activeAnalyticsProduct,
   selectedAnalyticsSlug,
   setSelectedAnalyticsSlug,
   showAnalyticsSelector,
   setShowAnalyticsSelector,
+  isLoadingAnalytics,
+  viewsAnalytics,
+  clicksAnalytics,
+  conversionAnalytics,
+  funnelAnalytics,
+  channelRatioAnalytics,
+  growthPulseAnalytics,
+  paymentModesAnalytics,
+  demandHighlightsAnalytics,
+  catalogueTelemetryAnalytics,
+  inventorySummaryAnalytics,
   products,
   categories,
   searchQuery,
@@ -123,7 +148,6 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onCreateOrder,
   onUpdateInvoice,
   onDeleteOrder,
-  onDeleteInvoice,
   onFetchCredits,
   onFetchProducts,
   onFetchPaginatedProducts,
@@ -145,12 +169,25 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           stats={stats}
           products={products}
           analyticsMetrics={analyticsMetrics}
+          analyticsOverview={analyticsOverview}
+          allProductsAnalytics={allProductsAnalytics}
+          viewsAnalytics={viewsAnalytics}
+          clicksAnalytics={clicksAnalytics}
+          conversionAnalytics={conversionAnalytics}
+          funnelAnalytics={funnelAnalytics}
+          channelRatioAnalytics={channelRatioAnalytics}
+          growthPulseAnalytics={growthPulseAnalytics}
+          paymentModesAnalytics={paymentModesAnalytics}
+          demandHighlightsAnalytics={demandHighlightsAnalytics}
+          catalogueTelemetryAnalytics={catalogueTelemetryAnalytics}
+          inventorySummaryAnalytics={inventorySummaryAnalytics}
           activeAnalyticsProduct={activeAnalyticsProduct}
           selectedAnalyticsSlug={selectedAnalyticsSlug}
           setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
           showAnalyticsSelector={showAnalyticsSelector}
           setShowAnalyticsSelector={setShowAnalyticsSelector}
           isLoading={isLoading}
+          isLoadingAnalytics={isLoadingAnalytics}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onNavigateToTab={(tab) => setActiveTab(tab)}
@@ -212,7 +249,6 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onCreateOrder={onCreateOrder}
           onUpdateInvoice={onUpdateInvoice}
           onDeleteOrder={onDeleteOrder}
-          onDeleteInvoice={onDeleteInvoice}
           onFetchCredits={onFetchCredits}
           onFetchProducts={onFetchProducts}
           isLoadingCustomers={isLoadingCustomers}

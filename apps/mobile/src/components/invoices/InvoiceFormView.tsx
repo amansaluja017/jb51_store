@@ -831,6 +831,56 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
           </View>
         </View>
 
+        {/* Order Channel / Type Selector for Conversion Tracking */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Order Type (Traffic Conversion)</Text>
+          <Text style={{ fontSize: 12, color: '#71717a', marginBottom: 8 }}>
+            Categorize this order to accurately calculate online catalog conversion vs in-store walk-in sales.
+          </Text>
+          <View style={styles.paymentSelector}>
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                (formValues.orderType || 'offline') === 'online' &&
+                  styles.paymentOptionActive,
+              ]}
+              onPress={() =>
+                setValue('orderType', 'online', { shouldDirty: true })
+              }
+            >
+              <Text
+                style={[
+                  styles.paymentOptionText,
+                  (formValues.orderType || 'offline') === 'online' &&
+                    styles.paymentOptionTextActive,
+                ]}
+              >
+                🌐 Online Order
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                (formValues.orderType || 'offline') === 'offline' &&
+                  styles.paymentOptionActive,
+              ]}
+              onPress={() =>
+                setValue('orderType', 'offline', { shouldDirty: true })
+              }
+            >
+              <Text
+                style={[
+                  styles.paymentOptionText,
+                  (formValues.orderType || 'offline') === 'offline' &&
+                    styles.paymentOptionTextActive,
+                ]}
+              >
+                🏪 Offline / In-Store
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Payment Method Selector */}
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Payment Method</Text>

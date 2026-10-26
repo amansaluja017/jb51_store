@@ -38,6 +38,7 @@ export interface InvoiceFormValues {
   clientEmail: string;
   clientPhone: string;
   clientAddress: string;
+  orderType: 'online' | 'offline';
   taxRate: string;
   discount: string;
   paymentMethod: 'Cash' | 'Online' | 'Credit';
@@ -86,7 +87,6 @@ interface InvoiceScreenProps {
   onCreateOrder: (orderData: any) => Promise<any>;
   onUpdateInvoice?: (invoiceData: any) => Promise<any>;
   onDeleteOrder?: (id: string, label: string) => Promise<void>;
-  onDeleteInvoice?: (id: string, label: string) => Promise<void>;
   onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
   onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
@@ -115,7 +115,6 @@ export default function InvoiceScreen({
   onCreateOrder,
   onUpdateInvoice,
   onDeleteOrder,
-  onDeleteInvoice,
   onFetchCredits,
   onFetchProducts,
   onFetchPaginatedCustomers,
@@ -287,6 +286,7 @@ export default function InvoiceScreen({
       clientEmail: '',
       clientPhone: '',
       clientAddress: '',
+      orderType: 'offline',
       taxRate: '12',
       discount: '0',
       paymentMethod: 'Online',
@@ -751,6 +751,7 @@ export default function InvoiceScreen({
         email: formValues.clientEmail.trim() || null,
         address: formValues.clientAddress.trim() || null,
         status: 'confirmed',
+        orderType: formValues.orderType || 'offline',
         paymentMethod: formValues.paymentMethod.toLowerCase(),
         subtotal,
         gst: taxAmount,
@@ -958,6 +959,7 @@ export default function InvoiceScreen({
       clientEmail: '',
       clientPhone: '',
       clientAddress: '',
+      orderType: 'offline',
       taxRate: '12',
       discount: '0',
       paymentMethod: 'Online',
@@ -1111,23 +1113,6 @@ export default function InvoiceScreen({
                   setOrderTotalCount(res.totalCount || 0);
                 }
               }
-              if (onFetchPaginatedInvoices) {
-                const invRes = await onFetchPaginatedInvoices({
-                  page: invoicePage,
-                  limit: 15,
-                  search: searchFilter.trim() || undefined,
-                });
-                if (invRes) {
-                  setRemoteInvoices(invRes.items || []);
-                  setInvoiceTotalPages(invRes.totalPages || 1);
-                  setInvoiceTotalCount(invRes.totalCount || 0);
-                }
-              }
-            }
-          }}
-          onDeleteInvoice={async (id, label) => {
-            if (onDeleteInvoice) {
-              await onDeleteInvoice(id, label);
               if (onFetchPaginatedInvoices) {
                 const invRes = await onFetchPaginatedInvoices({
                   page: invoicePage,

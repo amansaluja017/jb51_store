@@ -8,8 +8,10 @@ import { useState, useEffect } from 'react';
 import { cn, WHATSAPP_NUMBER, formatPrice } from '@/lib/utils';
 import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export function Navbar() {
+  const { trackEvent } = useAnalytics();
   const pathname = usePathname();
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -87,9 +89,6 @@ export function Navbar() {
     { label: 'Shop All', href: '/shop' },
     { label: 'Support', href: '/support' },
   ];
-
-  const isAdmin = pathname.startsWith('/admin');
-  if (isAdmin) return null;
 
   const isHome = pathname === '/';
   const isTransparent = isHome && !isScrolled;
@@ -370,6 +369,7 @@ export function Navbar() {
               href={`https://wa.me/${WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackEvent({ type: 'whatsapp' })}
               className="flex flex-col items-center text-[9px] tracking-widest uppercase text-zinc-800 font-semibold"
             >
               <MessageCircle size={18} strokeWidth={1.5} className="mb-1" />
