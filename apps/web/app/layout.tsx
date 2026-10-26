@@ -105,6 +105,7 @@ export const metadata: Metadata = {
 import { WishlistProvider } from '@/context/WishlistContext';
 import { cn } from "@/lib/utils";
 import { PageTransition } from '@/components/layout/PageTransition';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -162,6 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="bottom-center" />
           </WishlistProvider>
         </TRPCReactProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
