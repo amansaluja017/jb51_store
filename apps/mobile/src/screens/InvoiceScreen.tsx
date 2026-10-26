@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Text,
   View,
@@ -100,7 +100,9 @@ interface InvoiceScreenProps {
   onFetchInvoices: () => Promise<void>;
   onFetchOrders: (force?: boolean) => Promise<void>;
   onCreateOrder: (orderData: any) => Promise<any>;
-  onDeleteInvoice: (id: string, label: string) => Promise<void>;
+  onUpdateInvoice?: (invoiceData: any) => Promise<any>;
+  onDeleteOrder?: (id: string, label: string) => Promise<void>;
+  onDeleteInvoice?: (id: string, label: string) => Promise<void>;
   onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
   onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
@@ -127,6 +129,8 @@ export default function InvoiceScreen({
   onFetchInvoices,
   onFetchOrders,
   onCreateOrder,
+  onUpdateInvoice,
+  onDeleteOrder,
   onDeleteInvoice,
   onFetchCredits,
   onFetchProducts,
@@ -140,6 +144,7 @@ export default function InvoiceScreen({
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formSubPage, setFormSubPage] = useState<'form' | 'select-customer' | 'select-product'>('form');
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -172,7 +177,15 @@ export default function InvoiceScreen({
   };
 
   // Fetch paginated invoices from backend
+  const prevRefreshingRef = useRef(false);
   useEffect(() => {
+    // If effect triggered because refreshing transitioned from true to false, skip refetch
+    if (prevRefreshingRef.current && !refreshing) {
+      prevRefreshingRef.current = false;
+      return;
+    }
+    prevRefreshingRef.current = !!refreshing;
+
     if (!onFetchPaginatedInvoices) return;
 
     let isCancelled = false;
@@ -205,7 +218,14 @@ export default function InvoiceScreen({
   }, [invoicePage, searchFilter, onFetchPaginatedInvoices, refreshing]);
 
   // Fetch paginated orders from backend
+  const prevOrderRefreshingRef = useRef(false);
   useEffect(() => {
+    if (prevOrderRefreshingRef.current && !refreshing) {
+      prevOrderRefreshingRef.current = false;
+      return;
+    }
+    prevOrderRefreshingRef.current = !!refreshing;
+
     if (!onFetchPaginatedOrders || activeLedgerTab !== 'orders') return;
 
     let isCancelled = false;
@@ -770,7 +790,44 @@ export default function InvoiceScreen({
         notes: formValues.notes.trim() || null,
       };
 
-      await onCreateOrder(orderPayload);
+      if (editingInvoice) {
+        if (!onUpdateInvoice) {
+          throw new Error('Update invoice handler not provided');
+        }
+        const updatePayload = {
+          id: editingInvoice.id,
+          customerId: selectedCustomerId || null,
+          customerName: clientName,
+          phoneNumber: formValues.clientPhone.trim() || null,
+          email: formValues.clientEmail.trim() || null,
+          address: formValues.clientAddress.trim() || null,
+          mode: formValues.paymentMethod.toLowerCase(),
+          subtotal,
+          gst: taxAmount,
+          taxRate: parseFloat(formValues.taxRate) || 0,
+          discount: discountAmount,
+          totalAmount,
+          finalAmount: totalAmount,
+          paidAmount: isCredit ? paidAmt : totalAmount,
+          dueAmount: isCredit ? dueAmt : 0,
+          dueDate: dDate,
+          advancePaymentMode: advanceMode,
+          items: invoiceItems.map((item) => ({
+            productId: item.productId,
+            productVariantId: item.productVariantId || null,
+            productName: item.name,
+            variantColor: item.variantColor || null,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            total: item.total,
+          })),
+          notes: formValues.notes.trim() || null,
+        };
+
+        await onUpdateInvoice(updatePayload);
+      } else {
+        await onCreateOrder(orderPayload);
+      }
 
       // 2. Generate & Share PDF
       const pdfData = {
@@ -822,14 +879,15 @@ export default function InvoiceScreen({
       }
 
       showAlert(
-        'Invoice Created',
-        `Invoice ${invNumber} was saved, order recorded, and inventory updated!`,
+        editingInvoice ? 'Invoice Updated' : 'Invoice Created',
+        editingInvoice
+          ? `Invoice ${invNumber} and its associated order were updated successfully!`
+          : `Invoice ${invNumber} was saved, order recorded, and inventory updated!`,
         'success'
       );
 
       // 5. Refresh databases & Reset form
       await Promise.all([
-        onFetchInvoices(),
         onFetchOrders(true),
         onFetchCustomers(),
         onFetchCredits ? onFetchCredits() : Promise.resolve(),
@@ -855,6 +913,7 @@ export default function InvoiceScreen({
 
       setIsPreviewOpen(false);
       setIsFormOpen(false);
+      setEditingInvoice(null);
       setFormSubPage('form');
       reset();
       setInvoiceItems([]);
@@ -899,6 +958,7 @@ export default function InvoiceScreen({
   const handleOpenNewInvoice = () => {
     setIsPreviewOpen(false);
     setViewingInvoice(null);
+    setEditingInvoice(null);
     setSelectedCustomerId(null);
     setInvoiceItems([]);
     setSelectedProduct(null);
@@ -919,7 +979,58 @@ export default function InvoiceScreen({
       paymentMethod: 'Online',
       paidAmount: '0',
       dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+      advancePaymentMode: 'Cash',
       notes: '',
+    });
+
+    setIsFormOpen(true);
+    setFormSubPage('form');
+  };
+
+  // Open invoice editor
+  const handleOpenEditInvoice = (inv: Invoice) => {
+    setIsPreviewOpen(false);
+    setViewingInvoice(null);
+    setEditingInvoice(inv);
+    setSelectedCustomerId(inv.customerId || null);
+
+    const rawMode = (inv.mode || 'cash').toLowerCase();
+    const paymentMethod = rawMode === 'credit' ? 'Credit' : rawMode === 'cash' ? 'Cash' : 'Online';
+
+    const items: InvoiceItem[] = Array.isArray(inv.items)
+      ? inv.items.map((it: any, idx: number) => ({
+          id: it.id || `item_${idx}_${Date.now()}`,
+          productId: it.productId,
+          productVariantId: it.productVariantId,
+          name: it.productName || it.name || 'Product',
+          variantColor: it.variantColor || null,
+          price: Number(it.unitPrice || it.price || 0),
+          quantity: Number(it.quantity || 1),
+          total: Number(it.total || Number(it.unitPrice || it.price || 0) * Number(it.quantity || 1)),
+        }))
+      : [];
+
+    setInvoiceItems(items);
+    setSelectedProduct(null);
+    setSelectedVariant(null);
+    setShowCustomerDropdown(false);
+    setShowProductDropdown(false);
+
+    reset({
+      invoiceNumber: inv.invoiceNumber || `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      invoiceDate: inv.createdAt ? formatDateSafe(inv.createdAt) : new Date().toLocaleDateString('en-IN'),
+      paymentDate: inv.createdAt ? new Date(inv.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      clientName: inv.customerName || '',
+      clientEmail: inv.email || '',
+      clientPhone: inv.phoneNumber || '',
+      clientAddress: (inv as any).address || '',
+      taxRate: inv.taxRate ? String(inv.taxRate) : '0',
+      discount: inv.discount ? String(inv.discount) : '0',
+      paymentMethod,
+      paidAmount: inv.paidAmount ? String(inv.paidAmount) : '0',
+      dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+      advancePaymentMode: inv.advancePaymentMode?.toLowerCase() === 'online' ? 'Online' : 'Cash',
+      notes: inv.notes || '',
     });
 
     setIsFormOpen(true);
@@ -997,18 +1108,36 @@ export default function InvoiceScreen({
             setViewingInvoice(inv);
             setIsPreviewOpen(true);
           }}
-          onDeleteInvoice={async (id, label) => {
-            await onDeleteInvoice(id, label);
-            if (onFetchPaginatedInvoices) {
-              const res = await onFetchPaginatedInvoices({
-                page: invoicePage,
-                limit: 15,
-                search: searchFilter.trim() || undefined,
-              });
-              if (res) {
-                setRemoteInvoices(res.items || []);
-                setInvoiceTotalPages(res.totalPages || 1);
-                setInvoiceTotalCount(res.totalCount || 0);
+          onEditInvoice={handleOpenEditInvoice}
+          onDeleteOrder={async (id, label) => {
+            if (onDeleteOrder) {
+              await onDeleteOrder(id, label);
+              if (selectedOrderModal?.id === id) {
+                setSelectedOrderModal(null);
+              }
+              if (onFetchPaginatedOrders) {
+                const res = await onFetchPaginatedOrders({
+                  page: orderPage,
+                  limit: 15,
+                  search: searchFilter.trim() || undefined,
+                });
+                if (res) {
+                  setRemoteOrders(res.items || []);
+                  setOrderTotalPages(res.totalPages || 1);
+                  setOrderTotalCount(res.totalCount || 0);
+                }
+              }
+              if (onFetchPaginatedInvoices) {
+                const invRes = await onFetchPaginatedInvoices({
+                  page: invoicePage,
+                  limit: 15,
+                  search: searchFilter.trim() || undefined,
+                });
+                if (invRes) {
+                  setRemoteInvoices(invRes.items || []);
+                  setInvoiceTotalPages(invRes.totalPages || 1);
+                  setInvoiceTotalCount(invRes.totalCount || 0);
+                }
               }
             }
           }}
@@ -1096,9 +1225,11 @@ export default function InvoiceScreen({
           discountAmount={discountAmount}
           totalAmount={totalAmount}
           taxRate={formValues.taxRate}
+          isEditing={!!editingInvoice}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onCloseForm={() => {
+            setEditingInvoice(null);
             setFormSubPage('form');
             setIsFormOpen(false);
           }}
@@ -1135,6 +1266,36 @@ export default function InvoiceScreen({
       <OrderDetailsModal
         order={selectedOrderModal}
         onClose={() => setSelectedOrderModal(null)}
+        onDeleteOrder={async (id, orderNumber) => {
+          if (onDeleteOrder) {
+            await onDeleteOrder(id, orderNumber);
+            setSelectedOrderModal(null);
+            if (onFetchPaginatedOrders) {
+              const res = await onFetchPaginatedOrders({
+                page: orderPage,
+                limit: 15,
+                search: searchFilter.trim() || undefined,
+              });
+              if (res) {
+                setRemoteOrders(res.items || []);
+                setOrderTotalPages(res.totalPages || 1);
+                setOrderTotalCount(res.totalCount || 0);
+              }
+            }
+            if (onFetchPaginatedInvoices) {
+              const invRes = await onFetchPaginatedInvoices({
+                page: invoicePage,
+                limit: 15,
+                search: searchFilter.trim() || undefined,
+              });
+              if (invRes) {
+                setRemoteInvoices(invRes.items || []);
+                setInvoiceTotalPages(invRes.totalPages || 1);
+                setInvoiceTotalCount(invRes.totalCount || 0);
+              }
+            }
+          }
+        }}
       />
 
       {/* ---------------- MANUAL CUSTOMER CREATION MODAL ---------------- */}
@@ -1161,6 +1322,7 @@ export default function InvoiceScreen({
           setViewingInvoice(null);
         }}
         isViewingPast={isViewingPast}
+        isEditing={!!editingInvoice}
         activeInvNumber={activeInvNumber}
         activeInvDate={activeInvDate}
         activePaymentMethod={activePaymentMethod}

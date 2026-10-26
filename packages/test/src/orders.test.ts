@@ -1,7 +1,7 @@
 import test, { describe, it, after } from 'node:test';
 import assert from 'node:assert';
 import 'dotenv/config';
-import { db, orders as ordersTable, orderItems as orderItemsTable, customerDetails as customerDetailsTable } from '@repo/db';
+import { db, orders as ordersTable, orderItems as orderItemsTable, customerDetails as customerDetailsTable, invoices as invoicesTable } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { ordersRouter } from '@repo/products/router';
 import {
@@ -108,5 +108,51 @@ describe('Orders Router and Controller Suite', () => {
     assert.ok(order.id);
     createdOrderIds.push(order.id);
     assert.strictEqual(Number(order.totalAmount), 18000);
+  });
+
+  it('delete: admin can delete an order and verify associated invoice is also deleted', async () => {
+    const adminCaller = ordersRouter.createCaller(adminContext);
+    const order = await adminCaller.create({
+      customerName: `Delete Test Customer ${timestamp}`,
+      phoneNumber: `+9195${Math.floor(10000000 + Math.random() * 90000000)}`,
+      totalAmount: 12000,
+      paymentMethod: 'cash',
+      items: [
+        {
+          name: 'Item to Delete',
+          quantity: 1,
+          price: 12000,
+          total: 12000,
+        },
+      ],
+    });
+
+    assert.ok(order?.id);
+    assert.ok(order.invoice?.id);
+
+    // Verify invoice exists in DB
+    const [invBefore] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, order.invoice.id));
+    assert.ok(invBefore, 'Invoice should exist before order deletion');
+
+    // Delete the order
+    const result = await adminCaller.delete({ id: order.id });
+    assert.ok(result.success);
+
+    // Verify order is deleted
+    const [ordAfter] = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, order.id));
+    assert.strictEqual(ordAfter, undefined, 'Order should be deleted from DB');
+
+    // Verify invoice is also deleted
+    const [invAfter] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, order.invoice.id));
+    assert.strictEqual(invAfter, undefined, 'Invoice should also be deleted when order is deleted');
   });
 });

@@ -474,7 +474,7 @@ export default function PrivacyPolicyPage() {
                     <Mail size={16} className="text-[#FF5E36] shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-zinc-900 block mb-0.5">Electronic Communication</strong>
-                      <p className="text-zinc-600">Email: concierge@jb51.in</p>
+                      <p className="text-zinc-600">Email: support@jb51.shop</p>
                       <p className="text-zinc-600">WhatsApp: +{WHATSAPP_NUMBER}</p>
                     </div>
                   </div>

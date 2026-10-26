@@ -85,6 +85,7 @@ export function useAppData() {
   const hasFetchedInvoices = useRef(false);
   const hasFetchedReviews = useRef(false);
   const hasFetchedOrders = useRef(false);
+  const hasFetchedCustomers = useRef(false);
   const isFetchingOrders = useRef(false);
 
   // Search & Modals
@@ -196,10 +197,6 @@ export function useAppData() {
         handleFetchOrders();
       }
     } else if (activeTab === 'invoices') {
-      if (!hasFetchedInvoices.current) {
-        hasFetchedInvoices.current = true;
-        handleFetchInvoices();
-      }
       // Hit order history route directly in invoices section, not waiting until opening order history
       if (!hasFetchedOrders.current) {
         handleFetchOrders();
@@ -316,6 +313,7 @@ export function useAppData() {
       hasFetchedInvoices.current = false;
       hasFetchedReviews.current = false;
       hasFetchedOrders.current = false;
+      hasFetchedCustomers.current = false;
       showAlert('Logged Out', 'Your admin session has ended.', 'info');
     }
   };
@@ -402,7 +400,8 @@ export function useAppData() {
     }
   };
 
-  const handleFetchTransactions = async () => {
+  const handleFetchTransactions = useCallback(async (force = false) => {
+    if (hasFetchedTransactions.current && !force) return;
     try {
       setIsLoadingTransactions(true);
       const res = await trpcRequest('inventory.getTransactions');
@@ -415,7 +414,7 @@ export function useAppData() {
     } finally {
       setIsLoadingTransactions(false);
     }
-  };
+  }, [token, apiHost]);
 
   const handleRecordTransaction = async (data: {
     productId: string;
@@ -442,7 +441,7 @@ export function useAppData() {
       );
 
       await handleFetchProducts(true);
-      await handleFetchTransactions();
+      await handleFetchTransactions(true);
     } catch (err: any) {
       console.error('[handleRecordTransaction Error]:', err);
       showAlert('Transaction Error', err.message || 'Failed to record inventory transaction', 'error');
@@ -450,21 +449,23 @@ export function useAppData() {
     }
   };
 
-  const handleFetchCustomers = async () => {
+  const handleFetchCustomers = useCallback(async (force = false) => {
+    if (hasFetchedCustomers.current && !force) return;
     setIsLoadingCustomers(true);
     try {
       const res = await trpcRequest('customers.getAll');
       if (Array.isArray(res)) {
         setCustomers(res as Customer[]);
       }
+      hasFetchedCustomers.current = true;
     } catch (err: any) {
       console.error('[handleFetchCustomers Error]:', err);
     } finally {
       setIsLoadingCustomers(false);
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedCustomers = async (params?: {
+  const handleFetchPaginatedCustomers = useCallback(async (params?: {
     search?: string;
     sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
     page?: number;
@@ -479,9 +480,9 @@ export function useAppData() {
       console.error('[handleFetchPaginatedCustomers Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedProducts = async (params?: {
+  const handleFetchPaginatedProducts = useCallback(async (params?: {
     search?: string;
     category?: string;
     inStockOnly?: boolean;
@@ -498,9 +499,9 @@ export function useAppData() {
       console.error('[handleFetchPaginatedProducts Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedStock = async (params?: {
+  const handleFetchPaginatedStock = useCallback(async (params?: {
     search?: string;
     category?: string;
     stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
@@ -517,9 +518,9 @@ export function useAppData() {
       console.error('[handleFetchPaginatedStock Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedInvoices = async (params?: {
+  const handleFetchPaginatedInvoices = useCallback(async (params?: {
     search?: string;
     mode?: 'all' | 'cash' | 'online' | 'credit';
     sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'amount-desc' | 'amount-asc';
@@ -530,14 +531,18 @@ export function useAppData() {
       const res: any = await trpcRequest('invoices.getPaginated', {
         input: params,
       });
+      if ((!params?.page || params.page === 1) && !params?.search && res?.items && Array.isArray(res.items)) {
+        setInvoices(res.items as Invoice[]);
+        hasFetchedInvoices.current = true;
+      }
       return res;
     } catch (err: any) {
       console.error('[handleFetchPaginatedInvoices Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedOrders = async (params?: {
+  const handleFetchPaginatedOrders = useCallback(async (params?: {
     search?: string;
     status?: string;
     sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'totalAmount-desc' | 'totalAmount-asc';
@@ -548,14 +553,18 @@ export function useAppData() {
       const res: any = await trpcRequest('orders.getPaginated', {
         input: params,
       });
+      if ((!params?.page || params.page === 1) && !params?.search && res?.items && Array.isArray(res.items)) {
+        setOrders(res.items as Order[]);
+        hasFetchedOrders.current = true;
+      }
       return res;
     } catch (err: any) {
       console.error('[handleFetchPaginatedOrders Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedCredits = async (params?: {
+  const handleFetchPaginatedCredits = useCallback(async (params?: {
     search?: string;
     filterTab?: 'all' | 'pending' | 'overdue' | 'settled';
     sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'dueAmount-desc' | 'dueDate-asc';
@@ -571,9 +580,9 @@ export function useAppData() {
       console.error('[handleFetchPaginatedCredits Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchPaginatedReviews = async (params?: {
+  const handleFetchPaginatedReviews = useCallback(async (params?: {
     search?: string;
     approved?: boolean;
     page?: number;
@@ -588,7 +597,7 @@ export function useAppData() {
       console.error('[handleFetchPaginatedReviews Error]:', err);
       throw err;
     }
-  };
+  }, [token, apiHost]);
 
   const handleCreateCustomer = async (data: {
     name: string;
@@ -681,7 +690,8 @@ export function useAppData() {
     }
   };
 
-  const handleFetchReviews = async () => {
+  const handleFetchReviews = useCallback(async (force = false) => {
+    if (hasFetchedReviews.current && !force) return;
     setIsLoadingReviews(true);
     try {
       const res: any = await trpcRequest('reviews.getPaginated', {
@@ -698,25 +708,27 @@ export function useAppData() {
     } finally {
       setIsLoadingReviews(false);
     }
-  };
+  }, [token, apiHost]);
 
-  const handleFetchInvoices = async () => {
+  const handleFetchInvoices = useCallback(async (force = false) => {
+    if (hasFetchedInvoices.current && !force) return;
     setIsLoadingInvoices(true);
     try {
       const res: any = await trpcRequest('invoices.getPaginated', {
-        input: { page: 1, limit: 20 },
+        input: { page: 1, limit: 15 },
       });
       if (res?.items && Array.isArray(res.items)) {
         setInvoices(res.items as Invoice[]);
       } else if (Array.isArray(res)) {
         setInvoices(res as Invoice[]);
       }
+      hasFetchedInvoices.current = true;
     } catch (err: any) {
       console.error('[handleFetchInvoices Error]:', err);
     } finally {
       setIsLoadingInvoices(false);
     }
-  };
+  }, [token, apiHost]);
 
   const handleCreateOrder = async (orderData: any) => {
     try {
@@ -763,6 +775,49 @@ export function useAppData() {
       setIsLoadingOrders(false);
     }
   }, [token, apiHost]);
+
+  const handleUpdateInvoice = async (invoiceData: any) => {
+    try {
+      const res: any = await trpcRequest('invoices.update', {
+        method: 'POST',
+        body: invoiceData,
+      });
+      if (res?.id) {
+        setInvoices(prev => prev.map(inv => (inv.id === res.id ? { ...inv, ...res } : inv)));
+      }
+      return res;
+    } catch (err: any) {
+      console.error('[handleUpdateInvoice Error]:', err);
+      showAlert('Update Invoice Error', err.message || 'Failed to update invoice', 'error');
+      throw err;
+    }
+  };
+
+  const handleDeleteOrder = async (id: string, label: string) => {
+    showAlert(
+      'Delete Order',
+      `Are you sure you want to delete order "${label}"? This action cannot be undone and will also delete the associated invoice, cancel credit records, and restore product stock.`,
+      'confirm',
+      async () => {
+        try {
+          const res: any = await trpcRequest('orders.delete', {
+            method: 'POST',
+            body: { id },
+          });
+          setOrders(prev => prev.filter(ord => ord.id !== id));
+          if (res?.deletedInvoiceIds && Array.isArray(res.deletedInvoiceIds)) {
+            setInvoices(prev => prev.filter(inv => !res.deletedInvoiceIds.includes(inv.id)));
+          } else {
+            setInvoices(prev => prev.filter(inv => inv.orderId !== id));
+          }
+          showAlert('Order Deleted', `Order "${label}" and associated invoice were deleted successfully.`, 'success');
+        } catch (err: any) {
+          console.error('[handleDeleteOrder Error]:', err);
+          showAlert('Error Deleting Order', err.message || 'Failed to delete order', 'error');
+        }
+      }
+    );
+  };
 
   const handleDeleteInvoice = async (id: string, label: string) => {
     showAlert(
@@ -1234,6 +1289,8 @@ export function useAppData() {
     handleFetchOrders,
     handleFetchPaginatedOrders,
     handleCreateOrder,
+    handleUpdateInvoice,
+    handleDeleteOrder,
     handleDeleteInvoice,
     // Reviews
     reviews,

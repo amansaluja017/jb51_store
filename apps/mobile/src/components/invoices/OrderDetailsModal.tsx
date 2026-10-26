@@ -9,6 +9,7 @@ import {
 import {
   ShoppingBag,
   X,
+  Trash2,
   User,
   PackageCheck,
   Receipt,
@@ -19,11 +20,13 @@ import styles from '../../screens/InvoiceScreen.styles';
 interface OrderDetailsModalProps {
   order: Order | null;
   onClose: () => void;
+  onDeleteOrder?: (id: string, orderNumber: string) => void;
 }
 
 export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   order,
   onClose,
+  onDeleteOrder,
 }) => {
   if (!order) return null;
 
@@ -169,12 +172,31 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 ) : null}
               </View>
 
-              <TouchableOpacity
-                onPress={onClose}
-                style={[styles.generateButton, { marginTop: 16 }]}
-              >
-                <Text style={styles.generateButtonText}>Close</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                {onDeleteOrder ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onDeleteOrder(order.id, order.orderNumber);
+                    }}
+                    style={[styles.orderDeleteModalBtn, { flex: 1 }]}
+                    accessibilityLabel={`Delete order ${order.orderNumber}`}
+                    accessibilityRole="button"
+                  >
+                    <Trash2 size={16} color="#ef4444" style={{ marginRight: 6 }} />
+                    <Text style={styles.orderDeleteModalBtnText}>Delete Order</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={[styles.generateButton, { flex: 1, marginTop: 0 }]}
+                  accessibilityLabel="Close order details modal"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.generateButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>

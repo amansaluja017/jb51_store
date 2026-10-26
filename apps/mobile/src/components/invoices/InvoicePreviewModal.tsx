@@ -36,6 +36,7 @@ export interface InvoicePreviewModalProps {
   activeAdvancePaymentMode?: string | null;
   activeTransactions?: any[];
   activeNotes?: string;
+  isEditing?: boolean;
   isSubmitting?: boolean;
   isExporting?: boolean;
   onShareOrExport: () => void;
@@ -45,6 +46,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
   visible,
   onClose,
   isViewingPast,
+  isEditing,
   activeInvNumber,
   activeInvDate,
   activePaymentMethod,
@@ -229,25 +231,10 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                     <Text style={styles.brandTitle}>JB51</Text>
                     <Text style={styles.brandSubtitle}>EST. 1951 - ATELIER</Text>
                     <Text style={styles.brandAddress}>
-                      Chandni Chowk, New Delhi, India{'\n'}atelier@jb51.store
+                      Chandni Chowk, New Delhi, India{'\n'}support@jb51.shop
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    {isCredit ? (
-                      <View
-                        style={{
-                          backgroundColor: '#ffedd5',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 4,
-                          marginBottom: 4,
-                        }}
-                      >
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#c2410c' }}>
-                          PAGE 1 OF 2
-                        </Text>
-                      </View>
-                    ) : null}
                     <Text style={styles.invoiceLabel}>INVOICE</Text>
                     <Text style={styles.invoiceDetailLabel}>Invoice Number</Text>
                     <Text style={styles.invoiceDetailValue}>{activeInvNumber}</Text>
@@ -446,7 +433,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                 {/* Footer */}
                 <View style={styles.paperFooter}>
                   <Text style={styles.thankYouText}>
-                    Thank you for your patronage at JB51.
+                    Thank you for your purchasing at JB51.
                   </Text>
                   {isCredit && (
                     <Text style={{ fontSize: 10, color: '#a1a1aa', marginTop: 4 }}>
@@ -503,23 +490,10 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                       EST. 1951 - ATELIER
                     </Text>
                     <Text style={styles.brandAddress}>
-                      Chandni Chowk, New Delhi, India{'\n'}atelier@jb51.store | +91 98100 00051
+                      Chandni Chowk, New Delhi, India{'\n'}support@jb51.shop | +91 98100 00051
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <View
-                      style={{
-                        backgroundColor: '#ffedd5',
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        borderRadius: 4,
-                        marginBottom: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: '#c2410c' }}>
-                        PAGE 2 OF 2
-                      </Text>
-                    </View>
                     <Text style={[styles.invoiceLabel, { color: '#c2410c', fontSize: 16 }]}>
                       CREDIT LEDGER
                     </Text>
@@ -789,33 +763,8 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                     {activeDueDate
                       ? `• Complete outstanding balance of ₹${balanceDue.toLocaleString('en-IN')} is payable on or before ${formatDateSafe(activeDueDate)}.\n`
                       : ''}
-                    • For payment verification or inquiries, contact atelier@jb51.store.
+                    • For payment verification or inquiries, contact support@jb51.shop.
                   </Text>
-                </View>
-
-                {/* Signatures & Seal Box */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginTop: 8,
-                    marginBottom: 16,
-                  }}
-                >
-                  <View style={{ width: '45%', alignItems: 'center' }}>
-                    <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#a1a1aa', borderStyle: 'dashed', marginBottom: 4 }} />
-                    <Text style={{ fontSize: 9, fontWeight: '600', color: '#52525b' }}>
-                      Customer Acknowledgment
-                    </Text>
-                    <Text style={{ fontSize: 8, color: '#a1a1aa' }}>{activeClientName || 'Customer'}</Text>
-                  </View>
-                  <View style={{ width: '45%', alignItems: 'center' }}>
-                    <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#a1a1aa', borderStyle: 'dashed', marginBottom: 4 }} />
-                    <Text style={{ fontSize: 9, fontWeight: '600', color: '#52525b' }}>
-                      Authorized Signatory & Seal
-                    </Text>
-                    <Text style={{ fontSize: 8, color: '#a1a1aa' }}>JB51 Atelier</Text>
-                  </View>
                 </View>
 
                 {/* Footer */}
@@ -845,10 +794,14 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                     {isCredit
                       ? isViewingPast
                         ? 'Share 2-Page PDF Invoice'
-                        : 'Create & Share 2-Page Invoice'
+                        : isEditing
+                          ? 'Update & Share 2-Page Invoice'
+                          : 'Create & Share 2-Page Invoice'
                       : isViewingPast
                         ? 'Share PDF Invoice'
-                        : 'Create & Share Invoice'}
+                        : isEditing
+                          ? 'Update & Share Invoice'
+                          : 'Create & Share Invoice'}
                   </Text>
                 </>
               )}

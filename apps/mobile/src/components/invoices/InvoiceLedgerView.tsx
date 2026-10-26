@@ -13,6 +13,7 @@ import {
   Plus,
   X,
   Trash2,
+  Edit3,
   Printer,
   ShoppingBag,
   Eye,
@@ -42,7 +43,9 @@ export interface InvoiceLedgerViewProps {
   filteredOrders: Order[];
   onOpenNewInvoice: () => void;
   onViewInvoice: (inv: Invoice) => void;
-  onDeleteInvoice: (id: string, invoiceNumber: string) => void;
+  onEditInvoice?: (inv: Invoice) => void;
+  onDeleteOrder?: (id: string, orderNumber: string) => void;
+  onDeleteInvoice?: (id: string, invoiceNumber: string) => void;
   onSelectOrder: (order: Order) => void;
   invoicePage?: number;
   invoiceTotalPages?: number;
@@ -71,6 +74,8 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   filteredOrders,
   onOpenNewInvoice,
   onViewInvoice,
+  onEditInvoice,
+  onDeleteOrder,
   onDeleteInvoice,
   onSelectOrder,
   invoicePage = 1,
@@ -351,19 +356,16 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                           </View>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                          onPress={() =>
-                            onDeleteInvoice(
-                              inv.id,
-                              inv.invoiceNumber || inv.customerName || 'Invoice'
-                            )
-                          }
-                          style={styles.deleteInvoiceBtn}
-                          accessibilityLabel={`Delete invoice ${inv.invoiceNumber || inv.id}`}
-                          accessibilityRole="button"
-                        >
-                          <Trash2 size={16} color="#ef4444" />
-                        </TouchableOpacity>
+                        {onEditInvoice ? (
+                          <TouchableOpacity
+                            onPress={() => onEditInvoice(inv)}
+                            style={styles.editInvoiceBtn}
+                            accessibilityLabel={`Edit invoice ${inv.invoiceNumber || inv.customerName || inv.id}`}
+                            accessibilityRole="button"
+                          >
+                            <Edit3 size={15} color="#ea580c" />
+                          </TouchableOpacity>
+                        ) : null}
                       </View>
                     );
                   })
@@ -528,15 +530,28 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                             </Text>
                           </View>
 
-                          <TouchableOpacity
-                            onPress={() => onSelectOrder(ord)}
-                            style={styles.orderViewDetailsBtn}
-                            accessibilityLabel={`View details for order ${ord.orderNumber}`}
-                            accessibilityRole="button"
-                          >
-                            <Eye size={13} color="#ffffff" style={{ marginRight: 5 }} />
-                            <Text style={styles.orderViewDetailsBtnText}>Order Details</Text>
-                          </TouchableOpacity>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            {onDeleteOrder ? (
+                              <TouchableOpacity
+                                onPress={() => onDeleteOrder(ord.id, ord.orderNumber)}
+                                style={styles.deleteOrderBtn}
+                                accessibilityLabel={`Delete order ${ord.orderNumber}`}
+                                accessibilityRole="button"
+                              >
+                                <Trash2 size={15} color="#ef4444" />
+                              </TouchableOpacity>
+                            ) : null}
+
+                            <TouchableOpacity
+                              onPress={() => onSelectOrder(ord)}
+                              style={styles.orderViewDetailsBtn}
+                              accessibilityLabel={`View details for order ${ord.orderNumber}`}
+                              accessibilityRole="button"
+                            >
+                              <Eye size={13} color="#ffffff" style={{ marginRight: 5 }} />
+                              <Text style={styles.orderViewDetailsBtnText}>Order Details</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     );

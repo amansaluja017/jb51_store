@@ -4,8 +4,8 @@ import { getProducts, getPaginatedProducts, getProductBySlug, createProduct, upd
 import { getReviews, getPaginatedReviews, createReview, updateReview, deleteReview } from './reviews.js';
 import { recordInventoryTransaction, getInventoryTransactions, getPaginatedInventory } from './inventory.js';
 import { getCustomers, getPaginatedCustomers, createCustomer, updateCustomer, deleteCustomer } from './customers.js';
-import { getOrders, getPaginatedOrders, createOrder, getCustomerOrderHistory } from './orders.js';
-import { getInvoices, getPaginatedInvoices, createInvoice, deleteInvoice } from './invoices.js';
+import { getOrders, getPaginatedOrders, createOrder, deleteOrder, getCustomerOrderHistory } from './orders.js';
+import { getInvoices, getPaginatedInvoices, createInvoice, updateInvoice, deleteInvoice } from './invoices.js';
 import { getCredits, getPaginatedCredits, createCredit, updateCredit, recordCreditPayment, deleteCredit, getCreditTransactions } from './credits.js';
 import { 
   GetAllProductsOutputSchema, 
@@ -401,6 +401,12 @@ export const ordersRouter = t.router({
         userId: input.userId || ctx.user?.id || null,
       });
     }),
+  delete: adminProcedure
+    .meta({ description: 'Delete an order and its associated invoice, reverting stock (Admin only)' })
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      return await deleteOrder(input.id);
+    }),
 });
 
 export const invoicesRouter = t.router({
@@ -455,6 +461,40 @@ export const invoicesRouter = t.router({
     )
     .mutation(async ({ ctx, input }) => {
       return await createInvoice({
+        ...input,
+        userId: input.userId || ctx.user?.id || null,
+      });
+    }),
+  update: adminProcedure
+    .meta({ description: 'Update an existing invoice and propagate changes to its order (Admin only)' })
+    .input(
+      z.object({
+        id: z.string(),
+        customerId: z.string().optional().nullable(),
+        customerName: z.string().optional().nullable(),
+        phoneNumber: z.string().optional().nullable(),
+        email: z.string().optional().nullable(),
+        address: z.string().optional().nullable(),
+        productId: z.string().optional().nullable(),
+        userId: z.string().optional().nullable(),
+        quantity: z.number().optional(),
+        mode: z.enum(['cash', 'online', 'credit']).optional(),
+        subtotal: z.number().optional().nullable(),
+        gst: z.number().optional().nullable(),
+        taxRate: z.union([z.number(), z.string()]).optional().nullable(),
+        discount: z.number().optional().nullable(),
+        totalAmount: z.number().optional().nullable(),
+        finalAmount: z.number().optional().nullable(),
+        items: z.array(orderItemSchema).optional(),
+        notes: z.string().optional().nullable(),
+        paidAmount: z.union([z.number(), z.string()]).optional().nullable(),
+        dueAmount: z.union([z.number(), z.string()]).optional().nullable(),
+        dueDate: z.union([z.string(), z.date()]).optional().nullable(),
+        advancePaymentMode: z.string().optional().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await updateInvoice({
         ...input,
         userId: input.userId || ctx.user?.id || null,
       });

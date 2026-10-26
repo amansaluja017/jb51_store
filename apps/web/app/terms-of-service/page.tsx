@@ -472,7 +472,7 @@ export default function TermsOfServicePage() {
                     <div>
                       <strong className="text-zinc-900 block mb-0.5">Direct Channels</strong>
                       <p className="text-zinc-600">WhatsApp: +{WHATSAPP_NUMBER}</p>
-                      <p className="text-zinc-600">Email: concierge@jb51.in</p>
+                      <p className="text-zinc-600">Email: support@jb51.shop</p>
                       <p className="text-zinc-600">Hours: Mon – Sat, 10:00 AM – 7:00 PM IST</p>
                     </div>
                   </div>

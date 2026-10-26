@@ -110,6 +110,8 @@ export default function App() {
           onFetchOrders={data.handleFetchOrders}
           onFetchPaginatedOrders={data.handleFetchPaginatedOrders}
           onCreateOrder={data.handleCreateOrder}
+          onUpdateInvoice={data.handleUpdateInvoice}
+          onDeleteOrder={data.handleDeleteOrder}
           onDeleteInvoice={data.handleDeleteInvoice}
           onFetchCredits={() => data.handleFetchCredits(true)}
           onFetchProducts={data.handleFetchProducts}

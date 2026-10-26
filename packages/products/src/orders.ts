@@ -12,7 +12,7 @@ import {
   OrderItemInput,
   InvoiceItem,
 } from '@repo/db';
-import { desc, eq, and, inArray } from 'drizzle-orm';
+import { desc, eq, and, or, inArray } from 'drizzle-orm';
 import { generateSlug } from './customers.js';
 
 export interface CreateOrderInput {
@@ -680,4 +680,150 @@ export async function getPaginatedOrders(input?: GetPaginatedOrdersInput) {
     totalPages,
     totalOrdersValue,
   };
+}
+
+export async function deleteOrder(id: string) {
+  return await db.transaction(async (tx) => {
+    // 1. Fetch order
+    const [order] = await tx
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, id));
+
+    if (!order) {
+      throw new Error(`Order with ID ${id} not found`);
+    }
+
+    // 2. Fetch items for this order
+    const items = await tx
+      .select()
+      .from(orderItemsTable)
+      .where(eq(orderItemsTable.orderId, id));
+
+    // 3. Revert inventory stock
+    const affectedProductIds = new Set<string>();
+    for (const item of items) {
+      if (!item.productId) continue;
+      const quantity = Math.floor(Number(item.quantity));
+      if (isNaN(quantity) || quantity <= 0) continue;
+
+      affectedProductIds.add(item.productId);
+
+      const invRows = await tx
+        .select()
+        .from(inventryTable)
+        .where(
+          item.productVariantId
+            ? and(
+                eq(inventryTable.productId, item.productId),
+                eq(inventryTable.productVariant, item.productVariantId)
+              )
+            : eq(inventryTable.productId, item.productId)
+        );
+
+      if (invRows.length > 0) {
+        const invRow = invRows[0]!;
+        await tx
+          .update(inventryTable)
+          .set({
+            availableStock: invRow.availableStock + quantity,
+            totalStock: (invRow.totalStock || invRow.availableStock) + quantity,
+            updatedAt: new Date(),
+          })
+          .where(eq(inventryTable.id, invRow.id));
+      }
+
+      await tx.insert(inventryTransactionTable).values({
+        productId: item.productId,
+        productVariant: item.productVariantId || null,
+        type: 'adjustment',
+        quantity,
+        customerId: order.customerId || null,
+        userId: order.userId || null,
+        unitPrice: item.unitPrice,
+        totalAmount: item.total,
+        notes: `Stock restored on order deletion (${order.orderNumber})`,
+      });
+    }
+
+    // Update productStatus inStock flag
+    for (const prodId of affectedProductIds) {
+      const allProdInv = await tx
+        .select()
+        .from(inventryTable)
+        .where(eq(inventryTable.productId, prodId));
+      const totalAvail = allProdInv.reduce(
+        (sum, it) => sum + (it.availableStock || 0),
+        0
+      );
+      const inStock = totalAvail > 0;
+      await tx
+        .insert(productStatusTable)
+        .values({
+          productId: prodId,
+          status: 'listed',
+          inStock,
+        })
+        .onConflictDoUpdate({
+          target: productStatusTable.productId,
+          set: { inStock, updatedAt: new Date() },
+        });
+    }
+
+    // 4. Find associated invoices
+    const associatedInvoices = await tx
+      .select()
+      .from(invoicesTable)
+      .where(
+        or(
+          eq(invoicesTable.orderId, order.id),
+          eq(invoicesTable.invoiceNumber, order.orderNumber.replace('ORD', 'INV'))
+        )
+      );
+    const invoiceIds = associatedInvoices.map((i) => i.id);
+
+    // 5. Delete associated credits and credit transactions
+    const creditConditions = [eq(creditsTable.orderId, order.id)];
+    if (invoiceIds.length > 0) {
+      creditConditions.push(inArray(creditsTable.invoiceId, invoiceIds));
+    }
+    const associatedCredits = await tx
+      .select()
+      .from(creditsTable)
+      .where(or(...creditConditions));
+
+    const creditIds = associatedCredits.map((c) => c.id);
+    if (creditIds.length > 0) {
+      await tx
+        .delete(creditTransactionsTable)
+        .where(inArray(creditTransactionsTable.creditId, creditIds));
+      await tx
+        .delete(creditsTable)
+        .where(inArray(creditsTable.id, creditIds));
+    }
+
+    // 6. Delete associated invoices
+    if (invoiceIds.length > 0) {
+      await tx
+        .delete(invoicesTable)
+        .where(inArray(invoicesTable.id, invoiceIds));
+    }
+
+    // 7. Delete order items
+    await tx
+      .delete(orderItemsTable)
+      .where(eq(orderItemsTable.orderId, order.id));
+
+    // 8. Delete the order
+    const [deleted] = await tx
+      .delete(ordersTable)
+      .where(eq(ordersTable.id, order.id))
+      .returning();
+
+    return {
+      success: true,
+      order: deleted,
+      deletedInvoiceIds: invoiceIds,
+    };
+  });
 }

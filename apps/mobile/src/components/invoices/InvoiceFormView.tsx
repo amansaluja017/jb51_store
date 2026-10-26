@@ -74,6 +74,7 @@ export interface InvoiceFormViewProps {
   discountAmount: number;
   totalAmount: number;
   taxRate: string;
+  isEditing?: boolean;
   onCloseForm: () => void;
   onPreview: () => void;
   refreshing?: boolean;
@@ -85,6 +86,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
   errors,
   formValues,
   setValue,
+  isEditing,
   setSelectedCustomerId,
   customerSearchQuery,
   setCustomerSearchQuery,
@@ -245,7 +247,7 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
           <X size={18} color="#71717a" />
           <Text style={styles.formBackButtonText}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.formTitle}>New Invoice</Text>
+        <Text style={styles.formTitle}>{isEditing ? 'Edit Invoice' : 'New Invoice'}</Text>
       </View>
 
       {/* Customer Selection Section */}
@@ -1149,7 +1151,9 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
           accessibilityLabel="Preview and generate invoice button"
           accessibilityRole="button"
         >
-          <Text style={styles.generateButtonText}>Preview & Create Invoice</Text>
+          <Text style={styles.generateButtonText}>
+            {isEditing ? 'Preview & Update Invoice' : 'Preview & Create Invoice'}
+          </Text>
         </TouchableOpacity>
       </View>
 

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Mail, MessageCircle, MapPin, ChevronDown } from 'lucide-react';
-import { WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
+import { WHATSAPP_NUMBER, INSTAGRAM_HANDLE, COMPANY_EMAIL } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import dynamic from 'next/dynamic';
@@ -75,8 +75,8 @@ export default function SupportPage() {
                   <div>
                     <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Email Support</h3>
                     <p className="text-brand-brown/70 font-light mb-2">Expect a response within 24 hours</p>
-                    <a href="mailto:[EMAIL_ADDRESS]" className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5">
-                      [EMAIL_ADDRESS]
+                    <a href={`mailto:${COMPANY_EMAIL}`} className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5">
+                      {COMPANY_EMAIL}
                     </a>
                   </div>
                 </div>

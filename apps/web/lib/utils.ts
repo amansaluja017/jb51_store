@@ -53,3 +53,4 @@ Link: ${url}`;
 
 export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '919876543210';
 export const INSTAGRAM_HANDLE = process.env.NEXT_PUBLIC_INSTAGRAM_HANDLE || 'jb51clothing';
+export const COMPANY_EMAIL = process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'support@jb51.shop';

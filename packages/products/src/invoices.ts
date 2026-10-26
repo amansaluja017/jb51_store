@@ -3,6 +3,9 @@ import {
   invoices as invoicesTable,
   customerDetails as customerDetailsTable,
   orders as ordersTable,
+  orderItems as orderItemsTable,
+  inventry as inventryTable,
+  productStatus as productStatusTable,
   credits as creditsTable,
   creditTransactions as creditTransactionsTable,
   InvoiceItem,
@@ -328,6 +331,302 @@ export async function getInvoices() {
       advancePaymentMode: row.creditAdvancePaymentMode || null,
       creditTransactions: invoiceTransactions,
     };
+  });
+}
+
+export interface UpdateInvoiceInput {
+  id: string;
+  customerId?: string | null;
+  customerName?: string | null;
+  phoneNumber?: string | null;
+  email?: string | null;
+  address?: string | null;
+  productId?: string | null;
+  userId?: string | null;
+  quantity?: number;
+  mode?: 'cash' | 'online' | 'credit';
+  subtotal?: number | null;
+  gst?: number | null;
+  taxRate?: number | string | null;
+  discount?: number | null;
+  totalAmount?: number | null;
+  finalAmount?: number | null;
+  items?: InvoiceItem[];
+  notes?: string | null;
+  paidAmount?: number | string | null;
+  dueAmount?: number | string | null;
+  dueDate?: string | Date | null;
+  advancePaymentMode?: string | null;
+}
+
+export async function updateInvoice(input: UpdateInvoiceInput) {
+  return await db.transaction(async (tx) => {
+    // 1. Find existing invoice
+    const [existingInv] = await tx
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, input.id));
+
+    if (!existingInv) {
+      throw new Error(`Invoice with ID ${input.id} not found`);
+    }
+
+    const finalAmount =
+      input.finalAmount !== undefined && input.finalAmount !== null
+        ? input.finalAmount
+        : input.totalAmount !== undefined && input.totalAmount !== null
+          ? input.totalAmount
+          : Number(existingInv.finalAmount || existingInv.totalAmount || 0);
+
+    const newItems = input.items !== undefined ? input.items : existingInv.items || [];
+    const totalQuantity = newItems.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
+    const paymentMode = input.mode || (existingInv.mode as 'cash' | 'online' | 'credit') || 'cash';
+
+    const customerId = input.customerId !== undefined ? input.customerId : existingInv.customerId;
+    const clientName = input.customerName !== undefined ? input.customerName : existingInv.customerName;
+    const phoneNumber = input.phoneNumber !== undefined ? input.phoneNumber : existingInv.phoneNumber;
+    const email = input.email !== undefined ? input.email : existingInv.email;
+    const address = input.address;
+
+    // If customer details changed and customerId exists, synchronize customer details table
+    if (customerId) {
+      await tx
+        .update(customerDetailsTable)
+        .set({
+          name: clientName || undefined,
+          phoneNumber: phoneNumber || undefined,
+          email: email || undefined,
+          address: address || undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(customerDetailsTable.id, customerId));
+    }
+
+    // 2. Update invoice
+    const [updatedInv] = await tx
+      .update(invoicesTable)
+      .set({
+        customerId,
+        customerName: clientName,
+        phoneNumber,
+        email,
+        productId: newItems[0]?.productId || existingInv.productId || null,
+        quantity: totalQuantity || 1,
+        mode: paymentMode,
+        subtotal: input.subtotal !== undefined && input.subtotal !== null ? input.subtotal.toString() : existingInv.subtotal,
+        gst: input.gst !== undefined && input.gst !== null ? input.gst.toString() : existingInv.gst,
+        taxRate: input.taxRate !== undefined && input.taxRate !== null ? input.taxRate.toString() : existingInv.taxRate,
+        discount: input.discount !== undefined && input.discount !== null ? input.discount.toString() : existingInv.discount,
+        totalAmount: input.totalAmount !== undefined && input.totalAmount !== null ? input.totalAmount.toString() : existingInv.totalAmount,
+        finalAmount: finalAmount.toString(),
+        items: newItems,
+        notes: input.notes !== undefined ? input.notes : existingInv.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(invoicesTable.id, existingInv.id))
+      .returning();
+
+    // 3. Synchronize corresponding order
+    let orderId = existingInv.orderId;
+    if (!orderId && existingInv.invoiceNumber) {
+      const orderNumber = existingInv.invoiceNumber.replace('INV', 'ORD');
+      const [matched] = await tx
+        .select()
+        .from(ordersTable)
+        .where(eq(ordersTable.orderNumber, orderNumber));
+      if (matched) {
+        orderId = matched.id;
+        await tx.update(invoicesTable).set({ orderId }).where(eq(invoicesTable.id, existingInv.id));
+      }
+    }
+
+    if (orderId) {
+      // Update order header
+      await tx
+        .update(ordersTable)
+        .set({
+          customerId,
+          paymentMethod: paymentMode,
+          subtotal: input.subtotal !== undefined && input.subtotal !== null ? input.subtotal.toString() : undefined,
+          gst: input.gst !== undefined && input.gst !== null ? input.gst.toString() : undefined,
+          taxRate: input.taxRate !== undefined && input.taxRate !== null ? input.taxRate.toString() : undefined,
+          discount: input.discount !== undefined && input.discount !== null ? input.discount.toString() : undefined,
+          totalAmount: finalAmount.toString(),
+          notes: input.notes !== undefined ? input.notes : undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(ordersTable.id, orderId));
+
+      // If items were provided in input, reconcile inventory and update order_items
+      if (input.items !== undefined) {
+        const oldItems = await tx
+          .select()
+          .from(orderItemsTable)
+          .where(eq(orderItemsTable.orderId, orderId));
+
+        // Revert old inventory
+        const affectedProductIds = new Set<string>();
+        for (const oldIt of oldItems) {
+          if (!oldIt.productId) continue;
+          affectedProductIds.add(oldIt.productId);
+          const qty = Math.floor(Number(oldIt.quantity));
+          if (qty > 0) {
+            const invRows = await tx
+              .select()
+              .from(inventryTable)
+              .where(
+                oldIt.productVariantId
+                  ? and(
+                      eq(inventryTable.productId, oldIt.productId),
+                      eq(inventryTable.productVariant, oldIt.productVariantId)
+                    )
+                  : eq(inventryTable.productId, oldIt.productId)
+              );
+            if (invRows.length > 0) {
+              const invRow = invRows[0]!;
+              await tx
+                .update(inventryTable)
+                .set({
+                  availableStock: invRow.availableStock + qty,
+                  totalStock: (invRow.totalStock || invRow.availableStock) + qty,
+                  updatedAt: new Date(),
+                })
+                .where(eq(inventryTable.id, invRow.id));
+            }
+          }
+        }
+
+        // Deduct new inventory
+        for (const newIt of newItems) {
+          if (!newIt.productId) continue;
+          affectedProductIds.add(newIt.productId);
+          const qty = Math.floor(Number(newIt.quantity));
+          if (qty > 0) {
+            const invRows = await tx
+              .select()
+              .from(inventryTable)
+              .where(
+                newIt.productVariantId
+                  ? and(
+                      eq(inventryTable.productId, newIt.productId),
+                      eq(inventryTable.productVariant, newIt.productVariantId)
+                    )
+                  : eq(inventryTable.productId, newIt.productId)
+              );
+            if (invRows.length > 0) {
+              const invRow = invRows[0]!;
+              const newAvail = Math.max(0, invRow.availableStock - qty);
+              const newTot = Math.max(0, (invRow.totalStock || invRow.availableStock) - qty);
+              await tx
+                .update(inventryTable)
+                .set({
+                  availableStock: newAvail,
+                  totalStock: newTot,
+                  updatedAt: new Date(),
+                })
+                .where(eq(inventryTable.id, invRow.id));
+            }
+          }
+        }
+
+        // Update productStatus inStock flag
+        for (const prodId of affectedProductIds) {
+          const allProdInv = await tx
+            .select()
+            .from(inventryTable)
+            .where(eq(inventryTable.productId, prodId));
+          const totalAvail = allProdInv.reduce(
+            (sum, it) => sum + (it.availableStock || 0),
+            0
+          );
+          await tx
+            .insert(productStatusTable)
+            .values({
+              productId: prodId,
+              status: 'listed',
+              inStock: totalAvail > 0,
+            })
+            .onConflictDoUpdate({
+              target: productStatusTable.productId,
+              set: { inStock: totalAvail > 0, updatedAt: new Date() },
+            });
+        }
+
+        // Replace order items
+        await tx
+          .delete(orderItemsTable)
+          .where(eq(orderItemsTable.orderId, orderId));
+
+        if (newItems.length > 0) {
+          await tx
+            .insert(orderItemsTable)
+            .values(
+              newItems.map((it) => ({
+                orderId: orderId!,
+                productId: it.productId || null,
+                productVariantId: it.productVariantId || null,
+                productName: it.productName,
+                variantColor: it.variantColor || null,
+                quantity: Number(it.quantity) || 1,
+                unitPrice: it.unitPrice.toString(),
+                total: it.total.toString(),
+              }))
+            );
+        }
+      }
+    }
+
+    // 4. Update credit if applicable
+    if (
+      paymentMode === 'credit' ||
+      (input.dueAmount !== undefined && input.dueAmount !== null && Number(input.dueAmount) > 0)
+    ) {
+      const paidAmt = Math.max(0, Number(input.paidAmount) || 0);
+      const dueAmt =
+        input.dueAmount !== undefined && input.dueAmount !== null
+          ? Math.max(0, Number(input.dueAmount))
+          : Math.max(0, Number(finalAmount) - paidAmt);
+      const dDate = input.dueDate ? new Date(input.dueDate) : null;
+      const advMode = input.advancePaymentMode
+        ? input.advancePaymentMode.toLowerCase()
+        : paidAmt > 0
+          ? 'cash'
+          : null;
+
+      const [existingCredit] = await tx
+        .select()
+        .from(creditsTable)
+        .where(
+          orderId
+            ? or(eq(creditsTable.invoiceId, existingInv.id), eq(creditsTable.orderId, orderId))
+            : eq(creditsTable.invoiceId, existingInv.id)
+        );
+
+      if (existingCredit) {
+        await tx
+          .update(creditsTable)
+          .set({
+            paidAmount: paidAmt.toFixed(2),
+            dueAmount: dueAmt.toFixed(2),
+            dueDate: dDate,
+            advancePaymentMode: advMode || existingCredit.advancePaymentMode,
+            updatedAt: new Date(),
+          })
+          .where(eq(creditsTable.id, existingCredit.id));
+      } else {
+        await tx.insert(creditsTable).values({
+          invoiceId: existingInv.id,
+          orderId: orderId || null,
+          userId: input.userId || existingInv.userId || null,
+          paidAmount: paidAmt.toFixed(2),
+          dueAmount: dueAmt.toFixed(2),
+          dueDate: dDate,
+          advancePaymentMode: advMode,
+        });
+      }
+    }
+
+    return updatedInv;
   });
 }
 

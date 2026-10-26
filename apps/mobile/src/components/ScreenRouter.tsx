@@ -58,6 +58,8 @@ export interface ScreenRouterProps {
   onFetchOrders: (force?: boolean) => Promise<void>;
   onFetchPaginatedOrders?: (params?: any) => Promise<any>;
   onCreateOrder: (orderData: any) => Promise<any>;
+  onUpdateInvoice?: (invoiceData: any) => Promise<any>;
+  onDeleteOrder?: (id: string, label: string) => Promise<void>;
   onDeleteInvoice: (id: string, label: string) => Promise<void>;
   onFetchCredits?: () => Promise<any> | void;
   onFetchProducts?: () => Promise<void>;
@@ -119,6 +121,8 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onFetchOrders,
   onFetchPaginatedOrders,
   onCreateOrder,
+  onUpdateInvoice,
+  onDeleteOrder,
   onDeleteInvoice,
   onFetchCredits,
   onFetchProducts,
@@ -206,6 +210,8 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onFetchOrders={onFetchOrders}
           onFetchPaginatedOrders={onFetchPaginatedOrders}
           onCreateOrder={onCreateOrder}
+          onUpdateInvoice={onUpdateInvoice}
+          onDeleteOrder={onDeleteOrder}
           onDeleteInvoice={onDeleteInvoice}
           onFetchCredits={onFetchCredits}
           onFetchProducts={onFetchProducts}
