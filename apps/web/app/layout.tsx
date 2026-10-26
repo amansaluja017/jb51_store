@@ -6,6 +6,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Toaster } from 'sonner';
 import { TRPCReactProvider } from '@/lib/trpc/client/react';
+import { Analytics } from '@vercel/analytics/next';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -162,6 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="bottom-center" />
           </WishlistProvider>
         </TRPCReactProvider>
+        <Analytics />
       </body>
     </html>
   );
