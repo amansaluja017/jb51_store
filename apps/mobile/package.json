@@ -14,6 +14,7 @@
     "expo": "~55.0.30",
     "expo-dev-client": "~55.0.39",
     "expo-document-picker": "^55.0.17",
+    "expo-file-system": "^58.0.11",
     "expo-image-picker": "~55.0.24",
     "expo-notifications": "^55.0.27",
     "expo-print": "^55.0.19",

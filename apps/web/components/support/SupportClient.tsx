@@ -9,13 +9,18 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { api } from '@/lib/trpc/client/react';
 
 const Dropdown = dynamic(() => import('@/components/ui/Dropdown').then(mod => mod.Dropdown), { ssr: false });
 
 export function SupportClient() {
   const { trackEvent } = useAnalytics();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState("");
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [message, setMessage] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
 
   const subjects = [
     { value: "order", label: "Order Status / Issue" },
@@ -24,14 +29,56 @@ export function SupportClient() {
     { value: "other", label: "Other Inquiry" }
   ];
 
+  const createInquiryMutation = api.inqueries.create.useMutation({
+    onSuccess: () => {
+      toast.success('Thank you for reaching out! Our concierge will contact you shortly.');
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setPhone('');
+      setSelectedSubject('');
+      setMessage('');
+      try {
+        trackEvent({ type: 'inquiry' as any });
+      } catch (_) {}
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to submit inquiry. Please try again.');
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    // Simulate form submission
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success('Thank you for reaching out. Our concierge will contact you shortly.');
-    }, 1200);
+    if (!selectedSubject) {
+      toast.error('Please select an inquiry subject.');
+      return;
+    }
+
+    let inqueryType: 'general' | 'sales' | 'support' | 'product' | 'other' = 'general';
+    let subjectLabel = 'General Inquiry';
+    if (selectedSubject === 'order') {
+      inqueryType = 'sales';
+      subjectLabel = 'Order Status / Issue';
+    } else if (selectedSubject === 'styling') {
+      inqueryType = 'general';
+      subjectLabel = 'Styling Advice';
+    } else if (selectedSubject === 'customization') {
+      inqueryType = 'product';
+      subjectLabel = 'Bespoke Customization';
+    } else if (selectedSubject === 'other') {
+      inqueryType = 'other';
+      subjectLabel = 'Other Inquiry';
+    }
+
+    createInquiryMutation.mutate({
+      customerName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      email: email.trim(),
+      phoneNumber: phone.trim() || null,
+      message: message.trim(),
+      inqueryType,
+      productName: subjectLabel,
+      channel: 'Web',
+    });
   };
 
   return (
@@ -150,22 +197,49 @@ export function SupportClient() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label htmlFor="firstName" className="text-[10px] tracking-widest uppercase font-medium">First Name *</label>
-                    <input required id="firstName" type="text" className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors" />
+                    <input
+                      required
+                      id="firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors"
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="lastName" className="text-[10px] tracking-widest uppercase font-medium">Last Name *</label>
-                    <input required id="lastName" type="text" className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors" />
+                    <input
+                      required
+                      id="lastName"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors"
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label htmlFor="email" className="text-[10px] tracking-widest uppercase font-medium">Email Address *</label>
-                    <input required id="email" type="email" className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors" />
+                    <input
+                      required
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors"
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="phone" className="text-[10px] tracking-widest uppercase font-medium">Phone Number</label>
-                    <input id="phone" type="tel" className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors" />
+                    <input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors"
+                    />
                   </div>
                 </div>
 
@@ -184,14 +258,21 @@ export function SupportClient() {
 
                 <div className="flex flex-col gap-2 mt-4">
                   <label htmlFor="message" className="text-[10px] tracking-widest uppercase font-medium">Message *</label>
-                  <textarea required id="message" rows={4} className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors resize-none" />
+                  <textarea
+                    required
+                    id="message"
+                    rows={4}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="w-full bg-transparent border-b border-brand-brass/30 py-2 outline-none focus:border-brand-maroon transition-colors resize-none"
+                  />
                 </div>
 
                 <Button 
                   type="submit" 
-                  isLoading={isSubmitting}
+                  isLoading={createInquiryMutation.isPending}
                   className="mt-8 w-full"
-                  aria-label={isSubmitting ? "Submitting Inquiry" : "Submit Inquiry"}
+                  aria-label={createInquiryMutation.isPending ? "Submitting Inquiry" : "Submit Inquiry"}
                 >
                   Submit Inquiry
                 </Button>

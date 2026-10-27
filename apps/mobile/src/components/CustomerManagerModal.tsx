@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -39,6 +39,7 @@ import {
 } from 'lucide-react-native';
 import { Customer, Order } from '../types';
 import { colors } from '../theme/colors';
+import { CustomerListSkeleton } from './SkeletonLoader';
 
 export interface CustomerHistoryResponse {
   customer: Customer;
@@ -50,10 +51,22 @@ export interface CustomerHistoryResponse {
 
 export interface CustomerManagerModalProps {
   visible: boolean;
-  customers: Customer[];
-  isLoading: boolean;
+  customers?: Customer[];
+  isLoading?: boolean;
   onClose: () => void;
-  onRefresh: () => void;
+  onRefresh?: () => void;
+  onFetchPaginatedCustomers?: (params?: {
+    search?: string;
+    sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<{
+    items: Customer[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>;
   onFetchCustomerHistory: (customerId: string) => Promise<CustomerHistoryResponse>;
   onCreateCustomer: (data: {
     name: string;
@@ -68,7 +81,7 @@ export interface CustomerManagerModalProps {
     email?: string | null;
     address?: string | null;
   }) => Promise<any>;
-  onDeleteCustomer: (id: string, name?: string) => void;
+  onDeleteCustomer: (id: string, name?: string, onSuccess?: () => void) => void;
   showAlert: (
     title: string,
     message: string,
@@ -81,10 +94,11 @@ type SortOption = 'name-asc' | 'name-desc' | 'newest';
 
 export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
   visible,
-  customers,
-  isLoading,
+  customers = [],
+  isLoading = false,
   onClose,
   onRefresh,
+  onFetchPaginatedCustomers,
   onFetchCustomerHistory,
   onCreateCustomer,
   onUpdateCustomer,
@@ -93,6 +107,13 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('name-asc');
+
+  // Paginated remote customers state
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerTotalPages, setCustomerTotalPages] = useState(1);
+  const [customerTotalCount, setCustomerTotalCount] = useState(0);
+  const [remoteCustomers, setRemoteCustomers] = useState<Customer[] | null>(null);
+  const [isLoadingPaginated, setIsLoadingPaginated] = useState(false);
 
   // Customer History state (Loaded on demand from backend route)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -147,6 +168,112 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
     setFormVisible(true);
   };
 
+  // Fetch paginated customers from backend route
+  const fetchPaginated = useCallback(
+    async (pageToFetch = customerPage, query = searchQuery, sort = sortOption) => {
+      if (!onFetchPaginatedCustomers) return;
+      try {
+        setIsLoadingPaginated(true);
+        const mappedSort =
+          sort === 'newest'
+            ? 'createdAt-desc'
+            : sort === 'name-desc'
+            ? 'name-desc'
+            : 'name-asc';
+
+        const res = await onFetchPaginatedCustomers({
+          page: pageToFetch,
+          limit: 10,
+          search: query.trim() || undefined,
+          sortBy: mappedSort,
+        });
+
+        if (res) {
+          setRemoteCustomers(res.items || []);
+          setCustomerTotalPages(res.totalPages || 1);
+          setCustomerTotalCount(res.total ?? 0);
+          setCustomerPage(res.page || pageToFetch);
+        }
+      } catch (err) {
+        console.error('[CustomerManagerModal] Error fetching paginated customers:', err);
+      } finally {
+        setIsLoadingPaginated(false);
+      }
+    },
+    [onFetchPaginatedCustomers, customerPage, searchQuery, sortOption]
+  );
+
+  useEffect(() => {
+    if (!visible || !onFetchPaginatedCustomers) return;
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setIsLoadingPaginated(true);
+        const mappedSort =
+          sortOption === 'newest'
+            ? 'createdAt-desc'
+            : sortOption === 'name-desc'
+            ? 'name-desc'
+            : 'name-asc';
+
+        const res = await onFetchPaginatedCustomers({
+          page: customerPage,
+          limit: 10,
+          search: searchQuery.trim() || undefined,
+          sortBy: mappedSort,
+        });
+
+        if (!isCancelled && res) {
+          setRemoteCustomers(res.items || []);
+          setCustomerTotalPages(res.totalPages || 1);
+          setCustomerTotalCount(res.total ?? 0);
+        }
+      } catch (err) {
+        console.error('[CustomerManagerModal] Error fetching paginated customers:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingPaginated(false);
+        }
+      }
+    }, searchQuery ? 250 : 0);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [visible, customerPage, sortOption, searchQuery, onFetchPaginatedCustomers]);
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    setCustomerPage(1);
+  };
+
+  const handleSortChange = (newSort: SortOption) => {
+    setSortOption(newSort);
+    setCustomerPage(1);
+  };
+
+  const handleRefresh = async () => {
+    if (onFetchPaginatedCustomers) {
+      await fetchPaginated(customerPage);
+    } else if (onRefresh) {
+      onRefresh();
+    }
+  };
+
+  const handleDeleteItem = (id: string, name?: string) => {
+    onDeleteCustomer(id, name, () => {
+      if (onFetchPaginatedCustomers) {
+        if (remoteCustomers && remoteCustomers.length <= 1 && customerPage > 1) {
+          setCustomerPage(p => p - 1);
+        } else {
+          fetchPaginated(customerPage);
+        }
+      }
+    });
+  };
+
   // Handle Form Submission (Create or Update)
   const handleSaveForm = async () => {
     const trimmedName = formName.trim();
@@ -176,6 +303,9 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
         if (selectedCustomer && selectedCustomer.id === editingCustomer.id) {
           setSelectedCustomer(updated);
         }
+        if (onFetchPaginatedCustomers) {
+          fetchPaginated(customerPage);
+        }
       } else {
         await onCreateCustomer({
           name: trimmedName,
@@ -183,6 +313,10 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
           email: trimmedEmail || undefined,
           address: trimmedAddress || undefined,
         });
+        if (onFetchPaginatedCustomers) {
+          setCustomerPage(1);
+          fetchPaginated(1, '', sortOption);
+        }
       }
       setFormVisible(false);
     } catch {
@@ -194,6 +328,9 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
 
   // Filter & Sort customers on frontend directory
   const filteredCustomers = useMemo(() => {
+    if (onFetchPaginatedCustomers && remoteCustomers !== null) {
+      return remoteCustomers;
+    }
     let list = [...customers];
 
     if (searchQuery.trim()) {
@@ -220,7 +357,12 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
     }
 
     return list;
-  }, [customers, searchQuery, sortOption]);
+  }, [customers, searchQuery, sortOption, onFetchPaginatedCustomers, remoteCustomers]);
+
+  const displayTotalCount =
+    onFetchPaginatedCustomers && remoteCustomers !== null
+      ? customerTotalCount
+      : customers.length;
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -291,8 +433,8 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
             <Text style={styles.headerSubtitle}>
               {selectedCustomer
                 ? 'Client Order History'
-                : `${customers.length} registered ${
-                    customers.length === 1 ? 'client' : 'clients'
+                : `${displayTotalCount} registered ${
+                    displayTotalCount === 1 ? 'client' : 'clients'
                   }`}
             </Text>
           </View>
@@ -332,12 +474,12 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
                   placeholder="Search by name, phone, email, city..."
                   placeholderTextColor="#a1a1aa"
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={handleSearchChange}
                   autoCorrect={false}
                   clearButtonMode="while-editing"
                 />
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+                  <TouchableOpacity onPress={() => handleSearchChange('')} style={styles.clearBtn}>
                     <X size={14} color="#71717a" />
                   </TouchableOpacity>
                 )}
@@ -350,7 +492,7 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
                   <Text style={styles.sortLabel}>Sort:</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => setSortOption('name-asc')}
+                  onPress={() => handleSortChange('name-asc')}
                   style={[
                     styles.sortChip,
                     sortOption === 'name-asc' && styles.sortChipActive,
@@ -366,7 +508,7 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setSortOption('name-desc')}
+                  onPress={() => handleSortChange('name-desc')}
                   style={[
                     styles.sortChip,
                     sortOption === 'name-desc' && styles.sortChipActive,
@@ -382,7 +524,7 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setSortOption('newest')}
+                  onPress={() => handleSortChange('newest')}
                   style={[
                     styles.sortChip,
                     sortOption === 'newest' && styles.sortChipActive,
@@ -408,34 +550,91 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl
-                  refreshing={isLoading}
-                  onRefresh={onRefresh}
+                  refreshing={isLoadingPaginated || isLoading}
+                  onRefresh={handleRefresh}
                   tintColor="#FF5E36"
                   colors={['#FF5E36']}
                 />
               }
               ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <View style={styles.emptyIconWrap}>
-                    <Users size={36} color="#a1a1aa" />
+                isLoadingPaginated && (!remoteCustomers || remoteCustomers.length === 0) ? (
+                  <CustomerListSkeleton />
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconWrap}>
+                      <Users size={36} color="#a1a1aa" />
+                    </View>
+                    <Text style={styles.emptyTitle}>
+                      {searchQuery ? 'No Matching Customers' : 'No Customers Registered'}
+                    </Text>
+                    <Text style={styles.emptySubtitle}>
+                      {searchQuery
+                        ? `No customer matches "${searchQuery}". Try modifying your query.`
+                        : 'Add customer profiles to generate quick invoices and keep track of purchase histories.'}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.emptyAddBtn}
+                      onPress={openAddForm}
+                      activeOpacity={0.8}
+                    >
+                      <Plus size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.emptyAddBtnText}>Add First Customer</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.emptyTitle}>
-                    {searchQuery ? 'No Matching Customers' : 'No Customers Registered'}
-                  </Text>
-                  <Text style={styles.emptySubtitle}>
-                    {searchQuery
-                      ? `No customer matches "${searchQuery}". Try modifying your query.`
-                      : 'Add customer profiles to generate quick invoices and keep track of purchase histories.'}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.emptyAddBtn}
-                    onPress={openAddForm}
-                    activeOpacity={0.8}
-                  >
-                    <Plus size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.emptyAddBtnText}>Add First Customer</Text>
-                  </TouchableOpacity>
-                </View>
+                )
+              }
+              ListFooterComponent={
+                customerTotalPages > 1 ? (
+                  <View style={styles.paginationBar}>
+                    <Text style={styles.paginationInfo}>
+                      Page {customerPage} of {customerTotalPages}
+                      {customerTotalCount > 0 ? ` • ${customerTotalCount} total` : ''}
+                    </Text>
+                    <View style={styles.paginationControls}>
+                      <TouchableOpacity
+                        style={[
+                          styles.pageButton,
+                          customerPage <= 1 && styles.pageButtonDisabled,
+                        ]}
+                        onPress={() => setCustomerPage(p => Math.max(1, p - 1))}
+                        disabled={customerPage <= 1}
+                        accessibilityLabel="Previous page"
+                        accessibilityRole="button"
+                      >
+                        <ChevronLeft
+                          size={16}
+                          color={customerPage <= 1 ? '#d4d4d8' : '#18181b'}
+                        />
+                      </TouchableOpacity>
+
+                      <View style={styles.pageNumberBadge}>
+                        <Text style={styles.pageNumberText}>
+                          {customerPage} / {customerTotalPages}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.pageButton,
+                          customerPage >= customerTotalPages && styles.pageButtonDisabled,
+                        ]}
+                        onPress={() =>
+                          setCustomerPage(p => Math.min(customerTotalPages, p + 1))
+                        }
+                        disabled={customerPage >= customerTotalPages}
+                        accessibilityLabel="Next page"
+                        accessibilityRole="button"
+                      >
+                        <ChevronRight
+                          size={16}
+                          color={
+                            customerPage >= customerTotalPages ? '#d4d4d8' : '#18181b'
+                          }
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null
               }
               renderItem={({ item }) => (
                 <View style={styles.customerCard}>
@@ -519,7 +718,7 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
 
                     <TouchableOpacity
                       style={styles.actionBtnDelete}
-                      onPress={() => onDeleteCustomer(item.id, item.name)}
+                      onPress={() => handleDeleteItem(item.id, item.name)}
                       activeOpacity={0.7}
                     >
                       <Trash2 size={14} color="#dc2626" style={{ marginRight: 6 }} />
@@ -1962,6 +2161,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  paginationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  paginationInfo: {
+    fontSize: 12,
+    color: '#71717a',
+    fontWeight: '500',
+  },
+  paginationControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pageButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f4f4f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#fafafa',
+  },
+  pageNumberBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: '#f4f4f5',
+  },
+  pageNumberText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#18181b',
   },
 });
 

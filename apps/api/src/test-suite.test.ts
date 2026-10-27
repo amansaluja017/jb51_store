@@ -189,7 +189,7 @@ test('Product Images & Cloudinary Upload Infrastructure', async (t) => {
       const created = await createProduct({
         name: 'Deduplication Test Outfit',
         slug: testSlug,
-        description: 'Testing that adding 3 images creates exactly 3 rows in product_images without doubling.',
+        description: 'Handcrafted with meticulous dedication by master artisans, this exquisite ensemble reflects the timeless heritage of traditional Indian royal tailoring. Every single stitch embodies generations of craftsmanship, using only authentic high thread count pure fabrics that drape effortlessly against the silhouette. The intricate hand embroidered motifs, inspired by classical architecture and royal heritage gardens, feature delicate zardozi, shimmering gota patti, and fine threadwork accents. Designed specifically for celebratory occasions, festive soirées, and grand family milestones, this garment balances contemporary elegance with rich royal cultural heritage. Complete with tailored comfort, bespoke finishing, and luxurious accents, it offers unmatched sophistication for the modern connoisseur of bespoke occasion wear.',
         mrp: 1999,
         sellingPrice: 1499,
         category: 'Test Category',

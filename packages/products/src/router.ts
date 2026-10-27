@@ -8,6 +8,19 @@ import { getOrders, getPaginatedOrders, createOrder, deleteOrder, getCustomerOrd
 import { getInvoices, getPaginatedInvoices, createInvoice, updateInvoice, deleteInvoice } from './invoices.js';
 import { getCredits, getPaginatedCredits, createCredit, updateCredit, recordCreditPayment, deleteCredit, getCreditTransactions } from './credits.js';
 import {
+  getInquiries,
+  getPaginatedInquiries,
+  createInquiry,
+  updateInquiryStatus,
+  deleteInquiry,
+} from './inquiries.js';
+import {
+  getWishlistByFingerprint,
+  syncWishlist,
+  addToWishlist,
+  removeFromWishlist,
+} from './wishlist.js';
+import {
   getOverallAnalytics,
   getProductAnalytics,
   getAnalyticsOverview,
@@ -841,4 +854,120 @@ export const analyticsRouter = t.router({
       return await trackAnalyticsEvent(input);
     }),
 });
+
+export const inquiriesRouter = t.router({
+  getAll: t.procedure
+    .meta({ description: 'Fetch all customer inquiries' })
+    .query(async () => {
+      return await getInquiries();
+    }),
+  getPaginated: t.procedure
+    .meta({ description: 'Fetch paginated inquiries with sort and search options' })
+    .input(
+      z
+        .object({
+          search: z.string().nullish(),
+          status: z.enum(['all', 'pending', 'responded', 'resolved']).nullish(),
+          sortBy: z.enum(['recent', 'oldest', 'name-asc', 'name-desc']).nullish().default('recent'),
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(10),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedInquiries(input || undefined);
+    }),
+  create: t.procedure
+    .meta({ description: 'Create a new customer inquiry from Web Contact form or Mobile' })
+    .input(
+      z.object({
+        customerName: z.string().min(1, 'Name is required'),
+        phoneNumber: z.string().nullish(),
+        email: z.string().nullish(),
+        message: z.string().min(1, 'Message is required'),
+        inqueryType: z.enum(['general', 'sales', 'support', 'product', 'other']).nullish(),
+        productName: z.string().nullish(),
+        size: z.string().nullish(),
+        color: z.string().nullish(),
+        channel: z.string().nullish(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await createInquiry({
+        customerName: input.customerName,
+        phoneNumber: input.phoneNumber,
+        email: input.email,
+        message: input.message,
+        inqueryType: input.inqueryType,
+        productName: input.productName,
+        size: input.size,
+        color: input.color,
+        channel: input.channel || 'Web',
+      });
+    }),
+  updateStatus: t.procedure
+    .meta({ description: 'Update status of an inquiry' })
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.enum(['pending', 'responded', 'resolved']),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await updateInquiryStatus(input.id, input.status);
+    }),
+  delete: adminProcedure
+    .meta({ description: 'Delete an inquiry' })
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      return await deleteInquiry(input.id);
+    }),
+});
+
+export const wishlistRouter = t.router({
+  get: t.procedure
+    .meta({ description: 'Fetch wishlist items for a browser fingerprint' })
+    .input(z.object({ fingerprint: z.string().min(1) }))
+    .query(async ({ input }) => {
+      return await getWishlistByFingerprint(input.fingerprint);
+    }),
+
+  sync: t.procedure
+    .meta({ description: 'Sync client wishlist with database using browser fingerprint' })
+    .input(
+      z.object({
+        fingerprint: z.string().nullish(),
+        productIds: z.array(z.string()),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const fingerprint = input.fingerprint || 'anonymous-device';
+      return await syncWishlist(fingerprint, input.productIds);
+    }),
+
+  add: t.procedure
+    .meta({ description: 'Add a product to wishlist for a browser fingerprint' })
+    .input(
+      z.object({
+        fingerprint: z.string().min(1),
+        productId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await addToWishlist(input.fingerprint, input.productId);
+    }),
+
+  remove: t.procedure
+    .meta({ description: 'Remove a product from wishlist for a browser fingerprint' })
+    .input(
+      z.object({
+        fingerprint: z.string().min(1),
+        productId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await removeFromWishlist(input.fingerprint, input.productId);
+    }),
+});
+
 

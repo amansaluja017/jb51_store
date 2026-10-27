@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Linking } from 'react-native';
-import { MessageCircle, Camera, CheckCircle2, Phone, Mail, Check } from 'lucide-react-native';
+import { MessageCircle, Camera, CheckCircle2, Phone, Mail, Check, Globe } from 'lucide-react-native';
 import { Inquiry } from '../types';
 
 interface InquiryItemProps {
@@ -31,16 +31,22 @@ export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
       {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.leftHeader}>
-          <View style={[styles.channelBox, inquiry.channel === 'WhatsApp' ? styles.waBox : styles.igBox]}>
+          <View style={[
+            styles.channelBox,
+            inquiry.channel === 'WhatsApp' ? styles.waBox :
+            inquiry.channel === 'Web' ? styles.webBox : styles.igBox
+          ]}>
             {inquiry.channel === 'WhatsApp' ? (
               <MessageCircle size={14} color="#10b981" />
+            ) : inquiry.channel === 'Web' ? (
+              <Globe size={14} color="#3b82f6" />
             ) : (
               <Camera size={14} color="#a855f7" />
             )}
           </View>
           <View style={styles.clientMeta}>
             <Text style={styles.clientName}>{inquiry.customerName}</Text>
-            <Text style={styles.timeText}>{inquiry.timestamp} via {inquiry.channel}</Text>
+            <Text style={styles.timeText}>{inquiry.timestamp} via {inquiry.channel || 'Web'}</Text>
           </View>
         </View>
         
@@ -165,6 +171,9 @@ const styles = StyleSheet.create({
   },
   igBox: {
     backgroundColor: '#faf5ff',
+  },
+  webBox: {
+    backgroundColor: '#eff6ff',
   },
   clientMeta: {
     marginLeft: 10,

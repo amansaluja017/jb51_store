@@ -13,8 +13,10 @@ import {
   invoicesRouter,
   creditsRouter,
   analyticsRouter,
+  inquiriesRouter,
+  wishlistRouter,
 } from '@repo/products/router';
-export type { ReviewItem } from '@repo/products';
+export type { ReviewItem, InquiryItem } from '@repo/products';
 import * as trpcExpress from '@trpc/server/adapters/express';
 
 export const createTRPCContext = async ({ req }: trpcExpress.CreateExpressContextOptions) => {
@@ -62,16 +64,12 @@ export const appRouter = createTRPCRouter({
   invoices: invoicesRouter,
   credits: creditsRouter,
   analytics: analyticsRouter,
+  inqueries: inquiriesRouter,
+  inquiries: inquiriesRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),
-  wishlist: createTRPCRouter({
-    sync: publicProcedure
-      .input(z.object({ productIds: z.array(z.string()) }))
-      .mutation(async ({ input }) => {
-        return { success: true, count: input.productIds.length };
-      }),
-  }),
+  wishlist: wishlistRouter,
 });
 
 export type AppRouter = typeof appRouter;

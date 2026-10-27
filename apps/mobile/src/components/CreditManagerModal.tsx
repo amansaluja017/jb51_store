@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -101,9 +101,46 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
   const [creditTotalPages, setCreditTotalPages] = useState(1);
   const [creditTotalCount, setCreditTotalCount] = useState(0);
   const [remoteCredits, setRemoteCredits] = useState<Credit[] | null>(null);
+  const [remoteMetrics, setRemoteMetrics] = useState<CreditMetrics | null>(null);
   const [isLoadingRemoteCredits, setIsLoadingRemoteCredits] = useState(false);
 
-  // Fetch paginated credits from backend
+  // Active metrics (prefer remoteMetrics from paginated route, fallback to props metrics)
+  const activeMetrics = remoteMetrics || metrics;
+
+  // Reusable paginated credits fetcher
+  const fetchPaginatedCredits = useCallback(
+    async (
+      targetPage = creditPage,
+      tab = filterTab,
+      query = searchQuery
+    ) => {
+      if (!onFetchPaginatedCredits) return;
+      try {
+        setIsLoadingRemoteCredits(true);
+        const res = await onFetchPaginatedCredits({
+          page: targetPage,
+          limit: 10,
+          search: query.trim() || undefined,
+          filterTab: tab,
+        });
+        if (res) {
+          setRemoteCredits(res.items || []);
+          setCreditTotalPages(res.totalPages || 1);
+          setCreditTotalCount(res.total ?? res.totalCount ?? 0);
+          if (res.metrics) {
+            setRemoteMetrics(res.metrics as CreditMetrics);
+          }
+        }
+      } catch (err) {
+        console.error('[fetchPaginatedCredits] Error:', err);
+      } finally {
+        setIsLoadingRemoteCredits(false);
+      }
+    },
+    [onFetchPaginatedCredits, creditPage, filterTab, searchQuery]
+  );
+
+  // Fetch paginated credits from backend with debounce on search
   useEffect(() => {
     if (!visible || !onFetchPaginatedCredits) return;
 
@@ -113,14 +150,17 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
         setIsLoadingRemoteCredits(true);
         const res = await onFetchPaginatedCredits({
           page: creditPage,
-          limit: 15,
+          limit: 10,
           search: searchQuery.trim() || undefined,
-          status: filterTab,
+          filterTab: filterTab,
         });
         if (!isCancelled && res) {
           setRemoteCredits(res.items || []);
           setCreditTotalPages(res.totalPages || 1);
-          setCreditTotalCount(res.totalCount || 0);
+          setCreditTotalCount(res.total ?? res.totalCount ?? 0);
+          if (res.metrics) {
+            setRemoteMetrics(res.metrics as CreditMetrics);
+          }
         }
       } catch (err) {
         console.error('[fetchPaginatedCredits] Error:', err);
@@ -200,6 +240,9 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
       );
       setPaymentModalVisible(false);
       setActiveCreditForPayment(null);
+      if (onFetchPaginatedCredits) {
+        fetchPaginatedCredits(creditPage);
+      }
     } catch {
       // Handled in hook
     } finally {
@@ -247,6 +290,9 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
         advancePaymentMode: paid > 0 ? formAdvanceMode : null,
       });
       setFormModalVisible(false);
+      if (onFetchPaginatedCredits) {
+        fetchPaginatedCredits(creditPage);
+      }
     } catch {
       // Handled in hook
     } finally {
@@ -330,7 +376,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerTitle}>Manage Credits</Text>
             <Text style={styles.headerSubtitle}>
-              {credits.length} credit {credits.length === 1 ? 'account' : 'accounts'} on record
+              {(activeMetrics?.totalCredits ?? (creditTotalCount > 0 ? creditTotalCount : credits.length))} credit {(activeMetrics?.totalCredits ?? (creditTotalCount > 0 ? creditTotalCount : credits.length)) === 1 ? 'account' : 'accounts'} on record
             </Text>
           </View>
           <View style={{ width: 36 }} />
@@ -342,18 +388,18 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
             <View style={styles.metricIconBoxDue}>
               <TrendingDown size={16} color="#DC2626" />
             </View>
-            <Text style={styles.metricValueDue}>
-              ₹{(metrics?.totalDue || 0).toLocaleString('en-IN')}
+            <Text style={styles.metricValueDue} numberOfLines={1} adjustsFontSizeToFit>
+              ₹{(activeMetrics?.totalDue || 0).toLocaleString('en-IN')}
             </Text>
-            <Text style={styles.metricLabel}>Total Due Balance</Text>
+            <Text style={styles.metricLabel}>Total Credit (Due)</Text>
           </View>
 
           <View style={styles.metricCard}>
             <View style={styles.metricIconBoxPaid}>
               <TrendingUp size={16} color="#10B981" />
             </View>
-            <Text style={styles.metricValuePaid}>
-              ₹{(metrics?.totalPaid || 0).toLocaleString('en-IN')}
+            <Text style={styles.metricValuePaid} numberOfLines={1} adjustsFontSizeToFit>
+              ₹{(activeMetrics?.totalPaid || 0).toLocaleString('en-IN')}
             </Text>
             <Text style={styles.metricLabel}>Total Collected</Text>
           </View>
@@ -362,8 +408,8 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
             <View style={styles.metricIconBoxOverdue}>
               <AlertTriangle size={16} color="#F59E0B" />
             </View>
-            <Text style={styles.metricValueOverdue}>
-              {metrics?.overdueCount || 0}
+            <Text style={styles.metricValueOverdue} numberOfLines={1} adjustsFontSizeToFit>
+              {activeMetrics?.overdueCount || 0}
             </Text>
             <Text style={styles.metricLabel}>Overdue Accounts</Text>
           </View>
@@ -405,7 +451,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
                   filterTab === 'all' && styles.filterChipTextActive,
                 ]}
               >
-                All ({creditTotalCount || credits.length})
+                All ({activeMetrics?.totalCredits ?? (creditTotalCount > 0 ? creditTotalCount : credits.length)})
               </Text>
             </TouchableOpacity>
 
@@ -419,7 +465,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
                   filterTab === 'pending' && styles.filterChipTextActive,
                 ]}
               >
-                Pending ({metrics?.pendingCount || 0})
+                Pending ({activeMetrics?.pendingCount || 0})
               </Text>
             </TouchableOpacity>
 
@@ -433,7 +479,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
                   filterTab === 'overdue' && styles.filterChipTextActive,
                 ]}
               >
-                Overdue ({metrics?.overdueCount || 0})
+                Overdue ({activeMetrics?.overdueCount || 0})
               </Text>
             </TouchableOpacity>
 
@@ -447,7 +493,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
                   filterTab === 'settled' && styles.filterChipTextActive,
                 ]}
               >
-                Settled ({metrics?.settledCount || 0})
+                Settled ({activeMetrics?.settledCount || 0})
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -462,7 +508,12 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
           refreshControl={
             <RefreshControl
               refreshing={isLoading || isLoadingRemoteCredits}
-              onRefresh={onRefresh}
+              onRefresh={async () => {
+                if (onFetchPaginatedCredits) {
+                  await fetchPaginatedCredits(creditPage);
+                }
+                onRefresh();
+              }}
               tintColor="#FF5E36"
               colors={['#FF5E36']}
             />
@@ -472,7 +523,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
               <View style={styles.paginationBar}>
                 <Text style={styles.paginationInfo}>
                   Page {creditPage} of {creditTotalPages}
-                  {creditTotalCount !== undefined ? ` • ${creditTotalCount} total` : ''}
+                  {(activeMetrics?.totalCredits ?? creditTotalCount) > 0 ? ` • ${activeMetrics?.totalCredits ?? creditTotalCount} total` : ''}
                 </Text>
                 <View style={styles.paginationControls}>
                   <TouchableOpacity
@@ -1161,6 +1212,13 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
                     const id = creditToDelete.id;
                     setCreditToDelete(null);
                     await onDeleteCredit(id, true);
+                    if (onFetchPaginatedCredits) {
+                      if (remoteCredits && remoteCredits.length <= 1 && creditPage > 1) {
+                        setCreditPage(p => p - 1);
+                      } else {
+                        fetchPaginatedCredits(creditPage);
+                      }
+                    }
                   }}
                   activeOpacity={0.7}
                   accessibilityRole="button"

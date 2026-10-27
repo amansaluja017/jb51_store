@@ -1,11 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/trpc/client/react';
 import { toast } from 'sonner';
+import { getBrowserFingerprint } from '@/lib/fingerprint';
 
 interface WishlistContextType {
   wishlist: string[]; // array of product IDs
+  fingerprint: string;
+  isSyncing: boolean;
   addToWishlist: (productId: string) => void;
   removeFromWishlist: (productId: string) => void;
   toggleWishlist: (productId: string) => void;
@@ -16,69 +19,143 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  // Background mutation to sync with tRPC in the background
+  const [fingerprint, setFingerprint] = useState<string>('');
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const hasMergedServer = useRef<boolean>(false);
+
+  // Background mutations
   const syncMutation = api.wishlist.sync.useMutation({
+    onSuccess: (data) => {
+      setIsSyncing(false);
+      if (data?.productIds && Array.isArray(data.productIds)) {
+        setWishlist(data.productIds);
+      }
+    },
     onError: (err) => {
-      console.error('Background wishlist sync failed:', err);
-    }
+      setIsSyncing(false);
+      console.error('Background wishlist sync error:', err);
+    },
   });
 
-  // Load from localStorage on mount (Client-side only)
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('jb51_wishlist');
-      if (stored) {
-        setWishlist(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error('Failed to load wishlist:', e);
+  const addMutation = api.wishlist.add.useMutation({
+    onError: (err) => {
+      console.error('Background wishlist add error:', err);
+    },
+  });
+
+  const removeMutation = api.wishlist.remove.useMutation({
+    onError: (err) => {
+      console.error('Background wishlist remove error:', err);
+    },
+  });
+
+  // Query server wishlist directly for this browser fingerprint
+  const { data: serverWishlist } = api.wishlist.get.useQuery(
+    { fingerprint },
+    {
+      enabled: Boolean(fingerprint && fingerprint.length > 0),
+      staleTime: 5 * 60 * 1000,
     }
-    setIsInitialized(true);
+  );
+
+  // 1. Initialize browser fingerprint and clean up any unnecessary legacy localStorage data
+  useEffect(() => {
+    let isMounted = true;
+
+    async function init() {
+      // Clean up unnecessary legacy localStorage keys
+      try {
+        localStorage.removeItem('jb51_wishlist');
+        localStorage.removeItem('jb51_custom_categories');
+      } catch (_) {}
+
+      // Compute browser fingerprint for server-side persistence
+      const fp = await getBrowserFingerprint();
+      if (isMounted) {
+        setFingerprint(fp);
+        setIsInitialized(true);
+      }
+    }
+
+    init();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const { mutate: syncWishlist } = syncMutation;
-
-  // Sync to localStorage and Server in background when state changes
+  // 2. Hydrate wishlist from server database for this browser fingerprint
   useEffect(() => {
-    if (!isInitialized) return;
-
-    try {
-      localStorage.setItem('jb51_wishlist', JSON.stringify(wishlist));
-      
-      // Perform background sync (Optimistic UI: state updates first, mutation hits in background)
-      syncWishlist({ productIds: wishlist });
-    } catch (e) {
-      console.error('Failed to sync wishlist:', e);
+    if (serverWishlist && !hasMergedServer.current && isInitialized) {
+      hasMergedServer.current = true;
+      if (Array.isArray(serverWishlist.productIds)) {
+        setWishlist(serverWishlist.productIds);
+      }
     }
-  }, [wishlist, isInitialized, syncWishlist]);
+  }, [serverWishlist, isInitialized]);
 
-  const addToWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) return;
-    setWishlist(prev => [...prev, productId]);
-    toast.success('Added to wishlist');
-  };
+  const addToWishlist = useCallback(
+    (productId: string) => {
+      if (!productId) return;
+      setWishlist((prev) => {
+        if (prev.includes(productId)) return prev;
+        return [...prev, productId];
+      });
 
-  const removeFromWishlist = (productId: string) => {
-    setWishlist(prev => prev.filter(id => id !== productId));
-    toast.success('Removed from wishlist');
-  };
+      toast.success('Added to wishlist');
 
-  const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      removeFromWishlist(productId);
-    } else {
-      addToWishlist(productId);
-    }
-  };
+      if (fingerprint) {
+        addMutation.mutate({ fingerprint, productId });
+      }
+    },
+    [fingerprint, addMutation]
+  );
 
-  const isInWishlist = (productId: string) => {
-    return wishlist.includes(productId);
-  };
+  const removeFromWishlist = useCallback(
+    (productId: string) => {
+      if (!productId) return;
+      setWishlist((prev) => prev.filter((id) => id !== productId));
+
+      toast.success('Removed from wishlist');
+
+      if (fingerprint) {
+        removeMutation.mutate({ fingerprint, productId });
+      }
+    },
+    [fingerprint, removeMutation]
+  );
+
+  const toggleWishlist = useCallback(
+    (productId: string) => {
+      if (wishlist.includes(productId)) {
+        removeFromWishlist(productId);
+      } else {
+        addToWishlist(productId);
+      }
+    },
+    [wishlist, addToWishlist, removeFromWishlist]
+  );
+
+  const isInWishlist = useCallback(
+    (productId: string) => {
+      return wishlist.includes(productId);
+    },
+    [wishlist]
+  );
 
   return (
-    <WishlistContext.Provider value={{ wishlist, addToWishlist, removeFromWishlist, toggleWishlist, isInWishlist }}>
+    <WishlistContext.Provider
+      value={{
+        wishlist,
+        fingerprint,
+        isSyncing,
+        addToWishlist,
+        removeFromWishlist,
+        toggleWishlist,
+        isInWishlist,
+      }}
+    >
       {children}
     </WishlistContext.Provider>
   );

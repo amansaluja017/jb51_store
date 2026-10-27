@@ -17,7 +17,14 @@ import { Faqs } from '@/components/home/Faqs';
 import { InstagramFeed } from '@/components/home/InstagramFeed';
 
 export function HomeClient() {
-  const { data: products = [] } = api.products.getAll.useQuery();
+  // Fetch products in focused batches instead of getting entire database at once
+  const { data: trendingData } = api.products.getPaginated.useQuery({ limit: 12 });
+  const { data: bestSellerData } = api.products.getPaginated.useQuery({ filter: 'bestseller', limit: 6 });
+  const { data: newArrivalData } = api.products.getPaginated.useQuery({ filter: 'new', limit: 6 });
+
+  const products = trendingData?.items || [];
+  const bestSellerProducts = (bestSellerData?.items || []).slice(0, 4);
+  const newArrivalProducts = (newArrivalData?.items || []).slice(0, 4);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const slides = [
@@ -66,9 +73,6 @@ export function HomeClient() {
     }, 6000);
     return () => clearInterval(timer);
   }, [slides.length]);
-
-  const bestSellerProducts = products.filter(p => p.isListed !== false && p.bestseller).slice(0, 4);
-  const newArrivalProducts = products.filter(p => p.isListed !== false && p.newArrival).slice(0, 4);
 
   return (
     <div className="flex flex-col w-full overflow-hidden bg-white text-zinc-800 font-sans">

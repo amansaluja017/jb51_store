@@ -71,8 +71,12 @@ export function ProductClient({ product }: { product: any }) {
     { enabled: !!product?.slug }
   );
 
-  // Fetch and filter similar products using tags
-  const { data: products = [], isLoading: loading } = api.products.getAll.useQuery();
+  // Fetch and filter similar products using paginated category batch
+  const { data: categoryBatch, isLoading: loading } = api.products.getPaginated.useQuery({
+    category: product.category,
+    limit: 8,
+  });
+  const products = categoryBatch?.items || [];
 
   const similarProductsByTag = (products || [])
     .filter((p: any) => p.id !== product.id)

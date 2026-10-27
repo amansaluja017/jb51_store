@@ -191,6 +191,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           refreshing={refreshing}
           onRefresh={onRefresh}
           onNavigateToTab={(tab) => setActiveTab(tab)}
+          showAlert={showAlert}
         />
       )}
       {activeTab === 'catalogue' && (

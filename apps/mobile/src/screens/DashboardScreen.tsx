@@ -6,6 +6,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Platform,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Eye,
@@ -27,7 +31,17 @@ import {
   Layers,
   Globe,
   Store,
+  Sparkles,
+  FileText,
+  FileSpreadsheet,
+  Maximize2,
+  X,
+  SlidersHorizontal,
+  Download,
 } from 'lucide-react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import SVGChart from '../components/SVGChart';
 import { DashboardSkeleton } from '../components/SkeletonLoader';
 import {
@@ -39,10 +53,6 @@ import {
   CardFooter,
   Badge,
   Progress,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
   Separator,
 } from '../components/ui';
 import {
@@ -100,11 +110,21 @@ interface DashboardScreenProps {
   refreshing?: boolean;
   onRefresh?: () => void;
   onNavigateToTab?: (tab: 'catalogue' | 'inventory') => void;
+  showAlert?: (title: string, message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const formatCurrency = (val: number) => {
   return `₹${val.toLocaleString('en-IN')}`;
 };
+
+function escapeHtml(str: string) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export default function DashboardScreen({
   stats,
@@ -132,11 +152,19 @@ export default function DashboardScreen({
   refreshing,
   onRefresh,
   onNavigateToTab,
+  showAlert,
 }: DashboardScreenProps) {
   const [activeMetric, setActiveMetric] = useState<
     'views' | 'waHits' | 'igHits' | 'conversion' | 'orders'
   >('views');
   const [analyticsTab, setAnalyticsTab] = useState<string>('all');
+  const [showFullAnalysisModal, setShowFullAnalysisModal] = useState<boolean>(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState<string>('');
+  const [modalSortKey, setModalSortKey] = useState<
+    'views' | 'inquiries' | 'orders' | 'conversion' | 'revenue'
+  >('views');
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
+  const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
 
   // Compute 6-week trend data dynamically
   const chartData = useMemo(() => {
@@ -251,6 +279,300 @@ export default function DashboardScreen({
   const mostDemandedProduct = demandHighlightsAnalytics?.mostDemandedProduct ?? localMostDemanded;
   const topConvertingProduct = demandHighlightsAnalytics?.topConvertingProduct ?? localTopConverting;
 
+  // Filtered and sorted products for Full View Telemetry Modal
+  const filteredModalProducts = useMemo(() => {
+    let list = [...productPerformanceList];
+    if (modalSearchQuery.trim()) {
+      const q = modalSearchQuery.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q)
+      );
+    }
+    switch (modalSortKey) {
+      case 'views':
+        list.sort((a, b) => b.views - a.views);
+        break;
+      case 'inquiries':
+        list.sort((a, b) => b.totalClicks - a.totalClicks);
+        break;
+      case 'orders':
+        list.sort(
+          (a, b) =>
+            b.orderCount - a.orderCount ||
+            (b.onlineOrderCount ?? 0) - (a.onlineOrderCount ?? 0)
+        );
+        break;
+      case 'conversion':
+        list.sort(
+          (a, b) =>
+            (b.onlineOrderConversionRate ?? 0) -
+              (a.onlineOrderConversionRate ?? 0) ||
+            b.conversionRate - a.conversionRate
+        );
+        break;
+      case 'revenue':
+        list.sort((a, b) => (b.totalRevenue ?? 0) - (a.totalRevenue ?? 0));
+        break;
+    }
+    return list;
+  }, [productPerformanceList, modalSearchQuery, modalSortKey]);
+
+  // Aggregate telemetry totals for the modal summary ribbon
+  const modalSummaryStats = useMemo(() => {
+    const totalViews = productPerformanceList.reduce(
+      (acc, p) => acc + (p.views || 0),
+      0
+    );
+    const totalInquiries = productPerformanceList.reduce(
+      (acc, p) => acc + (p.totalClicks || 0),
+      0
+    );
+    const totalOrders = productPerformanceList.reduce(
+      (acc, p) => acc + (p.orderCount || 0),
+      0
+    );
+    const totalRevenue = productPerformanceList.reduce(
+      (acc, p) => acc + (p.totalRevenue || 0),
+      0
+    );
+    const overallConv =
+      totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0';
+
+    return {
+      totalViews,
+      totalInquiries,
+      totalOrders,
+      totalRevenue,
+      overallConv,
+    };
+  }, [productPerformanceList]);
+
+  // Export all products analysis via PDF
+  const handleExportPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      const rowsHtml = productPerformanceList
+        .map(
+          (p, idx) => `
+        <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
+          <td style="padding: 9px 10px; font-weight: bold; color: #64748b; text-align: center;">#${idx + 1}</td>
+          <td style="padding: 9px 10px;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 13px;">${escapeHtml(p.name)}</div>
+            <div style="font-size: 10.5px; color: #64748b;">${escapeHtml(p.category)}</div>
+          </td>
+          <td style="padding: 9px 10px; font-weight: 600; text-align: right;">₹${(p.price || 0).toLocaleString('en-IN')}</td>
+          <td style="padding: 9px 10px; text-align: center; font-weight: 700;">${p.views}</td>
+          <td style="padding: 9px 10px; text-align: center;">
+            <span style="font-weight: 700;">${p.totalClicks}</span>
+            <div style="font-size: 10px; color: #64748b;">${p.whatsappClicks} WA • ${p.instagramClicks} IG</div>
+          </td>
+          <td style="padding: 9px 10px; text-align: center;">
+            <span style="font-weight: 700; color: #2563eb;">${p.onlineOrderCount ?? 0}</span>
+            <div style="font-size: 10px; color: #64748b;">${p.offlineOrderCount ?? 0} off • ${p.orderCount} tot</div>
+          </td>
+          <td style="padding: 9px 10px; text-align: center;">
+            <span style="background-color: #ecfdf5; color: #059669; font-weight: 700; padding: 2px 7px; border-radius: 5px; font-size: 11px;">
+              ${p.onlineOrderConversionRate ?? 0}%
+            </span>
+          </td>
+          <td style="padding: 9px 10px; text-align: right; font-weight: 800; color: #16a34a;">
+            ₹${(p.totalRevenue ?? 0).toLocaleString('en-IN')}
+          </td>
+        </tr>
+      `
+        )
+        .join('');
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>JB51 Store - All Products Analysis</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #0f172a; }
+            .header { border-bottom: 2px solid #FF5E36; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .title { font-size: 20px; font-weight: 800; color: #09090b; letter-spacing: -0.3px; }
+            .subtitle { font-size: 11.5px; color: #64748b; margin-top: 3px; }
+            .date { font-size: 11px; color: #64748b; text-align: right; }
+            .summary-box { display: flex; gap: 10px; margin-bottom: 18px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px; }
+            .summary-item { flex: 1; text-align: center; }
+            .summary-val { font-size: 15px; font-weight: 800; color: #ea580c; }
+            .summary-lbl { font-size: 9.5px; font-weight: 700; color: #9a3412; text-transform: uppercase; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+            th { background-color: #0f172a; color: #ffffff; padding: 9px 8px; text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .footer { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 10px; color: #94a3b8; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">JB51 STORE • PRODUCTS ANALYSIS & TELEMETRY</div>
+              <div class="subtitle">Complete Performance Audit • ${productPerformanceList.length} Active Catalogue Products</div>
+            </div>
+            <div class="date">
+              Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+
+          <div class="summary-box">
+            <div class="summary-item">
+              <div class="summary-val">${productPerformanceList.length}</div>
+              <div class="summary-lbl">Outfits</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-val">${modalSummaryStats.totalViews}</div>
+              <div class="summary-lbl">Total Views</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-val">${modalSummaryStats.totalInquiries}</div>
+              <div class="summary-lbl">Inquiries</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-val">${modalSummaryStats.totalOrders}</div>
+              <div class="summary-lbl">Total Orders</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-val">${modalSummaryStats.overallConv}%</div>
+              <div class="summary-lbl">Storewide Conv</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-val">₹${modalSummaryStats.totalRevenue.toLocaleString('en-IN')}</div>
+              <div class="summary-lbl">Revenue</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: center;">#</th>
+                <th>Product</th>
+                <th style="text-align: right;">Price</th>
+                <th style="text-align: center;">Views</th>
+                <th style="text-align: center;">Inquiries</th>
+                <th style="text-align: center;">Orders</th>
+                <th style="text-align: center;">Conv. %</th>
+                <th style="text-align: right;">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Confidential & Proprietary • JB51 Store Management Analytics Telemetry Engine
+          </div>
+        </body>
+        </html>
+      `;
+
+      if (Platform.OS === 'web') {
+        await Print.printAsync({ html });
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            UTI: '.pdf',
+            mimeType: 'application/pdf',
+            dialogTitle: 'Share Products Analysis PDF',
+          });
+        }
+      }
+      showAlert?.('Report Ready', 'All products analysis PDF generated successfully', 'success');
+    } catch (err: any) {
+      console.error('Export PDF error:', err);
+      showAlert?.('Export Failed', err.message || 'Unable to generate PDF report', 'error');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // Export all products analysis via CSV / Excel
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      const headers = [
+        'Rank',
+        'Product Name',
+        'Category',
+        'Price (INR)',
+        'Views',
+        'WhatsApp Inquiries',
+        'Instagram Inquiries',
+        'Total Inquiries',
+        'Inquiry Conv Rate (%)',
+        'Online Orders',
+        'Offline Orders',
+        'Total Orders',
+        'Online Conv Rate (%)',
+        'Online Revenue (INR)',
+        'Cash Revenue (INR)',
+        'Credit Revenue (INR)',
+        'Total Revenue (INR)',
+      ];
+
+      const csvRows = productPerformanceList.map((p, idx) =>
+        [
+          idx + 1,
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          `"${(p.category || '').replace(/"/g, '""')}"`,
+          p.price || 0,
+          p.views || 0,
+          p.whatsappClicks || 0,
+          p.instagramClicks || 0,
+          p.totalClicks || 0,
+          `${p.conversionRate || 0}%`,
+          p.onlineOrderCount || 0,
+          p.offlineOrderCount || 0,
+          p.orderCount || 0,
+          `${p.onlineOrderConversionRate || 0}%`,
+          p.onlineRevenue || 0,
+          p.cashRevenue || 0,
+          p.creditRevenue || 0,
+          p.totalRevenue || 0,
+        ].join(',')
+      );
+
+      const csvContent = [headers.join(','), ...csvRows].join('\r\n');
+      const bomCsv = '\uFEFF' + csvContent;
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([bomCsv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute(
+          'download',
+          `JB51_Products_Analysis_${new Date().toISOString().slice(0, 10)}.csv`
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const fileUri = `${FileSystem.cacheDirectory}JB51_Products_Analysis_${Date.now()}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, bomCsv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'text/csv',
+            dialogTitle: 'Export Products Analysis (Excel/CSV)',
+          });
+        }
+      }
+      showAlert?.('Export Complete', 'All products analysis CSV/Excel file ready', 'success');
+    } catch (err: any) {
+      console.error('Export Excel error:', err);
+      showAlert?.('Export Failed', err.message || 'Unable to generate Excel file', 'error');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   // Channel Breakdown
   const totalInquiries =
     (analyticsMetrics?.waHits || 0) + (analyticsMetrics?.igHits || 0);
@@ -286,8 +608,9 @@ export default function DashboardScreen({
   }
 
   return (
-    <ScrollView
-      style={styles.tabContent}
+    <View style={{ flex: 1, backgroundColor: '#fafafa' }}>
+      <ScrollView
+        style={styles.tabContent}
       contentContainerStyle={styles.scrollPadding}
       alwaysBounceVertical={true}
       refreshControl={
@@ -374,15 +697,6 @@ export default function DashboardScreen({
         </View>
       )}
 
-      {/* Shadcn UI Section Navigation Tabs */}
-      <Tabs value={analyticsTab} onValueChange={setAnalyticsTab} style={{ marginTop: 2, marginBottom: 2 }}>
-        <TabsList>
-          <TabsTrigger value="all">Overview</TabsTrigger>
-          <TabsTrigger value="channels">Channels</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="catalogue">Products</TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       {/* Interactive Engagement & Conversion Telemetry */}
       <Card style={{ padding: 14 }}>
@@ -539,7 +853,7 @@ export default function DashboardScreen({
               {analyticsOverview?.onlineOrderCount ?? 0}
             </Text>
             <Text style={{ fontSize: 9, color: '#71717a', marginTop: 2 }}>
-              {analyticsOverview?.offlineOrderCount ?? 0} offline • {analyticsOverview?.orderCount ?? 0} tot
+              {analyticsOverview?.offlineOrderCount ?? 0} offline • {analyticsOverview?.orderCount ?? 0} total
             </Text>
           </TouchableOpacity>
 
@@ -560,7 +874,7 @@ export default function DashboardScreen({
               {analyticsOverview?.onlineOrderConversionRate ?? 0}%
             </Text>
             <Text style={{ fontSize: 9, color: '#71717a', marginTop: 2 }}>
-              online / views
+              orders / views
             </Text>
           </TouchableOpacity>
         </View>
@@ -675,7 +989,7 @@ export default function DashboardScreen({
               <Layers size={15} color="#2563eb" />
               <CardTitle>Channel Ratio & Growth Pulse</CardTitle>
             </View>
-            <Badge variant="outline">Past 30 Days Velocity</Badge>
+            <Badge variant="outline" size="sm">Past 30 Days</Badge>
           </CardHeader>
 
           <CardContent>
@@ -685,7 +999,7 @@ export default function DashboardScreen({
                 <Badge
                   variant="blue"
                   icon={<Globe size={12} color="#2563eb" />}
-                  style={{ marginBottom: 4 }}
+                  style={styles.channelBadgeOnline}
                 >
                   {`${channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online`}
                 </Badge>
@@ -697,7 +1011,7 @@ export default function DashboardScreen({
                 <Badge
                   variant="amber"
                   icon={<Store size={12} color="#d97706" />}
-                  style={{ marginBottom: 4 }}
+                  style={styles.channelBadgeOffline}
                 >
                   {`${channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in`}
                 </Badge>
@@ -722,8 +1036,19 @@ export default function DashboardScreen({
               {/* Total Order Growth */}
               <View style={styles.growthBox}>
                 <View style={styles.growthBoxHeader}>
-                  <Text style={styles.growthBoxLbl}>Total Growth</Text>
+                  <View style={styles.growthHeaderTitleRow}>
+                    <Layers size={11} color="#64748b" />
+                    <Text style={styles.growthBoxLbl} numberOfLines={1}>
+                      Total
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.growthValRow}>
+                  <Text style={styles.growthBoxVal}>
+                    {growthPulseAnalytics?.current30DaysOrders ?? analyticsOverview?.growth?.current30DaysOrders ?? 0}
+                  </Text>
                   <Badge
+                    size="sm"
                     variant={
                       (growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0
                         ? 'success'
@@ -731,19 +1056,17 @@ export default function DashboardScreen({
                     }
                     icon={
                       (growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0 ? (
-                        <ArrowUpRight size={10} color="#16a34a" />
+                        <ArrowUpRight size={9} color="#16a34a" />
                       ) : (
-                        <ArrowDownRight size={10} color="#dc2626" />
+                        <ArrowDownRight size={9} color="#dc2626" />
                       )
                     }
+                    style={styles.growthBadge}
                   >
                     {`${(growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0 ? '+' : ''}${growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0}%`}
                   </Badge>
                 </View>
-                <Text style={styles.growthBoxVal}>
-                  {growthPulseAnalytics?.current30DaysOrders ?? analyticsOverview?.growth?.current30DaysOrders ?? 0}
-                </Text>
-                <Text style={{ fontSize: 9, color: '#94a3b8' }}>
+                <Text style={styles.growthBoxSub} numberOfLines={1}>
                   prev 30d: {growthPulseAnalytics?.previous30DaysOrders ?? analyticsOverview?.growth?.previous30DaysOrders ?? 0}
                 </Text>
               </View>
@@ -751,11 +1074,19 @@ export default function DashboardScreen({
               {/* Online Order Growth */}
               <View style={styles.growthBox}>
                 <View style={styles.growthBoxHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={styles.growthHeaderTitleRow}>
                     <Globe size={11} color="#2563eb" />
-                    <Text style={styles.growthBoxLbl}>Online</Text>
+                    <Text style={styles.growthBoxLbl} numberOfLines={1}>
+                      Online
+                    </Text>
                   </View>
+                </View>
+                <View style={styles.growthValRow}>
+                  <Text style={styles.growthBoxVal}>
+                    {growthPulseAnalytics?.current30DaysOnline ?? analyticsOverview?.growth?.current30DaysOnline ?? 0}
+                  </Text>
                   <Badge
+                    size="sm"
                     variant={
                       (growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0
                         ? 'success'
@@ -763,19 +1094,17 @@ export default function DashboardScreen({
                     }
                     icon={
                       (growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0 ? (
-                        <ArrowUpRight size={10} color="#16a34a" />
+                        <ArrowUpRight size={9} color="#16a34a" />
                       ) : (
-                        <ArrowDownRight size={10} color="#dc2626" />
+                        <ArrowDownRight size={9} color="#dc2626" />
                       )
                     }
+                    style={styles.growthBadge}
                   >
                     {`${(growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0 ? '+' : ''}${growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0}%`}
                   </Badge>
                 </View>
-                <Text style={styles.growthBoxVal}>
-                  {growthPulseAnalytics?.current30DaysOnline ?? analyticsOverview?.growth?.current30DaysOnline ?? 0}
-                </Text>
-                <Text style={{ fontSize: 9, color: '#94a3b8' }}>
+                <Text style={styles.growthBoxSub} numberOfLines={1}>
                   prev 30d: {growthPulseAnalytics?.previous30DaysOnline ?? analyticsOverview?.growth?.previous30DaysOnline ?? 0}
                 </Text>
               </View>
@@ -783,11 +1112,19 @@ export default function DashboardScreen({
               {/* Offline Order Growth */}
               <View style={styles.growthBox}>
                 <View style={styles.growthBoxHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Store size={11} color="#f59e0b" />
-                    <Text style={styles.growthBoxLbl}>Walk-in</Text>
+                  <View style={styles.growthHeaderTitleRow}>
+                    <Store size={11} color="#d97706" />
+                    <Text style={styles.growthBoxLbl} numberOfLines={1}>
+                      Walk-in
+                    </Text>
                   </View>
+                </View>
+                <View style={styles.growthValRow}>
+                  <Text style={styles.growthBoxVal}>
+                    {growthPulseAnalytics?.current30DaysOffline ?? analyticsOverview?.growth?.current30DaysOffline ?? 0}
+                  </Text>
                   <Badge
+                    size="sm"
                     variant={
                       (growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0
                         ? 'success'
@@ -795,19 +1132,17 @@ export default function DashboardScreen({
                     }
                     icon={
                       (growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0 ? (
-                        <ArrowUpRight size={10} color="#16a34a" />
+                        <ArrowUpRight size={9} color="#16a34a" />
                       ) : (
-                        <ArrowDownRight size={10} color="#dc2626" />
+                        <ArrowDownRight size={9} color="#dc2626" />
                       )
                     }
+                    style={styles.growthBadge}
                   >
                     {`${(growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0 ? '+' : ''}${growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0}%`}
                   </Badge>
                 </View>
-                <Text style={styles.growthBoxVal}>
-                  {growthPulseAnalytics?.current30DaysOffline ?? analyticsOverview?.growth?.current30DaysOffline ?? 0}
-                </Text>
-                <Text style={{ fontSize: 9, color: '#94a3b8' }}>
+                <Text style={styles.growthBoxSub} numberOfLines={1}>
                   prev 30d: {growthPulseAnalytics?.previous30DaysOffline ?? analyticsOverview?.growth?.previous30DaysOffline ?? 0}
                 </Text>
               </View>
@@ -822,12 +1157,12 @@ export default function DashboardScreen({
       <>
         {/* 2. Customer Payment Breakdown (Online vs Cash vs Credit) */}
         <Card>
-          <CardHeader>
+          <CardHeader style={styles.paymentMainHeader}>
             <View style={styles.analysisHeaderLeft}>
               <CreditCard size={15} color="#10B981" />
               <CardTitle>Customer Payment Modes</CardTitle>
             </View>
-            <Badge variant="secondary">
+            <Badge variant="secondary" size="sm" style={styles.paymentTotalBadge}>
               {`₹${(paymentModesAnalytics?.totalAmount ?? analyticsOverview?.payments?.totalAmount ?? 0).toLocaleString('en-IN')} Total`}
             </Badge>
           </CardHeader>
@@ -862,48 +1197,69 @@ export default function DashboardScreen({
             <View style={styles.paymentGrid}>
               {/* Online Payment */}
               <View style={styles.paymentCardItem}>
-                <View style={styles.paymentCardHeader}>
-                  <Text style={styles.paymentCardTitle}>Online</Text>
-                  <Badge variant="blue">
-                    {`${paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 0}%`}
-                  </Badge>
+                <View style={styles.paymentCardTitleRow}>
+                  <View style={[styles.paymentDot, { backgroundColor: '#2563eb' }]} />
+                  <Text style={styles.paymentCardTitle} numberOfLines={1}>
+                    Online
+                  </Text>
                 </View>
-                <Text style={styles.paymentCardAmount}>
+                <Text
+                  style={styles.paymentCardAmount}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   ₹{(paymentModesAnalytics?.onlineAmount ?? analyticsOverview?.payments?.onlineAmount ?? 0).toLocaleString('en-IN')}
                 </Text>
-                <Text style={styles.paymentCardSub}>
+                <Badge variant="blue" size="sm" style={styles.paymentBadgeSm}>
+                  {`${paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 0}%`}
+                </Badge>
+                <Text style={styles.paymentCardSub} numberOfLines={1}>
                   {paymentModesAnalytics?.onlineCount ?? analyticsOverview?.payments?.onlineCount ?? 0} orders
                 </Text>
               </View>
 
               {/* Cash Payment */}
               <View style={styles.paymentCardItem}>
-                <View style={styles.paymentCardHeader}>
-                  <Text style={styles.paymentCardTitle}>Cash</Text>
-                  <Badge variant="success">
-                    {`${paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 0}%`}
-                  </Badge>
+                <View style={styles.paymentCardTitleRow}>
+                  <View style={[styles.paymentDot, { backgroundColor: '#16a34a' }]} />
+                  <Text style={styles.paymentCardTitle} numberOfLines={1}>
+                    Cash
+                  </Text>
                 </View>
-                <Text style={styles.paymentCardAmount}>
+                <Text
+                  style={styles.paymentCardAmount}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   ₹{(paymentModesAnalytics?.cashAmount ?? analyticsOverview?.payments?.cashAmount ?? 0).toLocaleString('en-IN')}
                 </Text>
-                <Text style={styles.paymentCardSub}>
+                <Badge variant="success" size="sm" style={styles.paymentBadgeSm}>
+                  {`${paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 0}%`}
+                </Badge>
+                <Text style={styles.paymentCardSub} numberOfLines={1}>
                   {paymentModesAnalytics?.cashCount ?? analyticsOverview?.payments?.cashCount ?? 0} orders
                 </Text>
               </View>
 
               {/* Credit Payment */}
               <View style={styles.paymentCardItem}>
-                <View style={styles.paymentCardHeader}>
-                  <Text style={styles.paymentCardTitle}>Khata</Text>
-                  <Badge variant="amber">
-                    {`${paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 0}%`}
-                  </Badge>
+                <View style={styles.paymentCardTitleRow}>
+                  <View style={[styles.paymentDot, { backgroundColor: '#f59e0b' }]} />
+                  <Text style={styles.paymentCardTitle} numberOfLines={1}>
+                    Credit
+                  </Text>
                 </View>
-                <Text style={styles.paymentCardAmount}>
+                <Text
+                  style={styles.paymentCardAmount}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   ₹{(paymentModesAnalytics?.creditAmount ?? analyticsOverview?.payments?.creditAmount ?? 0).toLocaleString('en-IN')}
                 </Text>
-                <Text style={styles.paymentCardSub}>
+                <Badge variant="amber" size="sm" style={styles.paymentBadgeSm}>
+                  {`${paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 0}%`}
+                </Badge>
+                <Text style={styles.paymentCardSub} numberOfLines={1}>
                   {paymentModesAnalytics?.creditCount ?? analyticsOverview?.payments?.creditCount ?? 0} orders
                 </Text>
               </View>
@@ -913,7 +1269,7 @@ export default function DashboardScreen({
             {((paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0) > 0 ||
               (paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0) > 0) && (
               <Text style={styles.creditNoteText}>
-                Outstanding Khata: ₹{(paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0).toLocaleString('en-IN')} pending • ₹{(paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0).toLocaleString('en-IN')} settled
+                Outstanding Credit: ₹{(paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0).toLocaleString('en-IN')} pending • ₹{(paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0).toLocaleString('en-IN')} settled
               </Text>
             )}
           </CardContent>
@@ -922,33 +1278,71 @@ export default function DashboardScreen({
         {/* 3. Inventory Stock Pulse */}
         {inventorySummaryAnalytics && (
           <Card>
-            <CardHeader>
+            <CardHeader style={styles.inventoryMainHeader}>
               <View style={styles.analysisHeaderLeft}>
                 <Package size={15} color="#059669" />
                 <CardTitle>Inventory Health Summary</CardTitle>
               </View>
               <TouchableOpacity onPress={() => onNavigateToTab?.('inventory')} activeOpacity={0.7}>
-                <Badge variant="outline">
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#FF5E36' }}>Manage Stock →</Text>
+                <Badge variant="outline" size="sm">
+                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#FF5E36' }}>Manage Stock →</Text>
                 </Badge>
               </TouchableOpacity>
             </CardHeader>
             <CardContent>
-              <View style={styles.growthGrid}>
-                <View style={styles.growthBox}>
-                  <Text style={styles.growthBoxLbl}>In Stock</Text>
-                  <Text style={[styles.growthBoxVal, { color: '#16a34a' }]}>{inventorySummaryAnalytics.inStockProducts}</Text>
-                  <Text style={{ fontSize: 9, color: '#94a3b8' }}>products</Text>
+              <View style={styles.inventoryHealthGrid}>
+                {/* In Stock Card */}
+                <View style={styles.inventoryHealthCard}>
+                  <View style={styles.inventoryCardHeaderRow}>
+                    <View style={[styles.inventoryCardDot, { backgroundColor: '#16a34a' }]} />
+                    <Text style={styles.inventoryCardTitle} numberOfLines={1}>In Stock</Text>
+                  </View>
+                  <Text
+                    style={[styles.inventoryCardVal, { color: '#16a34a' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {inventorySummaryAnalytics.inStockProducts}
+                  </Text>
+                  <Text style={styles.inventoryCardSub} numberOfLines={1}>
+                    Products
+                  </Text>
                 </View>
-                <View style={styles.growthBox}>
-                  <Text style={styles.growthBoxLbl}>Low Stock</Text>
-                  <Text style={[styles.growthBoxVal, { color: '#f59e0b' }]}>{inventorySummaryAnalytics.lowStockProducts}</Text>
-                  <Text style={{ fontSize: 9, color: '#94a3b8' }}>need refill</Text>
+
+                {/* Low Stock Card */}
+                <View style={styles.inventoryHealthCard}>
+                  <View style={styles.inventoryCardHeaderRow}>
+                    <View style={[styles.inventoryCardDot, { backgroundColor: '#f59e0b' }]} />
+                    <Text style={styles.inventoryCardTitle} numberOfLines={1}>Low Stock</Text>
+                  </View>
+                  <Text
+                    style={[styles.inventoryCardVal, { color: '#f59e0b' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {inventorySummaryAnalytics.lowStockProducts}
+                  </Text>
+                  <Text style={styles.inventoryCardSub} numberOfLines={1}>
+                    Need Refill
+                  </Text>
                 </View>
-                <View style={styles.growthBox}>
-                  <Text style={styles.growthBoxLbl}>Total Units</Text>
-                  <Text style={[styles.growthBoxVal, { color: '#2563eb' }]}>{inventorySummaryAnalytics.totalStockUnits}</Text>
-                  <Text style={{ fontSize: 9, color: '#94a3b8' }}>units available</Text>
+
+                {/* Total Units Card */}
+                <View style={styles.inventoryHealthCard}>
+                  <View style={styles.inventoryCardHeaderRow}>
+                    <View style={[styles.inventoryCardDot, { backgroundColor: '#2563eb' }]} />
+                    <Text style={styles.inventoryCardTitle} numberOfLines={1}>Units</Text>
+                  </View>
+                  <Text
+                    style={[styles.inventoryCardVal, { color: '#2563eb' }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {inventorySummaryAnalytics.totalStockUnits}
+                  </Text>
+                  <Text style={styles.inventoryCardSub} numberOfLines={1}>
+                    In Stock
+                  </Text>
                 </View>
               </View>
             </CardContent>
@@ -1069,7 +1463,11 @@ export default function DashboardScreen({
                       <Text style={styles.highlightValue}>
                         {mostViewedProduct.views} views
                       </Text>
-                      <Badge variant="secondary">Popular</Badge>
+                      <Badge
+                        variant="secondary"
+                        size="icon"
+                        icon={<Sparkles size={11} color="#64748b" />}
+                      />
                     </View>
                   </TouchableOpacity>
                 )}
@@ -1092,7 +1490,11 @@ export default function DashboardScreen({
                       <Text style={styles.highlightValue}>
                         {mostDemandedProduct.totalClicks} clicks
                       </Text>
-                      <Badge variant="amber">Hot</Badge>
+                      <Badge
+                        variant="amber"
+                        size="icon"
+                        icon={<Flame size={11} color="#d97706" />}
+                      />
                     </View>
                   </TouchableOpacity>
                 )}
@@ -1115,7 +1517,11 @@ export default function DashboardScreen({
                       <Text style={styles.highlightValue}>
                         {topConvertingProduct.conversionRate}%
                       </Text>
-                      <Badge variant="success">High ROI</Badge>
+                      <Badge
+                        variant="success"
+                        size="icon"
+                        icon={<TrendingUp size={11} color="#16a34a" />}
+                      />
                     </View>
                   </TouchableOpacity>
                 )}
@@ -1128,13 +1534,56 @@ export default function DashboardScreen({
         {!activeAnalyticsProduct && productPerformanceList.length > 0 && (
           <Card>
             <CardHeader>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Eye size={15} color="#FF5E36" />
-                <View>
-                  <CardTitle>Catalogue Telemetry</CardTitle>
-                  <CardDescription>
-                    Tap any product to focus individual analytics
-                  </CardDescription>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  width: '100%',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Eye size={15} color="#FF5E36" />
+                  <View>
+                    <CardTitle>Catalogue Telemetry</CardTitle>
+                    <CardDescription>
+                      Tap product to focus individual analytics
+                    </CardDescription>
+                  </View>
+                </View>
+
+                {/* Export Actions Toolbar */}
+                <View style={styles.catalogueHeaderActions}>
+
+                  <TouchableOpacity
+                    onPress={handleExportPdf}
+                    disabled={isExportingPdf}
+                    style={[styles.actionBtnSm, styles.actionBtnPdfSm]}
+                    activeOpacity={0.7}
+                  >
+                    {isExportingPdf ? (
+                      <ActivityIndicator size="small" color="#dc2626" />
+                    ) : (
+                      <FileText size={11} color="#dc2626" />
+                    )}
+                    <Text style={styles.actionBtnPdfTextSm}>PDF</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleExportExcel}
+                    disabled={isExportingExcel}
+                    style={[styles.actionBtnSm, styles.actionBtnExcelSm]}
+                    activeOpacity={0.7}
+                  >
+                    {isExportingExcel ? (
+                      <ActivityIndicator size="small" color="#16a34a" />
+                    ) : (
+                      <FileSpreadsheet size={11} color="#16a34a" />
+                    )}
+                    <Text style={styles.actionBtnExcelTextSm}>Excel</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </CardHeader>
@@ -1205,12 +1654,32 @@ export default function DashboardScreen({
                     <Badge variant="success" style={{ alignSelf: 'center' }}>
                       {`${item.onlineOrderConversionRate ?? 0}%`}
                     </Badge>
-                    <Text style={{ fontSize: 8, color: '#71717a', marginTop: 2, textAlign: 'center' }}>
+                    <Text
+                      style={{
+                        fontSize: 8,
+                        color: '#71717a',
+                        marginTop: 2,
+                        textAlign: 'center',
+                      }}
+                    >
                       online conv
                     </Text>
                   </View>
                 </TouchableOpacity>
               ))}
+
+              {/* Full View Banner Link */}
+              <TouchableOpacity
+                onPress={() => setShowFullAnalysisModal(true)}
+                style={styles.fullViewBannerBtn}
+                activeOpacity={0.7}
+              >
+                <Maximize2 size={13} color="#ea580c" />
+                <Text style={styles.fullViewBannerText}>
+                  View All Products Analysis ({productPerformanceList.length} items)
+                </Text>
+                <ArrowRight size={13} color="#ea580c" />
+              </TouchableOpacity>
             </CardContent>
           </Card>
         )}
@@ -1271,5 +1740,276 @@ export default function DashboardScreen({
       </Card>
     )}
     </ScrollView>
+
+    {/* Full View All Products Analysis Modal */}
+    <Modal
+      visible={showFullAnalysisModal}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setShowFullAnalysisModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <View style={styles.modalTitleRow}>
+              <Eye size={17} color="#FF5E36" />
+              <View>
+                <Text style={styles.modalTitle}>All Products Telemetry</Text>
+                <Text style={styles.modalSubtitle}>
+                  {productPerformanceList.length} products tracked • Full storewide telemetry
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowFullAnalysisModal(false)}
+              style={styles.modalCloseBtn}
+              activeOpacity={0.7}
+            >
+              <X size={16} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Export Action Toolbar */}
+          <View style={styles.modalToolbar}>
+            <View style={styles.modalExportGroup}>
+              <TouchableOpacity
+                onPress={handleExportPdf}
+                disabled={isExportingPdf}
+                style={[styles.modalExportBtn, styles.modalExportBtnPdf]}
+                activeOpacity={0.7}
+              >
+                {isExportingPdf ? (
+                  <ActivityIndicator size="small" color="#dc2626" />
+                ) : (
+                  <FileText size={13} color="#dc2626" />
+                )}
+                <Text style={styles.modalExportTextPdf}>Export PDF</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleExportExcel}
+                disabled={isExportingExcel}
+                style={[styles.modalExportBtn, styles.modalExportBtnExcel]}
+                activeOpacity={0.7}
+              >
+                {isExportingExcel ? (
+                  <ActivityIndicator size="small" color="#16a34a" />
+                ) : (
+                  <FileSpreadsheet size={13} color="#16a34a" />
+                )}
+                <Text style={styles.modalExportTextExcel}>Export Excel (CSV)</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Badge variant="secondary" size="sm">
+              {`${filteredModalProducts.length} shown`}
+            </Badge>
+          </View>
+
+          {/* Aggregate Telemetry Ribbon */}
+          <View style={styles.modalSummaryRow}>
+            <View style={styles.modalSummaryItem}>
+              <Text style={styles.modalSummaryVal}>{productPerformanceList.length}</Text>
+              <Text style={styles.modalSummaryLbl}>Outfits</Text>
+            </View>
+            <View style={styles.modalSummaryItem}>
+              <Text style={styles.modalSummaryVal}>{modalSummaryStats.totalViews}</Text>
+              <Text style={styles.modalSummaryLbl}>Views</Text>
+            </View>
+            <View style={styles.modalSummaryItem}>
+              <Text style={styles.modalSummaryVal}>{modalSummaryStats.totalInquiries}</Text>
+              <Text style={styles.modalSummaryLbl}>Inquiries</Text>
+            </View>
+            <View style={styles.modalSummaryItem}>
+              <Text style={styles.modalSummaryVal}>{modalSummaryStats.totalOrders}</Text>
+              <Text style={styles.modalSummaryLbl}>Orders</Text>
+            </View>
+            <View style={styles.modalSummaryItem}>
+              <Text style={styles.modalSummaryVal}>{modalSummaryStats.overallConv}%</Text>
+              <Text style={styles.modalSummaryLbl}>Conv Rate</Text>
+            </View>
+            <View style={styles.modalSummaryItem}>
+              <Text style={styles.modalSummaryVal}>
+                ₹{modalSummaryStats.totalRevenue.toLocaleString('en-IN')}
+              </Text>
+              <Text style={styles.modalSummaryLbl}>Revenue</Text>
+            </View>
+          </View>
+
+          {/* Search Filter & Sort Chips */}
+          <View style={styles.modalSearchContainer}>
+            <View style={styles.modalSearchInputWrapper}>
+              <Search size={14} color="#94a3b8" />
+              <TextInput
+                value={modalSearchQuery}
+                onChangeText={setModalSearchQuery}
+                placeholder="Search outfit name or category..."
+                placeholderTextColor="#94a3b8"
+                style={styles.modalSearchInput}
+                clearButtonMode="while-editing"
+              />
+              {modalSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setModalSearchQuery('')}>
+                  <X size={13} color="#94a3b8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Sort Filter Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.modalSortChipsRow}
+            >
+              {(
+                [
+                  { key: 'views', label: 'Top Views' },
+                  { key: 'inquiries', label: 'Most Inquiries' },
+                  { key: 'orders', label: 'Most Orders' },
+                  { key: 'conversion', label: 'Highest Conv.' },
+                  { key: 'revenue', label: 'Top Revenue' },
+                ] as const
+              ).map((chip) => {
+                const isActive = modalSortKey === chip.key;
+                return (
+                  <TouchableOpacity
+                    key={chip.key}
+                    onPress={() => setModalSortKey(chip.key)}
+                    style={[
+                      styles.modalSortChip,
+                      isActive && styles.modalSortChipActive,
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.modalSortChipText,
+                        isActive && styles.modalSortChipTextActive,
+                      ]}
+                    >
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Scrollable Products Telemetry List */}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.modalProductList}
+            keyboardShouldPersistTaps="handled"
+          >
+            {filteredModalProducts.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40, gap: 8 }}>
+                <Search size={28} color="#cbd5e1" />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#64748b' }}>
+                  No matching products found
+                </Text>
+                <Text style={{ fontSize: 11, color: '#94a3b8' }}>
+                  Try a different search keyword
+                </Text>
+              </View>
+            ) : (
+              filteredModalProducts.map((p, idx) => (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => {
+                    setSelectedAnalyticsSlug(p.slug);
+                    setShowFullAnalysisModal(false);
+                  }}
+                  activeOpacity={0.7}
+                  style={styles.modalProductCard}
+                >
+                  {/* Top Row: Rank, Image, Name & Conv Badge */}
+                  <View style={styles.modalProductCardTop}>
+                    <View style={styles.modalRankBadge}>
+                      <Text
+                        style={[
+                          styles.modalRankText,
+                          idx < 3 && styles.actionBtnHighlightTextSm,
+                        ]}
+                      >
+                        #{idx + 1}
+                      </Text>
+                    </View>
+
+                    {p.image ? (
+                      <Image source={{ uri: p.image }} style={styles.modalProductImg} />
+                    ) : (
+                      <View style={styles.modalProductImgFallback}>
+                        <Award size={14} color="#94a3b8" />
+                      </View>
+                    )}
+
+                    <View style={styles.modalProductDetails}>
+                      <Text style={styles.modalProductName} numberOfLines={1}>
+                        {p.name}
+                      </Text>
+                      <Text style={styles.modalProductCategory} numberOfLines={1}>
+                        {p.category}
+                      </Text>
+                      <Text style={styles.modalProductPrice}>
+                        ₹{(p.price || 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+
+                    <Badge variant="success" size="sm">
+                      {`${p.onlineOrderConversionRate ?? 0}% conv`}
+                    </Badge>
+                  </View>
+
+                  {/* Telemetry Metrics Grid */}
+                  <View style={styles.modalProductStatsGrid}>
+                    <View style={styles.modalProductStatBox}>
+                      <Text style={styles.modalProductStatVal}>{p.views}</Text>
+                      <Text style={styles.modalProductStatLbl}>Views</Text>
+                    </View>
+
+                    <View style={styles.modalProductStatBox}>
+                      <Text style={styles.modalProductStatVal}>{p.totalClicks}</Text>
+                      <Text style={styles.modalProductStatLbl}>Inquiries</Text>
+                      <Text style={styles.modalProductStatSub}>
+                        {p.whatsappClicks}w • {p.instagramClicks}i
+                      </Text>
+                    </View>
+
+                    <View style={styles.modalProductStatBox}>
+                      <Text style={[styles.modalProductStatVal, { color: '#2563eb' }]}>
+                        {p.onlineOrderCount ?? 0}
+                      </Text>
+                      <Text style={styles.modalProductStatLbl}>Online Orders</Text>
+                      <Text style={styles.modalProductStatSub}>
+                        {p.offlineOrderCount ?? 0} off • {p.orderCount} tot
+                      </Text>
+                    </View>
+
+                    <View style={styles.modalProductStatBox}>
+                      <Text style={[styles.modalProductStatVal, { color: '#16a34a' }]}>
+                        {p.onlineOrderConversionRate ?? 0}%
+                      </Text>
+                      <Text style={styles.modalProductStatLbl}>Conversion</Text>
+                    </View>
+                  </View>
+
+                  {/* Revenue Row */}
+                  <View style={styles.modalProductRevenueRow}>
+                    <Text style={styles.modalProductRevenueLbl}>
+                      Online: ₹{(p.onlineRevenue ?? 0).toLocaleString('en-IN')}
+                    </Text>
+                    <Text style={styles.modalProductRevenueVal}>
+                      Total Rev: ₹{(p.totalRevenue ?? 0).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  </View>
   );
 }

@@ -25,6 +25,7 @@ export const inqueryTypeEnum = pgEnum('inquery_type', [
 export const inqueryStatusEnum = pgEnum('inquery_status', [
   'resolved',
   'pending',
+  'responded',
 ]);
 
 export const invoiceModeEnum = pgEnum('invoice_mode', ['cash', 'online', 'credit']);

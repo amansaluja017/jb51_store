@@ -204,6 +204,15 @@ export default function App() {
           visible={data.inquiriesModalOpen}
           onClose={() => data.setInquiriesModalOpen(false)}
           inquiries={data.inquiries}
+          isLoading={data.isLoadingInquiries}
+          pagination={data.inquiriesPagination}
+          sortBy={data.inquiriesSortBy}
+          onSortChange={data.setInquiriesSortBy}
+          statusFilter={data.inquiriesStatusFilter}
+          onStatusFilterChange={data.setInquiriesStatusFilter}
+          searchQuery={data.inquiriesSearchQuery}
+          onSearchChange={data.setInquiriesSearchQuery}
+          onFetchPaginatedInquiries={data.handleFetchPaginatedInquiries}
           onResolveInquiry={data.handleResolveInquiry}
         />
 
@@ -213,15 +222,9 @@ export default function App() {
           activeTab={data.activeTab}
           onClose={() => data.setDrawerMenuOpen(false)}
           onOpenCustomers={() => {
-            if (data.customers.length === 0) {
-              data.handleFetchCustomers();
-            }
             data.setCustomerModalOpen(true);
           }}
           onOpenCredits={() => {
-            if (data.credits.length === 0) {
-              data.handleFetchCredits();
-            }
             data.setCreditModalOpen(true);
           }}
           onOpenCategories={() => data.setCategoryModalOpen(true)}
@@ -229,7 +232,7 @@ export default function App() {
           onOpenAccount={() => data.setAccountModalOpen(true)}
           onSelectTab={(tab) => data.setActiveTab(tab)}
           onLogout={data.handleLogout}
-          customersCount={data.customers.length}
+          customersCount={data.customerTotalCount || data.customers.length}
           creditsDueCount={data.creditMetrics?.pendingCount}
           pendingInquiriesCount={data.pendingInquiriesCount}
           currentUser={data.currentUser}
@@ -242,6 +245,7 @@ export default function App() {
           isLoading={data.isLoadingCustomers}
           onClose={() => data.setCustomerModalOpen(false)}
           onRefresh={data.handleFetchCustomers}
+          onFetchPaginatedCustomers={data.handleFetchPaginatedCustomers}
           onFetchCustomerHistory={data.handleFetchCustomerOrderHistory}
           onCreateCustomer={data.handleCreateCustomer}
           onUpdateCustomer={data.handleUpdateCustomer}

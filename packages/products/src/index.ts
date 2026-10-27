@@ -6,4 +6,6 @@ export * from './orders.js';
 export * from './invoices.js';
 export * from './credits.js';
 export * from './analytics.js';
+export * from './inquiries.js';
+export * from './wishlist.js';
 export * from './services/validations.js';

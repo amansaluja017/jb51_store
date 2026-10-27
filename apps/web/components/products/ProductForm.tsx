@@ -55,30 +55,28 @@ const CATEGORIES = [
 export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const router = useRouter();
 
-  // Custom categories state
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('jb51_custom_categories');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-    return [];
-  });
+  // Fetch real categories directly from API endpoint
+  const { data: apiCategories = [] } = api.products.getCategories.useQuery();
+
+  // Custom categories state (in-memory for active session)
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
+  // Clean up any unnecessary legacy localStorage data on mount
+  useEffect(() => {
+    try {
+      localStorage.removeItem('jb51_custom_categories');
+    } catch (_) {}
+  }, []);
+
   const allCategories = useMemo(() => {
-    const list = [...CATEGORIES, ...customCategories];
+    const list = Array.from(new Set([...CATEGORIES, ...(apiCategories || []), ...customCategories]));
     if (initialData?.category && !list.includes(initialData.category)) {
       list.push(initialData.category);
     }
     return list;
-  }, [customCategories, initialData]);
+  }, [apiCategories, customCategories, initialData]);
 
   const categoryOptions = useMemo(
     () => allCategories.map(cat => ({ value: cat, label: cat })),
@@ -103,7 +101,6 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
 
     const updated = [...customCategories, trimmed];
     setCustomCategories(updated);
-    localStorage.setItem('jb51_custom_categories', JSON.stringify(updated));
     setCategory(trimmed);
     setIsAddingCategory(false);
     setNewCategoryInput('');
@@ -119,7 +116,6 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
     if (confirm(`Are you sure you want to delete the category "${catToDelete}"?`)) {
       const updated = customCategories.filter(c => c !== catToDelete);
       setCustomCategories(updated);
-      localStorage.setItem('jb51_custom_categories', JSON.stringify(updated));
       
       if (category === catToDelete) {
         setCategory(CATEGORIES[0]);

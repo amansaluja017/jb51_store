@@ -8,6 +8,8 @@ describe('Products Router API Integration Tests', () => {
   const runId = Date.now().toString(36);
   const createdSlugs: string[] = [];
 
+  const VALID_LONG_DESCRIPTION = 'Handcrafted with meticulous dedication by master artisans, this exquisite ensemble reflects the timeless heritage of traditional Indian royal tailoring. Every single stitch embodies generations of craftsmanship, using only authentic high thread count pure fabrics that drape effortlessly against the silhouette. The intricate hand embroidered motifs, inspired by classical architecture and royal heritage gardens, feature delicate zardozi, shimmering gota patti, and fine threadwork accents. Designed specifically for celebratory occasions, festive soirées, and grand family milestones, this garment balances contemporary elegance with rich royal cultural heritage. Complete with tailored comfort, bespoke finishing, and luxurious accents, it offers unmatched sophistication for the modern connoisseur of bespoke occasion wear.';
+
   const getRunSlug = (base: string) => {
     const slug = `${base}-${runId}`;
     if (!createdSlugs.includes(slug)) {
@@ -63,7 +65,7 @@ describe('Products Router API Integration Tests', () => {
     await adminCaller.create({
       name: 'Emerald Banarasi Suit',
       slug,
-      description: 'Handcrafted banarasi silk suit',
+      description: VALID_LONG_DESCRIPTION,
       category: 'Anarkali Suits',
       images: ['https://example.com/eb1.jpg', 'https://example.com/eb2.jpg'],
       variants: [{ color: 'Emerald Green', stock: 10 }],
@@ -83,7 +85,7 @@ describe('Products Router API Integration Tests', () => {
         await unauthCaller.create({
           name: 'Unauthorized Suit',
           slug: unauthSlug,
-          description: 'A suit created without auth',
+          description: VALID_LONG_DESCRIPTION,
           category: 'Formal Suits',
           images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
           variants: [{ color: 'Blue', stock: 10 }],
@@ -100,7 +102,7 @@ describe('Products Router API Integration Tests', () => {
         await nonAdminCaller.create({
           name: 'Forbidden Suit',
           slug: forbiddenSlug,
-          description: 'A forbidden suit',
+          description: VALID_LONG_DESCRIPTION,
           category: 'Formal Suits',
           images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
           variants: [{ color: 'Red', stock: 5 }],
@@ -117,7 +119,7 @@ describe('Products Router API Integration Tests', () => {
     const newProduct = await caller.create({
       name: 'Test Royal Silk Suit',
       slug,
-      description: 'A test royal silk suit for unit testing.',
+      description: VALID_LONG_DESCRIPTION,
       price: 29900,
       category: 'Occasion Wear',
       variants: [{ color: 'Royal Blue', stock: 15 }],
@@ -193,7 +195,7 @@ describe('Products Router API Integration Tests', () => {
     await adminCaller.create({
       name: 'Status Test Suit',
       slug,
-      description: 'Status test suit description',
+      description: VALID_LONG_DESCRIPTION,
       category: 'Formal Suits',
       images: ['https://example.com/s1.jpg', 'https://example.com/s2.jpg'],
       variants: [{ color: 'Black', stock: 10 }],
@@ -247,7 +249,7 @@ describe('Products Router API Integration Tests', () => {
         await caller.create({
           name: 'One Image',
           slug: getRunSlug('one-image'),
-          description: 'Valid description',
+          description: VALID_LONG_DESCRIPTION,
           price: 1000,
           category: 'Formal Suits',
           images: ['https://example.com/1.jpg'],
@@ -263,7 +265,7 @@ describe('Products Router API Integration Tests', () => {
         await caller.create({
           name: 'No Variants',
           slug: getRunSlug('no-variants'),
-          description: 'Valid description',
+          description: VALID_LONG_DESCRIPTION,
           price: 1000,
           category: 'Formal Suits',
           images: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
@@ -281,7 +283,7 @@ describe('Products Router API Integration Tests', () => {
     const created = await caller.create({
       name: 'Atomic Transaction Suit',
       slug,
-      description: 'Verifying complete multi-table transaction insertion',
+      description: VALID_LONG_DESCRIPTION,
       price: 19999,
       category: 'Anarkali Suits',
       images: [
@@ -351,7 +353,7 @@ describe('Products Router API Integration Tests', () => {
     const created = await caller.create({
       name: 'Image Reorder Test Suit',
       slug,
-      description: 'Testing that reordering images only changes orderIndex and preserves row IDs',
+      description: VALID_LONG_DESCRIPTION,
       price: 25000,
       category: 'Festive Wear',
       images: [

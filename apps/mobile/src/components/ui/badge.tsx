@@ -10,9 +10,12 @@ export type BadgeVariant =
   | 'amber'
   | 'blue';
 
+export type BadgeSize = 'default' | 'sm' | 'lg' | 'icon';
+
 export interface BadgeProps {
   children?: React.ReactNode;
   variant?: BadgeVariant;
+  size?: BadgeSize;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   icon?: React.ReactNode;
@@ -21,30 +24,48 @@ export interface BadgeProps {
 export function Badge({
   children,
   variant = 'default',
+  size = 'default',
   style,
   textStyle,
   icon,
 }: BadgeProps) {
   const variantBadgeStyle = variantStyles[variant] || variantStyles.default;
   const variantTextStyle = textStyles[variant] || textStyles.default;
+  const sizeBadgeStyle = sizeBadgeStyles[size] || sizeBadgeStyles.default;
+  const sizeTextStyle = sizeTextStyles[size] || sizeTextStyles.default;
+
+  const hasChildren =
+    children !== null && children !== undefined && typeof children !== 'boolean';
 
   const renderContent = () => {
-    if (children === null || children === undefined || typeof children === 'boolean') {
+    if (!hasChildren) {
       return null;
     }
     if (React.isValidElement(children)) {
       return children;
     }
     return (
-      <Text style={[styles.badgeText, variantTextStyle, textStyle]}>
+      <Text style={[styles.badgeText, variantTextStyle, sizeTextStyle, textStyle]}>
         {children}
       </Text>
     );
   };
 
   return (
-    <View style={[styles.badge, variantBadgeStyle, style]}>
-      {icon ? <View style={styles.iconContainer}>{icon}</View> : null}
+    <View style={[styles.badge, variantBadgeStyle, sizeBadgeStyle, style]}>
+      {icon ? (
+        <View
+          style={
+            hasChildren
+              ? size === 'sm'
+                ? styles.iconContainerSm
+                : styles.iconContainer
+              : styles.iconContainerSolo
+          }
+        >
+          {icon}
+        </View>
+      ) : null}
       {renderContent()}
     </View>
   );
@@ -55,19 +76,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 9999,
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
   badgeText: {
-    fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.1,
   },
   iconContainer: {
     marginRight: 4,
+  },
+  iconContainerSm: {
+    marginRight: 2.5,
+  },
+  iconContainerSolo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+const sizeBadgeStyles = StyleSheet.create({
+  default: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  sm: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  lg: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
+  icon: {
+    width: 22,
+    height: 22,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+const sizeTextStyles = StyleSheet.create({
+  default: {
+    fontSize: 11,
+  },
+  sm: {
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
+  lg: {
+    fontSize: 12,
+  },
+  icon: {
+    fontSize: 10,
   },
 });
 

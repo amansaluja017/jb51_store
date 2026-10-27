@@ -74,12 +74,27 @@ export function useAppData() {
   // Data States
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerTotalCount, setCustomerTotalCount] = useState<number>(0);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [isLoadingInquiries, setIsLoadingInquiries] = useState(false);
+  const [inquiriesPagination, setInquiriesPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+    hasMore: false,
+    pendingCount: 0,
+    resolvedCount: 0,
+  });
+  const [inquiriesSortBy, setInquiriesSortBy] = useState<'recent' | 'oldest' | 'name-asc' | 'name-desc'>('recent');
+  const [inquiriesStatusFilter, setInquiriesStatusFilter] = useState<'all' | 'pending' | 'resolved'>('all');
+  const [inquiriesSearchQuery, setInquiriesSearchQuery] = useState('');
+  const hasFetchedInquiries = useRef(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [credits, setCredits] = useState<Credit[]>([]);
@@ -113,8 +128,8 @@ export function useAppData() {
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
 
   const pendingInquiriesCount = useMemo(
-    () => inquiries.filter(i => i.status !== 'Resolved').length,
-    [inquiries]
+    () => (inquiriesPagination.pendingCount > 0 ? inquiriesPagination.pendingCount : inquiries.filter(i => i.status !== 'Resolved').length),
+    [inquiries, inquiriesPagination.pendingCount]
   );
 
   const activeDetailsProduct = useMemo(() => {
@@ -508,6 +523,9 @@ export function useAppData() {
       const res: any = await trpcRequest('customers.getPaginated', {
         input: params,
       });
+      if (res && typeof res.total === 'number') {
+        setCustomerTotalCount(res.total);
+      }
       return res;
     } catch (err: any) {
       console.error('[handleFetchPaginatedCustomers Error]:', err);
@@ -608,6 +626,9 @@ export function useAppData() {
       const res: any = await trpcRequest('credits.getPaginated', {
         input: params,
       });
+      if (res?.metrics) {
+        setCreditMetrics(res.metrics as CreditMetrics);
+      }
       return res;
     } catch (err: any) {
       console.error('[handleFetchPaginatedCredits Error]:', err);
@@ -679,7 +700,7 @@ export function useAppData() {
     }
   };
 
-  const handleDeleteCustomer = async (id: string, name?: string) => {
+  const handleDeleteCustomer = async (id: string, name?: string, onSuccess?: () => void) => {
     showAlert(
       'Delete Customer',
       `Are you sure you want to delete customer "${name || 'this customer'}"? This action cannot be undone.`,
@@ -691,7 +712,9 @@ export function useAppData() {
             body: { id },
           });
           setCustomers(prev => prev.filter(c => c.id !== id));
+          setCustomerTotalCount(prev => Math.max(0, prev - 1));
           showAlert('Customer Deleted', 'Customer has been removed successfully.', 'success');
+          onSuccess?.();
         } catch (err: any) {
           console.error('[handleDeleteCustomer Error]:', err);
           showAlert('Error Deleting Customer', err.message || 'Failed to delete customer', 'error');
@@ -1114,11 +1137,98 @@ export function useAppData() {
     }
   };
 
-  // Inquiry Mutators
-  const handleResolveInquiry = (id: string, name?: string) => {
-    setInquiries(prev => prev.map(inq => inq.id === id ? { ...inq, status: 'Responded' as const } : inq));
-    showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Responded.`, 'success');
+  // Inquiry Fetchers & Mutators
+  const handleFetchPaginatedInquiries = useCallback(
+    async (params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: 'all' | 'pending' | 'resolved';
+      sortBy?: 'recent' | 'oldest' | 'name-asc' | 'name-desc';
+      append?: boolean;
+    }) => {
+      setIsLoadingInquiries(true);
+      try {
+        const page = params?.page ?? 1;
+        const limit = params?.limit ?? 10;
+        const search = params?.search !== undefined ? params.search : inquiriesSearchQuery;
+        const status = params?.status !== undefined ? params.status : inquiriesStatusFilter;
+        const sortBy = params?.sortBy !== undefined ? params.sortBy : inquiriesSortBy;
+        const append = params?.append ?? false;
+
+        const res: any = await trpcRequest('inqueries.getPaginated', {
+          input: {
+            page,
+            limit,
+            search: search && search.trim() ? search.trim() : null,
+            status: status || 'all',
+            sortBy: sortBy || 'recent',
+          },
+        });
+
+        const items = Array.isArray(res?.items) ? (res.items as Inquiry[]) : [];
+        const total = typeof res?.total === 'number' ? res.total : items.length;
+        const totalPages = typeof res?.totalPages === 'number' ? res.totalPages : 1;
+        const pendingCount = typeof res?.pendingCount === 'number' ? res.pendingCount : 0;
+        const resolvedCount = typeof res?.resolvedCount === 'number' ? res.resolvedCount : 0;
+
+        if (append) {
+          setInquiries(prev => {
+            const existingIds = new Set(prev.map(i => i.id));
+            const newItems = items.filter(i => !existingIds.has(i.id));
+            return [...prev, ...newItems];
+          });
+        } else {
+          setInquiries(items);
+        }
+
+        setInquiriesPagination({
+          page,
+          limit,
+          total,
+          totalPages,
+          hasMore: page < totalPages,
+          pendingCount,
+          resolvedCount,
+        });
+
+        hasFetchedInquiries.current = true;
+        return res;
+      } catch (err: any) {
+        console.error('[handleFetchPaginatedInquiries Error]:', err);
+      } finally {
+        setIsLoadingInquiries(false);
+      }
+    },
+    [token, apiHost, inquiriesSearchQuery, inquiriesStatusFilter, inquiriesSortBy]
+  );
+
+  const handleResolveInquiry = async (id: string, name?: string) => {
+    try {
+      await trpcRequest('inqueries.updateStatus', {
+        method: 'POST',
+        body: { id, status: 'resolved' },
+      });
+      setInquiries(prev =>
+        prev.map(inq => (inq.id === id ? { ...inq, status: 'Resolved' as const } : inq))
+      );
+      setInquiriesPagination(prev => ({
+        ...prev,
+        pendingCount: Math.max(0, prev.pendingCount - 1),
+        resolvedCount: prev.resolvedCount + 1,
+      }));
+      showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Resolved.`, 'success');
+    } catch (err: any) {
+      console.error('[handleResolveInquiry Error]:', err);
+      showAlert('Error', err?.message || 'Failed to update inquiry status', 'error');
+    }
   };
+
+  useEffect(() => {
+    if (inquiriesModalOpen) {
+      handleFetchPaginatedInquiries({ page: 1, append: false });
+    }
+  }, [inquiriesModalOpen]);
 
   const handleReorderProductImages = async (newImages: string[]): Promise<string[]> => {
     if (!editingSlug) return newImages;
@@ -1422,6 +1532,7 @@ export function useAppData() {
     handleFetchPaginatedStock,
     // Customers
     customers,
+    customerTotalCount,
     isLoadingCustomers,
     handleFetchCustomers,
     handleFetchPaginatedCustomers,
@@ -1455,6 +1566,15 @@ export function useAppData() {
     // Inquiries
     inquiries,
     pendingInquiriesCount,
+    isLoadingInquiries,
+    inquiriesPagination,
+    inquiriesSortBy,
+    setInquiriesSortBy,
+    inquiriesStatusFilter,
+    setInquiriesStatusFilter,
+    inquiriesSearchQuery,
+    setInquiriesSearchQuery,
+    handleFetchPaginatedInquiries,
     handleResolveInquiry,
     // Analytics
     stats,
