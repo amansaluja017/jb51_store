@@ -13,6 +13,8 @@ import {
   User,
   PackageCheck,
   Receipt,
+  Globe,
+  Store,
 } from 'lucide-react-native';
 import { Order } from '../../types';
 import styles from '../../screens/InvoiceScreen.styles';
@@ -162,9 +164,22 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 <Text style={styles.orderMetaItem}>
                   Status: <Text style={{ fontWeight: '700', color: '#16a34a' }}>{order.status || 'Confirmed'}</Text>
                 </Text>
-                <Text style={styles.orderMetaItem}>
-                  Order Type: <Text style={{ fontWeight: '700', color: (order.orderType || 'offline') === 'online' ? '#2563eb' : '#71717a' }}>{(order.orderType || 'offline') === 'online' ? '🌐 Online Order' : '🏪 Offline / Walk-in'}</Text>
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Text style={styles.orderMetaItem}>Order Type:</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    {(order.orderType || 'offline') === 'online' ? (
+                      <>
+                        <Globe size={13} color="#2563eb" />
+                        <Text style={{ fontWeight: '700', color: '#2563eb', fontSize: 13 }}>Online Order</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Store size={13} color="#71717a" />
+                        <Text style={{ fontWeight: '700', color: '#71717a', fontSize: 13 }}>Offline / Walk-in</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
                 <Text style={styles.orderMetaItem}>
                   Payment Mode: <Text style={{ fontWeight: '700', color: '#09090b' }}>{order.paymentMethod === 'online' ? 'Online Payment' : 'Cash Payment'}</Text>
                 </Text>

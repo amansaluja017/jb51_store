@@ -23,6 +23,8 @@ import {
   PackageCheck,
   ChevronLeft,
   ChevronRight,
+  Globe,
+  Store,
 } from 'lucide-react-native';
 import { Invoice, Order } from '../../types';
 import { InvoiceSkeleton, OrderHistorySkeleton } from '../SkeletonLoader';
@@ -503,15 +505,19 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                                 : { backgroundColor: '#f4f4f5', borderColor: '#e4e4e7' },
                             ]}
                           >
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontWeight: '700',
-                                color: (ord.orderType || 'offline') === 'online' ? '#2563eb' : '#52525b',
-                              }}
-                            >
-                              {(ord.orderType || 'offline') === 'online' ? '🌐 Online' : '🏪 Offline'}
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              {(ord.orderType || 'offline') === 'online' ? (
+                                <>
+                                  <Globe size={11} color="#2563eb" />
+                                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#2563eb' }}>Online</Text>
+                                </>
+                              ) : (
+                                <>
+                                  <Store size={11} color="#52525b" />
+                                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#52525b' }}>Offline</Text>
+                                </>
+                              )}
+                            </View>
                           </View>
                         </View>
 

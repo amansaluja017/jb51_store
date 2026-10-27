@@ -26,6 +26,8 @@ import {
   MapPin,
   CreditCard,
   Calendar,
+  Globe,
+  Store,
 } from 'lucide-react-native';
 import { Control, Controller, FieldErrors, UseFormSetValue } from 'react-hook-form';
 import { Customer, Product, Variant, isProductInStock, isProductDiscontinued } from '../../types';
@@ -848,15 +850,25 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                 setValue('orderType', 'online', { shouldDirty: true })
               }
             >
-              <Text
-                style={[
-                  styles.paymentOptionText,
-                  (formValues.orderType || 'offline') === 'online' &&
-                    styles.paymentOptionTextActive,
-                ]}
-              >
-                🌐 Online Order
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Globe
+                  size={14}
+                  color={
+                    (formValues.orderType || 'offline') === 'online'
+                      ? '#2563eb'
+                      : '#71717a'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.paymentOptionText,
+                    (formValues.orderType || 'offline') === 'online' &&
+                      styles.paymentOptionTextActive,
+                  ]}
+                >
+                  Online Order
+                </Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -868,15 +880,25 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                 setValue('orderType', 'offline', { shouldDirty: true })
               }
             >
-              <Text
-                style={[
-                  styles.paymentOptionText,
-                  (formValues.orderType || 'offline') === 'offline' &&
-                    styles.paymentOptionTextActive,
-                ]}
-              >
-                🏪 Offline / In-Store
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Store
+                  size={14}
+                  color={
+                    (formValues.orderType || 'offline') === 'offline'
+                      ? '#FF5E36'
+                      : '#71717a'
+                  }
+                />
+                <Text
+                  style={[
+                    styles.paymentOptionText,
+                    (formValues.orderType || 'offline') === 'offline' &&
+                      styles.paymentOptionTextActive,
+                  ]}
+                >
+                  Offline / In-Store
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>

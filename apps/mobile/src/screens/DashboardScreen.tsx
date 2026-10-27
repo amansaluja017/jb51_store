@@ -25,6 +25,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Layers,
+  Globe,
+  Store,
 } from 'lucide-react-native';
 import SVGChart from '../components/SVGChart';
 import { DashboardSkeleton } from '../components/SkeletonLoader';
@@ -634,17 +636,27 @@ export default function DashboardScreen({
         {/* Online vs Offline Ratio */}
         <View style={styles.ratioHeaderRow}>
           <View style={styles.ratioValBox}>
-            <Text style={[styles.ratioValText, { color: '#2563eb' }]}>
-              🌐 {channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
+                <Globe size={13} color="#2563eb" />
+              </View>
+              <Text style={[styles.ratioValText, { color: '#2563eb' }]}>
+                {channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online
+              </Text>
+            </View>
             <Text style={styles.ratioLblText}>
               {channelRatioAnalytics?.onlineOrderCount ?? analyticsOverview?.onlineOrderCount ?? 0} orders
             </Text>
           </View>
           <View style={[styles.ratioValBox, { alignItems: 'flex-end' }]}>
-            <Text style={[styles.ratioValText, { color: '#f59e0b' }]}>
-              🏪 {channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#fffbeb', alignItems: 'center', justifyContent: 'center' }}>
+                <Store size={13} color="#d97706" />
+              </View>
+              <Text style={[styles.ratioValText, { color: '#d97706' }]}>
+                {channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in
+              </Text>
+            </View>
             <Text style={styles.ratioLblText}>
               {channelRatioAnalytics?.offlineOrderCount ?? analyticsOverview?.offlineOrderCount ?? 0} orders
             </Text>
@@ -709,7 +721,10 @@ export default function DashboardScreen({
           {/* Online Order Growth */}
           <View style={styles.growthBox}>
             <View style={styles.growthBoxHeader}>
-              <Text style={styles.growthBoxLbl}>Online</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Globe size={11} color="#2563eb" />
+                <Text style={styles.growthBoxLbl}>Online</Text>
+              </View>
               <View
                 style={[
                   styles.growthBadge,
@@ -746,7 +761,10 @@ export default function DashboardScreen({
           {/* Offline Order Growth */}
           <View style={styles.growthBox}>
             <View style={styles.growthBoxHeader}>
-              <Text style={styles.growthBoxLbl}>Walk-in</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Store size={11} color="#f59e0b" />
+                <Text style={styles.growthBoxLbl}>Walk-in</Text>
+              </View>
               <View
                 style={[
                   styles.growthBadge,
