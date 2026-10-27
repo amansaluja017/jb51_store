@@ -28,16 +28,24 @@ export function Badge({
   const variantBadgeStyle = variantStyles[variant] || variantStyles.default;
   const variantTextStyle = textStyles[variant] || textStyles.default;
 
+  const renderContent = () => {
+    if (children === null || children === undefined || typeof children === 'boolean') {
+      return null;
+    }
+    if (React.isValidElement(children)) {
+      return children;
+    }
+    return (
+      <Text style={[styles.badgeText, variantTextStyle, textStyle]}>
+        {children}
+      </Text>
+    );
+  };
+
   return (
     <View style={[styles.badge, variantBadgeStyle, style]}>
       {icon ? <View style={styles.iconContainer}>{icon}</View> : null}
-      {typeof children === 'string' ? (
-        <Text style={[styles.badgeText, variantTextStyle, textStyle]}>
-          {children}
-        </Text>
-      ) : (
-        children
-      )}
+      {renderContent()}
     </View>
   );
 }

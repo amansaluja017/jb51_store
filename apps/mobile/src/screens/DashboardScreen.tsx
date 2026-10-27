@@ -687,7 +687,7 @@ export default function DashboardScreen({
                   icon={<Globe size={12} color="#2563eb" />}
                   style={{ marginBottom: 4 }}
                 >
-                  {channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online
+                  {`${channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online`}
                 </Badge>
                 <Text style={styles.ratioLblText}>
                   {channelRatioAnalytics?.onlineOrderCount ?? analyticsOverview?.onlineOrderCount ?? 0} orders
@@ -699,7 +699,7 @@ export default function DashboardScreen({
                   icon={<Store size={12} color="#d97706" />}
                   style={{ marginBottom: 4 }}
                 >
-                  {channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in
+                  {`${channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in`}
                 </Badge>
                 <Text style={styles.ratioLblText}>
                   {channelRatioAnalytics?.offlineOrderCount ?? analyticsOverview?.offlineOrderCount ?? 0} orders
@@ -828,7 +828,7 @@ export default function DashboardScreen({
               <CardTitle>Customer Payment Modes</CardTitle>
             </View>
             <Badge variant="secondary">
-              ₹{(paymentModesAnalytics?.totalAmount ?? analyticsOverview?.payments?.totalAmount ?? 0).toLocaleString('en-IN')} Total
+              {`₹${(paymentModesAnalytics?.totalAmount ?? analyticsOverview?.payments?.totalAmount ?? 0).toLocaleString('en-IN')} Total`}
             </Badge>
           </CardHeader>
 
@@ -865,7 +865,7 @@ export default function DashboardScreen({
                 <View style={styles.paymentCardHeader}>
                   <Text style={styles.paymentCardTitle}>Online</Text>
                   <Badge variant="blue">
-                    {paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 0}%
+                    {`${paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 0}%`}
                   </Badge>
                 </View>
                 <Text style={styles.paymentCardAmount}>
@@ -881,7 +881,7 @@ export default function DashboardScreen({
                 <View style={styles.paymentCardHeader}>
                   <Text style={styles.paymentCardTitle}>Cash</Text>
                   <Badge variant="success">
-                    {paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 0}%
+                    {`${paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 0}%`}
                   </Badge>
                 </View>
                 <Text style={styles.paymentCardAmount}>
@@ -897,7 +897,7 @@ export default function DashboardScreen({
                 <View style={styles.paymentCardHeader}>
                   <Text style={styles.paymentCardTitle}>Khata</Text>
                   <Badge variant="amber">
-                    {paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 0}%
+                    {`${paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 0}%`}
                   </Badge>
                 </View>
                 <Text style={styles.paymentCardAmount}>

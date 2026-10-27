@@ -49,6 +49,26 @@ export function TabsTrigger({
 
   const isActive = ctx.value === value;
 
+  const renderContent = () => {
+    if (children === null || children === undefined || typeof children === 'boolean') {
+      return null;
+    }
+    if (React.isValidElement(children)) {
+      return children;
+    }
+    return (
+      <Text
+        style={[
+          styles.triggerText,
+          textStyle,
+          isActive && [styles.triggerTextActive, activeTextStyle],
+        ]}
+      >
+        {children}
+      </Text>
+    );
+  };
+
   return (
     <TouchableOpacity
       onPress={() => ctx.onValueChange(value)}
@@ -60,19 +80,7 @@ export function TabsTrigger({
       ]}
     >
       {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
-      {typeof children === 'string' ? (
-        <Text
-          style={[
-            styles.triggerText,
-            textStyle,
-            isActive && [styles.triggerTextActive, activeTextStyle],
-          ]}
-        >
-          {children}
-        </Text>
-      ) : (
-        children
-      )}
+      {renderContent()}
     </TouchableOpacity>
   );
 }
