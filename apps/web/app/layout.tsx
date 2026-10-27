@@ -1,11 +1,18 @@
 import type { Metadata } from 'next';
 import { Playfair_Display, Plus_Jakarta_Sans, Caveat, Geist } from 'next/font/google';
 import Script from 'next/script';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Toaster } from 'sonner';
+
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { Toaster } from 'sonner';
+import { PageTransition } from '@/components/layout/PageTransition';
+import { StoreAnalyticsTracker } from '@/components/layout/StoreAnalyticsTracker';
+import { WishlistProvider } from '@/context/WishlistContext';
 import { TRPCReactProvider } from '@/lib/trpc/client/react';
+import { cn, SITE_URL } from '@/lib/utils';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -25,7 +32,10 @@ const caveat = Caveat({
   display: 'swap',
 });
 
-import { SITE_URL } from '@/lib/utils';
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -101,15 +111,6 @@ export const metadata: Metadata = {
   },
 };
 
-
-import { WishlistProvider } from '@/context/WishlistContext';
-import { cn } from "@/lib/utils";
-import { PageTransition } from '@/components/layout/PageTransition';
-import { StoreAnalyticsTracker } from '@/components/layout/StoreAnalyticsTracker';
-
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
-
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
@@ -164,6 +165,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="bottom-center" />
           </WishlistProvider>
         </TRPCReactProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
