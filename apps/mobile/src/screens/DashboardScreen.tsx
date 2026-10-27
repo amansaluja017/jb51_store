@@ -31,6 +31,21 @@ import {
 import SVGChart from '../components/SVGChart';
 import { DashboardSkeleton } from '../components/SkeletonLoader';
 import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Badge,
+  Progress,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Separator,
+} from '../components/ui';
+import {
   Product,
   AnalyticsOverviewData,
   ProductAnalyticsItem,
@@ -121,6 +136,7 @@ export default function DashboardScreen({
   const [activeMetric, setActiveMetric] = useState<
     'views' | 'waHits' | 'igHits' | 'conversion' | 'orders'
   >('views');
+  const [analyticsTab, setAnalyticsTab] = useState<string>('all');
 
   // Compute 6-week trend data dynamically
   const chartData = useMemo(() => {
@@ -312,10 +328,9 @@ export default function DashboardScreen({
           </TouchableOpacity>
         )}
 
-        <View style={styles.liveTag}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveTagText}>Live</Text>
-        </View>
+        <Badge variant="success" icon={<View style={styles.liveDot} />}>
+          Live
+        </Badge>
       </View>
 
       {/* Outfit Dropdown Options */}
@@ -359,14 +374,38 @@ export default function DashboardScreen({
         </View>
       )}
 
-      {/* Interactive Engagement & Conversion Telemetry */}
-      <View style={styles.telemetrySection}>
-        <View style={styles.subHeaderRow}>
-          <Text style={styles.subSectionTitle}>Performance Telemetry</Text>
-          <Text style={styles.telemetryHint}>Tap card to view trend</Text>
-        </View>
+      {/* Shadcn UI Section Navigation Tabs */}
+      <Tabs value={analyticsTab} onValueChange={setAnalyticsTab} style={{ marginTop: 2, marginBottom: 2 }}>
+        <TabsList>
+          <TabsTrigger value="all">Overview</TabsTrigger>
+          <TabsTrigger value="channels">Channels</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="catalogue">Products</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-        <View style={styles.interactiveCardsGrid}>
+      {/* Interactive Engagement & Conversion Telemetry */}
+      <Card style={{ padding: 14 }}>
+        <CardHeader style={{ marginBottom: 12 }}>
+          <View>
+            <CardTitle>Performance Telemetry</CardTitle>
+            <CardDescription>Tap metric card to view weekly trend</CardDescription>
+          </View>
+          <Badge variant="outline">
+            {activeMetric === 'views'
+              ? 'Views'
+              : activeMetric === 'waHits'
+              ? 'WhatsApp'
+              : activeMetric === 'igHits'
+              ? 'Instagram'
+              : activeMetric === 'conversion'
+              ? 'Conversion'
+              : 'Orders'}
+          </Badge>
+        </CardHeader>
+
+        <CardContent>
+          <View style={styles.interactiveCardsGrid}>
           {/* Card 1: Views */}
           <TouchableOpacity
             onPress={() => setActiveMetric('views')}
@@ -536,683 +575,658 @@ export default function DashboardScreen({
             labels={chartData.labels}
           />
         </View>
-      </View>
+      </CardContent>
+    </Card>
 
-      {/* Conversion Funnel & Channel Breakdown Card */}
-      <View style={styles.funnelCard}>
-        <View style={styles.funnelHeader}>
-          <View style={styles.funnelTitleRow}>
-            <TrendingUp size={15} color="#FF5E36" />
-            <Text style={styles.funnelTitle}>Conversion Funnel</Text>
-          </View>
-          <Text style={styles.funnelSub}>Impression to Order Flow</Text>
-        </View>
-
-        <View style={styles.funnelStepsRow}>
-          {/* Step 1: Views */}
-          <View style={styles.funnelStep}>
-            <Text style={styles.funnelStepVal}>
-              {funnelAnalytics?.views ?? analyticsMetrics?.views ?? 0}
-            </Text>
-            <Text style={styles.funnelStepLbl}>Views</Text>
-            <Text style={styles.funnelStepSub}>100% traffic</Text>
-          </View>
-
-          <ArrowRight size={14} color="#d4d4d8" style={styles.funnelArrow} />
-
-          {/* Step 2: Inquiries */}
-          <View style={styles.funnelStep}>
-            <Text style={styles.funnelStepVal}>
-              {funnelAnalytics?.inquiries ?? totalInquiries}
-            </Text>
-            <Text style={styles.funnelStepLbl}>Inquiries</Text>
-            <Text style={styles.funnelStepSub}>
-              {funnelAnalytics?.inquiryRate ?? analyticsMetrics?.conversion ?? 0}%
-            </Text>
-          </View>
-
-          <ArrowRight size={14} color="#d4d4d8" style={styles.funnelArrow} />
-
-          {/* Step 3: Online Orders (STRICTLY taking online orders for the funnel) */}
-          <View style={styles.funnelStep}>
-            <Text style={styles.funnelStepVal}>
-              {funnelAnalytics?.onlineOrders ?? analyticsOverview?.onlineOrderCount ?? 0}
-            </Text>
-            <Text style={styles.funnelStepLbl}>Online Orders</Text>
-            <Text style={styles.funnelStepSub}>
-              {funnelAnalytics?.onlineOrderRate ?? analyticsOverview?.onlineOrderConversionRate ?? 0}%
-            </Text>
-          </View>
-        </View>
-
-        {/* Channels Grid */}
-        <View style={styles.channelsGrid}>
-          {/* WhatsApp Channel */}
-          <View style={[styles.channelCard, styles.channelCardWa]}>
-            <View style={styles.channelCardHeader}>
-              <Text style={[styles.channelTitle, { color: '#128C7E' }]}>
-                WhatsApp Channel
-              </Text>
-              <MessageCircle size={14} color="#128C7E" />
+    {/* Section: Channels & Growth (Shows under 'all' and 'channels' tabs) */}
+    {(analyticsTab === 'all' || analyticsTab === 'channels') && (
+      <>
+        {/* Conversion Funnel & Channel Breakdown Card */}
+        <Card>
+          <CardHeader>
+            <View style={styles.funnelTitleRow}>
+              <TrendingUp size={15} color="#FF5E36" />
+              <CardTitle>Conversion Funnel</CardTitle>
             </View>
-            <Text style={styles.channelVal}>
-              {analyticsMetrics?.waHits || 0}
-            </Text>
-            <Text style={styles.channelSubText}>
-              {waShare}% share of inquiries •{' '}
-              {analyticsOverview?.whatsappConversionRate ?? 0}% rate
-            </Text>
-          </View>
+            <Badge variant="outline">Impression Flow</Badge>
+          </CardHeader>
 
-          {/* Instagram Channel */}
-          <View style={[styles.channelCard, styles.channelCardIg]}>
-            <View style={styles.channelCardHeader}>
-              <Text style={[styles.channelTitle, { color: '#E1306C' }]}>
-                Instagram Direct
-              </Text>
-              <Send size={14} color="#E1306C" />
-            </View>
-            <Text style={styles.channelVal}>
-              {analyticsMetrics?.igHits || 0}
-            </Text>
-            <Text style={styles.channelSubText}>
-              {igShare}% share of inquiries •{' '}
-              {analyticsOverview?.instagramConversionRate ?? 0}% rate
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 1. Channel Ratio & 30-Day Growth Pulse */}
-      <View style={styles.analysisCard}>
-        <View style={styles.analysisHeader}>
-          <View style={styles.analysisHeaderLeft}>
-            <Layers size={15} color="#2563eb" />
-            <Text style={styles.analysisTitle}>Channel Ratio & Growth Pulse</Text>
-          </View>
-          <Text style={styles.analysisSub}>Past 30 Days Velocity</Text>
-        </View>
-
-        {/* Online vs Offline Ratio */}
-        <View style={styles.ratioHeaderRow}>
-          <View style={styles.ratioValBox}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
-                <Globe size={13} color="#2563eb" />
+          <CardContent>
+            <View style={styles.funnelStepsRow}>
+              {/* Step 1: Views */}
+              <View style={styles.funnelStep}>
+                <Text style={styles.funnelStepVal}>
+                  {funnelAnalytics?.views ?? analyticsMetrics?.views ?? 0}
+                </Text>
+                <Text style={styles.funnelStepLbl}>Views</Text>
+                <Text style={styles.funnelStepSub}>100% traffic</Text>
               </View>
-              <Text style={[styles.ratioValText, { color: '#2563eb' }]}>
-                {channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online
-              </Text>
-            </View>
-            <Text style={styles.ratioLblText}>
-              {channelRatioAnalytics?.onlineOrderCount ?? analyticsOverview?.onlineOrderCount ?? 0} orders
-            </Text>
-          </View>
-          <View style={[styles.ratioValBox, { alignItems: 'flex-end' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#fffbeb', alignItems: 'center', justifyContent: 'center' }}>
-                <Store size={13} color="#d97706" />
+
+              <ArrowRight size={14} color="#d4d4d8" style={styles.funnelArrow} />
+
+              {/* Step 2: Inquiries */}
+              <View style={styles.funnelStep}>
+                <Text style={styles.funnelStepVal}>
+                  {funnelAnalytics?.inquiries ?? totalInquiries}
+                </Text>
+                <Text style={styles.funnelStepLbl}>Inquiries</Text>
+                <Text style={styles.funnelStepSub}>
+                  {funnelAnalytics?.inquiryRate ?? analyticsMetrics?.conversion ?? 0}%
+                </Text>
               </View>
-              <Text style={[styles.ratioValText, { color: '#d97706' }]}>
-                {channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in
-              </Text>
-            </View>
-            <Text style={styles.ratioLblText}>
-              {channelRatioAnalytics?.offlineOrderCount ?? analyticsOverview?.offlineOrderCount ?? 0} orders
-            </Text>
-          </View>
-        </View>
 
-        {/* Visual Dual Ratio Bar */}
-        <View style={styles.ratioBarTrack}>
-          <View
-            style={[
-              styles.ratioBarOnline,
-              { width: `${Math.max(5, Math.min(95, channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 50))}%` },
-            ]}
-          />
-          <View
-            style={[
-              styles.ratioBarOffline,
-              { width: `${Math.max(5, Math.min(95, channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 50))}%` },
-            ]}
-          />
-        </View>
+              <ArrowRight size={14} color="#d4d4d8" style={styles.funnelArrow} />
 
-        {/* 30-Day Growth Velocity */}
-        <View style={styles.growthGrid}>
-          {/* Total Order Growth */}
-          <View style={styles.growthBox}>
-            <View style={styles.growthBoxHeader}>
-              <Text style={styles.growthBoxLbl}>Total Growth</Text>
-              <View
-                style={[
-                  styles.growthBadge,
-                  (growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0
-                    ? styles.growthBadgePositive
-                    : styles.growthBadgeNegative,
-                ]}
-              >
-                {(growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0 ? (
-                  <ArrowUpRight size={10} color="#16a34a" />
-                ) : (
-                  <ArrowDownRight size={10} color="#dc2626" />
-                )}
-                <Text
-                  style={
-                    (growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0
-                      ? styles.growthBadgeTextPositive
-                      : styles.growthBadgeTextNegative
-                  }
-                >
-                  {(growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0 ? '+' : ''}
-                  {growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0}%
+              {/* Step 3: Online Orders (STRICTLY taking online orders for the funnel) */}
+              <View style={styles.funnelStep}>
+                <Text style={styles.funnelStepVal}>
+                  {funnelAnalytics?.onlineOrders ?? analyticsOverview?.onlineOrderCount ?? 0}
+                </Text>
+                <Text style={styles.funnelStepLbl}>Online Orders</Text>
+                <Text style={styles.funnelStepSub}>
+                  {funnelAnalytics?.onlineOrderRate ?? analyticsOverview?.onlineOrderConversionRate ?? 0}%
                 </Text>
               </View>
             </View>
-            <Text style={styles.growthBoxVal}>
-              {growthPulseAnalytics?.current30DaysOrders ?? analyticsOverview?.growth?.current30DaysOrders ?? 0}
-            </Text>
-            <Text style={{ fontSize: 9, color: '#94a3b8' }}>
-              prev 30d: {growthPulseAnalytics?.previous30DaysOrders ?? analyticsOverview?.growth?.previous30DaysOrders ?? 0}
-            </Text>
-          </View>
 
-          {/* Online Order Growth */}
-          <View style={styles.growthBox}>
-            <View style={styles.growthBoxHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Globe size={11} color="#2563eb" />
-                <Text style={styles.growthBoxLbl}>Online</Text>
+            {/* Channels Grid */}
+            <View style={styles.channelsGrid}>
+              {/* WhatsApp Channel */}
+              <View style={[styles.channelCard, styles.channelCardWa]}>
+                <View style={styles.channelCardHeader}>
+                  <Text style={[styles.channelTitle, { color: '#128C7E' }]}>
+                    WhatsApp Channel
+                  </Text>
+                  <MessageCircle size={14} color="#128C7E" />
+                </View>
+                <Text style={styles.channelVal}>
+                  {analyticsMetrics?.waHits || 0}
+                </Text>
+                <Text style={styles.channelSubText}>
+                  {waShare}% share of inquiries •{' '}
+                  {analyticsOverview?.whatsappConversionRate ?? 0}% rate
+                </Text>
               </View>
-              <View
-                style={[
-                  styles.growthBadge,
-                  (growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0
-                    ? styles.growthBadgePositive
-                    : styles.growthBadgeNegative,
-                ]}
-              >
-                {(growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0 ? (
-                  <ArrowUpRight size={10} color="#16a34a" />
-                ) : (
-                  <ArrowDownRight size={10} color="#dc2626" />
-                )}
-                <Text
-                  style={
-                    (growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0
-                      ? styles.growthBadgeTextPositive
-                      : styles.growthBadgeTextNegative
-                  }
-                >
-                  {(growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0 ? '+' : ''}
-                  {growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0}%
+
+              {/* Instagram Channel */}
+              <View style={[styles.channelCard, styles.channelCardIg]}>
+                <View style={styles.channelCardHeader}>
+                  <Text style={[styles.channelTitle, { color: '#E1306C' }]}>
+                    Instagram Direct
+                  </Text>
+                  <Send size={14} color="#E1306C" />
+                </View>
+                <Text style={styles.channelVal}>
+                  {analyticsMetrics?.igHits || 0}
+                </Text>
+                <Text style={styles.channelSubText}>
+                  {igShare}% share of inquiries •{' '}
+                  {analyticsOverview?.instagramConversionRate ?? 0}% rate
                 </Text>
               </View>
             </View>
-            <Text style={styles.growthBoxVal}>
-              {growthPulseAnalytics?.current30DaysOnline ?? analyticsOverview?.growth?.current30DaysOnline ?? 0}
-            </Text>
-            <Text style={{ fontSize: 9, color: '#94a3b8' }}>
-              prev 30d: {growthPulseAnalytics?.previous30DaysOnline ?? analyticsOverview?.growth?.previous30DaysOnline ?? 0}
-            </Text>
-          </View>
+          </CardContent>
+        </Card>
 
-          {/* Offline Order Growth */}
-          <View style={styles.growthBox}>
-            <View style={styles.growthBoxHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Store size={11} color="#f59e0b" />
-                <Text style={styles.growthBoxLbl}>Walk-in</Text>
-              </View>
-              <View
-                style={[
-                  styles.growthBadge,
-                  (growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0
-                    ? styles.growthBadgePositive
-                    : styles.growthBadgeNegative,
-                ]}
-              >
-                {(growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0 ? (
-                  <ArrowUpRight size={10} color="#16a34a" />
-                ) : (
-                  <ArrowDownRight size={10} color="#dc2626" />
-                )}
-                <Text
-                  style={
-                    (growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0
-                      ? styles.growthBadgeTextPositive
-                      : styles.growthBadgeTextNegative
-                  }
-                >
-                  {(growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0 ? '+' : ''}
-                  {growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0}%
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.growthBoxVal}>
-              {growthPulseAnalytics?.current30DaysOffline ?? analyticsOverview?.growth?.current30DaysOffline ?? 0}
-            </Text>
-            <Text style={{ fontSize: 9, color: '#94a3b8' }}>
-              prev 30d: {growthPulseAnalytics?.previous30DaysOffline ?? analyticsOverview?.growth?.previous30DaysOffline ?? 0}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 2. Customer Payment Breakdown (Online vs Cash vs Credit) */}
-      <View style={styles.analysisCard}>
-        <View style={styles.analysisHeader}>
-          <View style={styles.analysisHeaderLeft}>
-            <CreditCard size={15} color="#10B981" />
-            <Text style={styles.analysisTitle}>Customer Payment Modes</Text>
-          </View>
-          <Text style={styles.analysisSub}>
-            Total: ₹{(paymentModesAnalytics?.totalAmount ?? analyticsOverview?.payments?.totalAmount ?? 0).toLocaleString('en-IN')}
-          </Text>
-        </View>
-
-        {/* Visual 3-Way Payment Distribution Bar */}
-        <View style={styles.paymentBarTrack}>
-          <View
-            style={{
-              height: '100%',
-              backgroundColor: '#2563eb',
-              width: `${Math.max(2, paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 33)}%`,
-            }}
-          />
-          <View
-            style={{
-              height: '100%',
-              backgroundColor: '#16a34a',
-              width: `${Math.max(2, paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 33)}%`,
-            }}
-          />
-          <View
-            style={{
-              height: '100%',
-              backgroundColor: '#f59e0b',
-              width: `${Math.max(2, paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 34)}%`,
-            }}
-          />
-        </View>
-
-        {/* 3 Payment Columns */}
-        <View style={styles.paymentGrid}>
-          {/* Online Payment */}
-          <View style={styles.paymentCardItem}>
-            <View style={styles.paymentCardHeader}>
-              <Text style={styles.paymentCardTitle}>Online</Text>
-              <View style={[styles.paymentSharePill, { backgroundColor: '#eff6ff' }]}>
-                <Text style={[styles.paymentSharePillText, { color: '#2563eb' }]}>
-                  {paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 0}%
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.paymentCardAmount}>
-              ₹{(paymentModesAnalytics?.onlineAmount ?? analyticsOverview?.payments?.onlineAmount ?? 0).toLocaleString('en-IN')}
-            </Text>
-            <Text style={styles.paymentCardSub}>
-              {paymentModesAnalytics?.onlineCount ?? analyticsOverview?.payments?.onlineCount ?? 0} orders
-            </Text>
-          </View>
-
-          {/* Cash Payment */}
-          <View style={styles.paymentCardItem}>
-            <View style={styles.paymentCardHeader}>
-              <Text style={styles.paymentCardTitle}>Cash</Text>
-              <View style={[styles.paymentSharePill, { backgroundColor: '#f0fdf4' }]}>
-                <Text style={[styles.paymentSharePillText, { color: '#16a34a' }]}>
-                  {paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 0}%
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.paymentCardAmount}>
-              ₹{(paymentModesAnalytics?.cashAmount ?? analyticsOverview?.payments?.cashAmount ?? 0).toLocaleString('en-IN')}
-            </Text>
-            <Text style={styles.paymentCardSub}>
-              {paymentModesAnalytics?.cashCount ?? analyticsOverview?.payments?.cashCount ?? 0} orders
-            </Text>
-          </View>
-
-          {/* Credit Payment */}
-          <View style={styles.paymentCardItem}>
-            <View style={styles.paymentCardHeader}>
-              <Text style={styles.paymentCardTitle}>Khata</Text>
-              <View style={[styles.paymentSharePill, { backgroundColor: '#fffbeb' }]}>
-                <Text style={[styles.paymentSharePillText, { color: '#d97706' }]}>
-                  {paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 0}%
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.paymentCardAmount}>
-              ₹{(paymentModesAnalytics?.creditAmount ?? analyticsOverview?.payments?.creditAmount ?? 0).toLocaleString('en-IN')}
-            </Text>
-            <Text style={styles.paymentCardSub}>
-              {paymentModesAnalytics?.creditCount ?? analyticsOverview?.payments?.creditCount ?? 0} orders
-            </Text>
-          </View>
-        </View>
-
-        {/* Credit Note summary if there's due balance */}
-        {((paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0) > 0 ||
-          (paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0) > 0) && (
-          <Text style={styles.creditNoteText}>
-            Outstanding Khata: ₹{(paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0).toLocaleString('en-IN')} pending • ₹{(paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0).toLocaleString('en-IN')} settled
-          </Text>
-        )}
-      </View>
-
-      {/* 3. Inventory Stock Pulse */}
-      {inventorySummaryAnalytics && (
-        <View style={styles.analysisCard}>
-          <View style={styles.analysisHeader}>
+        {/* 1. Channel Ratio & 30-Day Growth Pulse */}
+        <Card>
+          <CardHeader>
             <View style={styles.analysisHeaderLeft}>
-              <Package size={15} color="#059669" />
-              <Text style={styles.analysisTitle}>Inventory Health Summary</Text>
+              <Layers size={15} color="#2563eb" />
+              <CardTitle>Channel Ratio & Growth Pulse</CardTitle>
             </View>
-            <TouchableOpacity onPress={() => onNavigateToTab?.('inventory')} activeOpacity={0.7}>
-              <Text style={[styles.analysisSub, { color: '#FF5E36', fontWeight: '700' }]}>Manage Stock →</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.growthGrid}>
-            <View style={styles.growthBox}>
-              <Text style={styles.growthBoxLbl}>In Stock</Text>
-              <Text style={[styles.growthBoxVal, { color: '#16a34a' }]}>{inventorySummaryAnalytics.inStockProducts}</Text>
-              <Text style={{ fontSize: 9, color: '#94a3b8' }}>products</Text>
-            </View>
-            <View style={styles.growthBox}>
-              <Text style={styles.growthBoxLbl}>Low Stock</Text>
-              <Text style={[styles.growthBoxVal, { color: '#f59e0b' }]}>{inventorySummaryAnalytics.lowStockProducts}</Text>
-              <Text style={{ fontSize: 9, color: '#94a3b8' }}>need refill</Text>
-            </View>
-            <View style={styles.growthBox}>
-              <Text style={styles.growthBoxLbl}>Total Units</Text>
-              <Text style={[styles.growthBoxVal, { color: '#2563eb' }]}>{inventorySummaryAnalytics.totalStockUnits}</Text>
-              <Text style={{ fontSize: 9, color: '#94a3b8' }}>units available</Text>
-            </View>
-          </View>
-        </View>
-      )}
+            <Badge variant="outline">Past 30 Days Velocity</Badge>
+          </CardHeader>
 
-      {/* Focused Outfit Detail Card (When an individual outfit is selected) */}
-      {activeAnalyticsProduct && (
-        <View style={styles.focusedCard}>
-          <View style={styles.focusedHeader}>
-            <View style={styles.focusedHeaderBadge}>
-              <Award size={12} color="#ea580c" />
-              <Text style={styles.focusedHeaderBadgeText}>Focused Telemetry</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setSelectedAnalyticsSlug('all')}
-              style={styles.focusedResetBtn}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.focusedResetBtnText}>Back to Overall</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.focusedBody}>
-            {activeAnalyticsProduct.images &&
-            activeAnalyticsProduct.images.length > 0 ? (
-              <Image
-                source={{ uri: activeAnalyticsProduct.images[0] }}
-                style={styles.focusedImage}
-              />
-            ) : (
-              <View style={styles.focusedImagePlaceholder}>
-                <Award size={20} color="#94a3b8" />
+          <CardContent>
+            {/* Online vs Offline Ratio */}
+            <View style={styles.ratioHeaderRow}>
+              <View style={styles.ratioValBox}>
+                <Badge
+                  variant="blue"
+                  icon={<Globe size={12} color="#2563eb" />}
+                  style={{ marginBottom: 4 }}
+                >
+                  {channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 0}% Online
+                </Badge>
+                <Text style={styles.ratioLblText}>
+                  {channelRatioAnalytics?.onlineOrderCount ?? analyticsOverview?.onlineOrderCount ?? 0} orders
+                </Text>
               </View>
-            )}
-
-            <View style={styles.focusedDetails}>
-              <Text style={styles.focusedProductName} numberOfLines={1}>
-                {activeAnalyticsProduct.name}
-              </Text>
-              <Text style={styles.focusedProductCategory}>
-                {activeAnalyticsProduct.category || 'Collection Item'}
-              </Text>
-              <Text style={styles.focusedProductPrice}>
-                {formatCurrency(
-                  activeAnalyticsProduct.sellingPrice ??
-                    activeAnalyticsProduct.price ??
-                    0
-                )}
-              </Text>
-            </View>
-          </View>
-
-          {/* Focused Stats Grid */}
-          <View style={styles.focusedStatsGrid}>
-            <View style={styles.focusedStatBox}>
-              <Text style={styles.focusedStatBoxVal}>
-                {analyticsMetrics?.views || 0}
-              </Text>
-              <Text style={styles.focusedStatBoxLbl}>Views Recorded</Text>
-            </View>
-            <View style={styles.focusedStatBox}>
-              <Text style={styles.focusedStatBoxVal}>
-                {(analyticsMetrics?.waHits || 0) +
-                  (analyticsMetrics?.igHits || 0)}
-              </Text>
-              <Text style={styles.focusedStatBoxLbl}>Total Inquiries</Text>
-            </View>
-            <View style={styles.focusedStatBox}>
-              <Text style={styles.focusedStatBoxVal}>
-                {analyticsMetrics?.conversion || 0}%
-              </Text>
-              <Text style={styles.focusedStatBoxLbl}>Inquiry Conv.</Text>
-            </View>
-            <View style={styles.focusedStatBox}>
-              <Text style={styles.focusedStatBoxVal}>
-                {analyticsOverview?.orderCount ?? 0}
-              </Text>
-              <Text style={styles.focusedStatBoxLbl}>Orders Placed</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Demand & Performance Leaderboards (Storewide Overview) */}
-      {!activeAnalyticsProduct && (
-        <View style={styles.demandCard}>
-          <View style={styles.demandHeader}>
-            <Award size={16} color="#FF5E36" />
-            <View>
-              <Text style={styles.demandTitle}>Demand Highlights</Text>
-              <Text style={styles.demandSub}>
-                Top client demand & search rankings
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.highlightsGrid}>
-            {/* Most Searched */}
-            {mostViewedProduct && (
-              <TouchableOpacity
-                onPress={() => setSelectedAnalyticsSlug(mostViewedProduct.slug)}
-                activeOpacity={0.7}
-                style={styles.highlightCard}
-              >
-                <View style={styles.highlightHeader}>
-                  <Search size={11} color="#64748b" />
-                  <Text style={styles.highlightLabel}>Top Viewed</Text>
-                </View>
-                <Text style={styles.highlightName} numberOfLines={1}>
-                  {mostViewedProduct.name}
+              <View style={[styles.ratioValBox, { alignItems: 'flex-end' }]}>
+                <Badge
+                  variant="amber"
+                  icon={<Store size={12} color="#d97706" />}
+                  style={{ marginBottom: 4 }}
+                >
+                  {channelRatioAnalytics?.offlineRatio ?? analyticsOverview?.channelRatio?.offlineRatio ?? 0}% Walk-in
+                </Badge>
+                <Text style={styles.ratioLblText}>
+                  {channelRatioAnalytics?.offlineOrderCount ?? analyticsOverview?.offlineOrderCount ?? 0} orders
                 </Text>
-                <View style={styles.highlightMetricRow}>
-                  <Text style={styles.highlightValue}>
-                    {mostViewedProduct.views} views
-                  </Text>
-                  <View style={styles.highlightBadge}>
-                    <Text style={styles.highlightBadgeText}>Popular</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            )}
+              </View>
+            </View>
 
-            {/* Most Demanded */}
-            {mostDemandedProduct && (
-              <TouchableOpacity
-                onPress={() => setSelectedAnalyticsSlug(mostDemandedProduct.slug)}
-                activeOpacity={0.7}
-                style={styles.highlightCard}
-              >
-                <View style={styles.highlightHeader}>
-                  <Flame size={11} color="#ea580c" />
-                  <Text style={styles.highlightLabel}>Top Clicks</Text>
-                </View>
-                <Text style={styles.highlightName} numberOfLines={1}>
-                  {mostDemandedProduct.name}
-                </Text>
-                <View style={styles.highlightMetricRow}>
-                  <Text style={styles.highlightValue}>
-                    {mostDemandedProduct.totalClicks} clicks
-                  </Text>
-                  <View
-                    style={[
-                      styles.highlightBadge,
-                      { backgroundColor: '#fff7ed' },
-                    ]}
+            {/* Visual Dual Ratio Bar with Progress */}
+            <View style={{ marginVertical: 10 }}>
+              <Progress
+                value={channelRatioAnalytics?.onlineRatio ?? analyticsOverview?.channelRatio?.onlineRatio ?? 50}
+                indicatorColor="#2563eb"
+                trackColor="#fde68a"
+                height={8}
+              />
+            </View>
+
+            {/* 30-Day Growth Velocity */}
+            <View style={styles.growthGrid}>
+              {/* Total Order Growth */}
+              <View style={styles.growthBox}>
+                <View style={styles.growthBoxHeader}>
+                  <Text style={styles.growthBoxLbl}>Total Growth</Text>
+                  <Badge
+                    variant={
+                      (growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0
+                        ? 'success'
+                        : 'destructive'
+                    }
+                    icon={
+                      (growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0 ? (
+                        <ArrowUpRight size={10} color="#16a34a" />
+                      ) : (
+                        <ArrowDownRight size={10} color="#dc2626" />
+                      )
+                    }
                   >
-                    <Text
-                      style={[
-                        styles.highlightBadgeText,
-                        { color: '#ea580c' },
-                      ]}
-                    >
-                      Hot
+                    {`${(growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0) >= 0 ? '+' : ''}${growthPulseAnalytics?.totalOrderGrowth ?? analyticsOverview?.growth?.totalOrderGrowth ?? 0}%`}
+                  </Badge>
+                </View>
+                <Text style={styles.growthBoxVal}>
+                  {growthPulseAnalytics?.current30DaysOrders ?? analyticsOverview?.growth?.current30DaysOrders ?? 0}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#94a3b8' }}>
+                  prev 30d: {growthPulseAnalytics?.previous30DaysOrders ?? analyticsOverview?.growth?.previous30DaysOrders ?? 0}
+                </Text>
+              </View>
+
+              {/* Online Order Growth */}
+              <View style={styles.growthBox}>
+                <View style={styles.growthBoxHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Globe size={11} color="#2563eb" />
+                    <Text style={styles.growthBoxLbl}>Online</Text>
+                  </View>
+                  <Badge
+                    variant={
+                      (growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0
+                        ? 'success'
+                        : 'destructive'
+                    }
+                    icon={
+                      (growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0 ? (
+                        <ArrowUpRight size={10} color="#16a34a" />
+                      ) : (
+                        <ArrowDownRight size={10} color="#dc2626" />
+                      )
+                    }
+                  >
+                    {`${(growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0) >= 0 ? '+' : ''}${growthPulseAnalytics?.onlineOrderGrowth ?? analyticsOverview?.growth?.onlineOrderGrowth ?? 0}%`}
+                  </Badge>
+                </View>
+                <Text style={styles.growthBoxVal}>
+                  {growthPulseAnalytics?.current30DaysOnline ?? analyticsOverview?.growth?.current30DaysOnline ?? 0}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#94a3b8' }}>
+                  prev 30d: {growthPulseAnalytics?.previous30DaysOnline ?? analyticsOverview?.growth?.previous30DaysOnline ?? 0}
+                </Text>
+              </View>
+
+              {/* Offline Order Growth */}
+              <View style={styles.growthBox}>
+                <View style={styles.growthBoxHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Store size={11} color="#f59e0b" />
+                    <Text style={styles.growthBoxLbl}>Walk-in</Text>
+                  </View>
+                  <Badge
+                    variant={
+                      (growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0
+                        ? 'success'
+                        : 'destructive'
+                    }
+                    icon={
+                      (growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0 ? (
+                        <ArrowUpRight size={10} color="#16a34a" />
+                      ) : (
+                        <ArrowDownRight size={10} color="#dc2626" />
+                      )
+                    }
+                  >
+                    {`${(growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0) >= 0 ? '+' : ''}${growthPulseAnalytics?.offlineOrderGrowth ?? analyticsOverview?.growth?.offlineOrderGrowth ?? 0}%`}
+                  </Badge>
+                </View>
+                <Text style={styles.growthBoxVal}>
+                  {growthPulseAnalytics?.current30DaysOffline ?? analyticsOverview?.growth?.current30DaysOffline ?? 0}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#94a3b8' }}>
+                  prev 30d: {growthPulseAnalytics?.previous30DaysOffline ?? analyticsOverview?.growth?.previous30DaysOffline ?? 0}
+                </Text>
+              </View>
+            </View>
+          </CardContent>
+        </Card>
+      </>
+    )}
+
+    {/* Section: Payments & Inventory Stock Pulse (Shows under 'all' and 'payments' tabs) */}
+    {(analyticsTab === 'all' || analyticsTab === 'payments') && (
+      <>
+        {/* 2. Customer Payment Breakdown (Online vs Cash vs Credit) */}
+        <Card>
+          <CardHeader>
+            <View style={styles.analysisHeaderLeft}>
+              <CreditCard size={15} color="#10B981" />
+              <CardTitle>Customer Payment Modes</CardTitle>
+            </View>
+            <Badge variant="secondary">
+              ₹{(paymentModesAnalytics?.totalAmount ?? analyticsOverview?.payments?.totalAmount ?? 0).toLocaleString('en-IN')} Total
+            </Badge>
+          </CardHeader>
+
+          <CardContent>
+            {/* Visual 3-Way Payment Distribution Bar */}
+            <View style={styles.paymentBarTrack}>
+              <View
+                style={{
+                  height: '100%',
+                  backgroundColor: '#2563eb',
+                  width: `${Math.max(2, paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 33)}%`,
+                }}
+              />
+              <View
+                style={{
+                  height: '100%',
+                  backgroundColor: '#16a34a',
+                  width: `${Math.max(2, paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 33)}%`,
+                }}
+              />
+              <View
+                style={{
+                  height: '100%',
+                  backgroundColor: '#f59e0b',
+                  width: `${Math.max(2, paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 34)}%`,
+                }}
+              />
+            </View>
+
+            {/* 3 Payment Columns */}
+            <View style={styles.paymentGrid}>
+              {/* Online Payment */}
+              <View style={styles.paymentCardItem}>
+                <View style={styles.paymentCardHeader}>
+                  <Text style={styles.paymentCardTitle}>Online</Text>
+                  <Badge variant="blue">
+                    {paymentModesAnalytics?.onlineShare ?? analyticsOverview?.payments?.onlineShare ?? 0}%
+                  </Badge>
+                </View>
+                <Text style={styles.paymentCardAmount}>
+                  ₹{(paymentModesAnalytics?.onlineAmount ?? analyticsOverview?.payments?.onlineAmount ?? 0).toLocaleString('en-IN')}
+                </Text>
+                <Text style={styles.paymentCardSub}>
+                  {paymentModesAnalytics?.onlineCount ?? analyticsOverview?.payments?.onlineCount ?? 0} orders
+                </Text>
+              </View>
+
+              {/* Cash Payment */}
+              <View style={styles.paymentCardItem}>
+                <View style={styles.paymentCardHeader}>
+                  <Text style={styles.paymentCardTitle}>Cash</Text>
+                  <Badge variant="success">
+                    {paymentModesAnalytics?.cashShare ?? analyticsOverview?.payments?.cashShare ?? 0}%
+                  </Badge>
+                </View>
+                <Text style={styles.paymentCardAmount}>
+                  ₹{(paymentModesAnalytics?.cashAmount ?? analyticsOverview?.payments?.cashAmount ?? 0).toLocaleString('en-IN')}
+                </Text>
+                <Text style={styles.paymentCardSub}>
+                  {paymentModesAnalytics?.cashCount ?? analyticsOverview?.payments?.cashCount ?? 0} orders
+                </Text>
+              </View>
+
+              {/* Credit Payment */}
+              <View style={styles.paymentCardItem}>
+                <View style={styles.paymentCardHeader}>
+                  <Text style={styles.paymentCardTitle}>Khata</Text>
+                  <Badge variant="amber">
+                    {paymentModesAnalytics?.creditShare ?? analyticsOverview?.payments?.creditShare ?? 0}%
+                  </Badge>
+                </View>
+                <Text style={styles.paymentCardAmount}>
+                  ₹{(paymentModesAnalytics?.creditAmount ?? analyticsOverview?.payments?.creditAmount ?? 0).toLocaleString('en-IN')}
+                </Text>
+                <Text style={styles.paymentCardSub}>
+                  {paymentModesAnalytics?.creditCount ?? analyticsOverview?.payments?.creditCount ?? 0} orders
+                </Text>
+              </View>
+            </View>
+
+            {/* Credit Note summary if there's due balance */}
+            {((paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0) > 0 ||
+              (paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0) > 0) && (
+              <Text style={styles.creditNoteText}>
+                Outstanding Khata: ₹{(paymentModesAnalytics?.creditDueAmount ?? analyticsOverview?.payments?.creditDueAmount ?? 0).toLocaleString('en-IN')} pending • ₹{(paymentModesAnalytics?.creditPaidAmount ?? analyticsOverview?.payments?.creditPaidAmount ?? 0).toLocaleString('en-IN')} settled
+              </Text>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 3. Inventory Stock Pulse */}
+        {inventorySummaryAnalytics && (
+          <Card>
+            <CardHeader>
+              <View style={styles.analysisHeaderLeft}>
+                <Package size={15} color="#059669" />
+                <CardTitle>Inventory Health Summary</CardTitle>
+              </View>
+              <TouchableOpacity onPress={() => onNavigateToTab?.('inventory')} activeOpacity={0.7}>
+                <Badge variant="outline">
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#FF5E36' }}>Manage Stock →</Text>
+                </Badge>
+              </TouchableOpacity>
+            </CardHeader>
+            <CardContent>
+              <View style={styles.growthGrid}>
+                <View style={styles.growthBox}>
+                  <Text style={styles.growthBoxLbl}>In Stock</Text>
+                  <Text style={[styles.growthBoxVal, { color: '#16a34a' }]}>{inventorySummaryAnalytics.inStockProducts}</Text>
+                  <Text style={{ fontSize: 9, color: '#94a3b8' }}>products</Text>
+                </View>
+                <View style={styles.growthBox}>
+                  <Text style={styles.growthBoxLbl}>Low Stock</Text>
+                  <Text style={[styles.growthBoxVal, { color: '#f59e0b' }]}>{inventorySummaryAnalytics.lowStockProducts}</Text>
+                  <Text style={{ fontSize: 9, color: '#94a3b8' }}>need refill</Text>
+                </View>
+                <View style={styles.growthBox}>
+                  <Text style={styles.growthBoxLbl}>Total Units</Text>
+                  <Text style={[styles.growthBoxVal, { color: '#2563eb' }]}>{inventorySummaryAnalytics.totalStockUnits}</Text>
+                  <Text style={{ fontSize: 9, color: '#94a3b8' }}>units available</Text>
+                </View>
+              </View>
+            </CardContent>
+          </Card>
+        )}
+      </>
+    )}
+
+    {/* Section: Catalogue Telemetry & Demand Highlights (Shows under 'all' and 'catalogue' tabs) */}
+    {(analyticsTab === 'all' || analyticsTab === 'catalogue') && (
+      <>
+        {/* Focused Outfit Detail Card (When an individual outfit is selected) */}
+        {activeAnalyticsProduct && (
+          <Card style={{ borderColor: '#ea580c', borderWidth: 1.5, backgroundColor: '#fffbf7' }}>
+            <CardHeader>
+              <Badge variant="amber" icon={<Award size={12} color="#ea580c" />}>
+                Focused Telemetry
+              </Badge>
+              <TouchableOpacity
+                onPress={() => setSelectedAnalyticsSlug('all')}
+                activeOpacity={0.7}
+              >
+                <Badge variant="secondary">Back to Overall</Badge>
+              </TouchableOpacity>
+            </CardHeader>
+
+            <CardContent>
+              <View style={styles.focusedBody}>
+                {activeAnalyticsProduct.images &&
+                activeAnalyticsProduct.images.length > 0 ? (
+                  <Image
+                    source={{ uri: activeAnalyticsProduct.images[0] }}
+                    style={styles.focusedImage}
+                  />
+                ) : (
+                  <View style={styles.focusedImagePlaceholder}>
+                    <Award size={20} color="#94a3b8" />
+                  </View>
+                )}
+
+                <View style={styles.focusedDetails}>
+                  <Text style={styles.focusedProductName} numberOfLines={1}>
+                    {activeAnalyticsProduct.name}
+                  </Text>
+                  <Text style={styles.focusedProductCategory}>
+                    {activeAnalyticsProduct.category || 'Collection Item'}
+                  </Text>
+                  <Text style={styles.focusedProductPrice}>
+                    {formatCurrency(
+                      activeAnalyticsProduct.sellingPrice ??
+                        activeAnalyticsProduct.price ??
+                        0
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Focused Stats Grid */}
+              <View style={styles.focusedStatsGrid}>
+                <View style={styles.focusedStatBox}>
+                  <Text style={styles.focusedStatBoxVal}>
+                    {analyticsMetrics?.views || 0}
+                  </Text>
+                  <Text style={styles.focusedStatBoxLbl}>Views Recorded</Text>
+                </View>
+                <View style={styles.focusedStatBox}>
+                  <Text style={styles.focusedStatBoxVal}>
+                    {(analyticsMetrics?.waHits || 0) +
+                      (analyticsMetrics?.igHits || 0)}
+                  </Text>
+                  <Text style={styles.focusedStatBoxLbl}>Total Inquiries</Text>
+                </View>
+                <View style={styles.focusedStatBox}>
+                  <Text style={styles.focusedStatBoxVal}>
+                    {analyticsMetrics?.conversion || 0}%
+                  </Text>
+                  <Text style={styles.focusedStatBoxLbl}>Inquiry Conv.</Text>
+                </View>
+                <View style={styles.focusedStatBox}>
+                  <Text style={styles.focusedStatBoxVal}>
+                    {analyticsOverview?.orderCount ?? 0}
+                  </Text>
+                  <Text style={styles.focusedStatBoxLbl}>Orders Placed</Text>
+                </View>
+              </View>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Demand & Performance Leaderboards (Storewide Overview) */}
+        {!activeAnalyticsProduct && (
+          <Card>
+            <CardHeader>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Award size={16} color="#FF5E36" />
+                <CardTitle>Demand Highlights</CardTitle>
+              </View>
+              <Badge variant="secondary">Top Rankings</Badge>
+            </CardHeader>
+
+            <CardContent>
+              <View style={styles.highlightsGrid}>
+                {/* Most Searched */}
+                {mostViewedProduct && (
+                  <TouchableOpacity
+                    onPress={() => setSelectedAnalyticsSlug(mostViewedProduct.slug)}
+                    activeOpacity={0.7}
+                    style={styles.highlightCard}
+                  >
+                    <View style={styles.highlightHeader}>
+                      <Search size={11} color="#64748b" />
+                      <Text style={styles.highlightLabel}>Top Viewed</Text>
+                    </View>
+                    <Text style={styles.highlightName} numberOfLines={1}>
+                      {mostViewedProduct.name}
+                    </Text>
+                    <View style={styles.highlightMetricRow}>
+                      <Text style={styles.highlightValue}>
+                        {mostViewedProduct.views} views
+                      </Text>
+                      <Badge variant="secondary">Popular</Badge>
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+                {/* Most Demanded */}
+                {mostDemandedProduct && (
+                  <TouchableOpacity
+                    onPress={() => setSelectedAnalyticsSlug(mostDemandedProduct.slug)}
+                    activeOpacity={0.7}
+                    style={styles.highlightCard}
+                  >
+                    <View style={styles.highlightHeader}>
+                      <Flame size={11} color="#ea580c" />
+                      <Text style={styles.highlightLabel}>Top Clicks</Text>
+                    </View>
+                    <Text style={styles.highlightName} numberOfLines={1}>
+                      {mostDemandedProduct.name}
+                    </Text>
+                    <View style={styles.highlightMetricRow}>
+                      <Text style={styles.highlightValue}>
+                        {mostDemandedProduct.totalClicks} clicks
+                      </Text>
+                      <Badge variant="amber">Hot</Badge>
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+                {/* Top Converting */}
+                {topConvertingProduct && (
+                  <TouchableOpacity
+                    onPress={() => setSelectedAnalyticsSlug(topConvertingProduct.slug)}
+                    activeOpacity={0.7}
+                    style={styles.highlightCard}
+                  >
+                    <View style={styles.highlightHeader}>
+                      <Percent size={11} color="#059669" />
+                      <Text style={styles.highlightLabel}>Best Conv.</Text>
+                    </View>
+                    <Text style={styles.highlightName} numberOfLines={1}>
+                      {topConvertingProduct.name}
+                    </Text>
+                    <View style={styles.highlightMetricRow}>
+                      <Text style={styles.highlightValue}>
+                        {topConvertingProduct.conversionRate}%
+                      </Text>
+                      <Badge variant="success">High ROI</Badge>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Product Demand & Analytics Breakdown Table */}
+        {!activeAnalyticsProduct && productPerformanceList.length > 0 && (
+          <Card>
+            <CardHeader>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Eye size={15} color="#FF5E36" />
+                <View>
+                  <CardTitle>Catalogue Telemetry</CardTitle>
+                  <CardDescription>
+                    Tap any product to focus individual analytics
+                  </CardDescription>
+                </View>
+              </View>
+            </CardHeader>
+
+            <CardContent>
+              <View style={styles.tableHeaderRow}>
+                <Text style={styles.thProduct}>Product</Text>
+                <Text style={styles.thMetric}>Views</Text>
+                <Text style={styles.thMetric}>Inquiries</Text>
+                <Text style={styles.thMetric}>Orders</Text>
+                <Text style={styles.thConv}>Conv. %</Text>
+              </View>
+
+              {productPerformanceList.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => setSelectedAnalyticsSlug(item.slug)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.tableRow,
+                    selectedAnalyticsSlug === item.slug && styles.tableRowActive,
+                  ]}
+                >
+                  {/* Product Info & Thumb */}
+                  <View style={styles.productCell}>
+                    {item.image ? (
+                      <Image source={{ uri: item.image }} style={styles.productThumb} />
+                    ) : (
+                      <View style={styles.productThumbFallback}>
+                        <Award size={12} color="#94a3b8" />
+                      </View>
+                    )}
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.productCategory} numberOfLines={1}>
+                        {item.category}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Views */}
+                  <View style={styles.metricCell}>
+                    <Text style={styles.metricText}>{item.views}</Text>
+                  </View>
+
+                  {/* Inquiries */}
+                  <View style={styles.metricCell}>
+                    <Text style={styles.metricText}>{item.totalClicks}</Text>
+                    <Text style={styles.metricSub}>
+                      {item.whatsappClicks}w • {item.instagramClicks}i
                     </Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            )}
 
-            {/* Top Converting */}
-            {topConvertingProduct && (
-              <TouchableOpacity
-                onPress={() => setSelectedAnalyticsSlug(topConvertingProduct.slug)}
-                activeOpacity={0.7}
-                style={styles.highlightCard}
-              >
-                <View style={styles.highlightHeader}>
-                  <Percent size={11} color="#059669" />
-                  <Text style={styles.highlightLabel}>Best Conv.</Text>
-                </View>
-                <Text style={styles.highlightName} numberOfLines={1}>
-                  {topConvertingProduct.name}
-                </Text>
-                <View style={styles.highlightMetricRow}>
-                  <Text style={styles.highlightValue}>
-                    {topConvertingProduct.conversionRate}%
-                  </Text>
-                  <View style={styles.highlightBadge}>
-                    <Text style={styles.highlightBadgeText}>High ROI</Text>
+                  {/* Orders */}
+                  <View style={styles.metricCell}>
+                    <Text style={styles.metricText}>
+                      {item.onlineOrderCount ?? 0}
+                    </Text>
+                    <Text style={styles.metricSub}>
+                      {item.offlineOrderCount ?? 0} off • {item.orderCount} tot
+                    </Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
 
-      {/* Product Demand & Analytics Breakdown Table */}
-      {!activeAnalyticsProduct && productPerformanceList.length > 0 && (
-        <View style={styles.tableCard}>
-          <View style={styles.demandHeader}>
-            <Eye size={15} color="#FF5E36" />
-            <View>
-              <Text style={styles.demandTitle}>Catalogue Telemetry</Text>
-              <Text style={styles.demandSub}>
-                Tap any product to focus individual analytics
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.tableHeaderRow}>
-            <Text style={styles.thProduct}>Product</Text>
-            <Text style={styles.thMetric}>Views</Text>
-            <Text style={styles.thMetric}>Inquiries</Text>
-            <Text style={styles.thMetric}>Orders</Text>
-            <Text style={styles.thConv}>Conv. %</Text>
-          </View>
-
-          {productPerformanceList.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => setSelectedAnalyticsSlug(item.slug)}
-              activeOpacity={0.7}
-              style={[
-                styles.tableRow,
-                selectedAnalyticsSlug === item.slug && styles.tableRowActive,
-              ]}
-            >
-              {/* Product Info & Thumb */}
-              <View style={styles.productCell}>
-                {item.image ? (
-                  <Image source={{ uri: item.image }} style={styles.productThumb} />
-                ) : (
-                  <View style={styles.productThumbFallback}>
-                    <Award size={12} color="#94a3b8" />
+                  {/* Conversion Rate */}
+                  <View style={styles.convCell}>
+                    <Badge variant="success" style={{ alignSelf: 'center' }}>
+                      {`${item.onlineOrderConversionRate ?? 0}%`}
+                    </Badge>
+                    <Text style={{ fontSize: 8, color: '#71717a', marginTop: 2, textAlign: 'center' }}>
+                      online conv
+                    </Text>
                   </View>
-                )}
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.productCategory} numberOfLines={1}>
-                    {item.category}
-                  </Text>
-                </View>
-              </View>
+                </TouchableOpacity>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </>
+    )}
 
-              {/* Views */}
-              <View style={styles.metricCell}>
-                <Text style={styles.metricText}>{item.views}</Text>
-              </View>
-
-              {/* Inquiries */}
-              <View style={styles.metricCell}>
-                <Text style={styles.metricText}>{item.totalClicks}</Text>
-                <Text style={styles.metricSub}>
-                  {item.whatsappClicks}w • {item.instagramClicks}i
-                </Text>
-              </View>
-
-              {/* Orders */}
-              <View style={styles.metricCell}>
-                <Text style={styles.metricText}>
-                  {item.onlineOrderCount ?? 0}
-                </Text>
-                <Text style={styles.metricSub}>
-                  {item.offlineOrderCount ?? 0} off • {item.orderCount} tot
-                </Text>
-              </View>
-
-              {/* Conversion Rate */}
-              <View style={styles.convCell}>
-                <View style={styles.convPill}>
-                  <Text style={styles.convPillText}>
-                    {item.onlineOrderConversionRate ?? 0}%
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 8, color: '#71717a', marginTop: 2, textAlign: 'center' }}>
-                  online conv
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Store Inventory & Health Pulse */}
-      {stats && (
-        <View style={styles.healthCard}>
+    {/* Store Inventory & Health Pulse (Storewide Overview) */}
+    {stats && (
+      <Card>
+        <CardHeader>
           <View style={styles.healthHeader}>
             <Package size={15} color="#FF5E36" />
-            <Text style={styles.healthTitle}>Store Inventory Pulse</Text>
+            <CardTitle>Store Inventory Pulse</CardTitle>
           </View>
+        </CardHeader>
+        <CardContent>
           <View style={styles.healthGrid}>
             <TouchableOpacity
               onPress={() => onNavigateToTab?.('catalogue')}
@@ -1253,8 +1267,9 @@ export default function DashboardScreen({
               <Text style={styles.healthBoxLbl}>Listed Live</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      )}
+        </CardContent>
+      </Card>
+    )}
     </ScrollView>
   );
 }
