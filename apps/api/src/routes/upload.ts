@@ -88,8 +88,8 @@ router.post(
           } else {
             savedImageRecord = existingImg[0];
           }
-        } catch (dbErr: any) {
-          console.warn('[Upload Route Notice] Skipping DB link for image:', dbErr?.message || dbErr);
+        } catch (dbErr: unknown) {
+          console.warn('[Upload Route Notice] Skipping DB link for image:', dbErr instanceof Error ? dbErr.message : dbErr);
         }
       }
 
@@ -102,10 +102,10 @@ router.post(
         format: uploadResult.format,
         image: savedImageRecord,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Upload Route Error]:', err);
       res.status(500).json({
-        error: err.message || 'Failed to upload image.',
+        error: err instanceof Error ? err.message : 'Failed to upload image.',
       });
     }
   }
@@ -167,8 +167,8 @@ router.post(
             } else {
               savedImageRecord = existingImg[0];
             }
-          } catch (dbErr: any) {
-            console.warn('[Multiple Upload Route Notice] Skipping DB link for image:', dbErr?.message || dbErr);
+          } catch (dbErr: unknown) {
+            console.warn('[Multiple Upload Route Notice] Skipping DB link for image:', dbErr instanceof Error ? dbErr.message : dbErr);
           }
         }
 
@@ -189,10 +189,10 @@ router.post(
         count: uploadedImages.length,
         images: uploadedImages,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Multiple Upload Route Error]:', err);
       res.status(500).json({
-        error: err.message || 'Failed to upload images.',
+        error: err instanceof Error ? err.message : 'Failed to upload images.',
       });
     }
   }
@@ -217,10 +217,10 @@ router.get(
         success: true,
         images,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Get Product Images Error]:', err);
       res.status(500).json({
-        error: err.message || 'Failed to retrieve product images.',
+        error: err instanceof Error ? err.message : 'Failed to retrieve product images.',
       });
     }
   }
@@ -246,12 +246,12 @@ router.delete(
       }
 
       // Also delete from Cloudinary
-      let cloudinaryResult = null;
+      let cloudinaryResult: Record<string, unknown> | null = null;
       if (deleted.url) {
         try {
           cloudinaryResult = await deleteFromCloudinary(deleted.url);
-        } catch (cldErr: any) {
-          console.error('[Cloudinary Deletion Notice]:', cldErr?.message || cldErr);
+        } catch (cldErr: unknown) {
+          console.error('[Cloudinary Deletion Notice]:', cldErr instanceof Error ? cldErr.message : cldErr);
         }
       }
 
@@ -260,10 +260,10 @@ router.delete(
         deleted,
         cloudinary: cloudinaryResult,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Delete Product Image Error]:', err);
       res.status(500).json({
-        error: err.message || 'Failed to delete image record.',
+        error: err instanceof Error ? err.message : 'Failed to delete image record.',
       });
     }
   }
@@ -285,21 +285,21 @@ router.delete(
       }
 
       // Delete from Cloudinary
-      let cloudinaryResult = null;
+      let cloudinaryResult: Record<string, unknown> | null = null;
       try {
         cloudinaryResult = await deleteFromCloudinary(target);
-      } catch (cldErr: any) {
-        console.error('[Cloudinary Direct Deletion Error]:', cldErr?.message || cldErr);
+      } catch (cldErr: unknown) {
+        console.error('[Cloudinary Direct Deletion Error]:', cldErr instanceof Error ? cldErr.message : cldErr);
       }
 
       // If a full URL was provided, also delete corresponding database record if one exists
-      let dbDeleted = null;
+      let dbDeleted: typeof productImages.$inferSelect | null = null;
       if (target.startsWith('http')) {
         const [deletedRow] = await db
           .delete(productImages)
           .where(eq(productImages.url, target))
           .returning();
-        dbDeleted = deletedRow;
+        dbDeleted = deletedRow || null;
       }
 
       res.status(200).json({
@@ -308,10 +308,10 @@ router.delete(
         cloudinary: cloudinaryResult,
         dbDeleted,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Delete Upload Error]:', err);
       res.status(500).json({
-        error: err.message || 'Failed to delete upload.',
+        error: err instanceof Error ? err.message : 'Failed to delete upload.',
       });
     }
   }
@@ -331,7 +331,7 @@ router.patch(
       const targetSlug = slug || productId;
 
       if (targetSlug && Array.isArray(images) && (images.length === 0 || typeof images[0] === 'string')) {
-        const updatedUrls = await reorderProductImages(targetSlug, images);
+        const updatedUrls = await reorderProductImages(targetSlug, images as string[]);
         res.status(200).json({ success: true, images: updatedUrls, updatedCount: updatedUrls.length });
         return;
       }
@@ -341,8 +341,8 @@ router.patch(
         return;
       }
 
-      await db.transaction(async (tx: any) => {
-        for (const item of images) {
+      await db.transaction(async (tx) => {
+        for (const item of images as Array<{ id?: string; orderIndex?: number }>) {
           if (item.id && typeof item.orderIndex === 'number') {
             await tx
               .update(productImages)
@@ -353,10 +353,10 @@ router.patch(
       });
 
       res.status(200).json({ success: true, updatedCount: images.length });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Reorder Images Error]:', err);
       res.status(500).json({
-        error: err.message || 'Failed to reorder images.',
+        error: err instanceof Error ? err.message : 'Failed to reorder images.',
       });
     }
   }

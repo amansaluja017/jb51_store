@@ -9,18 +9,25 @@ import { toast } from 'sonner';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { SimpleRichTextEditor } from '@/components/ui/SimpleRichTextEditor';
 
-function formatError(err: any): string {
-  if (!err) return 'An error occurred';
-  if (err.data?.zodError?.fieldErrors) {
-    const messages = Object.values(err.data.zodError.fieldErrors).flat() as string[];
+function formatError(err: unknown): string {
+  if (!err || typeof err !== 'object') return 'An error occurred';
+  const errObj = err as {
+    data?: { zodError?: { fieldErrors?: Record<string, string[]> } };
+    message?: string;
+  };
+  if (errObj.data?.zodError?.fieldErrors) {
+    const messages = Object.values(errObj.data.zodError.fieldErrors).flat();
     if (messages.length > 0) return messages.join('\n');
   }
-  const msg = err.message;
+  const msg = errObj.message;
   if (typeof msg === 'string' && (msg.startsWith('[') || msg.startsWith('{'))) {
     try {
       const parsed = JSON.parse(msg);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((p: any) => p?.message || p).filter(Boolean).join('\n');
+        return parsed
+          .map((p: unknown) => (typeof p === 'object' && p !== null && 'message' in p ? String((p as { message: unknown }).message) : String(p)))
+          .filter(Boolean)
+          .join('\n');
       }
     } catch {}
   }

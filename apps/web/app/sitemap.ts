@@ -79,8 +79,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           };
         });
     }
-  } catch (err) {
-    console.error('[Sitemap Generation] Could not fetch products from apiServer, continuing with static routes:', err);
+  } catch {
+    // Continue with static routes if API server is not available during build
   }
 
   return [...staticRoutes, ...categoryRoutes, ...productRoutes];

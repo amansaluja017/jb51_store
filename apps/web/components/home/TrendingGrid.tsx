@@ -37,14 +37,16 @@ export function TrendingGrid({ products }: TrendingGridProps) {
 
       {/* Dynamic Category Tabs */}
       <div className="flex justify-center items-center gap-6 md:gap-10 mb-12 border-b border-zinc-200 max-w-md mx-auto pb-3 silhouette-tabs relative z-10">
-        {[
-          { id: 'all', label: 'All' },
-          { id: 'bespoke', label: 'Bespoke' },
-          { id: 'pret', label: 'Ready-to-Wear' }
-        ].map((tab) => (
+        {(
+          [
+            { id: 'all', label: 'All' },
+            { id: 'bespoke', label: 'Bespoke' },
+            { id: 'pret', label: 'Ready-to-Wear' },
+          ] as const
+        ).map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
             className={`font-semibold tracking-wider text-xs uppercase pb-2 transition-all duration-300 border-b-2 focus:outline-none cursor-pointer ${activeTab === tab.id
                 ? 'border-[#FF5E36] text-[#FF5E36]'
                 : 'border-transparent text-zinc-400 hover:text-zinc-800'

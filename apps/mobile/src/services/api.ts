@@ -10,13 +10,31 @@ export const getInitialApiHost = () => {
   return host;
 };
 
-export const extractErrorMessage = (err: any): string => {
-  if (!err) return 'An unexpected error occurred.';
+export const extractErrorMessage = (err: unknown): string => {
+  if (!err || typeof err !== 'object') return 'An unexpected error occurred.';
+
+  const errObj = err as {
+    response?: {
+      status?: number;
+      data?: {
+        error?: {
+          data?: { zodError?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
+          json?: {
+            data?: { zodError?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
+            message?: string;
+          };
+          message?: string;
+        };
+      };
+    };
+    code?: string;
+    message?: string;
+  };
 
   // 1. Check for tRPC ZodError in error data
   const zodError =
-    err.response?.data?.error?.data?.zodError ||
-    err.response?.data?.error?.json?.data?.zodError;
+    errObj.response?.data?.error?.data?.zodError ||
+    errObj.response?.data?.error?.json?.data?.zodError;
 
   if (zodError) {
     const fieldErrors = zodError.fieldErrors;
@@ -38,9 +56,9 @@ export const extractErrorMessage = (err: any): string => {
 
   // 2. Check for message from server response or error object
   const rawMsg =
-    err.response?.data?.error?.json?.message ||
-    err.response?.data?.error?.message ||
-    err.message;
+    errObj.response?.data?.error?.json?.message ||
+    errObj.response?.data?.error?.message ||
+    errObj.message;
 
   if (typeof rawMsg === 'string' && rawMsg.trim()) {
     const trimmed = rawMsg.trim();
@@ -50,13 +68,18 @@ export const extractErrorMessage = (err: any): string => {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const list = parsed
-            .map((item: any) => item?.message || (typeof item === 'string' ? item : null))
+            .map((item: unknown) => {
+              if (typeof item === 'object' && item !== null && 'message' in item) {
+                return String((item as { message: unknown }).message);
+              }
+              return typeof item === 'string' ? item : null;
+            })
             .filter(Boolean);
           if (list.length > 0) {
             return list.join('\n');
           }
-        } else if (parsed && typeof parsed === 'object' && parsed.message) {
-          return String(parsed.message);
+        } else if (parsed && typeof parsed === 'object' && 'message' in parsed) {
+          return String((parsed as { message: unknown }).message);
         }
       } catch {
         // Not JSON
@@ -65,11 +88,11 @@ export const extractErrorMessage = (err: any): string => {
     return trimmed;
   }
 
-  if (err.response?.status) {
-    return `Request failed with status ${err.response.status}`;
+  if (errObj.response?.status) {
+    return `Request failed with status ${errObj.response.status}`;
   }
 
-  const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+  const isTimeout = errObj.code === 'ECONNABORTED' || errObj.message?.includes('timeout');
   if (isTimeout) {
     return 'Request timed out. Server took longer than expected.';
   }
@@ -81,8 +104,8 @@ export const trpcRequest = async (
   path: string,
   options: {
     method?: 'GET' | 'POST';
-    body?: any;
-    input?: any;
+    body?: unknown;
+    input?: unknown;
     token?: string | null;
     apiHost: string;
   }

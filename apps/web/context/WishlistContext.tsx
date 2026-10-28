@@ -32,23 +32,14 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         setWishlist(data.productIds);
       }
     },
-    onError: (err) => {
+    onError: () => {
       setIsSyncing(false);
-      console.error('Background wishlist sync error:', err);
     },
   });
 
-  const addMutation = api.wishlist.add.useMutation({
-    onError: (err) => {
-      console.error('Background wishlist add error:', err);
-    },
-  });
+  const addMutation = api.wishlist.add.useMutation();
 
-  const removeMutation = api.wishlist.remove.useMutation({
-    onError: (err) => {
-      console.error('Background wishlist remove error:', err);
-    },
-  });
+  const removeMutation = api.wishlist.remove.useMutation();
 
   // Query server wishlist directly for this browser fingerprint
   const { data: serverWishlist } = api.wishlist.get.useQuery(

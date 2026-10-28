@@ -143,7 +143,12 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
           password: 'wrong_password_123',
         });
       },
-      (err: any) => err.code === 'UNAUTHORIZED'
+      (err: unknown) => {
+        if (typeof err === 'object' && err !== null && 'code' in err) {
+          return (err as { code: string }).code === 'UNAUTHORIZED';
+        }
+        return false;
+      }
     );
   });
 });
@@ -151,3 +156,12 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
 process.on('beforeExit', () => {
   process.exit(0);
 });
+
+// Clean shutdown hook to close client pool if needed
+setTimeout(async () => {
+  try {
+    const { client } = await import('@repo/db');
+    await client.end({ timeout: 1 });
+  } catch (_) {}
+}, 60000).unref();
+

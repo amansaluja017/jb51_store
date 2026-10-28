@@ -32,6 +32,8 @@ export interface Product {
   inStock?: boolean;
   tags?: string[];
   createdAt?: string;
+  isDiscontinued?: boolean;
+  features?: Record<string, unknown>;
 }
 
 export const isProductInStock = (product: Product): boolean => {
@@ -42,11 +44,12 @@ export const isProductInStock = (product: Product): boolean => {
 
 export const isProductDiscontinued = (product: Product): boolean => {
   if (!product) return false;
+  const feat = (product.features || {}) as { isDiscontinued?: boolean; status?: string };
   return (
     product.status === 'discontinued' ||
-    (product as any).isDiscontinued === true ||
-    (product as any).features?.isDiscontinued === true ||
-    (product as any).features?.status === 'discontinued'
+    product.isDiscontinued === true ||
+    feat.isDiscontinued === true ||
+    feat.status === 'discontinued'
   );
 };
 
@@ -132,7 +135,7 @@ export interface Invoice {
   discount?: string | number | null;
   totalAmount?: string | number | null;
   finalAmount?: string | number | null;
-  items?: any[];
+  items?: OrderItem[];
   notes?: string | null;
   createdAt: string;
   updatedAt?: string;

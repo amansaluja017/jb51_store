@@ -146,7 +146,7 @@ export async function createOrder(input: CreateOrderInput) {
       .returning();
 
     // 3. Insert line items into order_items table
-    let insertedItems: any[] = [];
+    let insertedItems: (typeof orderItemsTable.$inferSelect)[] = [];
     if (input.items && input.items.length > 0) {
       insertedItems = await tx
         .insert(orderItemsTable)
@@ -394,7 +394,7 @@ export async function createOrder(input: CreateOrderInput) {
 
     // 7. If paymentMethod is credit or dueAmount > 0, record credit entry
     let credit = null;
-    let creditTransactionsList: any[] = [];
+    let creditTransactionsList: (typeof creditTransactionsTable.$inferSelect)[] = [];
     if (
       paymentMode === 'credit' ||
       (input.dueAmount !== undefined && input.dueAmount !== null && Number(input.dueAmount) > 0)
@@ -638,7 +638,7 @@ export async function getPaginatedOrders(input?: GetPaginatedOrdersInput) {
       const custName = (ord.customerName || '').toLowerCase();
       const phone = (ord.customerPhone || '').toLowerCase();
       const email = (ord.customerEmail || '').toLowerCase();
-      const itemMatch = ord.items?.some((it: any) =>
+      const itemMatch = ord.items?.some((it: { productName?: string | null }) =>
         (it.productName || '').toLowerCase().includes(search)
       );
       return (

@@ -7,6 +7,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   // Allow access to remote image placeholder.
   images: {
     remotePatterns: [

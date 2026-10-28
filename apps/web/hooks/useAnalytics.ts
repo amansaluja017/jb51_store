@@ -24,8 +24,8 @@ export function useAnalytics() {
         productId: params.productId || undefined,
         slug: params.slug || undefined,
       });
-    } catch (err) {
-      console.warn('[Analytics Telemetry Warning]:', err);
+    } catch {
+      // Ignore background analytics tracking errors
     }
   }, []);
 

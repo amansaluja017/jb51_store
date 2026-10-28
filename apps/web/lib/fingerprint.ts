@@ -80,9 +80,10 @@ export async function getBrowserFingerprint(): Promise<string> {
   } catch (_) {}
 
   // Gather browser and hardware signals
-  const signals: Record<string, any> = {
+  const userLang = 'userLanguage' in navigator ? String((navigator as unknown as { userLanguage: unknown }).userLanguage) : '';
+  const signals: Record<string, unknown> = {
     ua: navigator.userAgent,
-    language: navigator.language || (navigator as any).userLanguage || '',
+    language: navigator.language || userLang || '',
     languages: navigator.languages?.join(',') || '',
     colorDepth: screen.colorDepth || 24,
     screenRes: `${screen.width}x${screen.height}`,

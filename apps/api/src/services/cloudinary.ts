@@ -100,7 +100,7 @@ export const extractPublicIdFromUrl = (url: string): string | null => {
   }
 };
 
-export const deleteFromCloudinary = async (publicIdOrUrl: string): Promise<any> => {
+export const deleteFromCloudinary = async (publicIdOrUrl: string): Promise<Record<string, unknown> | null> => {
   if (!isCloudinaryConfigured()) {
     console.warn('[Cloudinary Delete Notice]: Cloudinary is not configured, skipping remote deletion.');
     return null;

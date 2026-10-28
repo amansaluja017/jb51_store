@@ -69,7 +69,7 @@ export function Testimonials() {
   const { data: dbReviews = [] } = api.reviews.getAll.useQuery();
 
   // If reviews exist in database, map and prepend them to the testimonial rows
-  const liveReviews = (dbReviews || []).map((r: any) => ({
+  const liveReviews = (dbReviews || []).map((r) => ({
     quote: r.message,
     author: r.name || 'Verified Patron',
     location: r.location || 'India',

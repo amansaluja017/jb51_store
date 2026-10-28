@@ -89,10 +89,14 @@ export function ShopClient() {
     }
   }, [batchedProducts, hasSetMaxPrice, maxLoadedPrice]);
 
-  // Sync state when URL query params change
   useEffect(() => {
     setActiveCategory(searchParams.get('category'));
-    setActiveFilter((searchParams.get('filter') as any) || null);
+    const filterParam = searchParams.get('filter');
+    setActiveFilter(
+      filterParam === 'new' || filterParam === 'bestseller' || filterParam === 'all'
+        ? filterParam
+        : null
+    );
   }, [searchParams]);
 
   const handleCategorySelect = (catSlug: string | null) => {

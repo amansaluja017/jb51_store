@@ -42,6 +42,11 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
   },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.png',
+  },
   title: {
     default: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
     template: "%s | JB51",
@@ -165,8 +170,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="bottom-center" />
           </WishlistProvider>
         </TRPCReactProvider>
-        <Analytics />
-        <SpeedInsights />
+        <Analytics debug={false} />
+        <SpeedInsights debug={false} />
       </body>
     </html>
   );

@@ -21,13 +21,22 @@ export interface GenerateInvoicePdfData {
   dueDate?: string | null;
   paymentDate?: string | null;
   advancePaymentMode?: string | null;
-  transactions?: any[];
-  creditTransactions?: any[];
+  transactions?: InvoiceTx[];
+  creditTransactions?: InvoiceTx[];
   notes?: string;
 }
 
+export interface InvoiceTx {
+  createdAt?: string | Date | null;
+  transactionType?: string | null;
+  paymentMode?: string | null;
+  amount?: number | string | null;
+  notes?: string | null;
+  runningBalance?: number;
+}
+
 export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
-  const escapeHtml = (unsafe: any) => {
+  const escapeHtml = (unsafe: unknown) => {
     if (unsafe === null || unsafe === undefined) return '';
     return String(unsafe)
       .replace(/&/g, '&amp;')
@@ -62,7 +71,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
         : [];
 
   // Fallback: If credit invoice has paidAmount > 0 but no transaction rows yet, synthesize the advance row
-  const displayTransactions = [...txList];
+  const displayTransactions: InvoiceTx[] = [...txList];
   if (isCredit && displayTransactions.length === 0 && totalPaid > 0) {
     displayTransactions.push({
       createdAt: inv.date,
@@ -74,7 +83,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
   }
 
   // Sort transactions chronologically (oldest to newest)
-  displayTransactions.sort((a: any, b: any) => {
+  displayTransactions.sort((a, b) => {
     const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return timeA - timeB;
@@ -82,16 +91,16 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
 
   // Calculate totals for advance and installments
   const totalAdvance = displayTransactions
-    .filter((tx: any) => (tx.transactionType || '').toLowerCase() === 'advance')
-    .reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+    .filter((tx) => (tx.transactionType || '').toLowerCase() === 'advance')
+    .reduce((sum: number, tx) => sum + Number(tx.amount || 0), 0);
 
   const totalInstallments = displayTransactions
-    .filter((tx: any) => (tx.transactionType || '').toLowerCase() !== 'advance')
-    .reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+    .filter((tx) => (tx.transactionType || '').toLowerCase() !== 'advance')
+    .reduce((sum: number, tx) => sum + Number(tx.amount || 0), 0);
 
   // Calculate running balance for each transaction
   let runningDue = inv.totalAmount;
-  const enrichedTransactions = displayTransactions.map((tx: any) => {
+  const enrichedTransactions = displayTransactions.map((tx) => {
     const amt = Number(tx.amount || 0);
     runningDue = Math.max(0, runningDue - amt);
     return {
@@ -156,7 +165,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
             <tbody>
               ${inv.items
                 .map(
-                  (item: any) => `
+                  (item: { name?: string; productName?: string; quantity?: number; price?: number | string; unitPrice?: number | string; total?: number | string }) => `
                 <tr>
                   <td>${escapeHtml(item.name || item.productName)}</td>
                   <td class="text-center">${item.quantity}</td>
@@ -291,7 +300,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
             <div class="metric-card">
               <div class="metric-title">Installments Paid</div>
               <div class="metric-value metric-val-green">&#8377;${totalInstallments.toLocaleString('en-IN')}</div>
-              <div class="metric-sub">${enrichedTransactions.filter((t: any) => (t.transactionType || '').toLowerCase() !== 'advance').length} Payments</div>
+              <div class="metric-sub">${enrichedTransactions.filter((t) => (t.transactionType || '').toLowerCase() !== 'advance').length} Payments</div>
             </div>
             <div class="metric-card metric-card-highlight">
               <div class="metric-title" style="color: #c2410c;">Remaining Balance</div>
@@ -324,7 +333,7 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
                 </tr>
               `
                   : enrichedTransactions
-                      .map((tx: any, idx: number) => {
+                      .map((tx, idx: number) => {
                         const type = (tx.transactionType || 'payment').toLowerCase();
                         const isAdvance = type === 'advance';
                         const txDate = formatDateSafe(tx.createdAt) || inv.date;

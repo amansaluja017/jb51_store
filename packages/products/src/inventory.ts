@@ -303,7 +303,7 @@ export async function getInventoryTransactions(options?: { productId?: string | 
         const firstVar = allVariants.find(v => v.productId === tx.productId);
         if (firstVar) {
           tx.variantColor = firstVar.color;
-          tx.variantHex = (firstVar as any).hexCode || null;
+          tx.variantHex = firstVar.hexCode || null;
         }
       }
     }
@@ -483,7 +483,7 @@ export async function updateInventory(input: UpdateInventoryInput) {
   }
   if (!foundProduct && input.slug) {
     const dbProducts = await db.select().from(productTable);
-    foundProduct = dbProducts.find((r: any) => matchesSlug(r, input.slug!));
+    foundProduct = dbProducts.find((r) => matchesSlug(r, input.slug!));
   }
 
   if (!foundProduct) {
@@ -601,7 +601,7 @@ export async function updateInventory(input: UpdateInventoryInput) {
     // If status was updated, keep productTable.features.isListed in sync
     if (input.status) {
       const isListed = input.status === 'listed';
-      const curFeat = (foundProduct!.features as Record<string, any>) || {};
+      const curFeat = (foundProduct!.features as Record<string, unknown>) || {};
       await tx
         .update(productTable)
         .set({
@@ -613,13 +613,14 @@ export async function updateInventory(input: UpdateInventoryInput) {
 
     // 5. Synchronize productTable.features.variants (fallback / cache)
     if (input.variants && Array.isArray(input.variants) && input.variants.length > 0) {
-      const currentFeat = (foundProduct!.features as Record<string, any>) || {};
+      const currentFeat = (foundProduct!.features as Record<string, unknown>) || {};
       if (currentFeat.variants && Array.isArray(currentFeat.variants)) {
-        const updatedFeatVariants = currentFeat.variants.map((fv: any) => {
+        const rawVariants = currentFeat.variants as Array<Record<string, unknown>>;
+        const updatedFeatVariants = rawVariants.map((fv) => {
           const matching = input.variants!.find(
             (iv) => (iv.id && iv.id === fv.id) ||
                     (iv.productVariantId && iv.productVariantId === fv.id) ||
-                    (iv.color && fv.color && iv.color.toLowerCase() === fv.color.toLowerCase())
+                    (iv.color && typeof fv.color === 'string' && iv.color.toLowerCase() === fv.color.toLowerCase())
           );
           if (matching) {
             return {

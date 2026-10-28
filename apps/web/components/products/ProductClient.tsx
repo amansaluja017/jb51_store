@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { HeritageCraftBanner } from '@/components/products/HeritageCraftBanner';
 import { FormattedRichText } from '@/components/ui/FormattedRichText';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import type { Product } from '@repo/products';
 
 // Beautiful luxury Indian lotus icon motif
 const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
@@ -46,7 +47,7 @@ const getColorHex = (colorName: string) => {
   return '#E4E4E7'; // light zinc fallback
 };
 
-export function ProductClient({ product }: { product: any }) {
+export function ProductClient({ product }: { product: Product }) {
   const variants = product.variants || [];
   const images: string[] = product.images || [];
   const [selectedColor, setSelectedColor] = useState<string>(variants[0]?.color || '');
@@ -76,30 +77,30 @@ export function ProductClient({ product }: { product: any }) {
     category: product.category,
     limit: 8,
   });
-  const products = categoryBatch?.items || [];
+  const products = (categoryBatch?.items || []) as Product[];
 
   const similarProductsByTag = (products || [])
-    .filter((p: any) => p.id !== product.id)
-    .map((p: any) => {
+    .filter((p: Product) => p.id !== product.id)
+    .map((p: Product) => {
       const currentTags = product.tags || [];
       const compareTags = p.tags || [];
       const matchCount = currentTags.filter((t: string) => compareTags.includes(t)).length;
       return { product: p, matchCount };
     })
-    .filter((item: any) => item.matchCount > 0)
-    .sort((a: any, b: any) => b.matchCount - a.matchCount)
-    .map((item: any) => item.product);
+    .filter((item) => item.matchCount > 0)
+    .sort((a, b) => b.matchCount - a.matchCount)
+    .map((item) => item.product);
 
   const fallbackCategoryProducts = (products || [])
-    .filter((p: any) => p.id !== product.id && p.category === product.category && !similarProductsByTag.some((sp: any) => sp.id === p.id));
+    .filter((p: Product) => p.id !== product.id && p.category === product.category && !similarProductsByTag.some((sp) => sp.id === p.id));
 
   const fallbackAllProducts = (products || [])
-    .filter((p: any) => p.id !== product.id && !similarProductsByTag.some((sp: any) => sp.id === p.id) && !fallbackCategoryProducts.some((f: any) => f.id === p.id));
+    .filter((p: Product) => p.id !== product.id && !similarProductsByTag.some((sp) => sp.id === p.id) && !fallbackCategoryProducts.some((f) => f.id === p.id));
 
   const similarProducts = [...similarProductsByTag, ...fallbackCategoryProducts, ...fallbackAllProducts].slice(0, 4);
 
   // Extract unique colors
-  const colors = Array.from(new Set(variants.map((v: any) => v.color).filter(Boolean))) as string[];
+  const colors = Array.from(new Set(variants.map((v) => v.color).filter(Boolean))) as string[];
 
   const { trackEvent } = useAnalytics();
   const hasTrackedView = useRef(false);
@@ -510,8 +511,8 @@ export function ProductClient({ product }: { product: any }) {
               </div>
             ) : similarProducts.length > 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                {similarProducts.map((simProduct: any) => (
-                  <ProductCard key={simProduct.id} product={simProduct as any} />
+                {similarProducts.map((simProduct) => (
+                  <ProductCard key={simProduct.id} product={simProduct} />
                 ))}
               </div>
             ) : (

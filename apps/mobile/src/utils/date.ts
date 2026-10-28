@@ -3,7 +3,7 @@
  * Guarantees that a string is returned, never an Object, undefined, or Date instance.
  */
 export const formatDateSafe = (
-  val: any,
+  val: unknown,
   options: Intl.DateTimeFormatOptions = {
     day: '2-digit',
     month: 'short',
@@ -49,10 +49,10 @@ export const formatDateSafe = (
 /**
  * Format any date input to YYYY-MM-DD for date inputs
  */
-export const formatDateToYMD = (val: any): string => {
+export const formatDateToYMD = (val: unknown): string => {
   if (!val) return '';
   try {
-    const d = val instanceof Date ? val : new Date(val);
+    const d = val instanceof Date ? val : new Date(typeof val === 'string' || typeof val === 'number' ? val : String(val));
     if (isNaN(d.getTime())) return '';
     return d.toISOString().split('T')[0];
   } catch {

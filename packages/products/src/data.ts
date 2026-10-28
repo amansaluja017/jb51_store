@@ -19,6 +19,81 @@ export interface ProductVariant {
   images?: string[];
 }
 
+export interface RawVariant {
+  id?: string;
+  color?: string;
+  hexCode?: string;
+  stock?: number;
+  reservedStock?: number;
+  images?: string[];
+}
+
+export interface CreateProductInputData {
+  id?: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  mrp?: number | null;
+  sellingPrice?: number | null;
+  price?: number | null;
+  discountPrice?: number | null;
+  category: string;
+  categoryId?: string | null;
+  images: string[];
+  fabric?: string | null;
+  fit?: string | null;
+  careInstructions?: string | null;
+  variants: Array<{
+    id?: string | null;
+    color: string;
+    hexCode?: string | null;
+    stock: number;
+    reservedStock?: number | null;
+    images?: string[] | null;
+  }>;
+  featured?: boolean | null;
+  newArrival?: boolean | null;
+  bestseller?: boolean | null;
+  tags?: string[] | null;
+  isListed?: boolean | null;
+  status?: 'listed' | 'unListed' | 'discontinued' | null;
+  inStock?: boolean | null;
+  createdAt?: string | null;
+}
+
+export interface UpdateProductInputData {
+  id?: string | null;
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  mrp?: number | null;
+  sellingPrice?: number | null;
+  price?: number | null;
+  discountPrice?: number | null;
+  category?: string | null;
+  categoryId?: string | null;
+  images?: string[] | null;
+  fabric?: string | null;
+  fit?: string | null;
+  careInstructions?: string | null;
+  variants?: Array<{
+    id?: string | null;
+    color: string;
+    hexCode?: string | null;
+    stock: number;
+    reservedStock?: number | null;
+    images?: string[] | null;
+  }> | null;
+  featured?: boolean | null;
+  newArrival?: boolean | null;
+  bestseller?: boolean | null;
+  createdAt?: string | null;
+  tags?: string[] | null;
+  isListed?: boolean | null;
+  status?: 'listed' | 'unListed' | 'discontinued' | null;
+  inStock?: boolean | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -43,7 +118,35 @@ export interface Product {
   isListed?: boolean;
   status?: 'listed' | 'unListed' | 'discontinued';
   inStock?: boolean;
+  isDiscontinued?: boolean;
+  features?: Record<string, unknown>;
 }
+
+export type ProductDbRow = typeof productTable.$inferSelect;
+
+export interface ProductRowLike {
+  id?: string;
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  mrp?: string | number | null;
+  sellingPrice?: string | number | null;
+  categoryId?: string | null;
+  features?: Record<string, unknown> | null;
+  tags?: unknown;
+  isFeatured?: boolean | null;
+  isLatest?: boolean | null;
+  isBestSeller?: boolean | null;
+  createdAt?: Date | string | null;
+  [key: string]: unknown;
+}
+
+export type DbExecutor = {
+  select: typeof db.select;
+  insert: typeof db.insert;
+  update: typeof db.update;
+  delete: typeof db.delete;
+};
 
 export const CATEGORIES = [
   'Formal Suits',
@@ -76,51 +179,56 @@ export async function getCategories(): Promise<string[]> {
   return CATEGORIES;
 }
 
-export function matchesSlug(row: any, slug: string): boolean {
+export function matchesSlug(row: ProductDbRow | ProductRowLike | Product | null | undefined, slug: string): boolean {
   if (!row || !slug) return false;
   const normSlug = slug.toLowerCase();
-  const directSlug = (row.slug || '').toLowerCase();
-  const feat = (row.features as Record<string, any>) || {};
-  const rowSlug = (feat.slug || '').toLowerCase();
+  const directSlug = ('slug' in row && typeof (row as { slug?: unknown }).slug === 'string' ? (row as { slug: string }).slug : '').toLowerCase();
+  const feat = (row.features as Record<string, unknown>) || {};
+  const rowSlug = (typeof feat.slug === 'string' ? feat.slug : '').toLowerCase();
   const nameSlug = (row.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
   return directSlug === normSlug || rowSlug === normSlug || nameSlug === normSlug;
 }
 
-function mapDbToProduct(row: any): Product {
-  const features = (row.features as Record<string, any>) || {};
-  const mrp = Number(row.mrp || features.mrp || 0);
-  const sellingPrice = Number(row.sellingPrice || features.sellingPrice || mrp);
+function mapDbToProduct(row: ProductDbRow | ProductRowLike): Product {
+  const features = (row.features as Record<string, unknown>) || {};
+  const mrp = Number(row.mrp || (features.mrp as number) || 0);
+  const sellingPrice = Number(row.sellingPrice || (features.sellingPrice as number) || mrp);
   const price = sellingPrice || mrp;
   const discountPrice = mrp > sellingPrice ? sellingPrice : undefined;
 
+  const rawVariants = Array.isArray(features.variants) ? features.variants : [];
+
   return {
-    id: row.id,
-    name: row.name,
-    slug: features.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    id: row.id || '',
+    name: row.name || '',
+    slug: (features.slug as string) || (row.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     description: row.description || '',
     mrp,
     sellingPrice,
     price,
     discountPrice,
-    category: features.category || 'Uncategorized',
-    categoryId: row.categoryId || features.categoryId,
-    images: features.images || [],
-    fabric: features.fabric || '',
-    fit: features.fit || '',
-    careInstructions: features.careInstructions || '',
-    variants: (features.variants || []).map((v: any) => ({
-      id: v.id,
-      color: v.color,
-      hexCode: v.hexCode || undefined,
-      stock: v.stock,
-      reservedStock: v.reservedStock,
-      images: v.images,
-    })),
+    category: (features.category as string) || 'Uncategorized',
+    categoryId: row.categoryId || (features.categoryId as string | undefined),
+    images: Array.isArray(features.images) ? (features.images as string[]) : [],
+    fabric: (features.fabric as string) || '',
+    fit: (features.fit as string) || '',
+    careInstructions: (features.careInstructions as string) || '',
+    variants: rawVariants.map((v) => {
+      const vObj = (v || {}) as Record<string, unknown>;
+      return {
+        id: typeof vObj.id === 'string' ? vObj.id : undefined,
+        color: typeof vObj.color === 'string' ? vObj.color : 'Standard',
+        hexCode: typeof vObj.hexCode === 'string' ? vObj.hexCode : undefined,
+        stock: typeof vObj.stock === 'number' ? vObj.stock : 0,
+        reservedStock: typeof vObj.reservedStock === 'number' ? vObj.reservedStock : undefined,
+        images: Array.isArray(vObj.images) ? (vObj.images as string[]) : undefined,
+      };
+    }),
     featured: row.isFeatured ?? false,
     newArrival: row.isLatest ?? false,
     bestseller: row.isBestSeller ?? false,
     isListed: features.isListed !== false,
-    tags: (row.tags as string[]) || [],
+    tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString(),
   };
 }
@@ -128,7 +236,7 @@ function mapDbToProduct(row: any): Product {
 async function upsertProductStatus(
   productId: string,
   updates: { status?: 'listed' | 'unListed' | 'discontinued'; inStock?: boolean },
-  executor: any = db
+  executor: DbExecutor = db
 ) {
   const existing = await executor
     .select()
@@ -186,9 +294,9 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
 
     if (dbProducts && dbProducts.length > 0) {
       const mapped = dbProducts
-        .filter((r: any) => {
+        .filter((r) => {
           if (includeDiscontinued) return true;
-          const feat = (r.features as Record<string, any>) || {};
+          const feat = (r.features as Record<string, unknown>) || {};
           // Hard-exclude anything flagged as discontinued in features (soft-delete)
           if (feat.isDiscontinued) return false;
           const status = statusMap.get(r.id);
@@ -197,9 +305,9 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
           // Include everything else (listed or unlisted — admin can see unlisted)
           return true;
         })
-        .map((r: any) => {
-          const feat = (r.features as Record<string, any>) || {};
+        .map((r) => {
           const prod = mapDbToProduct(r);
+          const rFeat = (r.features as Record<string, unknown>) || {};
           if (r.categoryId && categoryMap.has(r.categoryId)) {
             prod.category = categoryMap.get(r.categoryId)!;
           }
@@ -223,15 +331,15 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
               return {
                 id: v.id,
                 color: v.color,
-                hexCode: (v as any).hexCode || undefined,
+                hexCode: v.hexCode || undefined,
                 stock: inv ? inv.availableStock : 0,
                 reservedStock: inv ? inv.reservedStock : 0,
                 images: variantImgs.length > 0 ? variantImgs : (prod.images || []),
               };
             });
           } else if (prod.variants && prod.variants.length > 0) {
-            prod.variants = prod.variants.map((v: any) => {
-              const inv = inventoryByVariant.get(v.id) || (prodInventory.length === 1 ? prodInventory[0] : undefined);
+            prod.variants = prod.variants.map((v) => {
+              const inv = (v.id ? inventoryByVariant.get(v.id) : undefined) || (prodInventory.length === 1 ? prodInventory[0] : undefined);
               return {
                 ...v,
                 stock: inv ? inv.availableStock : (v.stock ?? 0),
@@ -246,7 +354,7 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
             prod.status = status.status;
             prod.inStock = status.inStock ?? true;
           } else {
-            prod.isListed = feat.isListed !== false && !feat.isDiscontinued;
+            prod.isListed = rFeat.isListed !== false && !rFeat.isDiscontinued;
             prod.status = prod.isListed ? 'listed' : 'unListed';
             prod.inStock = true;
           }
@@ -263,11 +371,11 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   try {
     const dbProducts = await db.select().from(productTable);
-    const matchingRows = dbProducts.filter((r: any) => matchesSlug(r, slug));
+    const matchingRows = dbProducts.filter((r) => matchesSlug(r, slug));
     if (matchingRows.length === 0) return null;
 
-    const targetRow = matchingRows.find((r: any) => !(r.features as any)?.isDiscontinued) || matchingRows[matchingRows.length - 1];
-    const feat = (targetRow.features as Record<string, any>) || {};
+    const targetRow = matchingRows.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || matchingRows[matchingRows.length - 1];
+    const feat = (targetRow.features as Record<string, unknown>) || {};
     if (feat.isDiscontinued) return null;
 
     const statusRow = await db.select().from(productStatusTable).where(eq(productStatusTable.productId, targetRow.id));
@@ -329,7 +437,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
         return {
           id: v.id,
           color: v.color,
-          hexCode: (v as any).hexCode || undefined,
+          hexCode: v.hexCode || undefined,
           stock: inv ? inv.availableStock : 0,
           reservedStock: inv ? inv.reservedStock : 0,
           images: variantImgs,
@@ -349,7 +457,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   return null;
 }
 
-export async function createProduct(productInput: Partial<Product> & { name: string; slug: string; price?: number; mrp?: number; sellingPrice?: number }): Promise<Product> {
+export async function createProduct(productInput: CreateProductInputData | (Partial<Product> & { name: string; slug: string; price?: number; mrp?: number; sellingPrice?: number; id?: string | null })): Promise<Product> {
   const name = (productInput.name || '').trim();
   const slug = (productInput.slug || '').trim();
   const description = (productInput.description || '').trim();
@@ -393,7 +501,7 @@ export async function createProduct(productInput: Partial<Product> & { name: str
   // 4. product_images
   // 5. product_status
   // 6. inventry
-  const createdFromDb = await db.transaction(async (tx: any) => {
+  const createdFromDb = await db.transaction(async (tx) => {
     // 1. Category resolution
     let resolvedCategoryId: string | null = productInput.categoryId || null;
     let resolvedCategoryName: string = (productInput.category || '').trim();
@@ -557,16 +665,16 @@ export async function createProduct(productInput: Partial<Product> & { name: str
     result.images = allImages;
     result.variants = createdVariants;
     result.isListed = initialStatus === 'listed';
-    (result as any).inStock = hasStock;
+    result.inStock = hasStock;
     return result;
   });
 
   return createdFromDb;
 }
 
-export async function updateProduct(slug: string, updatedData: Partial<Product>): Promise<Product | null> {
+export async function updateProduct(slug: string, updatedData: UpdateProductInputData | (Partial<Product> & { id?: string | null })): Promise<Product | null> {
   try {
-    let targetRow: any = null;
+    let targetRow: ProductDbRow | null = null;
 
     // Fast-path lookup by slug directly from DB
     try {
@@ -577,26 +685,26 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
           sql`(${productTable.features}->>'slug' = ${slug} OR lower(${productTable.name}) = ${slug.toLowerCase()} OR lower(replace(${productTable.name}, ' ', '-')) = ${slug.toLowerCase()})`
         );
       if (directRows.length > 0) {
-        targetRow = directRows.find((r: any) => !(r.features as any)?.isDiscontinued) || directRows[directRows.length - 1];
+        targetRow = directRows.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || directRows[directRows.length - 1];
       }
     } catch (_) {}
 
     // Fallback if not matched by direct query
     if (!targetRow) {
       const dbProducts = await db.select().from(productTable);
-      const matchingRows = dbProducts.filter((r: any) => matchesSlug(r, slug));
+      const matchingRows = dbProducts.filter((r) => matchesSlug(r, slug));
       if (matchingRows.length === 0) return null;
-      targetRow = matchingRows.find((r: any) => !(r.features as any)?.isDiscontinued) || matchingRows[matchingRows.length - 1];
+      targetRow = matchingRows.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || matchingRows[matchingRows.length - 1];
     }
 
-    const currentFeat = (targetRow.features as Record<string, any>) || {};
+    const currentFeat = (targetRow.features as Record<string, unknown>) || {};
     if (currentFeat.isDiscontinued) return null;
 
     // Check slug collision if slug is being updated
     if (updatedData.slug && updatedData.slug !== slug && updatedData.slug !== currentFeat.slug) {
       const dbProducts = await db.select().from(productTable);
       const slugExists = dbProducts.some(
-        (r: any) => r.id !== targetRow.id && matchesSlug(r, updatedData.slug!)
+        (r) => r.id !== targetRow!.id && matchesSlug(r, updatedData.slug!)
       );
       if (slugExists) {
         throw new Error(`A product with slug "${updatedData.slug}" already exists`);
@@ -611,7 +719,7 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
       }
     }
 
-    return await db.transaction(async (tx: any) => {
+    return await db.transaction(async (tx) => {
       // 1. Resolve category if provided
       let resolvedCategoryId: string | undefined = undefined;
       let resolvedCategoryName: string | undefined = undefined;
@@ -643,11 +751,11 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
       }
 
       // 2. Resolve pricing
-      const priceFallback = updatedData.price !== undefined ? updatedData.price : undefined;
-      const effectiveMrp = updatedData.mrp !== undefined
+      const priceFallback = (updatedData.price !== undefined && updatedData.price !== null) ? updatedData.price : undefined;
+      const effectiveMrp: number = (updatedData.mrp !== undefined && updatedData.mrp !== null)
         ? updatedData.mrp
         : (priceFallback !== undefined ? priceFallback : Number(targetRow.mrp || currentFeat.mrp || 0));
-      const effectiveSellingPrice = updatedData.sellingPrice !== undefined
+      const effectiveSellingPrice: number = (updatedData.sellingPrice !== undefined && updatedData.sellingPrice !== null)
         ? updatedData.sellingPrice
         : (priceFallback !== undefined ? priceFallback : Number(targetRow.sellingPrice || currentFeat.sellingPrice || effectiveMrp));
 
@@ -668,15 +776,15 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
         .where(eq(productImagesTable.productId, targetRow.id))
         .orderBy(asc(productImagesTable.orderIndex));
 
-      const invByVariant = new Map(existingInventory.map((inv: any) => [inv.productVariant, inv]));
+      const invByVariant = new Map(existingInventory.map((inv) => [inv.productVariant, inv]));
       let totalStock = 0;
-      const syncedVariants: ProductVariant[] = existingDbVariants.map((ev: any) => {
-        const inv: any = invByVariant.get(ev.id);
+      const syncedVariants: ProductVariant[] = existingDbVariants.map((ev) => {
+        const inv = invByVariant.get(ev.id);
         const avail = inv ? inv.availableStock : 0;
         totalStock += avail;
         const variantImgs = existingDbImages
-          .filter((img: any) => img.productVariantId === ev.id)
-          .map((img: any) => img.url);
+          .filter((img) => img.productVariantId === ev.id)
+          .map((img) => img.url);
         return {
           id: ev.id,
           color: ev.color,
@@ -687,13 +795,13 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
         };
       });
 
-      if (syncedVariants.length === 0 && currentFeat.variants && currentFeat.variants.length > 0) {
-        totalStock = (currentFeat.variants as any[]).reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
+      if (syncedVariants.length === 0 && currentFeat.variants && Array.isArray(currentFeat.variants)) {
+        totalStock = (currentFeat.variants as RawVariant[]).reduce((sum: number, v) => sum + (v.stock || 0), 0);
       }
 
       const existingMainImages = existingDbImages
-        .filter((img: any) => !img.productVariantId)
-        .map((img: any) => img.url);
+        .filter((img) => !img.productVariantId)
+        .map((img) => img.url);
       const syncedMainImages = existingMainImages.length > 0
         ? existingMainImages
         : ((currentFeat.images as string[]) || []);
@@ -702,12 +810,12 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
       const finalSlug = updatedData.slug !== undefined
         ? updatedData.slug
         : (currentFeat.slug || targetRow.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
-      const finalCategoryName = resolvedCategoryName !== undefined
+      const finalCategoryName: string = resolvedCategoryName !== undefined
         ? resolvedCategoryName
-        : (currentFeat.category || 'Uncategorized');
-      const finalCategoryId = resolvedCategoryId !== undefined
+        : (typeof currentFeat.category === 'string' ? currentFeat.category : 'Uncategorized');
+      const finalCategoryId: string | undefined = resolvedCategoryId !== undefined
         ? resolvedCategoryId
-        : (targetRow.categoryId || currentFeat.categoryId);
+        : (targetRow.categoryId || (typeof currentFeat.categoryId === 'string' ? currentFeat.categoryId : undefined));
       const finalIsListed = updatedData.isListed !== undefined
         ? updatedData.isListed
         : (updatedData.status !== undefined
@@ -735,13 +843,13 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
         .update(productTable)
         .set({
           name: updatedData.name !== undefined ? updatedData.name : targetRow.name,
-          description: updatedData.description !== undefined ? updatedData.description : targetRow.description,
+          description: (updatedData.description !== undefined && updatedData.description !== null) ? updatedData.description : (targetRow.description ?? undefined),
           mrp: effectiveMrp.toString(),
           sellingPrice: effectiveSellingPrice.toString(),
-          isBestSeller: updatedData.bestseller !== undefined ? updatedData.bestseller : targetRow.isBestSeller,
-          isLatest: updatedData.newArrival !== undefined ? updatedData.newArrival : targetRow.isLatest,
-          isFeatured: updatedData.featured !== undefined ? updatedData.featured : targetRow.isFeatured,
-          tags: updatedData.tags !== undefined ? updatedData.tags : (targetRow.tags as string[]),
+          isBestSeller: (updatedData.bestseller !== undefined && updatedData.bestseller !== null) ? updatedData.bestseller : (targetRow.isBestSeller ?? undefined),
+          isLatest: (updatedData.newArrival !== undefined && updatedData.newArrival !== null) ? updatedData.newArrival : (targetRow.isLatest ?? undefined),
+          isFeatured: (updatedData.featured !== undefined && updatedData.featured !== null) ? updatedData.featured : (targetRow.isFeatured ?? undefined),
+          tags: (updatedData.tags !== undefined && updatedData.tags !== null) ? updatedData.tags : (targetRow.tags as string[]),
           features: updatedFeat,
           ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
         })
@@ -749,20 +857,21 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
         .returning();
 
       // 6. Update product status
-      const targetStatus = updatedData.status !== undefined
+      const targetStatus = (updatedData.status !== undefined && updatedData.status !== null)
         ? updatedData.status
-        : (updatedData.isListed !== undefined ? (updatedData.isListed ? 'listed' : 'unListed') : undefined);
+        : (updatedData.isListed !== undefined && updatedData.isListed !== null ? (updatedData.isListed ? 'listed' : 'unListed') : undefined);
 
-      const targetInStock = updatedData.inStock !== undefined
+      const targetInStock = (updatedData.inStock !== undefined && updatedData.inStock !== null)
         ? updatedData.inStock
         : undefined;
 
-      let currentStatus: any = null;
+      let currentStatus: typeof productStatusTable.$inferSelect | undefined = undefined;
       if (targetStatus !== undefined || targetInStock !== undefined) {
-        currentStatus = await upsertProductStatus(targetRow.id, {
+        const updatedStatus = await upsertProductStatus(targetRow.id, {
           status: targetStatus,
           inStock: targetInStock,
         }, tx);
+        currentStatus = updatedStatus;
       } else {
         const [existingStatus] = await tx
           .select()
@@ -776,9 +885,9 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
       result.category = finalCategoryName;
       result.categoryId = finalCategoryId;
       result.images = syncedMainImages;
-      result.variants = syncedVariants.length > 0 ? syncedVariants : (currentFeat.variants || []);
-      result.isListed = currentStatus ? currentStatus.status === 'listed' : finalIsListed;
-      result.status = currentStatus ? currentStatus.status : (finalIsListed ? 'listed' : 'unListed');
+      result.variants = syncedVariants.length > 0 ? syncedVariants : (currentFeat.variants as ProductVariant[] || []);
+      result.isListed = currentStatus ? currentStatus.status === 'listed' : Boolean(finalIsListed);
+      result.status = currentStatus ? (currentStatus.status as 'listed' | 'unListed' | 'discontinued') : (finalIsListed ? 'listed' : 'unListed');
       result.inStock = currentStatus ? (currentStatus.inStock ?? true) : (totalStock > 0);
       return result;
     });
@@ -794,7 +903,7 @@ export async function updateProduct(slug: string, updatedData: Partial<Product>)
  */
 export async function reorderProductImages(idOrSlug: string, newImageUrls: string[]): Promise<string[]> {
   try {
-    let targetRow: any = null;
+    let targetRow: ProductDbRow | null = null;
 
     try {
       const directRows = await db
@@ -804,13 +913,13 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
           sql`(${productTable.id}::text = ${idOrSlug} OR ${productTable.features}->>'slug' = ${idOrSlug} OR lower(${productTable.name}) = ${idOrSlug.toLowerCase()} OR lower(replace(${productTable.name}, ' ', '-')) = ${idOrSlug.toLowerCase()})`
         );
       if (directRows.length > 0) {
-        targetRow = directRows.find((r: any) => !(r.features as any)?.isDiscontinued) || directRows[directRows.length - 1];
+        targetRow = directRows.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || directRows[directRows.length - 1];
       }
     } catch (_) {}
 
     if (!targetRow) {
       const dbProducts = await db.select().from(productTable);
-      targetRow = dbProducts.find((r: any) => matchesSlug(r, idOrSlug) || r.id === idOrSlug);
+      targetRow = dbProducts.find((r) => matchesSlug(r, idOrSlug) || r.id === idOrSlug) || null;
       if (!targetRow) {
         throw new Error(`Product not found: "${idOrSlug}"`);
       }
@@ -821,18 +930,18 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
       throw new Error('At least one image URL is required to reorder.');
     }
 
-    return await db.transaction(async (tx: any) => {
+    return await db.transaction(async (tx) => {
       // 1. Fetch current images for this product
       const existingDbImages = await tx
         .select()
         .from(productImagesTable)
-        .where(eq(productImagesTable.productId, targetRow.id))
+        .where(eq(productImagesTable.productId, targetRow!.id))
         .orderBy(asc(productImagesTable.orderIndex));
 
       // 2. Update orderIndex in productImagesTable for each image
       for (let o = 0; o < cleanUrls.length; o++) {
         const url = cleanUrls[o];
-        const matching = existingDbImages.find((img: any) => img.url === url);
+        const matching = existingDbImages.find((img) => img.url === url);
         if (matching) {
           if (matching.orderIndex !== o) {
             await tx
@@ -842,7 +951,7 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
           }
         } else {
           await tx.insert(productImagesTable).values({
-            productId: targetRow.id,
+            productId: targetRow!.id,
             productVariantId: null,
             url,
             orderIndex: o,
@@ -851,10 +960,12 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
       }
 
       // 3. Update features.images and variants on productTable to keep them consistent
-      const currentFeat = (targetRow.features as Record<string, any>) || {};
-      const updatedVariants = (currentFeat.variants || []).map((v: any) => {
-        const vImgs = Array.isArray(v.images) ? v.images : [];
-        if (vImgs.length === 0) return { ...v, images: cleanUrls };
+      const currentFeat = (targetRow!.features as Record<string, unknown>) || {};
+      const rawFeatVariants = Array.isArray(currentFeat.variants) ? currentFeat.variants : [];
+      const updatedVariants = rawFeatVariants.map((v) => {
+        const vObj = (v || {}) as Record<string, unknown>;
+        const vImgs = Array.isArray(vObj.images) ? (vObj.images as string[]) : [];
+        if (vImgs.length === 0) return { ...vObj, images: cleanUrls };
         const sorted = [...vImgs].sort((a, b) => {
           const idxA = cleanUrls.indexOf(a);
           const idxB = cleanUrls.indexOf(b);
@@ -864,7 +975,7 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
           return 0;
         });
         return {
-          ...v,
+          ...vObj,
           images: sorted,
         };
       });
@@ -878,7 +989,7 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
       await tx
         .update(productTable)
         .set({ features: updatedFeat })
-        .where(eq(productTable.id, targetRow.id));
+        .where(eq(productTable.id, targetRow!.id));
 
       return cleanUrls;
     });
@@ -891,14 +1002,14 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
 export async function deleteProduct(slug: string): Promise<boolean> {
   try {
     const dbProducts = await db.select().from(productTable);
-    const matchingRows = dbProducts.filter((r: any) => matchesSlug(r, slug));
+    const matchingRows = dbProducts.filter((r) => matchesSlug(r, slug));
 
     if (matchingRows.length > 0) {
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx) => {
         for (const targetRow of matchingRows) {
           await upsertProductStatus(targetRow.id, { status: 'discontinued' }, tx);
 
-          const currentFeat = (targetRow.features as Record<string, any>) || {};
+          const currentFeat = (targetRow.features as Record<string, unknown>) || {};
           await tx
             .update(productTable)
             .set({
@@ -919,8 +1030,8 @@ export async function deleteProduct(slug: string): Promise<boolean> {
 export async function getProductStatus(slug: string): Promise<{ productId: string; status: 'listed' | 'unListed' | 'discontinued'; inStock: boolean; updatedAt?: string } | null> {
   try {
     const dbProducts = await db.select().from(productTable);
-    const matching = dbProducts.filter((r: any) => matchesSlug(r, slug));
-    const targetRow = matching.find((r: any) => !(r.features as any)?.isDiscontinued) || (matching.length > 0 ? matching[matching.length - 1] : undefined);
+    const matching = dbProducts.filter((r) => matchesSlug(r, slug));
+    const targetRow = matching.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || (matching.length > 0 ? matching[matching.length - 1] : undefined);
 
     if (targetRow) {
       const statuses = await db.select().from(productStatusTable).where(eq(productStatusTable.productId, targetRow.id));
@@ -947,14 +1058,14 @@ export async function updateProductStatus(
 ): Promise<{ productId: string; status: 'listed' | 'unListed' | 'discontinued'; inStock: boolean; updatedAt?: string } | null> {
   try {
     const dbProducts = await db.select().from(productTable);
-    const matching = dbProducts.filter((r: any) => matchesSlug(r, slug));
-    const targetRow = matching.find((r: any) => !(r.features as any)?.isDiscontinued) || (matching.length > 0 ? matching[matching.length - 1] : undefined);
+    const matching = dbProducts.filter((r) => matchesSlug(r, slug));
+    const targetRow = matching.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || (matching.length > 0 ? matching[matching.length - 1] : undefined);
 
     if (targetRow) {
-      return await db.transaction(async (tx: any) => {
+      return await db.transaction(async (tx) => {
         if (updates.status !== undefined) {
           const isListed = updates.status === 'listed';
-          const currentFeat = (targetRow.features as Record<string, any>) || {};
+          const currentFeat = (targetRow.features as Record<string, unknown>) || {};
           await tx
             .update(productTable)
             .set({
@@ -1005,8 +1116,8 @@ export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
       p.isListed !== false &&
       p.status !== 'unListed' &&
       p.status !== 'discontinued' &&
-      !(p as any).isDiscontinued &&
-      !(p as any).features?.isDiscontinued
+      !p.isDiscontinued &&
+      !(p.features as { isDiscontinued?: boolean } | undefined)?.isDiscontinued
   );
 
   if (search) {

@@ -38,9 +38,6 @@ export function SupportClient() {
       setPhone('');
       setSelectedSubject('');
       setMessage('');
-      try {
-        trackEvent({ type: 'inquiry' as any });
-      } catch (_) {}
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to submit inquiry. Please try again.');
