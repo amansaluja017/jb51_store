@@ -197,6 +197,8 @@ export function SupportClient() {
                     <input
                       required
                       id="firstName"
+                      name="firstName"
+                      autoComplete="given-name"
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
@@ -208,6 +210,8 @@ export function SupportClient() {
                     <input
                       required
                       id="lastName"
+                      name="lastName"
+                      autoComplete="family-name"
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -222,6 +226,8 @@ export function SupportClient() {
                     <input
                       required
                       id="email"
+                      name="email"
+                      autoComplete="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -232,6 +238,8 @@ export function SupportClient() {
                     <label htmlFor="phone" className="text-[10px] tracking-widest uppercase font-medium">Phone Number</label>
                     <input
                       id="phone"
+                      name="phone"
+                      autoComplete="tel"
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
@@ -258,6 +266,7 @@ export function SupportClient() {
                   <textarea
                     required
                     id="message"
+                    name="message"
                     rows={4}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

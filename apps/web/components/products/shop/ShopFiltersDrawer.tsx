@@ -106,6 +106,9 @@ export function ShopFiltersDrawer({
         </h2>
         <div className="flex flex-col gap-3 pt-1">
           <input
+            id="price-range-slider"
+            name="priceRange"
+            aria-label="Filter by maximum price"
             type="range"
             min={0}
             max={Math.max(1000, maxPrice)}

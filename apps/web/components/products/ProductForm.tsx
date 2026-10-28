@@ -434,8 +434,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Outfit Name *</label>
+                <label htmlFor="product-name" className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Outfit Name *</label>
                 <input
+                  id="product-name"
+                  name="name"
                   type="text"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
@@ -447,7 +449,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
 
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">URL Slug *</label>
+                  <label htmlFor="product-slug" className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">URL Slug *</label>
                   {!isEdit && (
                     <button
                       type="button"
@@ -459,6 +461,8 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                   )}
                 </div>
                 <input
+                  id="product-slug"
+                  name="slug"
                   type="text"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
@@ -496,10 +500,12 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">MRP (INR) *</label>
+                <label htmlFor="product-mrp" className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">MRP (INR) *</label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold">₹</span>
                   <input
+                    id="product-mrp"
+                    name="mrp"
                     type="number"
                     value={mrp}
                     onChange={(e) => setMrp(e.target.value === '' ? '' : Number(e.target.value))}
@@ -512,10 +518,12 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Selling Price (INR) *</label>
+                <label htmlFor="product-selling-price" className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Selling Price (INR) *</label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-semibold">₹</span>
                   <input
+                    id="product-selling-price"
+                    name="sellingPrice"
                     type="number"
                     value={sellingPrice}
                     onChange={(e) => setSellingPrice(e.target.value === '' ? '' : Number(e.target.value))}
@@ -562,6 +570,8 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 {isAddingCategory ? (
                   <div className="flex gap-2">
                     <input
+                      id="new-category-input"
+                      name="newCategory"
                       type="text"
                       value={newCategoryInput}
                       onChange={(e) => setNewCategoryInput(e.target.value)}
@@ -645,8 +655,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 <div key={idx} className="flex flex-col sm:flex-row items-end sm:items-center gap-4 p-4 bg-zinc-50/50 rounded-2xl border border-zinc-100">
                   <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Shade/Color *</label>
+                      <label htmlFor={`variant-color-${idx}`} className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Shade/Color *</label>
                       <input
+                        id={`variant-color-${idx}`}
+                        name={`variant-color-${idx}`}
                         type="text"
                         value={variant.color}
                         onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
@@ -656,9 +668,11 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Color HEX</label>
+                      <label htmlFor={`variant-hex-${idx}`} className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Color HEX</label>
                       <div className="relative flex items-center">
                         <input
+                          id={`variant-hex-${idx}`}
+                          name={`variant-hex-${idx}`}
                           type="text"
                           value={variant.hexCode || ''}
                           onChange={(e) => handleVariantChange(idx, 'hexCode', e.target.value)}
@@ -673,8 +687,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Stock *</label>
+                      <label htmlFor={`variant-stock-${idx}`} className="text-[8px] uppercase tracking-wider text-zinc-400 font-bold">Stock *</label>
                       <input
+                        id={`variant-stock-${idx}`}
+                        name={`variant-stock-${idx}`}
                         type="number"
                         value={variant.stock}
                         onChange={(e) => {
@@ -710,8 +726,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
             <h3 className="font-serif text-base font-bold text-zinc-900 border-b border-zinc-100 pb-3">List Statuses</h3>
             
             <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer group">
+              <label htmlFor="product-new-arrival" className="flex items-center gap-3 cursor-pointer group">
                 <input
+                  id="product-new-arrival"
+                  name="newArrival"
                   type="checkbox"
                   checked={newArrival}
                   onChange={(e) => setNewArrival(e.target.checked)}
@@ -723,8 +741,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer group border-t border-zinc-50 pt-4">
+              <label htmlFor="product-bestseller" className="flex items-center gap-3 cursor-pointer group border-t border-zinc-50 pt-4">
                 <input
+                  id="product-bestseller"
+                  name="bestseller"
                   type="checkbox"
                   checked={bestseller}
                   onChange={(e) => setBestseller(e.target.checked)}
@@ -736,8 +756,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer group border-t border-zinc-50 pt-4">
+              <label htmlFor="product-featured" className="flex items-center gap-3 cursor-pointer group border-t border-zinc-50 pt-4">
                 <input
+                  id="product-featured"
+                  name="featured"
                   type="checkbox"
                   checked={featured}
                   onChange={(e) => setFeatured(e.target.checked)}
@@ -749,8 +771,10 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer group border-t border-zinc-50 pt-4">
+              <label htmlFor="product-is-listed" className="flex items-center gap-3 cursor-pointer group border-t border-zinc-50 pt-4">
                 <input
+                  id="product-is-listed"
+                  name="isListed"
                   type="checkbox"
                   checked={isListed}
                   onChange={(e) => setIsListed(e.target.checked)}
@@ -798,6 +822,9 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
                 <div key={idx} className="space-y-2">
                   <div className="flex items-center gap-2">
                     <input
+                      id={`product-image-${idx}`}
+                      name={`product-image-${idx}`}
+                      aria-label={`Image URL ${idx + 1}`}
                       type="url"
                       value={image}
                       onChange={(e) => handleImageChange(idx, e.target.value)}

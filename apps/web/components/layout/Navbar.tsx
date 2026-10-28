@@ -186,9 +186,13 @@ export function Navbar() {
 
           {/* Center Column: Perfectly Centered Search Bar */}
           <div className="hidden md:block flex-1 max-w-sm lg:max-w-md relative group mx-auto">
-            <form onSubmit={handleSearchSubmit}>
+            <form onSubmit={handleSearchSubmit} role="search">
               <input
-                type="text"
+                id="search-input-desktop"
+                name="searchQuery"
+                type="search"
+                autoComplete="off"
+                aria-label="Search products"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
@@ -381,10 +385,14 @@ export function Navbar() {
       {/* 4. Mobile Search Dropdown Bar */}
       {showMobileSearch && (
         <div className="md:hidden bg-white border-b border-zinc-200 py-3 px-6 relative z-40 animate-fade-in-down shadow-sm">
-          <form onSubmit={handleSearchSubmit} className="relative flex items-center gap-3">
+          <form onSubmit={handleSearchSubmit} role="search" className="relative flex items-center gap-3">
             <Search size={16} className="text-zinc-400 absolute left-3" />
             <input
-              type="text"
+              id="search-input-mobile"
+              name="searchQuery"
+              type="search"
+              autoComplete="off"
+              aria-label="Search products"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search products..."
