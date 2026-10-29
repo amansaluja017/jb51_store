@@ -10,7 +10,14 @@ import { useWishlist } from '@/context/WishlistContext';
 import { api } from '@/lib/trpc/client/react';
 import { useAnalytics } from '@/hooks/useAnalytics';
 
-export function Navbar() {
+import { useDebounce } from '@/hooks/useDebounce';
+import type { SiteConfigData } from '@/lib/site-config';
+
+interface NavbarProps {
+  siteConfig?: SiteConfigData;
+}
+
+export function Navbar({ siteConfig }: NavbarProps = {}) {
   const { trackEvent } = useAnalytics();
   const pathname = usePathname();
   const router = useRouter();
@@ -24,28 +31,35 @@ export function Navbar() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
-  const trimmedSearch = searchQuery.trim();
-  const { data: searchResult } = api.products.getPaginated.useQuery(
-    { search: trimmedSearch, limit: 5 },
-    { enabled: trimmedSearch.length > 0 }
+  // Debounce search input (250ms) to prevent excessive backend queries
+  const debouncedSearchQuery = useDebounce(searchQuery.trim(), 250);
+
+  // Hit backend pg_trgm suggestions route matching name, description, tags
+  const { data: suggestionsData, isLoading: isSuggestionsLoading } = api.products.suggestions.useQuery(
+    { query: debouncedSearchQuery },
+    { enabled: debouncedSearchQuery.length > 0 }
   );
 
-  const suggestedProducts = searchResult?.items || [];
+  const suggestedProducts = suggestionsData?.products || [];
+  const suggestedCategories = suggestionsData?.categories || [];
+  const suggestedTags = suggestionsData?.tags || [];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setIsSearchFocused(false);
       setShowMobileSearch(false);
-      router.push(`/search/filter=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`/search/${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
-  const announcements = [
-    'Summer Sale: Up to 70% Off',
-    'Complimentary shipping on orders above ₹15,000',
-    'Bespoke customization available at our store',
-  ];
+  const announcements = siteConfig?.promotionalHeader?.length
+    ? siteConfig.promotionalHeader
+    : [
+        'Summer Sale: Up to 70% Off',
+        'Complimentary shipping on orders above ₹15,000',
+        'Bespoke customization available at our store',
+      ];
   const [announcementIdx, setAnnouncementIdx] = useState(0);
 
   useEffect(() => {
@@ -99,7 +113,7 @@ export function Navbar() {
       {/* 1. Top Announcement Bar (Promo banner) */}
       <div className="w-full bg-zinc-950 text-zinc-300 text-[8px] md:text-[9px] py-2 px-6 flex items-center justify-center tracking-[0.2em] font-semibold uppercase relative z-50 border-b border-white/5">
         <div className="relative overflow-hidden h-4 flex items-center justify-center w-full">
-          {announcements.map((text, idx) => (
+          {announcements.map((text: string, idx: number) => (
             <div
               key={idx}
               className={cn(
@@ -217,46 +231,90 @@ export function Navbar() {
             {/* Suggestions Panel */}
             {isSearchFocused && searchQuery.trim() !== '' && (
               <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-white/95 backdrop-blur-md border border-zinc-200/60 shadow-2xl rounded-2xl p-4 z-50 text-left">
-                <div className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold mb-3">
-                  Suggested Ensembles
+                <div className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold mb-3 flex items-center justify-between">
+                  <span>Suggested Ensembles</span>
+                  {isSuggestionsLoading && <span className="text-[8px] text-zinc-400 animate-pulse">Searching...</span>}
                 </div>
+
+                {/* Categories & Tags Suggestions */}
+                {(suggestedCategories.length > 0 || suggestedTags.length > 0) && (
+                  <div className="flex flex-wrap gap-1.5 mb-3 pb-2.5 border-b border-zinc-100">
+                    {suggestedCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          setIsSearchFocused(false);
+                          router.push(`/shop?category=${encodeURIComponent(cat)}`);
+                        }}
+                        className="text-[9px] font-semibold bg-zinc-100 hover:bg-[#FF5E36]/10 hover:text-[#FF5E36] text-zinc-700 px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                    {suggestedTags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          setIsSearchFocused(false);
+                          router.push(`/search/${encodeURIComponent(tag)}`);
+                        }}
+                        className="text-[9px] font-medium bg-zinc-50 border border-zinc-200 hover:border-[#FF5E36] hover:text-[#FF5E36] text-zinc-600 px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {suggestedProducts.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    {suggestedProducts.map(p => (
-                      <Link
-                        key={p.id}
-                        href={`/product/${p.slug}`}
-                        className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-zinc-50 transition-colors"
-                      >
-                        <div className="relative w-10 h-12 rounded-lg overflow-hidden border border-zinc-100 flex-shrink-0">
-                          <Image
-                            src={p.images[0]}
-                            alt={p.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-zinc-900 truncate">{p.name}</div>
-                          <div className="text-[9px] text-zinc-450 uppercase tracking-wider">{p.fabric || 'Premium Fabric'}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs font-bold text-[#FF5E36]">
-                            {formatPrice(p.sellingPrice ?? p.discountPrice ?? p.price)}
+                    {suggestedProducts.map(p => {
+                      const imageSrc = p.image || (p as any).images?.[0] || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500';
+                      return (
+                        <Link
+                          key={p.id}
+                          href={`/product/${p.slug}`}
+                          className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-zinc-50 transition-colors"
+                        >
+                          <div className="relative w-10 h-12 rounded-lg overflow-hidden border border-zinc-100 flex-shrink-0 bg-zinc-50">
+                            <Image
+                              src={imageSrc}
+                              alt={p.name}
+                              fill
+                              className="object-cover"
+                            />
                           </div>
-                          {Boolean(p.mrp && p.mrp > (p.sellingPrice ?? p.discountPrice ?? p.price)) && (
-                            <div className="text-[9px] line-through text-zinc-400">
-                              {formatPrice(p.mrp!)}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-zinc-900 truncate">{p.name}</div>
+                            <div className="text-[9px] text-zinc-450 uppercase tracking-wider flex items-center gap-1.5">
+                              <span>{p.fabric || p.category || 'Collection'}</span>
+                              {p.matchedField && p.matchedField !== 'name' && (
+                                <span className="text-[8px] bg-orange-50 text-[#FF5E36] px-1 rounded font-medium">
+                                  matches {p.matchedField}
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs font-bold text-[#FF5E36]">
+                              {formatPrice(p.sellingPrice ?? p.discountPrice ?? p.price)}
+                            </div>
+                            {Boolean(p.mrp && p.mrp > (p.sellingPrice ?? p.discountPrice ?? p.price)) && (
+                              <div className="text-[9px] line-through text-zinc-400">
+                                {formatPrice(p.mrp!)}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
                     <div className="border-t border-zinc-100 pt-2.5 mt-1.5 flex justify-between items-center text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
                       <span>{suggestedProducts.length} matching items</span>
                       <button
                         type="button"
-                        onClick={() => router.push(`/search/filter=${encodeURIComponent(searchQuery.trim())}`)}
+                        onClick={() => router.push(`/search/${encodeURIComponent(searchQuery.trim())}`)}
                         className="text-[#FF5E36] hover:underline cursor-pointer"
                       >
                         View all results
@@ -265,7 +323,9 @@ export function Navbar() {
                   </div>
                 ) : (
                   <div className="text-xs text-zinc-500 py-3 text-center font-light">
-                    No bespoke creations found for &quot;{searchQuery}&quot;
+                    {isSuggestionsLoading
+                      ? 'Finding suggestions...'
+                      : `No bespoke creations found for "${searchQuery}"`}
                   </div>
                 )}
               </div>
@@ -370,7 +430,7 @@ export function Navbar() {
               Wishlist
             </Link>
             <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}`}
+              href={`https://wa.me/${siteConfig?.contactInfo?.whatsappNumber || WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'whatsapp' })}
@@ -423,49 +483,86 @@ export function Navbar() {
           {/* Suggestions Dropdown for Mobile */}
           {searchQuery.trim() !== '' && (
             <div className="mt-3 bg-zinc-50 rounded-2xl p-3 border border-zinc-100 max-h-[300px] overflow-y-auto">
-              <div className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold mb-2">
-                Suggested Ensembles
+              <div className="text-[9px] tracking-wider uppercase text-zinc-400 font-bold mb-2 flex justify-between">
+                <span>Suggested Ensembles</span>
+                {isSuggestionsLoading && <span className="animate-pulse">Searching...</span>}
               </div>
+
+              {/* Mobile Categories & Tags Suggestions */}
+              {(suggestedCategories.length > 0 || suggestedTags.length > 0) && (
+                <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-zinc-200/40">
+                  {suggestedCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setShowMobileSearch(false);
+                        router.push(`/shop?category=${encodeURIComponent(cat)}`);
+                      }}
+                      className="text-[8px] font-semibold bg-white border border-zinc-200 text-zinc-700 px-2 py-0.5 rounded-full"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                  {suggestedTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setShowMobileSearch(false);
+                        router.push(`/search/${encodeURIComponent(tag)}`);
+                      }}
+                      className="text-[8px] bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full"
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {suggestedProducts.length > 0 ? (
                 <div className="flex flex-col gap-2">
-                  {suggestedProducts.map(p => (
-                    <Link
-                      key={p.id}
-                      href={`/product/${p.slug}`}
-                      onClick={() => setShowMobileSearch(false)}
-                      className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-white transition-colors"
-                    >
-                      <div className="relative w-8 h-10 rounded-lg overflow-hidden border border-zinc-200 flex-shrink-0 bg-white">
-                        <Image
-                          src={p.images[0]}
-                          alt={p.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-zinc-900 truncate">{p.name}</div>
-                        <div className="text-[8px] text-zinc-400 uppercase tracking-wider">{p.fabric || 'Premium Fabric'}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs font-bold text-[#FF5E36]">
-                          {formatPrice(p.sellingPrice ?? p.discountPrice ?? p.price)}
+                  {suggestedProducts.map(p => {
+                    const imageSrc = p.image || (p as any).images?.[0] || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500';
+                    return (
+                      <Link
+                        key={p.id}
+                        href={`/product/${p.slug}`}
+                        onClick={() => setShowMobileSearch(false)}
+                        className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-white transition-colors"
+                      >
+                        <div className="relative w-8 h-10 rounded-lg overflow-hidden border border-zinc-200 flex-shrink-0 bg-white">
+                          <Image
+                            src={imageSrc}
+                            alt={p.name}
+                            fill
+                            className="object-cover"
+                          />
                         </div>
-                        {Boolean(p.mrp && p.mrp > (p.sellingPrice ?? p.discountPrice ?? p.price)) && (
-                          <div className="text-[9px] line-through text-zinc-400">
-                            {formatPrice(p.mrp!)}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-zinc-900 truncate">{p.name}</div>
+                          <div className="text-[8px] text-zinc-400 uppercase tracking-wider">{p.fabric || p.category || 'Collection'}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-[#FF5E36]">
+                            {formatPrice(p.sellingPrice ?? p.discountPrice ?? p.price)}
                           </div>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
+                          {Boolean(p.mrp && p.mrp > (p.sellingPrice ?? p.discountPrice ?? p.price)) && (
+                            <div className="text-[9px] line-through text-zinc-400">
+                              {formatPrice(p.mrp!)}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
                   <div className="border-t border-zinc-200/50 pt-2 mt-1 flex justify-between items-center text-[9px] text-zinc-500 font-bold uppercase tracking-wider">
                     <span>{suggestedProducts.length} matching items</span>
                     <button
                       type="button"
                       onClick={() => {
                         setShowMobileSearch(false);
-                        router.push(`/search/filter=${encodeURIComponent(searchQuery.trim())}`);
+                        router.push(`/search/${encodeURIComponent(searchQuery.trim())}`);
                       }}
                       className="text-[#FF5E36] hover:underline cursor-pointer"
                     >
@@ -475,7 +572,9 @@ export function Navbar() {
                 </div>
               ) : (
                 <div className="text-xs text-zinc-500 py-3 text-center font-light">
-                  No bespoke creations found for &quot;{searchQuery}&quot;
+                  {isSuggestionsLoading
+                    ? 'Finding suggestions...'
+                    : `No bespoke creations found for "${searchQuery}"`}
                 </div>
               )}
             </div>

@@ -19,9 +19,11 @@ import {
   ChevronDown,
   Check,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react-native';
 import InquiryItem from './InquiryItem';
 import { Inquiry } from '../types';
+import { useDebounce } from '../hooks/useDebounce';
 
 export type InquirySortOption = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
 export type InquiryStatusFilter = 'all' | 'pending' | 'resolved';
@@ -55,6 +57,8 @@ interface InquiriesModalProps {
     append?: boolean;
   }) => Promise<any>;
   onResolveInquiry: (id: string, name: string) => void;
+  onSearchInquiries?: (query: string) => Promise<any>;
+  onGetInquirySuggestions?: (query: string) => Promise<any>;
 }
 
 const SORT_OPTIONS: { id: InquirySortOption; label: string; description: string }[] = [
@@ -78,8 +82,12 @@ export default function InquiriesModal({
   onSearchChange,
   onFetchPaginatedInquiries,
   onResolveInquiry,
+  onSearchInquiries,
+  onGetInquirySuggestions,
 }: InquiriesModalProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
+  const debouncedSearch = useDebounce(localSearch.trim(), 250);
+  const [suggestions, setSuggestions] = useState<any[] | null>(null);
   const [activeFilter, setActiveFilter] = useState<InquiryStatusFilter>(statusFilter);
   const [activeSort, setActiveSort] = useState<InquirySortOption>(sortBy);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
@@ -99,41 +107,37 @@ export default function InquiriesModal({
     setLocalSearch(searchQuery);
   }, [searchQuery]);
 
-  // Debounced search trigger
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounced backend search & pg_trgm suggestion trigger
+  useEffect(() => {
+    onFetchPaginatedInquiries?.({
+      page: 1,
+      search: debouncedSearch || '',
+      status: activeFilter,
+      sortBy: activeSort,
+      append: false,
+    });
+
+    if (debouncedSearch && onGetInquirySuggestions) {
+      onGetInquirySuggestions(debouncedSearch)
+        .then((res) => {
+          setSuggestions(res || []);
+        })
+        .catch(() => {
+          setSuggestions([]);
+        });
+    } else {
+      setSuggestions(null);
+    }
+  }, [debouncedSearch, activeFilter, activeSort, onFetchPaginatedInquiries, onGetInquirySuggestions]);
 
   const handleSearchTextChange = (text: string) => {
     setLocalSearch(text);
     onSearchChange?.(text);
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      onFetchPaginatedInquiries?.({
-        page: 1,
-        search: text,
-        status: activeFilter,
-        sortBy: activeSort,
-        append: false,
-      });
-    }, 350);
   };
 
   const handleClearSearch = () => {
     setLocalSearch('');
     onSearchChange?.('');
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    onFetchPaginatedInquiries?.({
-      page: 1,
-      search: '',
-      status: activeFilter,
-      sortBy: activeSort,
-      append: false,
-    });
   };
 
   const handleSelectFilter = (filter: InquiryStatusFilter) => {
@@ -269,6 +273,26 @@ export default function InquiriesModal({
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Backend pg_trgm Inquiry Suggestions */}
+          {debouncedSearch.length > 0 && suggestions && suggestions.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 8, maxHeight: 30 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={11} color="#FF5E36" />
+                {suggestions.slice(0, 5).map((item, idx) => (
+                  <TouchableOpacity
+                    key={`inq-sug-${item.id || idx}`}
+                    onPress={() => handleSearchTextChange(item.customerName || item.productName || item.phoneNumber || '')}
+                    style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                  >
+                    <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
+                      {item.customerName} {item.productName ? `(${item.productName})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          )}
 
           <View style={styles.statusTabsRow}>
             <TouchableOpacity

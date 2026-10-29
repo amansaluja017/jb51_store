@@ -9,10 +9,27 @@ interface PageProps {
   }>;
 }
 
+function cleanSearchQuery(raw: string): string {
+  try {
+    const decoded = decodeURIComponent(raw || '').trim();
+    if (decoded.toLowerCase().startsWith('filter=')) {
+      return decoded.substring(7).trim();
+    }
+    if (decoded.toLowerCase().startsWith('filter:')) {
+      return decoded.substring(7).trim();
+    }
+    if (decoded.toLowerCase().startsWith('q=')) {
+      return decoded.substring(2).trim();
+    }
+    return decoded;
+  } catch {
+    return (raw || '').trim();
+  }
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { query } = await params;
-  const searchTerm = query.startsWith('filter=') ? query.substring(7) : query;
-  const decodedSearchTerm = decodeURIComponent(searchTerm);
+  const decodedSearchTerm = cleanSearchQuery(query);
 
   return {
     title: `Search: "${decodedSearchTerm}" | JB51`,
@@ -53,7 +70,7 @@ export default async function SearchPage({ params }: PageProps) {
           </div>
         </div>
       }>
-        <SearchClient query={resolvedParams.query} />
+        <SearchClient query={cleanSearchQuery(resolvedParams.query)} />
       </Suspense>
     </div>
   );

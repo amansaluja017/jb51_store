@@ -17,3 +17,4 @@ export { creditsRouter } from './credits.js';
 export { analyticsRouter } from './analytics.js';
 export { inquiriesRouter } from './inquiries.js';
 export { wishlistRouter } from './wishlist.js';
+export { siteConfigRouter } from './site-config.js';

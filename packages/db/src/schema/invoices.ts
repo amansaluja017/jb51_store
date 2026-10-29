@@ -7,7 +7,9 @@ import {
   numeric,
   timestamp,
   jsonb,
+  index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { invoiceModeEnum } from './enums.js';
 import { product } from './products.js';
 import { user } from './users.js';
@@ -54,7 +56,11 @@ export const invoices = pgTable('invoices', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
-});
+}, (table) => ({
+  invoiceNumberTrgmIdx: index('invoices_invoice_number_trgm_idx').using('gin', sql`${table.invoiceNumber} gin_trgm_ops`),
+  customerNameTrgmIdx: index('invoices_customer_name_trgm_idx').using('gin', sql`${table.customerName} gin_trgm_ops`),
+  phoneNumberTrgmIdx: index('invoices_phone_number_trgm_idx').using('gin', sql`${table.phoneNumber} gin_trgm_ops`),
+}));
 
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;

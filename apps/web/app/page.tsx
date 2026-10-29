@@ -57,6 +57,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
-  return <HomeClient />;
+import { getCachedSiteConfig } from '@/lib/site-config';
+
+export default async function Home() {
+  const siteConfig = await getCachedSiteConfig();
+  return <HomeClient initialConfig={siteConfig} />;
 }

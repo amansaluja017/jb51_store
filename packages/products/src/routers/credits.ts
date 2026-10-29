@@ -3,6 +3,7 @@ import { router, adminProcedure } from './base.js';
 import {
   getCredits,
   getPaginatedCredits,
+  searchCredits,
   createCredit,
   updateCredit,
   recordCreditPayment,
@@ -32,6 +33,22 @@ export const creditsRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedCredits(input || undefined);
+    }),
+
+  search: adminProcedure
+    .meta({ description: 'Fast search customer credits' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          filterTab: z.enum(['all', 'pending', 'overdue', 'settled']).nullish(),
+          sortBy: z.enum(['createdAt-desc', 'createdAt-asc', 'dueAmount-desc', 'dueDate-asc']).nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchCredits(input || undefined);
     }),
 
   create: adminProcedure

@@ -12,7 +12,7 @@ import {
   OrderItemInput,
   InvoiceItem,
 } from '@repo/db';
-import { desc, eq, and, or, inArray } from 'drizzle-orm';
+import { desc, eq, and, or, inArray, ilike, sql } from 'drizzle-orm';
 import { generateSlug } from './customers.js';
 
 export interface CreateOrderInput {
@@ -200,9 +200,9 @@ export async function createOrder(input: CreateOrderInput) {
         .where(
           item.productVariantId
             ? and(
-                eq(inventryTable.productId, item.productId),
-                eq(inventryTable.productVariant, item.productVariantId)
-              )
+              eq(inventryTable.productId, item.productId),
+              eq(inventryTable.productVariant, item.productVariantId)
+            )
             : eq(inventryTable.productId, item.productId)
         );
 
@@ -633,21 +633,29 @@ export async function getPaginatedOrders(input?: GetPaginatedOrdersInput) {
   let all = await getOrders();
 
   if (search) {
+    const searchLower = search.toLowerCase();
+    const cleanDigits = search.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
+
     all = all.filter((ord) => {
-      const ordNum = (ord.orderNumber || ord.id || '').toLowerCase();
+      const ordNum = (ord.orderNumber || '').toLowerCase();
+      const ordId = (ord.id || '').toLowerCase();
       const custName = (ord.customerName || '').toLowerCase();
-      const phone = (ord.customerPhone || '').toLowerCase();
-      const email = (ord.customerEmail || '').toLowerCase();
-      const itemMatch = ord.items?.some((it: { productName?: string | null }) =>
-        (it.productName || '').toLowerCase().includes(search)
-      );
-      return (
-        ordNum.includes(search) ||
-        custName.includes(search) ||
-        phone.includes(search) ||
-        email.includes(search) ||
-        itemMatch
-      );
+      const phone = (ord.customerPhone || '').trim();
+      const cleanPhoneDigits = phone.replace(/\D/g, '');
+
+      // Exact match for order number or ID
+      const idOrNumberMatch = ordNum === searchLower || ordId === searchLower;
+
+      // Exact match for phone number (no substring/ilike)
+      const phoneMatch =
+        phone.toLowerCase() === searchLower ||
+        (isPhoneSearch && cleanPhoneDigits.length >= 10 && cleanPhoneDigits === cleanDigits);
+
+      // Customer name uses substring (ilike)
+      const nameMatch = custName.includes(searchLower);
+
+      return idOrNumberMatch || phoneMatch || nameMatch;
     });
   }
 
@@ -719,9 +727,9 @@ export async function deleteOrder(id: string) {
         .where(
           item.productVariantId
             ? and(
-                eq(inventryTable.productId, item.productId),
-                eq(inventryTable.productVariant, item.productVariantId)
-              )
+              eq(inventryTable.productId, item.productId),
+              eq(inventryTable.productVariant, item.productVariantId)
+            )
             : eq(inventryTable.productId, item.productId)
         );
 
@@ -834,3 +842,81 @@ export async function deleteOrder(id: string) {
     };
   });
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface SearchOrdersInput {
+  query?: string | null;
+  status?: string | null;
+  limit?: number | null;
+}
+
+export async function searchOrders(input?: SearchOrdersInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    try {
+      const searchLower = query.toLowerCase();
+      const cleanDigits = query.replace(/\D/g, '');
+      const isPhoneSearch = cleanDigits.length >= 10;
+
+      const conditions = [
+        // Exact order number (case-insensitive exact match)
+        eq(sql`lower(${ordersTable.orderNumber})`, searchLower),
+        // Exact phone number
+        eq(customerDetailsTable.phoneNumber, query),
+        // Customer name uses ilike
+        ilike(customerDetailsTable.name, `%${query}%`),
+      ];
+
+      if (UUID_REGEX.test(query)) {
+        conditions.push(eq(ordersTable.id, query));
+      }
+
+      if (isPhoneSearch) {
+        conditions.push(sql`regexp_replace(${customerDetailsTable.phoneNumber}, '[^0-9]', '', 'g') = ${cleanDigits}`);
+      }
+
+      const dbOrders = await db
+        .select({
+          id: ordersTable.id,
+        })
+        .from(ordersTable)
+        .leftJoin(customerDetailsTable, eq(ordersTable.customerId, customerDetailsTable.id))
+        .where(or(...conditions))
+        .limit(limit);
+
+      const matchedIds = new Set(dbOrders.map((o) => o.id));
+      const all = await getOrders();
+      let matched = all.filter((o) => matchedIds.has(o.id));
+
+      if (input?.status && input.status !== 'all') {
+        matched = matched.filter((o) => (o.status || '').toLowerCase() === input.status!.toLowerCase());
+      }
+
+      return {
+        items: matched.slice(0, limit),
+        total: matched.length,
+        totalOrdersValue: matched.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0),
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchOrders DB notice]:', err);
+    }
+  }
+
+  const result = await getPaginatedOrders({
+    search: query,
+    status: input?.status,
+    page: 1,
+    limit,
+  });
+  return {
+    items: result.items,
+    total: result.total,
+    totalOrdersValue: result.totalOrdersValue,
+    query,
+  };
+}
+

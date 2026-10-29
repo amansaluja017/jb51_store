@@ -409,3 +409,64 @@ export interface InventorySummaryAnalytics {
   totalReservedUnits: number;
 }
 
+export interface MobileHeroSlideItem {
+  image: string;
+  tagline: string;
+  title: string;
+  subtitle: string;
+  badgeProduct?: {
+    name: string;
+    price: number;
+    img: string;
+    slug: string;
+  };
+}
+
+export interface MobileAdBannerConfig {
+  tagline: string;
+  title: string;
+  subtitle: string;
+  buttonText: string;
+  buttonLink: string;
+  secondaryButtonText?: string;
+  secondaryButtonLink?: string;
+  imageUrl: string;
+}
+
+export interface MobileSaleSectionConfig {
+  enabled: boolean;
+  tagline: string;
+  title: string;
+  subtitle: string;
+  discountPercentage?: number;
+  hoursLeft?: number;
+  minutesLeft?: number;
+  secondsLeft?: number;
+  endTime?: string;
+  buttonText?: string;
+  buttonLink?: string;
+  bannerImageUrl?: string;
+}
+
+export interface MobileFaqItem {
+  q: string;
+  a: string;
+}
+
+export interface MobileContactInfoConfig {
+  phoneNumber: string;
+  whatsappNumber: string;
+  email: string;
+  address: string;
+  instagramUrl?: string;
+}
+
+export interface MobileSiteConfigData {
+  promotionalHeader: string[];
+  heroSlides: MobileHeroSlideItem[];
+  adBanner: MobileAdBannerConfig;
+  saleSection: MobileSaleSectionConfig;
+  faqs: MobileFaqItem[];
+  contactInfo: MobileContactInfoConfig;
+}
+

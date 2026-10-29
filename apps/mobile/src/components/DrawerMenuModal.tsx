@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   Shirt,
   CreditCard,
+  Code,
 } from 'lucide-react-native';
 import { TabType } from './NavigationTabBar';
 import { colors } from '../theme/colors';
@@ -44,6 +45,7 @@ export interface DrawerMenuModalProps {
   creditsDueCount?: number;
   pendingInquiriesCount: number;
   currentUser?: { email?: string; userName?: string } | null;
+  onOpenDeveloperSection?: () => void;
 }
 
 export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
@@ -61,6 +63,7 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
   creditsDueCount,
   pendingInquiriesCount,
   currentUser,
+  onOpenDeveloperSection,
 }) => {
   // Navigation sections with Overview prominently included
   const sections: {
@@ -282,6 +285,36 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
                 </View>
                 <Text style={drawerStyles.menuItemDescription}>
                   Review client questions & bespoke orders
+                </Text>
+              </View>
+              <ChevronRight size={18} color="#a1a1aa" />
+            </TouchableOpacity>
+
+            {/* Developer Section (Web UI Configuration) */}
+            <TouchableOpacity
+              style={drawerStyles.menuItem}
+              onPress={() => {
+                onClose();
+                if (onOpenDeveloperSection) {
+                  onOpenDeveloperSection();
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[drawerStyles.iconBox, { backgroundColor: '#fff1ee' }]}>
+                <Code size={18} color="#FF5E36" />
+              </View>
+              <View style={drawerStyles.menuItemContent}>
+                <View style={drawerStyles.menuItemTitleRow}>
+                  <Text style={[drawerStyles.menuItemTitle, { color: '#FF5E36' }]}>
+                    Developer Section
+                  </Text>
+                  <View style={{ backgroundColor: '#FF5E36', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 9, color: '#fff', fontWeight: '800' }}>WEB UI</Text>
+                  </View>
+                </View>
+                <Text style={drawerStyles.menuItemDescription}>
+                  Edit promo header, hero, ads, flash sale, FAQs & contact info
                 </Text>
               </View>
               <ChevronRight size={18} color="#a1a1aa" />

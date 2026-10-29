@@ -3,6 +3,8 @@ import { router, publicProcedure, adminProcedure } from './base.js';
 import {
   getInquiries,
   getPaginatedInquiries,
+  searchInquiries,
+  getInquirySuggestions,
   createInquiry,
   updateInquiryStatus,
   deleteInquiry,
@@ -30,6 +32,33 @@ export const inquiriesRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedInquiries(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search customer inquiries using ilike' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          status: z.enum(['all', 'pending', 'responded', 'resolved']).nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchInquiries(input || undefined);
+    }),
+
+  suggestions: publicProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for inquiries using pg_trgm' })
+    .input(
+      z.object({
+        query: z.string().nullish(),
+        limit: z.number().int().positive().nullish().default(8),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getInquirySuggestions(input.query || '', input.limit || 8);
     }),
 
   create: publicProcedure

@@ -260,3 +260,126 @@ export async function deleteInquiry(id: string): Promise<boolean> {
 
   return deleted.length > 0;
 }
+
+export interface SearchInquiriesInput {
+  query?: string | null;
+  status?: 'all' | 'pending' | 'responded' | 'resolved' | null;
+  limit?: number | null;
+}
+
+export async function searchInquiries(input?: SearchInquiriesInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    const pattern = `%${query}%`;
+    try {
+      const rows = await db
+        .select()
+        .from(inqueriesTable)
+        .where(
+          or(
+            ilike(inqueriesTable.customerName, pattern),
+            ilike(inqueriesTable.phoneNumber, pattern),
+            ilike(inqueriesTable.email, pattern),
+            ilike(inqueriesTable.message, pattern),
+            ilike(inqueriesTable.productName, pattern)
+          )
+        )
+        .orderBy(desc(inqueriesTable.createdAt))
+        .limit(limit);
+
+      let filtered = rows;
+      if (input?.status && input.status !== 'all') {
+        filtered = filtered.filter((r) => (r.status || '').toLowerCase() === input.status!.toLowerCase());
+      }
+
+      return {
+        items: filtered.map(mapToInquiryItem),
+        total: filtered.length,
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchInquiries ILIKE DB notice]:', err);
+    }
+  }
+
+  const result = await getPaginatedInquiries({
+    search: query,
+    status: input?.status,
+    page: 1,
+    limit,
+  });
+  return {
+    items: result.items,
+    total: result.total,
+    query,
+  };
+}
+
+export interface InquirySuggestionItem {
+  id: string;
+  customerName: string;
+  productName?: string | null;
+  messageSnippet: string;
+  inqueryType?: string | null;
+  status: string;
+  similarity?: number;
+}
+
+export async function getInquirySuggestions(query: string, limit = 8) {
+  const q = (query || '').trim();
+  if (!q) {
+    return { query: '', suggestions: [] };
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: inqueriesTable.id,
+        customerName: inqueriesTable.customerName,
+        message: inqueriesTable.message,
+        productName: inqueriesTable.productName,
+        inqueryType: inqueriesTable.inqueryType,
+        status: inqueriesTable.status,
+        nameSim: sql<number>`similarity(${inqueriesTable.customerName}, ${q})`,
+        msgSim: sql<number>`word_similarity(${q}, ${inqueriesTable.message})`,
+        prodSim: sql<number>`word_similarity(${q}, ${inqueriesTable.productName})`,
+      })
+      .from(inqueriesTable)
+      .where(
+        or(
+          sql`similarity(${inqueriesTable.customerName}, ${q}) > 0.1`,
+          sql`word_similarity(${q}, ${inqueriesTable.customerName}) > 0.15`,
+          sql`word_similarity(${q}, ${inqueriesTable.message}) > 0.15`,
+          sql`word_similarity(${q}, ${inqueriesTable.productName}) > 0.15`
+        )
+      )
+      .orderBy(sql`GREATEST(similarity(${inqueriesTable.customerName}, ${q}), word_similarity(${q}, ${inqueriesTable.customerName}), word_similarity(${q}, ${inqueriesTable.message})) DESC`)
+      .limit(limit);
+
+    return {
+      query: q,
+      suggestions: rows.map((r) => {
+        const msg = r.message || '';
+        const idx = msg.toLowerCase().indexOf(q.toLowerCase());
+        const snippet = idx !== -1
+          ? `...${msg.substring(Math.max(0, idx - 15), Math.min(msg.length, idx + q.length + 25)).trim()}...`
+          : msg.substring(0, 50);
+
+        return {
+          id: r.id,
+          customerName: r.customerName || 'Inquirer',
+          productName: r.productName,
+          messageSnippet: snippet,
+          inqueryType: r.inqueryType,
+          status: r.status,
+          similarity: Math.max(r.nameSim || 0, r.msgSim || 0, r.prodSim || 0),
+        };
+      }),
+    };
+  } catch (err) {
+    console.warn('[getInquirySuggestions pg_trgm DB notice]:', err);
+    return { query: q, suggestions: [] };
+  }
+}

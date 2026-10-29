@@ -7,7 +7,9 @@ import {
   json,
   boolean,
   timestamp,
+  index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { category } from './categories.js';
 
 export const product = pgTable('product', {
@@ -29,7 +31,11 @@ export const product = pgTable('product', {
   isFeatured: boolean('is_featured').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
-});
+}, (table) => ({
+  nameTrgmIdx: index('product_name_trgm_idx').using('gin', sql`${table.name} gin_trgm_ops`),
+  descTrgmIdx: index('product_description_trgm_idx').using('gin', sql`${table.description} gin_trgm_ops`),
+  tagsTrgmIdx: index('product_tags_trgm_idx').using('gin', sql`(${table.tags}::text) gin_trgm_ops`),
+}));
 
 export type Product = typeof product.$inferSelect;
 export type NewProduct = typeof product.$inferInsert;

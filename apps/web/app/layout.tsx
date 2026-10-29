@@ -13,6 +13,7 @@ import { StoreAnalyticsTracker } from '@/components/layout/StoreAnalyticsTracker
 import { WishlistProvider } from '@/context/WishlistContext';
 import { TRPCReactProvider } from '@/lib/trpc/client/react';
 import { cn, SITE_URL } from '@/lib/utils';
+import { getCachedSiteConfig } from '@/lib/site-config';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -116,7 +117,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const siteConfig = await getCachedSiteConfig();
   return (
     <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
       <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
@@ -160,13 +162,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TRPCReactProvider>
           <WishlistProvider>
             <StoreAnalyticsTracker />
-            <Navbar />
+            <Navbar siteConfig={siteConfig} />
             <main className="flex-1 flex flex-col">
               <PageTransition>
                 {children}
               </PageTransition>
             </main>
-            <Footer />
+            <Footer siteConfig={siteConfig} />
             <Toaster position="bottom-center" />
           </WishlistProvider>
         </TRPCReactProvider>

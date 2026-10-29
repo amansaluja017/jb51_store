@@ -7,7 +7,7 @@ import {
   productImages as productImagesTable,
   inventry as inventryTable
 } from '@repo/db';
-import { eq, asc, sql } from 'drizzle-orm';
+import { eq, asc, sql, or, ilike } from 'drizzle-orm';
 import { countWords } from './services/validations.js';
 
 export interface ProductVariant {
@@ -174,7 +174,7 @@ export async function getCategories(): Promise<string[]> {
     if (prodCats.length > 0) {
       return Array.from(new Set([...CATEGORIES, ...prodCats]));
     }
-  } catch {}
+  } catch { }
 
   return CATEGORIES;
 }
@@ -687,7 +687,7 @@ export async function updateProduct(slug: string, updatedData: UpdateProductInpu
       if (directRows.length > 0) {
         targetRow = directRows.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || directRows[directRows.length - 1];
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Fallback if not matched by direct query
     if (!targetRow) {
@@ -819,8 +819,8 @@ export async function updateProduct(slug: string, updatedData: UpdateProductInpu
       const finalIsListed = updatedData.isListed !== undefined
         ? updatedData.isListed
         : (updatedData.status !== undefined
-            ? updatedData.status === 'listed'
-            : (currentFeat.isListed !== false));
+          ? updatedData.status === 'listed'
+          : (currentFeat.isListed !== false));
 
       const updatedFeat = {
         ...currentFeat,
@@ -915,7 +915,7 @@ export async function reorderProductImages(idOrSlug: string, newImageUrls: strin
       if (directRows.length > 0) {
         targetRow = directRows.find((r) => !((r.features as Record<string, unknown> | null)?.isDiscontinued)) || directRows[directRows.length - 1];
       }
-    } catch (_) {}
+    } catch (_) { }
 
     if (!targetRow) {
       const dbProducts = await db.select().from(productTable);
@@ -1126,7 +1126,16 @@ export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
       const cat = (p.category || '').toLowerCase();
       const slug = (p.slug || '').toLowerCase();
       const fabric = (p.fabric || '').toLowerCase();
-      return name.includes(search) || cat.includes(search) || slug.includes(search) || fabric.includes(search);
+      const desc = (p.description || '').toLowerCase();
+      const tags = Array.isArray(p.tags) ? p.tags.join(' ').toLowerCase() : '';
+      return (
+        name.includes(search) ||
+        desc.includes(search) ||
+        tags.includes(search) ||
+        cat.includes(search) ||
+        slug.includes(search) ||
+        fabric.includes(search)
+      );
     });
   }
 
@@ -1197,4 +1206,197 @@ export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
     limit,
     totalPages,
   };
+}
+
+export interface SearchProductsInput {
+  query?: string | null;
+  category?: string | null;
+  inStockOnly?: boolean | null;
+  sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default' | null;
+  limit?: number | null;
+}
+
+export async function searchProducts(input?: SearchProductsInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    const searchPattern = `%${query}%`;
+    try {
+      // Direct SQL ILIKE using GIN index on name, description, tags
+      const dbMatched = await db
+        .select()
+        .from(productTable)
+        .where(
+          or(
+            ilike(productTable.name, searchPattern),
+            ilike(productTable.description, searchPattern),
+            sql`${productTable.tags}::text ILIKE ${searchPattern}`
+          )
+        );
+
+      const matchedIds = new Set(dbMatched.map((r) => r.id));
+      const allProducts = await getProducts();
+      let filtered = allProducts.filter((p) => matchedIds.has(p.id));
+
+      if (input?.category && input.category !== 'All') {
+        const normCat = input.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        filtered = filtered.filter((p) => {
+          const cat = (p.category || '').toLowerCase();
+          return cat === input.category!.toLowerCase() || cat.replace(/[^a-z0-9]+/g, '-') === normCat;
+        });
+      }
+
+      if (input?.inStockOnly) {
+        filtered = filtered.filter((p) => p.inStock !== false);
+      }
+
+      return {
+        items: filtered.slice(0, limit),
+        total: filtered.length,
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchProducts ILIKE DB notice]:', err);
+    }
+  }
+
+  // Fallback to getPaginatedProducts
+  const res = await getPaginatedProducts({
+    search: query,
+    category: input?.category,
+    inStockOnly: input?.inStockOnly,
+    sortBy: input?.sortBy,
+    limit,
+    page: 1,
+  });
+  return {
+    items: res.items,
+    total: res.total,
+    query,
+  };
+}
+
+export interface ProductSuggestionItem {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  mrp?: number;
+  price: number;
+  sellingPrice: number;
+  discountPrice?: number;
+  image?: string;
+  fabric?: string;
+  matchedField: 'name' | 'description' | 'tags' | 'category' | 'fabric';
+  matchedSnippet?: string;
+  similarity?: number;
+}
+
+export interface ProductSuggestionsResult {
+  query: string;
+  products: ProductSuggestionItem[];
+  categories: string[];
+  tags: string[];
+}
+
+export async function getProductSuggestions(query: string, limit = 8): Promise<ProductSuggestionsResult> {
+  const q = (query || '').trim();
+  if (!q) {
+    return { query: '', products: [], categories: [], tags: [] };
+  }
+
+  try {
+    // pg_trgm similarity on name, description, tags
+    const trgmRows = await db
+      .select({
+        id: productTable.id,
+        name: productTable.name,
+        nameSim: sql<number>`similarity(${productTable.name}, ${q})`,
+        wordSim: sql<number>`word_similarity(${q}, ${productTable.name})`,
+        descSim: sql<number>`word_similarity(${q}, ${productTable.description})`,
+        tagsSim: sql<number>`word_similarity(${q}, ${productTable.tags}::text)`,
+      })
+      .from(productTable)
+      .where(
+        or(
+          sql`similarity(${productTable.name}, ${q}) > 0.1`,
+          sql`word_similarity(${q}, ${productTable.name}) > 0.15`,
+          sql`word_similarity(${q}, ${productTable.description}) > 0.15`,
+          sql`word_similarity(${q}, ${productTable.tags}::text) > 0.15`
+        )
+      )
+      .orderBy(sql`GREATEST(similarity(${productTable.name}, ${q}), word_similarity(${q}, ${productTable.name})) DESC`)
+      .limit(limit);
+
+    const allProds = await getProducts();
+    const prodMap = new Map(allProds.map((p) => [p.id, p]));
+
+    const suggestedProducts: ProductSuggestionItem[] = [];
+    for (const row of trgmRows) {
+      const fullProd = prodMap.get(row.id);
+      if (!fullProd) continue;
+
+      let matchedField: 'name' | 'description' | 'tags' | 'category' | 'fabric' = 'name';
+      let matchedSnippet: string | undefined = undefined;
+
+      if ((row.nameSim || 0) > 0.15 || (row.wordSim || 0) > 0.2) {
+        matchedField = 'name';
+      } else if ((row.tagsSim || 0) > 0.15) {
+        matchedField = 'tags';
+        const foundTag = (fullProd.tags || []).find((t) => t.toLowerCase().includes(q.toLowerCase()));
+        if (foundTag) matchedSnippet = `Tag: ${foundTag}`;
+      } else if ((row.descSim || 0) > 0.15) {
+        matchedField = 'description';
+        const desc = fullProd.description || '';
+        const idx = desc.toLowerCase().indexOf(q.toLowerCase());
+        if (idx !== -1) {
+          matchedSnippet = `...${desc.substring(Math.max(0, idx - 15), Math.min(desc.length, idx + q.length + 25)).trim()}...`;
+        }
+      }
+
+      suggestedProducts.push({
+        id: fullProd.id,
+        name: fullProd.name,
+        slug: fullProd.slug,
+        category: fullProd.category,
+        mrp: fullProd.mrp,
+        price: fullProd.price,
+        sellingPrice: fullProd.sellingPrice || fullProd.price,
+        discountPrice: fullProd.discountPrice,
+        image: fullProd.images && fullProd.images.length > 0 ? fullProd.images[0] : undefined,
+        fabric: fullProd.fabric,
+        matchedField,
+        matchedSnippet,
+        similarity: Math.max(row.nameSim || 0, row.wordSim || 0, row.tagsSim || 0, row.descSim || 0),
+      });
+    }
+
+    const allCategories = await getCategories();
+    const matchedCategories = allCategories
+      .filter((cat) => cat.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 5);
+
+    const allTagsSet = new Set<string>();
+    allProds.forEach((p) => {
+      if (Array.isArray(p.tags)) {
+        p.tags.forEach((t) => {
+          if (typeof t === 'string' && t.trim()) allTagsSet.add(t.trim());
+        });
+      }
+    });
+    const matchedTags = Array.from(allTagsSet)
+      .filter((t) => t.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 6);
+
+    return {
+      query: q,
+      products: suggestedProducts,
+      categories: matchedCategories,
+      tags: matchedTags,
+    };
+  } catch (err) {
+    console.warn('[getProductSuggestions pg_trgm DB notice]:', err);
+    return { query: q, products: [], categories: [], tags: [] };
+  }
 }

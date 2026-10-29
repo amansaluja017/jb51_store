@@ -1,5 +1,5 @@
 import { db, product as productTable, productVariant as productVariantTable, inventry as inventryTable, inventryTransaction as inventryTransactionTable, customerDetails as customerDetailsTable, user as userTable, productStatus as productStatusTable } from '@repo/db';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, or, ilike, sql } from 'drizzle-orm';
 import { generateSlug } from './customers.js';
 import { getProducts, matchesSlug, Product } from './data.js';
 
@@ -83,9 +83,9 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
       .where(
         input.productVariantId
           ? and(
-              eq(inventryTable.productId, input.productId),
-              eq(inventryTable.productVariant, input.productVariantId)
-            )
+            eq(inventryTable.productId, input.productId),
+            eq(inventryTable.productVariant, input.productVariantId)
+          )
           : eq(inventryTable.productId, input.productId)
       );
 
@@ -208,8 +208,8 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
 
     // 3. Insert transaction record
     const effectiveUnitPrice = input.unitPrice !== undefined && input.unitPrice !== null ? Number(input.unitPrice) : null;
-    const effectiveTotal = input.totalAmount !== undefined && input.totalAmount !== null 
-      ? Number(input.totalAmount) 
+    const effectiveTotal = input.totalAmount !== undefined && input.totalAmount !== null
+      ? Number(input.totalAmount)
       : (effectiveUnitPrice !== null ? effectiveUnitPrice * quantity : null);
 
     const [createdTx] = await tx
@@ -512,7 +512,7 @@ export async function updateInventory(input: UpdateInventoryInput) {
         const targetVariantId = vInput.productVariantId || vInput.id;
         let variantRow = existingDbVariants.find(
           (v) => (targetVariantId && v.id === targetVariantId) ||
-                 (vInput.color && v.color && v.color.toLowerCase() === vInput.color.toLowerCase())
+            (vInput.color && v.color && v.color.toLowerCase() === vInput.color.toLowerCase())
         );
 
         // If variant doesn't exist yet in productVariantTable, create it
@@ -619,8 +619,8 @@ export async function updateInventory(input: UpdateInventoryInput) {
         const updatedFeatVariants = rawVariants.map((fv) => {
           const matching = input.variants!.find(
             (iv) => (iv.id && iv.id === fv.id) ||
-                    (iv.productVariantId && iv.productVariantId === fv.id) ||
-                    (iv.color && typeof fv.color === 'string' && iv.color.toLowerCase() === fv.color.toLowerCase())
+              (iv.productVariantId && iv.productVariantId === fv.id) ||
+              (iv.color && typeof fv.color === 'string' && iv.color.toLowerCase() === fv.color.toLowerCase())
           );
           if (matching) {
             return {
@@ -657,5 +657,150 @@ export async function updateInventory(input: UpdateInventoryInput) {
       isListed: finalStatus === 'listed',
     };
   });
+}
+
+export interface SearchInventoryInput {
+  query?: string | null;
+  category?: string | null;
+  stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved' | null;
+  sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc' | null;
+  limit?: number | null;
+}
+
+export async function searchInventory(input?: SearchInventoryInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    const pattern = `%${query}%`;
+    try {
+      // Direct SQL ILIKE search using GIN indexes on product name, description and variant color
+      const matchingProductIds = new Set<string>();
+
+      const matchedProducts = await db
+        .select({ id: productTable.id })
+        .from(productTable)
+        .where(
+          or(
+            ilike(productTable.name, pattern),
+            ilike(productTable.description, pattern),
+            sql`${productTable.tags}::text ILIKE ${pattern}`
+          )
+        );
+      matchedProducts.forEach((p) => matchingProductIds.add(p.id));
+
+      const matchedVariants = await db
+        .select({ productId: productVariantTable.productId })
+        .from(productVariantTable)
+        .where(ilike(productVariantTable.color, pattern));
+      matchedVariants.forEach((v) => {
+        if (v.productId) matchingProductIds.add(v.productId);
+      });
+
+      const paginatedResult = await getPaginatedInventory({
+        category: input?.category,
+        stockFilter: input?.stockFilter,
+        sortBy: input?.sortBy,
+        page: 1,
+        limit: 1000,
+      });
+
+      const filteredItems = paginatedResult.items.filter((item) =>
+        matchingProductIds.has(item.id)
+      );
+
+      return {
+        items: filteredItems.slice(0, limit),
+        total: filteredItems.length,
+        metrics: paginatedResult.metrics,
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchInventory ILIKE DB notice]:', err);
+    }
+  }
+
+  const result = await getPaginatedInventory({
+    search: query,
+    category: input?.category,
+    stockFilter: input?.stockFilter,
+    sortBy: input?.sortBy,
+    page: 1,
+    limit,
+  });
+  return {
+    items: result.items,
+    total: result.total,
+    metrics: result.metrics,
+    query,
+  };
+}
+
+export interface InventorySuggestionItem {
+  id: string;
+  name: string;
+  category: string;
+  slug: string;
+  totalStock: number;
+  colors: string[];
+  similarity?: number;
+}
+
+export async function getInventorySuggestions(query: string, limit = 8): Promise<InventorySuggestionItem[]> {
+  const q = (query || '').trim();
+  if (!q) {
+    return [];
+  }
+
+  try {
+    // pg_trgm similarity on product name & variant colors
+    const trgmProducts = await db
+      .select({
+        id: productTable.id,
+        name: productTable.name,
+        nameSim: sql<number>`similarity(${productTable.name}, ${q})`,
+        wordSim: sql<number>`word_similarity(${q}, ${productTable.name})`,
+      })
+      .from(productTable)
+      .where(
+        or(
+          sql`similarity(${productTable.name}, ${q}) > 0.1`,
+          sql`word_similarity(${q}, ${productTable.name}) > 0.15`
+        )
+      )
+      .orderBy(sql`GREATEST(similarity(${productTable.name}, ${q}), word_similarity(${q}, ${productTable.name})) DESC`)
+      .limit(limit);
+
+    const allProducts = await getProducts();
+    const prodMap = new Map(allProducts.map((p) => [p.id, p]));
+
+    const suggestions: InventorySuggestionItem[] = [];
+    const seenIds = new Set<string>();
+
+    for (const p of trgmProducts) {
+      const full = prodMap.get(p.id);
+      if (!full || seenIds.has(p.id)) continue;
+      seenIds.add(p.id);
+
+      const variants = full.variants || [];
+      const totalStock = variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+      const colors = variants.map((v) => v.color).filter(Boolean);
+
+      suggestions.push({
+        id: full.id,
+        name: full.name,
+        category: full.category,
+        slug: full.slug,
+        totalStock,
+        colors,
+        similarity: Math.max(p.nameSim || 0, p.wordSim || 0),
+      });
+    }
+
+    return suggestions;
+  } catch (err) {
+    console.warn('[getInventorySuggestions pg_trgm DB notice]:', err);
+    return [];
+  }
 }
 

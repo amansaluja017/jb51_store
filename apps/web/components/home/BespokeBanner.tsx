@@ -4,7 +4,22 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 
-export function BespokeBanner() {
+import type { AdBannerConfig } from '@/lib/site-config';
+import { FormattedRichText } from '@/components/ui/FormattedRichText';
+
+interface BespokeBannerProps {
+  config?: AdBannerConfig;
+}
+
+export function BespokeBanner({ config }: BespokeBannerProps) {
+  const tagline = config?.tagline || 'BESPOKE SERVICE';
+  const title = config?.title || 'The Art of Custom Drape';
+  const subtitle = config?.subtitle || 'Experience the pinnacle of bespoke couture. Our master craftsmen tailor each ensemble to your exact measurements, ensuring a silhouette that flows with effortless grace and timeless sophistication.';
+  const imageUrl = config?.imageUrl || '/assets/luxury_ad_banner.png';
+  const buttonText = config?.buttonText || 'Book Appointment';
+  const buttonLink = config?.buttonLink || '/support';
+  const secondaryButtonText = config?.secondaryButtonText || 'Explore Collection';
+  const secondaryButtonLink = config?.secondaryButtonLink || '/shop';
   return (
     <section className="py-16 px-6 max-w-7xl mx-auto w-full fade-up">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-zinc-950 text-white rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative">
@@ -16,27 +31,30 @@ export function BespokeBanner() {
         {/* Left Block: Narrative & Call to Action */}
         <div className="md:col-span-5 flex flex-col justify-center relative z-10">
           <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-3 block">
-            BESPOKE SERVICE
+            {tagline}
           </span>
           <h2 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
-            The Art <br className="hidden md:block" />of Custom <span className="font-serif italic text-zinc-300">Drape</span>
+            {title}
           </h2>
-          <p className="text-zinc-400 font-light text-xs md:text-sm leading-relaxed mb-8">
-            Experience the pinnacle of bespoke couture. Our master craftsmen tailor each ensemble to your exact measurements, ensuring a silhouette that flows with effortless grace and timeless sophistication.
-          </p>
+          <div className="mb-8">
+            <FormattedRichText
+              text={subtitle}
+              paragraphClassName="text-zinc-400 font-light text-xs md:text-sm leading-relaxed"
+            />
+          </div>
           <div className="flex flex-wrap items-center gap-4">
             <Link
-              href="/support"
+              href={buttonLink}
               className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"
             >
-              <span>Book Appointment</span>
+              <span>{buttonText}</span>
               <ArrowRight size={12} />
             </Link>
             <Link
-              href="/shop"
+              href={secondaryButtonLink}
               className="border border-white/20 hover:border-white/40 hover:bg-white/5 text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300"
             >
-              Explore Collection
+              {secondaryButtonText}
             </Link>
           </div>
         </div>
@@ -44,8 +62,8 @@ export function BespokeBanner() {
         {/* Right Block: Image advertisement frame */}
         <div className="md:col-span-7 relative z-10 w-full h-full min-h-[350px] md:min-h-[480px] rounded-2xl overflow-hidden fabric-reveal shadow-xl">
           <Image
-            src="/assets/luxury_ad_banner.png"
-            alt="The Art of Drape - Signature Collection"
+            src={imageUrl}
+            alt={title}
             fill
             className="object-cover hover:scale-105 transition-transform duration-[1.5s]"
             sizes="(max-width: 768px) 100vw, 50vw"

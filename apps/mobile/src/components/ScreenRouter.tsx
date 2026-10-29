@@ -87,6 +87,15 @@ export interface ScreenRouterProps {
   onToggleReviewApproval: (review: Review) => Promise<void>;
   token: string | null;
   apiHost: string;
+  // Search & Suggestions Backend Route Handlers
+  onSearchProducts?: (params: any) => Promise<any>;
+  onGetProductSuggestions?: (query: string) => Promise<any>;
+  onSearchInventory?: (params: any) => Promise<any>;
+  onGetInventorySuggestions?: (query: string) => Promise<any>;
+  onSearchInvoices?: (query: string) => Promise<any>;
+  onSearchOrders?: (query: string) => Promise<any>;
+  onSearchReviews?: (query: string) => Promise<any>;
+  onGetReviewSuggestions?: (query: string) => Promise<any>;
 }
 
 export const ScreenRouter: React.FC<ScreenRouterProps> = ({
@@ -161,6 +170,14 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onToggleReviewApproval,
   token,
   apiHost,
+  onSearchProducts,
+  onGetProductSuggestions,
+  onSearchInventory,
+  onGetInventorySuggestions,
+  onSearchInvoices,
+  onSearchOrders,
+  onSearchReviews,
+  onGetReviewSuggestions,
 }) => {
   return (
     <View style={styles.screenView}>
@@ -210,6 +227,9 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onEditProduct={onEditProduct}
           onDeleteProduct={onDeleteProduct}
           onViewProductDetails={onViewProductDetails}
+          onFetchPaginatedProducts={onFetchPaginatedProducts}
+          onSearchProducts={onSearchProducts}
+          onGetProductSuggestions={onGetProductSuggestions}
         />
       )}
       {activeTab === 'inventory' && (
@@ -227,6 +247,9 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           onFetchTransactions={onFetchTransactions}
           onViewProductDetails={onViewProductDetails}
           showAlert={showAlert}
+          onFetchPaginatedStock={onFetchPaginatedStock}
+          onSearchInventory={onSearchInventory}
+          onGetInventorySuggestions={onGetInventorySuggestions}
         />
       )}
       {activeTab === 'invoices' && (
@@ -256,6 +279,8 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           isLoadingProducts={isLoadingProducts}
           onFetchPaginatedCustomers={onFetchPaginatedCustomers}
           onFetchPaginatedProducts={onFetchPaginatedProducts}
+          onSearchInvoices={onSearchInvoices}
+          onSearchOrders={onSearchOrders}
         />
       )}
       {activeTab === 'reviews' && (
@@ -270,6 +295,8 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           showAlert={showAlert}
           token={token}
           apiHost={apiHost}
+          onSearchReviews={onSearchReviews}
+          onGetReviewSuggestions={onGetReviewSuggestions}
         />
       )}
     </View>

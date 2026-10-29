@@ -3,6 +3,8 @@ import { router, publicProcedure, adminProcedure } from './base.js';
 import {
   getCustomers,
   getPaginatedCustomers,
+  searchCustomers,
+  getCustomerSuggestions,
   createCustomer,
   updateCustomer,
   deleteCustomer,
@@ -33,6 +35,32 @@ export const customersRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedCustomers(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search customers matching name, phone, email, address' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchCustomers(input || undefined);
+    }),
+
+  suggestions: publicProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for customers using pg_trgm' })
+    .input(
+      z.object({
+        query: z.string().nullish(),
+        limit: z.number().int().positive().nullish().default(8),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getCustomerSuggestions(input.query || '', input.limit || 8);
     }),
 
   create: adminProcedure

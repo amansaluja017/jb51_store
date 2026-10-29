@@ -5,7 +5,9 @@ import {
   text,
   numeric,
   timestamp,
+  index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { user } from './users.js';
 import { customerDetails } from './customer-details.js';
 
@@ -39,7 +41,9 @@ export const orders = pgTable('orders', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()).notNull(),
-});
+}, (table) => ({
+  orderNumberTrgmIdx: index('orders_order_number_trgm_idx').using('gin', sql`${table.orderNumber} gin_trgm_ops`),
+}));
 
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;

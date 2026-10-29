@@ -15,6 +15,7 @@ import {
   analyticsRouter,
   inquiriesRouter,
   wishlistRouter,
+  siteConfigRouter,
 } from '@repo/products/router';
 export type { ReviewItem, InquiryItem } from '@repo/products';
 import * as trpcExpress from '@trpc/server/adapters/express';
@@ -70,6 +71,7 @@ export const appRouter = createTRPCRouter({
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),
   wishlist: wishlistRouter,
+  siteConfig: siteConfigRouter,
 });
 
 export type AppRouter = typeof appRouter;

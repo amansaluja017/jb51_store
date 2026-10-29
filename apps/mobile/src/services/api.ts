@@ -123,20 +123,28 @@ export const trpcRequest = async (
 
   const method = options.method || (options.body !== undefined ? 'POST' : 'GET');
   const params: Record<string, string> = {};
-  if (method === 'GET' && options.input !== undefined) {
-    params.input = JSON.stringify({ json: options.input });
+  if (method === 'GET') {
+    const getInput = options.input !== undefined ? options.input : options.body;
+    if (getInput !== undefined) {
+      params.input = JSON.stringify({ json: getInput });
+    }
   }
 
-  console.log(`[tRPC Axios Request] -> ${method} ${url}`, method === 'GET' ? params : options.body);
+  const postPayload = options.body !== undefined ? options.body : options.input;
+
+  console.log(`[tRPC Axios Request] -> ${method} ${url}`, method === 'GET' ? params : postPayload);
 
   try {
     const response = await axios({
       method,
       url,
-      params: method === 'GET' && options.input !== undefined ? params : undefined,
-      headers,
+      params: method === 'GET' ? (Object.keys(params).length > 0 ? params : undefined) : undefined,
+      headers: {
+        ...headers,
+        ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      },
       timeout: 60000,
-      data: method === 'POST' && options.body !== undefined ? { json: options.body } : undefined,
+      data: method === 'POST' ? { json: postPayload !== undefined ? postPayload : {} } : undefined,
     });
 
     const json = response.data;

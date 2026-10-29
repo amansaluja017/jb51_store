@@ -2,34 +2,42 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { 
   FileText, 
-  ArrowLeft, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
+  ShieldCheck, 
+  Sparkles, 
   Award, 
-  Scale, 
-  Scissors, 
   Truck, 
   RefreshCw, 
-  ShieldAlert, 
-  MessageCircle, 
-  Mail, 
+  Scale, 
+  AlertCircle, 
+  Clock, 
+  ArrowLeft,
+  Mail,
+  MessageCircle,
   MapPin,
-  HelpCircle,
-  Gem
+  CheckCircle2,
+  Globe,
+  Lock,
+  Scissors
 } from 'lucide-react';
-import { WHATSAPP_NUMBER, SITE_URL } from '@/lib/utils';
+import { WHATSAPP_NUMBER, SITE_URL, COMPANY_EMAIL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | JB51',
-  description: 'Review the terms and conditions governing the purchase of handcrafted ensembles, bespoke tailoring services, and concierge orders at JB51.',
-  keywords: ['terms of service', 'JB51 terms and conditions', 'bespoke tailoring policy', 'couture return policy'],
+  title: 'Website Terms of Service & Conditions | JB51',
+  description: 'Read the official terms of service, bespoke tailoring standards, payment rules, shipping policies, and website terms of conditions governing your use of jb51.shop.',
+  keywords: [
+    'terms of service',
+    'terms of conditions',
+    'website terms and conditions',
+    'JB51 boutique terms',
+    'bespoke tailoring policy',
+    'e-commerce shipping returns'
+  ],
   alternates: {
     canonical: `${SITE_URL}/terms-of-service`,
   },
   openGraph: {
-    title: 'Terms of Service | JB51',
-    description: 'Guidelines, artisanal craftsmanship standards, and purchase terms for JB51.',
+    title: 'Website Terms of Service & Conditions | JB51',
+    description: 'Terms of conditions governing your engagement with our web storefront, bespoke orders, and concierge services.',
     url: `${SITE_URL}/terms-of-service`,
     siteName: 'JB51',
     locale: 'en_IN',
@@ -37,8 +45,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'Terms of Service | JB51',
-    description: 'Guidelines, artisanal craftsmanship standards, and purchase terms for JB51.',
+    title: 'Website Terms of Service & Conditions | JB51',
+    description: 'Terms of conditions governing your engagement with our web storefront, bespoke orders, and concierge services.',
   },
 };
 
@@ -53,45 +61,47 @@ const LotusIcon = ({ className = "w-5 h-5 text-[#FF5E36]" }) => (
 );
 
 export default function TermsOfServicePage() {
-  const lastUpdated = "October 22, 2026";
+  const lastUpdated = "October 29, 2026";
   const effectiveDate = "January 1, 2026";
 
   const keyHighlights = [
     {
-      icon: Gem,
+      icon: Award,
       title: "Artisanal Integrity",
-      desc: "Each ensemble is handwoven and embroidered; subtle variations in weave and dye celebrate authentic handcraft."
-    },
-    {
-      icon: Scissors,
-      title: "Bespoke Guarantee",
-      desc: "Complimentary sizing adjustments on all custom-tailored suits to ensure an impeccable fit."
-    },
-    {
-      icon: Truck,
-      title: "Insured Transit",
-      desc: "Complimentary insured express delivery across India on milestone orders, with worldwide shipping available."
+      desc: "Authentic handloom silks, raw Chanderi, and master zardozi embroidery with heritage Punjabi tailoring."
     },
     {
       icon: Scale,
-      title: "Transparent Terms",
-      desc: "Clear policies on exchanges, cancellations, and statutory consumer rights under Indian law."
+      title: "Transparent Web Pricing",
+      desc: "All catalog prices in INR inclusive of statutory GST with official itemized tax invoices on every order."
+    },
+    {
+      icon: Scissors,
+      title: "Custom Fitting Guarantee",
+      desc: "Generous 1.5-inch inner seam margins and complimentary tailoring alteration on bespoke commissions."
+    },
+    {
+      icon: Lock,
+      title: "Protected Web Checkout",
+      desc: "Secure SSL encrypted web checkout, authenticated sessions, and zero storage of payment card credentials."
     }
   ];
 
   const sections = [
-    { id: "acceptance", label: "1. Acceptance of Terms" },
-    { id: "artisanal-nature", label: "2. Handcrafted & Textile Characteristics" },
+    { id: "acceptance", label: "1. Acceptance of Website Terms" },
+    { id: "artisanal-nature", label: "2. Handcrafted Fabric & Display Fidelity" },
     { id: "bespoke-tailoring", label: "3. Bespoke Sizing & Alterations" },
-    { id: "pricing-payment", label: "4. Pricing, Taxes & Reservations" },
-    { id: "shipping-delivery", label: "5. Shipping, Timelines & Customs" },
-    { id: "returns-exchanges", label: "6. Exchange & Return Policy" },
-    { id: "garment-care", label: "7. Garment Care & Warranty" },
-    { id: "intellectual-property", label: "8. Intellectual Property & Reviews" },
-    { id: "client-conduct", label: "9. Platform Integrity & Conduct" },
-    { id: "limitation-liability", label: "10. Limitation of Liability & Force Majeure" },
-    { id: "governing-law", label: "11. Governing Law & Jurisdiction" },
-    { id: "concierge-contact", label: "12. Concierge Contact Information" },
+    { id: "pricing-payment", label: "4. Web Orders, Pricing & Taxes (GST)" },
+    { id: "web-payments", label: "5. Online Payment Processing" },
+    { id: "shipping-delivery", label: "6. Shipping & Delivery Timelines" },
+    { id: "returns-exchanges", label: "7. Exchanges, Returns & Cancellations" },
+    { id: "garment-care", label: "8. Garment Care & Fabric Longevity" },
+    { id: "intellectual-property", label: "9. Website Intellectual Property & Copying" },
+    { id: "cyber-security", label: "10. Fair Use, Anti-Scraping & Rate Limits" },
+    { id: "customer-reviews", label: "11. Customer Reviews & User Media" },
+    { id: "limitation-liability", label: "12. Limitation of Liability & Disclaimers" },
+    { id: "governing-law", label: "13. Governing Law & Jurisdiction" },
+    { id: "concierge-contact", label: "14. Studio & Concierge Contact" },
   ];
 
   return (
@@ -117,7 +127,7 @@ export default function TermsOfServicePage() {
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">
               <span>Legal</span>
               <span>•</span>
-              <span className="text-zinc-700">Terms of Service</span>
+              <span className="text-zinc-700">Terms of Service & Conditions</span>
             </div>
           </div>
 
@@ -125,16 +135,16 @@ export default function TermsOfServicePage() {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FF5E36]/10 border border-[#FF5E36]/20 mb-4">
               <LotusIcon className="w-4 h-4 text-[#FF5E36]" />
               <span className="text-[10px] tracking-[0.25em] uppercase font-bold text-[#FF5E36]">
-                Client Service Agreement
+                Website Terms of Service & Conditions
               </span>
             </div>
             
             <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold text-zinc-950 tracking-tight leading-[1.1] mb-5">
-              Terms of Service
+              Terms & Conditions
             </h1>
 
             <p className="text-zinc-600 text-sm md:text-base font-light leading-relaxed mb-6">
-              Welcome to JB51. These terms govern your engagement with our storefront, artisanal collections, bespoke tailoring appointments, and customer concierge channels.
+              Welcome to JB51. These Terms of Service and Conditions govern your access to, browsing of, and online purchases made exclusively through our website storefront, digital lookbooks, and web concierge channels.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-[10px] tracking-wider uppercase text-zinc-500 font-bold pt-2 border-t border-zinc-200">
@@ -145,7 +155,7 @@ export default function TermsOfServicePage() {
               <span>·</span>
               <span>Effective Date: <strong className="text-zinc-800">{effectiveDate}</strong></span>
               <span>·</span>
-              <span>Boutique & Concierge Terms</span>
+              <span>Web Storefront Governance</span>
             </div>
           </div>
 
@@ -203,13 +213,13 @@ export default function TermsOfServicePage() {
               {/* Quick Concierge Support Box */}
               <div className="mt-8 pt-6 border-t border-zinc-100">
                 <div className="text-[10px] tracking-wider uppercase font-bold text-zinc-400 mb-2">
-                  Have an Order Inquiry?
+                  Have an Order Question?
                 </div>
                 <p className="text-xs text-zinc-600 leading-relaxed font-light mb-4">
-                  Our tailoring concierge is available to guide you on sizing, delivery dates, and custom specifications.
+                  Our bespoke tailoring concierge is available to guide you on sizing, delivery dates, and custom specifications.
                 </p>
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51, I have a question regarding your Terms of Service and an upcoming order.")}`}
+                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51, I have a question regarding your Website Terms of Service and an upcoming order.")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
@@ -228,13 +238,17 @@ export default function TermsOfServicePage() {
             <section id="acceptance" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">1</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Acceptance of Terms</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Acceptance of Website Terms</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
-                By browsing, accessing, or placing an order through the website <strong className="text-zinc-800">jb51.in</strong>, our digital catalogs, or via our official WhatsApp and Instagram concierge lines, you acknowledge and agree to be legally bound by these Terms of Service.
+                By accessing, browsing, registering an account on, or purchasing through the website <strong className="text-zinc-800">jb51.shop</strong> (&ldquo;Website&rdquo;), you acknowledge that you have read, understood, and agreed to be legally bound by these Terms of Service and Conditions (&ldquo;Terms&rdquo;).
               </p>
+              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs font-light leading-relaxed mb-4">
+                <strong className="text-zinc-900 block mb-1">Web-Exclusive Agreement:</strong>
+                These Terms govern exclusively your interaction with our online e-commerce website storefront, web checkouts, and web-directed concierge communications. If you do not agree with any provision of these Terms, you must immediately discontinue use of the Website.
+              </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed">
-                If you do not agree with any part of these terms, please refrain from using our services. These terms apply to all visitors, registered clients, and patrons of JB51 Clothing House Private Limited (&ldquo;JB51&rdquo;).
+                These Terms constitute a legally enforceable electronic contract under the provisions of the Information Technology Act, 2000 and the Indian Contract Act, 1872 between you (&ldquo;User&rdquo;, &ldquo;Client&rdquo;, or &ldquo;Patron&rdquo;) and JB51 Clothing House Private Limited (&ldquo;JB51&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;).
               </p>
             </section>
 
@@ -244,7 +258,7 @@ export default function TermsOfServicePage() {
             <section id="artisanal-nature" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">2</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Handcrafted & Textile Characteristics</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Handcrafted Fabric & Display Fidelity</h2>
               </div>
               <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 mb-4">
                 <div className="flex items-center gap-2 mb-2 text-amber-700 font-bold text-xs uppercase tracking-wider">
@@ -252,16 +266,16 @@ export default function TermsOfServicePage() {
                   <span>The Hallmark of Authentic Craftsmanship</span>
                 </div>
                 <p className="text-xs text-zinc-700 leading-relaxed font-light">
-                  Our silhouettes are crafted from pure handloom silks, raw Chanderi, bespoke micro-velvet, and adorned with authentic zardozi, tilla, and gotta-patti hand-embroidery.
+                  Our luxury suits are cut from pure handloom silks, raw Chanderi, bespoke micro-velvet, and embellished with authentic zardozi, gotta-patti, and tilla handwork.
                 </p>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
-                Clients are advised that handcrafted textiles naturally possess unique irregularities:
+                Clients shopping on our website should note the intrinsic characteristics of handcrafted luxury textiles:
               </p>
               <ul className="list-disc pl-5 space-y-2 text-xs text-zinc-600 font-light">
-                <li><strong>Weave Variations:</strong> Slight variations in thread thickness (slubs), motifs, and weave alignment are intrinsic to hand-woven textiles and are not considered manufacturing defects.</li>
-                <li><strong>Color Calibration:</strong> While we capture photographs under natural studio illumination, slight variations in color perception may occur across individual display screens and device color calibrations.</li>
-                <li><strong>Artisanal Dyes:</strong> Hand-dyed fabrics and vegetable-based tints may release minor excess dye during initial professional dry cleans, characteristic of genuine organic dye processes.</li>
+                <li><strong>Weave Nuances:</strong> Hand-woven fabrics naturally feature subtle thread variations (slubs), micro-knotting, and slight weave alignment nuances. These are signatures of authentic artisan weaving, not manufacturing defects.</li>
+                <li><strong>Monitor & Color Calibration:</strong> While we photograph our garments under calibrated natural daylight conditions in our studio, exact color tones may exhibit slight variations based on your individual computer monitor, browser profile, or mobile device screen calibration.</li>
+                <li><strong>Artisanal Dyes:</strong> Natural vegetable tints and organic dyes may release slight excess pigment during initial professional dry cleans, which is normal for unadulterated heritage fabrics.</li>
               </ul>
             </section>
 
@@ -274,20 +288,20 @@ export default function TermsOfServicePage() {
                 <h2 className="font-serif text-2xl font-bold text-zinc-950">Bespoke Sizing & Alterations</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
-                JB51 prides itself on complimentary custom sizing. Under our bespoke tailoring commitment:
+                JB51 provides complimentary custom sizing options on our website for select bespoke designs:
               </p>
               <div className="space-y-3 text-xs font-light">
                 <div className="p-3.5 rounded-xl border border-zinc-200">
                   <strong className="text-zinc-900 block mb-1">Measurement Accuracy:</strong>
-                  Clients are responsible for providing accurate anatomical measurements. Our concierge team will gladly guide you over WhatsApp video consultation to verify measurements prior to cutting.
+                  Clients are responsible for the accuracy of custom sizing parameters submitted through our web forms. Our tailoring concierge is available via WhatsApp to guide you on standard measuring protocols prior to fabric cutting.
                 </div>
                 <div className="p-3.5 rounded-xl border border-zinc-200">
-                  <strong className="text-zinc-900 block mb-1">Tailoring Margin:</strong>
-                  All bespoke kurtas, trousers, and lehengas are crafted with a generous 1.5-inch inner seam margin to accommodate future adjustments should your fit preference evolve.
+                  <strong className="text-zinc-900 block mb-1">Inner Tailoring Seam Margins:</strong>
+                  All bespoke kurtas, bottoms, and lehengas are crafted with a generous 1.5-inch inner seam margin to allow effortless future adjustments should your fit preferences change.
                 </div>
                 <div className="p-3.5 rounded-xl border border-zinc-200">
                   <strong className="text-zinc-900 block mb-1">Complimentary Alteration Guarantee:</strong>
-                  If a custom-made suit does not fit to your exact satisfaction upon delivery, we provide one complimentary round of alteration at our flagship boutique. Courier pick-up for alterations is coordinated by our concierge.
+                  If a custom-made suit does not achieve your desired fit upon delivery, we provide one complimentary round of alteration at our atelier. Courier pick-up and return for alterations is coordinated directly by our concierge.
                 </div>
               </div>
             </section>
@@ -298,75 +312,105 @@ export default function TermsOfServicePage() {
             <section id="pricing-payment" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">4</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Pricing, Taxes & Inventory Reservations</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Web Orders, Pricing & Taxes (GST)</h2>
               </div>
               <ul className="list-disc pl-5 space-y-2 text-xs text-zinc-600 font-light">
-                <li><strong>All-Inclusive Pricing & GST:</strong> All prices listed on the website are in Indian National Rupees (INR ₹) and are inclusive of Goods and Services Tax (GST). Official itemized GST tax invoices detailing applicable CGST, SGST, or IGST based on destination state codes are provided with each order.</li>
-                <li><strong>Inventory Reservations:</strong> When an order is initiated, our real-time inventory system marks units as reserved stock. Reservations remain active during checkout; uncompleted sessions or unpaid orders automatically release reserved inventory back to available stock.</li>
-                <li><strong>Payment Channels:</strong> We accept payments via major credit/debit cards, Net Banking, UPI (Google Pay, PhonePe, Paytm), and direct bank transfers for bespoke commission orders.</li>
-                <li><strong>Made-to-Measure Commissions:</strong> For made-to-measure orders initiated via our WhatsApp Concierge, production commences upon receipt of full advance payment or an agreed bespoke booking deposit.</li>
-                <li><strong>Pricing Errors:</strong> In the unlikely event an item is listed with an erroneous price due to a typographical or system error, JB51 reserves the right to cancel the order and provide a full refund.</li>
+                <li><strong>All-Inclusive Transparent Pricing:</strong> All prices displayed on <strong className="text-zinc-800">jb51.shop</strong> are quoted in Indian National Rupees (INR ₹) and are inclusive of Goods and Services Tax (GST). Official itemized GST invoices detailing CGST, SGST, or IGST based on destination state codes are issued with each parcel.</li>
+                <li><strong>Web Stock Hold & Inventory Reservations:</strong> When an online checkout is initiated, our inventory system holds the garment units as reserved stock for the duration of the active web checkout session. Unfinished sessions automatically release the units back to general stock.</li>
+                <li><strong>Made-to-Measure Commissions:</strong> Bespoke commissions begin artisanal cutting and hand-embroidery only after successful receipt of full online payment or an agreed bespoke advance booking deposit.</li>
+                <li><strong>Typographical or Pricing Errors:</strong> In the rare event an ensemble is inadvertently listed at an incorrect price due to a system glitch or typographical error, JB51 reserves the right to decline or cancel the affected order and issue an immediate full refund.</li>
               </ul>
             </section>
 
             <div className="w-full h-px bg-zinc-100" />
 
             {/* Section 5 */}
-            <section id="shipping-delivery" className="scroll-mt-32">
+            <section id="web-payments" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">5</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Shipping, Timelines & Customs</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Online Payment Processing</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-light mb-4">
-                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                  <h4 className="font-bold text-zinc-900 mb-1 uppercase tracking-wider text-[11px]">Ready-to-Wear</h4>
-                  <p className="text-zinc-600">
-                    Dispatched within 2 to 3 business days. Estimated domestic delivery timeline is 3–6 business days depending on location.
-                  </p>
-                </div>
-                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                  <h4 className="font-bold text-zinc-900 mb-1 uppercase tracking-wider text-[11px]">Bespoke Made-to-Order</h4>
-                  <p className="text-zinc-600">
-                    Requires 15 to 20 business days of artisanal cutting, hand-embroidery, and finishing prior to quality inspection and dispatch.
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-zinc-600 font-light leading-relaxed">
-                <strong>International Shipments:</strong> We deliver worldwide via DHL and FedEx. Clients are responsible for any applicable import duties, customs tariffs, or local clearance fees assessed by the destination country&apos;s customs authorities.
+              <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
+                Our website integrates with certified, PCI-DSS Level 1 compliant payment gateways to process all digital transactions securely.
               </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-light">
+                <div className="p-3.5 rounded-xl border border-zinc-200">
+                  <strong className="text-zinc-900 block mb-1">Instant Digital UPI:</strong>
+                  Google Pay, PhonePe, Paytm, BHIM, and any bank-supported UPI QR web flow.
+                </div>
+                <div className="p-3.5 rounded-xl border border-zinc-200">
+                  <strong className="text-zinc-900 block mb-1">Cards & Net Banking:</strong>
+                  Major domestic and international Visa, MasterCard, RuPay, and Net Banking across all scheduled banks.
+                </div>
+                <div className="p-3.5 rounded-xl border border-zinc-200">
+                  <strong className="text-zinc-900 block mb-1">Zero Financial Card Storage:</strong>
+                  Credit/debit card credentials are tokenized directly with the banking gateway and never pass through our website database.
+                </div>
+                <div className="p-3.5 rounded-xl border border-zinc-200">
+                  <strong className="text-zinc-900 block mb-1">Bank Transfers (NEFT/RTGS):</strong>
+                  Accepted for bespoke bridal and high-value custom ensemble orders with verification through our concierge.
+                </div>
+              </div>
             </section>
 
             <div className="w-full h-px bg-zinc-100" />
 
             {/* Section 6 */}
-            <section id="returns-exchanges" className="scroll-mt-32">
+            <section id="shipping-delivery" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">6</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Exchange & Return Policy</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Shipping & Delivery Timelines</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-light mb-4">
+                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+                  <h4 className="font-bold text-zinc-900 mb-1 uppercase tracking-wider text-[11px]">Ready-to-Wear Pieces</h4>
+                  <p className="text-zinc-600">
+                    Dispatched within 2 to 3 business days. Estimated domestic doorstep delivery is 3–6 business days depending on delivery pin code.
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
+                  <h4 className="font-bold text-zinc-900 mb-1 uppercase tracking-wider text-[11px]">Bespoke Made-to-Order Pieces</h4>
+                  <p className="text-zinc-600">
+                    Requires 15 to 20 business days of artisanal cutting, hand-embroidery, and master finishing prior to quality inspection and dispatch.
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-600 font-light leading-relaxed">
+                <strong>International Web Orders:</strong> We ship worldwide via DHL Express and FedEx. Clients are responsible for any statutory import duties, customs tariffs, or local clearance assessments levied by the destination country&apos;s customs authorities.
+              </p>
+            </section>
+
+            <div className="w-full h-px bg-zinc-100" />
+
+            {/* Section 7 */}
+            <section id="returns-exchanges" className="scroll-mt-32">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">7</span>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Exchanges, Returns & Cancellations</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-4">
-                Because of the luxury artisanal nature of our garments, our return parameters are established as follows:
+                Given the luxury artisanal craftsmanship of our ensembles, our return parameters are outlined below:
               </p>
               
               <div className="space-y-3 text-xs font-light">
                 <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                  <h4 className="font-bold text-zinc-900 mb-1">Standard Ready-to-Wear (7-Day Exchange)</h4>
+                  <h4 className="font-bold text-zinc-900 mb-1">Standard Ready-to-Wear (7-Day Exchange Window)</h4>
                   <p className="text-zinc-600 leading-relaxed">
-                    Standard sized pieces (unaltered XS, S, M, L, XL) are eligible for an exchange or store credit within seven (7) days of delivery. Garments must be unworn, unwashed, unaltered, and returned in their original packaging with all original tags intact.
+                    Unaltered standard sized garments (XS, S, M, L, XL) are eligible for an exchange or store credit within seven (7) days of delivery. Ensembles must be unworn, unwashed, unaltered, and returned in their original packaging with all security tags intact.
                   </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-200/60">
-                  <h4 className="font-bold text-rose-900 mb-1">Bespoke & Custom Sized Pieces (Final Sale, Free Alterations)</h4>
+                  <h4 className="font-bold text-rose-900 mb-1">Bespoke & Custom Sized Pieces (Final Sale, Free Alteration)</h4>
                   <p className="text-rose-800 leading-relaxed">
-                    Ensembles that have been custom tailored to specific measurements, personalized necklines, or bespoke lengths are crafted uniquely for you and are non-refundable. They are fully backed by our Complimentary Alteration Guarantee.
+                    Suits tailored to custom anatomical dimensions, specialized neckline depths, or bespoke lengths are crafted exclusively for you and are non-refundable. They are fully protected by our Complimentary Alteration Guarantee.
                   </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                  <h4 className="font-bold text-zinc-900 mb-1">Damaged in Transit</h4>
+                  <h4 className="font-bold text-zinc-900 mb-1">Transit Damage or Packaging Tampering</h4>
                   <p className="text-zinc-600 leading-relaxed">
-                    If an ensemble arrives damaged or tampered with, please notify our concierge within 48 hours of receipt with unboxing photographs or video documentation. We will immediately arrange collection and express replacement.
+                    In the improbable event an ensemble arrives damaged, please notify our concierge within 48 hours of parcel receipt with unboxing photos or video documentation. We will immediately arrange courier collection and priority replacement.
                   </p>
                 </div>
               </div>
@@ -374,95 +418,120 @@ export default function TermsOfServicePage() {
 
             <div className="w-full h-px bg-zinc-100" />
 
-            {/* Section 7 */}
+            {/* Section 8 */}
             <section id="garment-care" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">7</span>
+                <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">8</span>
                 <h2 className="font-serif text-2xl font-bold text-zinc-950">Garment Care & Fabric Longevity</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
                 All JB51 handcrafted pieces are delicate heirloom textiles:
               </p>
               <ul className="list-disc pl-5 space-y-1.5 text-xs text-zinc-600 font-light">
-                <li><strong>Strictly Professional Dry Clean Only:</strong> Handloom silks, organza dupattas, and velvet pieces must never be machine-washed or hand-soaked.</li>
-                <li><strong>Storage:</strong> Store garments in breathable cotton muslin covers. Avoid direct contact with heavy perfumes or alcoholic sprays on metallic zardozi threads.</li>
-                <li>JB51 cannot assume liability for fabric shrinkage, thread unraveling, or discoloration resulting from domestic washing or failure to observe care instructions.</li>
+                <li><strong>Strictly Professional Dry Clean Only:</strong> Handloom silks, organza dupattas, and micro-velvet garments must never be machine-washed or water-soaked.</li>
+                <li><strong>Storage Protocol:</strong> Store garments in breathable cotton muslin covers away from damp environments. Avoid spraying perfumes directly on metallic zardozi threads.</li>
+                <li>JB51 cannot accept liability for fabric shrinkage, thread pulling, or discoloration resulting from domestic home washing or disregard of care instructions.</li>
               </ul>
             </section>
 
             <div className="w-full h-px bg-zinc-100" />
 
-            {/* Section 8 */}
+            {/* Section 9 */}
             <section id="intellectual-property" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">8</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Intellectual Property & Design Rights</h2>
-              </div>
-              <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
-                All textile patterns, silhouette designs, product photography, editorial copy, logos, and trademarks displayed on this site and our social channels are the exclusive intellectual property of JB51 Clothing House Private Limited. Unauthorized duplication, commercial reproduction, or digital scraping of our assets is strictly prohibited and subject to legal prosecution under Indian Copyright and Trademark laws.
-              </p>
-              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs font-light leading-relaxed">
-                <strong className="text-zinc-900 block mb-1">Customer Reviews & Visual Content Licensing:</strong>
-                When you submit a review or upload outfit photographs/videos via our platform, you warrant that you hold all legal rights to the submitted media. By submitting, you grant JB51 a non-exclusive, royalty-free, worldwide license to display approved submissions across our storefront and promotional media. All reviews are subject to our administrative moderation queue and may be published, held, or removed at our discretion.
-              </div>
-            </section>
-
-            <div className="w-full h-px bg-zinc-100" />
-
-            {/* Section 9 */}
-            <section id="client-conduct" className="scroll-mt-32">
-              <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">9</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Platform Integrity, Rate Limits & Conduct</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Website Intellectual Property & Copyright</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
-                Our concierge service is staffed by real stylists and master artisans committed to assisting you with utmost courtesy. We expect reciprocal respect. We reserve the right to decline service, cancel pending consultations, or block communications from individuals engaging in abusive, defamatory, or unlawful conduct toward our personnel.
+                All content published on <strong className="text-zinc-800">jb51.shop</strong>—including garment silhouette designs, embroidery motifs, product photography, editorial lookbooks, website copy, layout architecture, logos, and the JB51 trademark—is the exclusive intellectual property of JB51 Clothing House Private Limited.
               </p>
               <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs font-light leading-relaxed">
-                <strong className="text-zinc-900 block mb-1">Prohibition of Automated Scraping & API Abuse:</strong>
-                Automated requests, bots, crawlers, unauthorized batch downloads, or deliberate tampering with our tRPC and upload API endpoints are strictly prohibited. Our systems actively enforce multi-tier rate limiting; any attempt to circumvent rate restrictions or conduct denial-of-service attacks will result in immediate IP termination and statutory reporting under the Information Technology Act 2000.
+                <strong className="text-zinc-900 block mb-1">Strict Prohibition of Commercial Scraping:</strong>
+                Commercial reproduction, unauthorized duplication, digital scraping, or re-hosting of our visual assets without prior written consent from JB51 is strictly prohibited and subject to legal action under the Indian Copyright Act, 1957 and Trade Marks Act, 1999.
               </div>
             </section>
 
             <div className="w-full h-px bg-zinc-100" />
 
             {/* Section 10 */}
-            <section id="limitation-liability" className="scroll-mt-32">
+            <section id="cyber-security" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">10</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Limitation of Liability & Force Majeure</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Fair Use, Anti-Scraping & Rate Limits</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
-                To the fullest extent permitted by law, JB51 shall not be liable for any indirect, incidental, or consequential damages arising from the use of our website, delay in shipping, or reliance on information presented herein. Our maximum aggregate liability shall not exceed the purchase price of the specific ensemble giving rise to the claim.
+                To guarantee optimal browsing speeds, uninterrupted service, and cyber security for all visitors:
               </p>
-              <p className="text-sm font-light text-zinc-600 leading-relaxed">
-                Neither party shall be held accountable for failure or delay in performance resulting from acts of God, strikes, pandemics, regional civil disturbances, raw silk embargoes, or catastrophic courier transit disruption (Force Majeure events).
-              </p>
+              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs font-light leading-relaxed space-y-2">
+                <p>
+                  <strong>No Automated Bots or Crawlers:</strong> Automated scrapers, indexing bots, data extraction scripts, and unauthorized stress-testing of our website or API endpoints are strictly forbidden.
+                </p>
+                <p>
+                  <strong>Enforced Multi-Tier Rate Limiting:</strong> Our web infrastructure enforces real-time rate limiting across search queries, product views, and cart operations. Attempts to bypass security controls or initiate denial-of-service (DoS) attacks will result in immediate IP blacklisting and statutory reporting under Section 66 of the Information Technology Act, 2000.
+                </p>
+              </div>
             </section>
 
             <div className="w-full h-px bg-zinc-100" />
 
             {/* Section 11 */}
-            <section id="governing-law" className="scroll-mt-32">
+            <section id="customer-reviews" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">11</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Governing Law & Jurisdiction</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Customer Reviews & User Media</h2>
               </div>
-              <p className="text-sm font-light text-zinc-600 leading-relaxed">
-                These Terms of Service and any contractual dispute arising from transactions on this platform shall be governed by and construed in accordance with the substantive laws of India. Any legal dispute, arbitration, or proceedings shall be subject to the exclusive jurisdiction of the competent courts in <strong className="text-zinc-800">Hyderabad, Telangana, India</strong>.
+              <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
+                When you submit product testimonials, written reviews, or outfit styling photographs/videos through our website forms:
               </p>
+              <ul className="list-disc pl-5 space-y-1.5 text-xs text-zinc-600 font-light">
+                <li>You warrant that you own or have obtained all necessary legal rights to submit the uploaded media.</li>
+                <li>You grant JB51 a non-exclusive, royalty-free, perpetual license to display approved reviews and styling visuals across our website storefront.</li>
+                <li>All submissions undergo administrative moderation to prevent spam, offensive content, or copyright violations before publication.</li>
+              </ul>
             </section>
 
             <div className="w-full h-px bg-zinc-100" />
 
             {/* Section 12 */}
-            <section id="concierge-contact" className="scroll-mt-32">
+            <section id="limitation-liability" className="scroll-mt-32">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">12</span>
-                <h2 className="font-serif text-2xl font-bold text-zinc-950">Concierge Contact Information</h2>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Limitation of Liability & Disclaimers</h2>
+              </div>
+              <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
+                The Website is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis. To the maximum extent permitted under applicable law, JB51 disclaims all warranties, express or implied.
+              </p>
+              <p className="text-sm font-light text-zinc-600 leading-relaxed mb-3">
+                In no event shall JB51, its directors, artisans, or employees be liable for any indirect, incidental, punitive, or consequential damages arising from the use of the Website. Our maximum aggregate liability for any claim arising from an order placed through this Website shall strictly not exceed the total amount paid by you for the specific garment.
+              </p>
+              <p className="text-xs text-zinc-500 font-light leading-relaxed">
+                <strong>Force Majeure:</strong> JB51 shall not be held liable for delivery delays or performance failure caused by events beyond reasonable control, including natural catastrophes, severe weather, regional transport strikes, raw silk embargoes, or statutory transit restrictions.
+              </p>
+            </section>
+
+            <div className="w-full h-px bg-zinc-100" />
+
+            {/* Section 13 */}
+            <section id="governing-law" className="scroll-mt-32">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">13</span>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Governing Law & Legal Jurisdiction</h2>
+              </div>
+              <p className="text-sm font-light text-zinc-600 leading-relaxed">
+                These Website Terms of Service & Conditions shall be governed by, interpreted, and construed in accordance with the substantive laws of the Republic of India. Any legal action, dispute, or proceeding arising out of or related to website orders or website access shall be subject to the exclusive jurisdiction of the competent courts in <strong className="text-zinc-800">Kaithal, Haryana, India</strong>.
+              </p>
+            </section>
+
+            <div className="w-full h-px bg-zinc-100" />
+
+            {/* Section 14 */}
+            <section id="concierge-contact" className="scroll-mt-32">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-7 h-7 rounded-lg bg-[#FF5E36]/10 text-[#FF5E36] font-bold text-xs flex items-center justify-center">14</span>
+                <h2 className="font-serif text-2xl font-bold text-zinc-950">Studio & Concierge Contact</h2>
               </div>
               <p className="text-sm font-light text-zinc-600 leading-relaxed mb-6">
-                For questions regarding these terms, bespoke orders, or order status inquiries, please contact our team:
+                For questions regarding these Website Terms, bespoke orders, or fit consultations, please contact our team:
               </p>
 
               <div className="p-6 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-4 text-xs font-light">
@@ -470,10 +539,11 @@ export default function TermsOfServicePage() {
                   <div className="flex items-start gap-2.5">
                     <MapPin size={16} className="text-[#FF5E36] shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-zinc-900 block mb-0.5">Flagship Studio</strong>
+                      <strong className="text-zinc-900 block mb-0.5">Flagship Studio & Atelier</strong>
                       <p className="text-zinc-600 leading-relaxed">
-                        JB51 Studio, 12, Heritage Villa, Banjara Hills<br />
-                        Hyderabad, Telangana 500034, India
+                        JB51 Clothing House<br />
+                        Model Town, Kaithal<br />
+                        Haryana 136027, India
                       </p>
                     </div>
                   </div>
@@ -481,9 +551,9 @@ export default function TermsOfServicePage() {
                   <div className="flex items-start gap-2.5">
                     <MessageCircle size={16} className="text-[#FF5E36] shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-zinc-900 block mb-0.5">Direct Channels</strong>
+                      <strong className="text-zinc-900 block mb-0.5">Direct Web Concierge</strong>
                       <p className="text-zinc-600">WhatsApp: +{WHATSAPP_NUMBER}</p>
-                      <p className="text-zinc-600">Email: support@jb51.shop</p>
+                      <p className="text-zinc-600">Email: {COMPANY_EMAIL}</p>
                       <p className="text-zinc-600">Hours: Mon – Sat, 10:00 AM – 7:00 PM IST</p>
                     </div>
                   </div>

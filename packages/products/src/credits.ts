@@ -363,16 +363,26 @@ export async function getPaginatedCredits(input?: GetPaginatedCreditsInput) {
   }
 
   if (search) {
+    const cleanDigits = search.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
     all = all.filter((c) => {
       const cName = (c.customerName || '').toLowerCase();
       const cPhone = (c.customerPhone || '').toLowerCase();
+      const cleanPhoneDigits = (c.customerPhone || '').replace(/\D/g, '');
       const ordNum = (c.orderNumber || '').toLowerCase();
       const invNum = (c.invoiceNumber || '').toLowerCase();
+      const id = (c.id || '').toLowerCase();
+      const orderId = (c.orderId || '').toLowerCase();
+      const invoiceId = (c.invoiceId || '').toLowerCase();
       return (
+        id === search ||
+        orderId === search ||
+        invoiceId === search ||
         cName.includes(search) ||
-        cPhone.includes(search) ||
-        ordNum.includes(search) ||
-        invNum.includes(search)
+        cPhone === search ||
+        (isPhoneSearch && cleanPhoneDigits === cleanDigits) ||
+        ordNum === search ||
+        invNum === search
       );
     });
   }
@@ -405,5 +415,28 @@ export async function getPaginatedCredits(input?: GetPaginatedCreditsInput) {
     limit,
     totalPages,
     metrics,
+  };
+}
+
+export interface SearchCreditsInput {
+  query?: string | null;
+  filterTab?: 'all' | 'pending' | 'overdue' | 'settled' | null;
+  sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'dueAmount-desc' | 'dueDate-asc' | null;
+  limit?: number | null;
+}
+
+export async function searchCredits(input?: SearchCreditsInput) {
+  const result = await getPaginatedCredits({
+    search: input?.query,
+    filterTab: input?.filterTab,
+    sortBy: input?.sortBy,
+    page: 1,
+    limit: input?.limit || 20,
+  });
+  return {
+    items: result.items,
+    total: result.total,
+    metrics: result.metrics,
+    query: input?.query || '',
   };
 }

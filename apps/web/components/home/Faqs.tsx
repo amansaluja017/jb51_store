@@ -1,32 +1,40 @@
 'use client';
 
 import { useState } from 'react';
+import { FormattedRichText } from '@/components/ui/FormattedRichText';
 
-export function Faqs() {
+import type { FaqItem } from '@/lib/site-config';
+
+const DEFAULT_FAQS: FaqItem[] = [
+  {
+    q: "How do I order a custom-fit suit?",
+    a: "Select your desired garment and size. During standard checkout, you can input custom measurements. Additionally, our concierge team actively contacts all bespoke orders via email or WhatsApp to confirm your proportions."
+  },
+  {
+    q: "What is the typical timeline for bespoke tailoring?",
+    a: "Each custom suit is handcrafted by our master designers. Tailoring requires 2 to 3 weeks from measurement confirmation to shipment. Ready-to-wear lines are dispatched within 2–3 business days."
+  },
+  {
+    q: "Do you offer international shipping?",
+    a: "Yes, we ship globally. Express transit usually takes 5–7 business days depending on location. Full tracking credentials will be provided upon dispatch."
+  },
+  {
+    q: "Can I request custom modifications to designs?",
+    a: "Absolutely. Since each outfit is individually finalized, you can request custom sleeve lengths, necklines, colors, or fabrics. Simply reach out immediately after booking."
+  },
+  {
+    q: "What is your return and exchange policy?",
+    a: "Ready-to-wear items can be exchanged within 7 days of delivery. Because customized garments are created strictly to your specifications, they are non-refundable, but we offer free tailoring adjustments if needed."
+  }
+];
+
+interface FaqsProps {
+  items?: FaqItem[];
+}
+
+export function Faqs({ items }: FaqsProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const faqs = [
-    {
-      q: "How do I order a custom-fit suit?",
-      a: "Select your desired garment and size. During standard checkout, you can input custom measurements. Additionally, our concierge team actively contacts all bespoke orders via email or WhatsApp to confirm your proportions."
-    },
-    {
-      q: "What is the typical timeline for bespoke tailoring?",
-      a: "Each custom suit is handcrafted by our master designers. Tailoring requires 2 to 3 weeks from measurement confirmation to shipment. Ready-to-wear lines are dispatched within 2–3 business days."
-    },
-    {
-      q: "Do you offer international shipping?",
-      a: "Yes, we ship globally. Express transit usually takes 5–7 business days depending on location. Full tracking credentials will be provided upon dispatch."
-    },
-    {
-      q: "Can I request custom modifications to designs?",
-      a: "Absolutely. Since each outfit is individually finalized, you can request custom sleeve lengths, necklines, colors, or fabrics. Simply reach out immediately after booking."
-    },
-    {
-      q: "What is your return and exchange policy?",
-      a: "Ready-to-wear items can be exchanged within 7 days of delivery. Because customized garments are created strictly to your specifications, they are non-refundable, but we offer free tailoring adjustments if needed."
-    }
-  ];
+  const faqs = (items && items.length > 0) ? items : DEFAULT_FAQS;
 
   return (
     <section className="py-24 px-6 max-w-3xl mx-auto w-full">
@@ -73,9 +81,12 @@ export function Faqs() {
               >
                 <div className="overflow-hidden">
                   <div className="px-5 pb-5 pt-1 border-t border-zinc-100 bg-white">
-                    <p className="text-zinc-600 text-xs md:text-sm font-light leading-relaxed pt-2">
-                      {faq.a}
-                    </p>
+                    <div className="pt-2">
+                      <FormattedRichText
+                        text={faq.a}
+                        paragraphClassName="text-zinc-600 text-xs md:text-sm font-light leading-relaxed"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

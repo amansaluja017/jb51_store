@@ -3,6 +3,7 @@ import { router, publicProcedure, adminProcedure } from './base.js';
 import {
   getInvoices,
   getPaginatedInvoices,
+  searchInvoices,
   createInvoice,
   updateInvoice,
   deleteInvoice,
@@ -31,6 +32,21 @@ export const invoicesRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedInvoices(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search invoices' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          mode: z.enum(['all', 'cash', 'online', 'credit']).nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchInvoices(input || undefined);
     }),
 
   create: adminProcedure

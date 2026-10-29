@@ -2,7 +2,7 @@ import {
   db,
   reviews as reviewsTable,
 } from '@repo/db';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, or, and, ilike, sql } from 'drizzle-orm';
 
 export interface CreateReviewInput {
   name: string;
@@ -207,4 +207,135 @@ export async function getPaginatedReviews(input?: GetPaginatedReviewsInput) {
     limit,
     totalPages,
   };
+}
+
+export interface SearchReviewsInput {
+  query?: string | null;
+  approved?: boolean | null;
+  limit?: number | null;
+}
+
+export async function searchReviews(input?: SearchReviewsInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    const pattern = `%${query}%`;
+    try {
+      const dbMatched = await db
+        .select()
+        .from(reviewsTable)
+        .where(
+          and(
+            input?.approved !== undefined && input?.approved !== null
+              ? eq(reviewsTable.approved, input.approved)
+              : undefined,
+            or(
+              ilike(reviewsTable.customerName, pattern),
+              ilike(reviewsTable.review, pattern),
+              ilike(reviewsTable.location, pattern),
+              ilike(reviewsTable.instagramId, pattern)
+            )
+          )
+        )
+        .orderBy(desc(reviewsTable.createdAt))
+        .limit(limit);
+
+      const items = dbMatched.map((r) => ({
+        id: r.id,
+        name: r.customerName || 'Anonymous',
+        message: r.review || '',
+        stars: Number(r.rating) || 5,
+        rating: Number(r.rating) || 5,
+        image: Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls[0] : null,
+        video: r.videoUrl || null,
+        instagramId: r.instagramId || null,
+        location: r.location || null,
+        approved: r.approved,
+        date: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+      }));
+
+      return {
+        items,
+        total: items.length,
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchReviews ILIKE DB notice]:', err);
+    }
+  }
+
+  const result = await getPaginatedReviews({
+    search: query,
+    approved: input?.approved,
+    page: 1,
+    limit,
+  });
+  return {
+    items: result.items,
+    total: result.total,
+    query,
+  };
+}
+
+export interface ReviewSuggestionItem {
+  id: string;
+  name: string;
+  messageSnippet: string;
+  rating: number;
+  location?: string | null;
+  similarity?: number;
+}
+
+export async function getReviewSuggestions(query: string, limit = 8) {
+  const q = (query || '').trim();
+  if (!q) {
+    return { query: '', suggestions: [] };
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: reviewsTable.id,
+        customerName: reviewsTable.customerName,
+        review: reviewsTable.review,
+        rating: reviewsTable.rating,
+        location: reviewsTable.location,
+        nameSim: sql<number>`similarity(${reviewsTable.customerName}, ${q})`,
+        reviewSim: sql<number>`word_similarity(${q}, ${reviewsTable.review})`,
+      })
+      .from(reviewsTable)
+      .where(
+        or(
+          sql`similarity(${reviewsTable.customerName}, ${q}) > 0.1`,
+          sql`word_similarity(${q}, ${reviewsTable.customerName}) > 0.15`,
+          sql`word_similarity(${q}, ${reviewsTable.review}) > 0.15`
+        )
+      )
+      .orderBy(sql`GREATEST(similarity(${reviewsTable.customerName}, ${q}), word_similarity(${q}, ${reviewsTable.review})) DESC`)
+      .limit(limit);
+
+    return {
+      query: q,
+      suggestions: rows.map((r) => {
+        const msg = r.review || '';
+        const idx = msg.toLowerCase().indexOf(q.toLowerCase());
+        const snippet = idx !== -1
+          ? `...${msg.substring(Math.max(0, idx - 15), Math.min(msg.length, idx + q.length + 25)).trim()}...`
+          : msg.substring(0, 50);
+
+        return {
+          id: r.id,
+          name: r.customerName || 'Anonymous',
+          messageSnippet: snippet,
+          rating: Number(r.rating) || 5,
+          location: r.location,
+          similarity: Math.max(r.nameSim || 0, r.reviewSim || 0),
+        };
+      }),
+    };
+  } catch (err) {
+    console.warn('[getReviewSuggestions pg_trgm DB notice]:', err);
+    return { query: q, suggestions: [] };
+  }
 }

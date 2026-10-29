@@ -10,7 +10,8 @@ import {
   Platform,
 } from 'react-native';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
-import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useDebounce } from '../hooks/useDebounce';
+import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
 import { Product } from '../types';
@@ -38,6 +39,14 @@ interface CatalogScreenProps {
     page?: number;
     limit?: number;
   }) => Promise<any>;
+  onSearchProducts?: (params: {
+    query?: string;
+    category?: string;
+    inStockOnly?: boolean;
+    page?: number;
+    limit?: number;
+  }) => Promise<any>;
+  onGetProductSuggestions?: (query: string) => Promise<any>;
 }
 
 const PAGE_SIZE = 8;
@@ -58,6 +67,8 @@ export default function CatalogScreen({
   onDeleteProduct,
   onViewProductDetails,
   onFetchPaginatedProducts,
+  onSearchProducts,
+  onGetProductSuggestions,
 }: CatalogScreenProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const keyboardHeight = useKeyboardHeight();
@@ -70,6 +81,10 @@ export default function CatalogScreen({
   } | null>(null);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Debounced search query (250ms) to prevent excessive backend route calls
+  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
+  const [suggestions, setSuggestions] = useState<{ products?: any[]; categories?: string[]; tags?: string[] } | null>(null);
 
   // Derive unique categories from both API categories and products
   const categoryList = useMemo(() => {
@@ -88,38 +103,91 @@ export default function CatalogScreen({
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedCategory]);
+  }, [debouncedSearch, selectedCategory]);
 
+  // Fetch Suggestions from backend pg_trgm route
+  useEffect(() => {
+    let isMounted = true;
+    if (debouncedSearch && onGetProductSuggestions) {
+      onGetProductSuggestions(debouncedSearch)
+        .then((res) => {
+          if (isMounted && res) {
+            setSuggestions(res);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setSuggestions(null);
+        });
+    } else {
+      setSuggestions(null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, onGetProductSuggestions]);
 
+  // Hit backend search route using ILIKE or paginated route (no client-side filtering)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBackendProducts = async () => {
+      setIsFetchingRemote(true);
+      try {
+        if (debouncedSearch && onSearchProducts) {
+          // Backend ILIKE search route on product name, description, tags
+          const searchRes = await onSearchProducts({
+            query: debouncedSearch,
+            category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            limit: PAGE_SIZE,
+          });
+          if (isMounted && searchRes) {
+            const items = searchRes.items || [];
+            const total = searchRes.total ?? items.length;
+            setRemoteData({
+              items,
+              total,
+              totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+              page,
+            });
+          }
+        } else if (onFetchPaginatedProducts) {
+          const res = await onFetchPaginatedProducts({
+            search: debouncedSearch || undefined,
+            category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            page,
+            limit: PAGE_SIZE,
+          });
+          if (isMounted && res) {
+            setRemoteData({
+              items: res.items || [],
+              total: res.total || 0,
+              totalPages: res.totalPages || Math.max(1, Math.ceil((res.total || 0) / PAGE_SIZE)),
+              page: res.page || page,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[CatalogScreen fetch error]:', err);
+      } finally {
+        if (isMounted) setIsFetchingRemote(false);
+      }
+    };
 
-  // Client-side fallback if remote endpoint is unavailable
-  const localFiltered = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return products.filter(product => {
-      const matchesSearch =
-        !q ||
-        (product.name && product.name.toLowerCase().includes(q)) ||
-        (product.category && product.category.toLowerCase().includes(q)) ||
-        (product.slug && product.slug.toLowerCase().includes(q));
+    fetchBackendProducts();
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, selectedCategory, page, refreshKey, onSearchProducts, onFetchPaginatedProducts]);
 
-      const matchesCategory =
-        selectedCategory === 'All' ||
-        (product.category && product.category.toLowerCase() === selectedCategory.toLowerCase());
+  const displayedProducts = remoteData
+    ? remoteData.items
+    : products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, searchQuery, selectedCategory]);
+  const totalCount = remoteData
+    ? remoteData.total
+    : products.length;
 
-  const displayedProducts = onFetchPaginatedProducts && remoteData 
-    ? remoteData.items 
-    : localFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const totalCount = onFetchPaginatedProducts && remoteData 
-    ? remoteData.total 
-    : localFiltered.length;
-
-  const totalPages = onFetchPaginatedProducts && remoteData 
-    ? remoteData.totalPages 
+  const totalPages = remoteData
+    ? remoteData.totalPages
     : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const safePage = Math.min(page, totalPages);
@@ -185,6 +253,42 @@ export default function CatalogScreen({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Backend pg_trgm Suggestions Bar */}
+        {debouncedSearch.length > 0 && suggestions && ((suggestions.categories?.length || 0) > 0 || (suggestions.tags?.length || 0) > 0 || (suggestions.products?.length || 0) > 0) && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, maxHeight: 30 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 }}>
+              <Sparkles size={11} color="#FF5E36" />
+              {suggestions.categories?.map((cat) => (
+                <TouchableOpacity
+                  key={`cat-${cat}`}
+                  onPress={() => setSelectedCategory(cat)}
+                  style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                >
+                  <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '600' }}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+              {suggestions.tags?.map((tag) => (
+                <TouchableOpacity
+                  key={`tag-${tag}`}
+                  onPress={() => setSearchQuery(tag)}
+                  style={{ backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#ffedd5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                >
+                  <Text style={{ fontSize: 10, color: '#FF5E36', fontWeight: '500' }}>#{tag}</Text>
+                </TouchableOpacity>
+              ))}
+              {suggestions.products?.slice(0, 3).map((prod) => (
+                <TouchableOpacity
+                  key={`prod-${prod.id}`}
+                  onPress={() => setSearchQuery(prod.name)}
+                  style={{ backgroundColor: '#fafafa', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                >
+                  <Text style={{ fontSize: 10, color: '#52525b' }} numberOfLines={1}>{prod.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        )}
 
         <View style={styles.actionsRow}>
           <TouchableOpacity onPress={onManageCategories} style={styles.categoriesButton} accessibilityRole="button">

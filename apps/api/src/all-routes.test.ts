@@ -151,17 +151,87 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
       }
     );
   });
+
+  // 15. Search (ILIKE) & Suggestions (pg_trgm) Routes for all services
+  await t.test('15. search and suggestions routes across all services', async () => {
+    // 15.1 Products (ILIKE & pg_trgm on name, description, tags)
+    const productSearch = await publicCaller.products.search({ query: 'suit' });
+    assert.ok(productSearch);
+    assert.ok(Array.isArray(productSearch.items));
+
+    const productSuggestions = await publicCaller.products.suggestions({ query: 'sut' }); // typo tolerance test with pg_trgm
+    assert.ok(productSuggestions);
+    assert.ok(Array.isArray(productSuggestions.products));
+    assert.ok(Array.isArray(productSuggestions.categories));
+    assert.ok(Array.isArray(productSuggestions.tags));
+
+    // 15.2 Inventory
+    const invSearch = await adminCaller.inventory.search({ query: 'suit' });
+    assert.ok(invSearch);
+    assert.ok(Array.isArray(invSearch.items));
+
+    const invSuggestions = await adminCaller.inventory.suggestions({ query: 'suit' });
+    assert.ok(Array.isArray(invSuggestions));
+
+    // 15.3 Customers
+    const custSearch = await adminCaller.customers.search({ query: 'test' });
+    assert.ok(Array.isArray((custSearch as any)?.items || custSearch));
+
+    const custSuggestions = await adminCaller.customers.suggestions({ query: 'test' });
+    assert.ok(Array.isArray((custSuggestions as any)?.suggestions || custSuggestions));
+
+    // 15.4 Orders
+    const orderSearch = await adminCaller.orders.search({ query: 'ORD' });
+    assert.ok(Array.isArray((orderSearch as any)?.items || orderSearch));
+
+    // 15.5 Invoices
+    const invoiceSearch = await adminCaller.invoices.search({ query: 'INV' });
+    assert.ok(Array.isArray((invoiceSearch as any)?.items || invoiceSearch));
+
+    // 15.6 Credits
+    const creditSearch = await adminCaller.credits.search({ query: 'test' });
+    assert.ok(Array.isArray((creditSearch as any)?.items || creditSearch));
+
+    // 15.7 Reviews
+    const reviewSearch = await publicCaller.reviews.search({ query: 'great' });
+    assert.ok(Array.isArray((reviewSearch as any)?.items || reviewSearch));
+
+    const reviewSuggestions = await publicCaller.reviews.suggestions({ query: 'gret' });
+    assert.ok(Array.isArray((reviewSuggestions as any)?.suggestions || reviewSuggestions));
+
+    // 15.8 Inquiries
+    const inqSearch = await adminCaller.inquiries.search({ query: 'suit' });
+    assert.ok(Array.isArray((inqSearch as any)?.items || inqSearch));
+
+    const inqSuggestions = await adminCaller.inquiries.suggestions({ query: 'suit' });
+    assert.ok(Array.isArray((inqSuggestions as any)?.suggestions || inqSuggestions));
+  });
+
+  await t.test('16. siteConfig.get & siteConfig.update for Web UI customizer', async () => {
+    const config = await publicCaller.siteConfig.get();
+    assert.ok(config);
+    assert.ok(Array.isArray(config.promotionalHeader));
+    assert.ok(Array.isArray(config.heroSlides));
+    assert.ok(config.adBanner);
+    assert.ok(config.saleSection);
+    assert.ok(Array.isArray(config.faqs));
+    assert.ok(config.contactInfo);
+
+    const updated = await adminCaller.siteConfig.update({
+      contactInfo: {
+        ...config.contactInfo,
+        phoneNumber: '+91 99999 88888',
+      },
+    });
+    assert.strictEqual(updated.contactInfo.phoneNumber, '+91 99999 88888');
+  });
 });
 
-process.on('beforeExit', () => {
-  process.exit(0);
-});
-
-// Clean shutdown hook to close client pool if needed
+// Graceful cleanup after full test execution
 setTimeout(async () => {
   try {
     const { client } = await import('@repo/db');
     await client.end({ timeout: 1 });
   } catch (_) {}
-}, 60000).unref();
+}, 600000).unref();
 

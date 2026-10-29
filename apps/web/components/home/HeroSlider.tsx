@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Play } from 'lucide-react';
+import { FormattedRichText } from '@/components/ui/FormattedRichText';
 
 interface SlideProduct {
   name: string;
@@ -12,16 +13,16 @@ interface SlideProduct {
   slug: string;
 }
 
-interface Slide {
+export interface HeroSlide {
   image: string;
   tagline: string;
   title: string;
   subtitle: string;
-  badgeProduct: SlideProduct;
+  badgeProduct?: SlideProduct;
 }
 
 interface HeroSliderProps {
-  slides: Slide[];
+  slides: HeroSlide[];
   currentSlide: number;
   setCurrentSlide: (slide: number) => void;
 }
@@ -65,7 +66,7 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
             <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent z-10" />
 
             {/* Interactive Floating Product Tag Badge (NovaTrend Inspired) */}
-            {idx === currentSlide && (
+            {idx === currentSlide && slide.badgeProduct && slide.badgeProduct.name && (
               <Link
                 href={`/product/${slide.badgeProduct.slug}`}
                 className="absolute hidden md:flex items-center gap-3 bg-white/90 backdrop-blur-md p-2.5 rounded-2xl shadow-2xl border border-white/40 bottom-[20%] right-[15%] z-30 hover:scale-105 hover:bg-white transition-all duration-300 animate-scale-up group"
@@ -109,9 +110,12 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
                 </h1>
 
                 {/* Subtitle */}
-                <p className="text-zinc-300 font-light text-xs md:text-sm max-w-md mb-8 leading-relaxed">
-                  {slide.subtitle}
-                </p>
+                <div className="max-w-md mb-8">
+                  <FormattedRichText
+                    text={slide.subtitle}
+                    paragraphClassName="text-zinc-300 font-light text-xs md:text-sm leading-relaxed"
+                  />
+                </div>
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap items-center gap-4">

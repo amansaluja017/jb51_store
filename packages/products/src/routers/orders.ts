@@ -3,6 +3,7 @@ import { router, publicProcedure, adminProcedure } from './base.js';
 import {
   getOrders,
   getPaginatedOrders,
+  searchOrders,
   createOrder,
   deleteOrder,
 } from '../orders.js';
@@ -51,6 +52,21 @@ export const ordersRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedOrders(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search customer orders' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          status: z.string().nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchOrders(input || undefined);
     }),
 
   create: adminProcedure

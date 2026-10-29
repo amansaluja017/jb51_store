@@ -14,6 +14,7 @@ import InquiriesModal from './src/components/InquiriesModal';
 import DrawerMenuModal from './src/components/DrawerMenuModal';
 import CustomerManagerModal from './src/components/CustomerManagerModal';
 import CreditManagerModal from './src/components/CreditManagerModal';
+import { DeveloperSectionModal } from './src/components/DeveloperSectionModal';
 import CustomAlert from './src/components/CustomAlert';
 
 import { useAppData } from './src/hooks/useAppData';
@@ -25,6 +26,7 @@ configureNotifications();
 
 export default function App() {
   const data = useAppData();
+  const [developerModalOpen, setDeveloperModalOpen] = React.useState(false);
 
   if (!data.isAuthenticated) {
     return (
@@ -138,6 +140,14 @@ export default function App() {
           onToggleReviewApproval={data.handleToggleReviewApproval}
           token={data.token}
           apiHost={data.apiHost}
+          onSearchProducts={data.handleSearchProducts}
+          onGetProductSuggestions={data.handleGetProductSuggestions}
+          onSearchInventory={data.handleSearchInventory}
+          onGetInventorySuggestions={data.handleGetInventorySuggestions}
+          onSearchInvoices={data.handleSearchInvoices}
+          onSearchOrders={data.handleSearchOrders}
+          onSearchReviews={data.handleSearchReviews}
+          onGetReviewSuggestions={data.handleGetReviewSuggestions}
         />
 
         {/* Tabs Menu Footer */}
@@ -214,6 +224,8 @@ export default function App() {
           onSearchChange={data.setInquiriesSearchQuery}
           onFetchPaginatedInquiries={data.handleFetchPaginatedInquiries}
           onResolveInquiry={data.handleResolveInquiry}
+          onSearchInquiries={data.handleSearchInquiries}
+          onGetInquirySuggestions={data.handleGetInquirySuggestions}
         />
 
         {/* Slide-out Hamburger Drawer Navigation Menu */}
@@ -236,6 +248,7 @@ export default function App() {
           creditsDueCount={data.creditMetrics?.pendingCount}
           pendingInquiriesCount={data.pendingInquiriesCount}
           currentUser={data.currentUser}
+          onOpenDeveloperSection={() => setDeveloperModalOpen(true)}
         />
 
         {/* Customer Directory Management Modal (CRUD & On-Demand Order History) */}
@@ -251,6 +264,8 @@ export default function App() {
           onUpdateCustomer={data.handleUpdateCustomer}
           onDeleteCustomer={data.handleDeleteCustomer}
           showAlert={data.showAlert}
+          onSearchCustomers={data.handleSearchCustomers}
+          onGetCustomerSuggestions={data.handleGetCustomerSuggestions}
         />
 
         {/* Customer Credit / Udhar Ledger Management Modal */}
@@ -267,6 +282,15 @@ export default function App() {
           onDeleteCredit={data.handleDeleteCredit}
           onFetchPaginatedCredits={data.handleFetchPaginatedCredits}
           showAlert={data.showAlert}
+          onSearchCredits={data.handleSearchCredits}
+        />
+
+        {/* Developer Section (Web UI Editor) Modal */}
+        <DeveloperSectionModal
+          visible={developerModalOpen}
+          onClose={() => setDeveloperModalOpen(false)}
+          apiHost={data.apiHost}
+          token={data.token}
         />
 
         {/* Global Toast Alert */}

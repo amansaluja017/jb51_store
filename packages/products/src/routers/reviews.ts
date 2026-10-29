@@ -3,6 +3,8 @@ import { router, publicProcedure } from './base.js';
 import {
   getReviews,
   getPaginatedReviews,
+  searchReviews,
+  getReviewSuggestions,
   createReview,
   updateReview,
   deleteReview,
@@ -44,6 +46,33 @@ export const reviewsRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedReviews(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search reviews using ilike' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          approved: z.boolean().nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchReviews(input || undefined);
+    }),
+
+  suggestions: publicProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for reviews using pg_trgm' })
+    .input(
+      z.object({
+        query: z.string().nullish(),
+        limit: z.number().int().positive().nullish().default(8),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getReviewSuggestions(input.query || '', input.limit || 8);
     }),
 
   create: publicProcedure

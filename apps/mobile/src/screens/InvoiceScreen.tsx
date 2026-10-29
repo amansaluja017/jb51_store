@@ -26,6 +26,7 @@ import InvoiceLedgerView from '../components/invoices/InvoiceLedgerView';
 import InvoiceFormView from '../components/invoices/InvoiceFormView';
 import SelectCustomerPage from '../components/invoices/SelectCustomerPage';
 import SelectProductPage from '../components/invoices/SelectProductPage';
+import { useDebounce } from '../hooks/useDebounce';
 
 
 import { Product, Variant, Customer, Invoice, Order, isProductInStock, isProductDiscontinued } from '../types';
@@ -95,6 +96,8 @@ interface InvoiceScreenProps {
   onFetchPaginatedOrders?: (params?: any) => Promise<any>;
   isLoadingCustomers?: boolean;
   isLoadingProducts?: boolean;
+  onSearchInvoices?: (query: string) => Promise<any>;
+  onSearchOrders?: (query: string) => Promise<any>;
 }
 
 export default function InvoiceScreen({
@@ -123,6 +126,8 @@ export default function InvoiceScreen({
   onFetchPaginatedOrders,
   isLoadingCustomers,
   isLoadingProducts,
+  onSearchInvoices,
+  onSearchOrders,
 }: InvoiceScreenProps) {
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -152,6 +157,8 @@ export default function InvoiceScreen({
 
   // Search filter for past invoices & orders in Ledger
   const [searchFilter, setSearchFilter] = useState('');
+  const debouncedSearch = useDebounce(searchFilter.trim(), 250);
+  const [ledgerSuggestions, setLedgerSuggestions] = useState<any[] | null>(null);
 
   const handleSearchFilterChange = (q: string) => {
     setSearchFilter(q);
@@ -159,48 +166,58 @@ export default function InvoiceScreen({
     setOrderPage(1);
   };
 
-  // Fetch paginated invoices from backend
+  // Suggestions disabled for invoices and orders: only search routes are hit
+
+  // Fetch invoices from backend (dedicated ILIKE search or paginated route)
   const prevRefreshingRef = useRef(false);
   useEffect(() => {
-    // If effect triggered because refreshing transitioned from true to false, skip refetch
     if (prevRefreshingRef.current && !refreshing) {
       prevRefreshingRef.current = false;
       return;
     }
     prevRefreshingRef.current = !!refreshing;
 
-    if (!onFetchPaginatedInvoices) return;
-
     let isCancelled = false;
-    const timer = setTimeout(async () => {
+    const fetchInvoices = async () => {
       try {
         setIsLoadingRemoteInvoices(true);
-        const res = await onFetchPaginatedInvoices({
-          page: invoicePage,
-          limit: 15,
-          search: searchFilter.trim() || undefined,
-        });
-        if (!isCancelled && res) {
-          setRemoteInvoices(res.items || []);
-          setInvoiceTotalPages(res.totalPages || 1);
-          setInvoiceTotalCount(res.totalCount || 0);
+        if (debouncedSearch && onSearchInvoices) {
+          // Backend search route for invoices
+          const res = await onSearchInvoices(debouncedSearch);
+          const items = Array.isArray(res) ? res : (res as any)?.items;
+          if (!isCancelled && Array.isArray(items)) {
+            setRemoteInvoices(items);
+            setInvoiceTotalPages(1);
+            setInvoiceTotalCount(items.length);
+          }
+        } else if (onFetchPaginatedInvoices) {
+          const res = await onFetchPaginatedInvoices({
+            page: invoicePage,
+            limit: 15,
+            search: debouncedSearch || undefined,
+          });
+          if (!isCancelled && res) {
+            setRemoteInvoices(res.items || []);
+            setInvoiceTotalPages(res.totalPages || 1);
+            setInvoiceTotalCount(res.totalCount || 0);
+          }
         }
       } catch (err) {
-        console.error('[fetchPaginatedInvoices] Error:', err);
+        console.error('[fetchInvoices] Error:', err);
       } finally {
         if (!isCancelled) {
           setIsLoadingRemoteInvoices(false);
         }
       }
-    }, searchFilter ? 250 : 0);
+    };
 
+    fetchInvoices();
     return () => {
       isCancelled = true;
-      clearTimeout(timer);
     };
-  }, [invoicePage, searchFilter, onFetchPaginatedInvoices, refreshing]);
+  }, [invoicePage, debouncedSearch, onSearchInvoices, onFetchPaginatedInvoices, refreshing]);
 
-  // Fetch paginated orders from backend
+  // Fetch orders from backend (dedicated search or paginated route)
   const prevOrderRefreshingRef = useRef(false);
   useEffect(() => {
     if (prevOrderRefreshingRef.current && !refreshing) {
@@ -209,36 +226,47 @@ export default function InvoiceScreen({
     }
     prevOrderRefreshingRef.current = !!refreshing;
 
-    if (!onFetchPaginatedOrders || activeLedgerTab !== 'orders') return;
+    if (activeLedgerTab !== 'orders') return;
 
     let isCancelled = false;
-    const timer = setTimeout(async () => {
+    const fetchOrders = async () => {
       try {
         setIsLoadingRemoteOrders(true);
-        const res = await onFetchPaginatedOrders({
-          page: orderPage,
-          limit: 15,
-          search: searchFilter.trim() || undefined,
-        });
-        if (!isCancelled && res) {
-          setRemoteOrders(res.items || []);
-          setOrderTotalPages(res.totalPages || 1);
-          setOrderTotalCount(res.totalCount || 0);
+        if (debouncedSearch && onSearchOrders) {
+          // Backend search route for orders
+          const res = await onSearchOrders(debouncedSearch);
+          const items = Array.isArray(res) ? res : (res as any)?.items;
+          if (!isCancelled && Array.isArray(items)) {
+            setRemoteOrders(items);
+            setOrderTotalPages(1);
+            setOrderTotalCount(items.length);
+          }
+        } else if (onFetchPaginatedOrders) {
+          const res = await onFetchPaginatedOrders({
+            page: orderPage,
+            limit: 15,
+            search: debouncedSearch || undefined,
+          });
+          if (!isCancelled && res) {
+            setRemoteOrders(res.items || []);
+            setOrderTotalPages(res.totalPages || 1);
+            setOrderTotalCount(res.totalCount || 0);
+          }
         }
       } catch (err) {
-        console.error('[fetchPaginatedOrders] Error:', err);
+        console.error('[fetchOrders] Error:', err);
       } finally {
         if (!isCancelled) {
           setIsLoadingRemoteOrders(false);
         }
       }
-    }, searchFilter ? 250 : 0);
+    };
 
+    fetchOrders();
     return () => {
       isCancelled = true;
-      clearTimeout(timer);
     };
-  }, [orderPage, searchFilter, onFetchPaginatedOrders, activeLedgerTab, refreshing]);
+  }, [orderPage, debouncedSearch, onSearchOrders, onFetchPaginatedOrders, activeLedgerTab, refreshing]);
 
   // Hit order history route upon loading invoices section if needed
   useEffect(() => {
@@ -338,11 +366,34 @@ export default function InvoiceScreen({
     }
     const q = searchFilter.trim().toLowerCase();
     if (!q) return invoices;
+    const cleanDigits = q.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
+
     return invoices.filter((inv) => {
-      const num = (inv.invoiceNumber || inv.id || '').toLowerCase();
-      const name = (inv.customerName || '').toLowerCase();
-      const phone = (inv.phoneNumber || '').toLowerCase();
-      return num.includes(q) || name.includes(q) || phone.includes(q);
+      const invNum = (inv.invoiceNumber || '').toLowerCase();
+      const invId = (inv.id || '').toLowerCase();
+      const orderNum = ((inv as any).orderNumber || '').toLowerCase();
+      const orderId = ((inv as any).orderId || '').toLowerCase();
+      const name = (inv.customerName || (inv as any).custName || '').toLowerCase();
+      const phone = (inv.phoneNumber || (inv as any).custPhone || '').trim();
+      const cleanPhoneDigits = phone.replace(/\D/g, '');
+
+      // Exact invoice number / order number / UUID
+      const idOrNumberMatch =
+        invNum === q ||
+        invId === q ||
+        orderNum === q ||
+        orderId === q;
+
+      // Exact phone number (no substring/ilike)
+      const phoneMatch =
+        phone.toLowerCase() === q ||
+        (isPhoneSearch && cleanPhoneDigits.length >= 10 && cleanPhoneDigits === cleanDigits);
+
+      // Customer name uses substring (ilike)
+      const nameMatch = name.includes(q);
+
+      return idOrNumberMatch || phoneMatch || nameMatch;
     });
   }, [remoteInvoices, invoices, searchFilter]);
 
@@ -353,14 +404,28 @@ export default function InvoiceScreen({
     }
     const q = searchFilter.trim().toLowerCase();
     if (!q) return orders;
+    const cleanDigits = q.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
+
     return orders.filter((ord) => {
-      const num = (ord.orderNumber || ord.id || '').toLowerCase();
+      const ordNum = (ord.orderNumber || '').toLowerCase();
+      const ordId = (ord.id || '').toLowerCase();
       const name = (ord.customerName || '').toLowerCase();
-      const phone = (ord.customerPhone || '').toLowerCase();
-      const itemMatch = ord.items?.some((it) =>
-        (it.productName || '').toLowerCase().includes(q)
-      );
-      return num.includes(q) || name.includes(q) || phone.includes(q) || itemMatch;
+      const phone = (ord.customerPhone || '').trim();
+      const cleanPhoneDigits = phone.replace(/\D/g, '');
+
+      // Exact order number / UUID
+      const idOrNumberMatch = ordNum === q || ordId === q;
+
+      // Exact phone number (no substring/ilike)
+      const phoneMatch =
+        phone.toLowerCase() === q ||
+        (isPhoneSearch && cleanPhoneDigits.length >= 10 && cleanPhoneDigits === cleanDigits);
+
+      // Customer name uses substring (ilike)
+      const nameMatch = name.includes(q);
+
+      return idOrNumberMatch || phoneMatch || nameMatch;
     });
   }, [remoteOrders, orders, searchFilter]);
 
@@ -1077,6 +1142,7 @@ export default function InvoiceScreen({
           setActiveLedgerTab={handleSelectLedgerTab}
           searchFilter={searchFilter}
           setSearchFilter={handleSearchFilterChange}
+          suggestions={ledgerSuggestions || undefined}
           filteredInvoices={filteredInvoices}
           filteredOrders={filteredOrders}
           invoicePage={invoicePage}

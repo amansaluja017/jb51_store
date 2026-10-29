@@ -58,6 +58,7 @@ export interface InvoiceLedgerViewProps {
   orderTotalCount?: number;
   onOrderPrevPage?: () => void;
   onOrderNextPage?: () => void;
+  suggestions?: any[];
 }
 
 export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
@@ -88,6 +89,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   orderTotalCount,
   onOrderPrevPage,
   onOrderNextPage,
+  suggestions,
 }) => {
   const totalCollected = useMemo(() => {
     return invoices.reduce((sum, inv) => {
@@ -244,6 +246,26 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Backend pg_trgm Suggestions */}
+            {searchFilter.trim().length > 0 && suggestions && suggestions.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 8, maxHeight: 30 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {suggestions.slice(0, 5).map((item, idx) => (
+                    <TouchableOpacity
+                      key={`ledger-sug-${item.id || idx}`}
+                      onPress={() => setSearchFilter(item.customerName || item.invoiceNumber || item.orderNumber || '')}
+                      style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                    >
+                      <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
+                        {item.invoiceNumber || item.orderNumber ? `${item.invoiceNumber || item.orderNumber} - ` : ''}
+                        {item.customerName || ''}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
 
             {/* ================= INVOICES TAB ================= */}
             {activeLedgerTab === 'invoices' ? (

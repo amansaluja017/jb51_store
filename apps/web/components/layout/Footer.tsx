@@ -6,8 +6,13 @@ import { WHATSAPP_NUMBER } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import type { SiteConfigData } from '@/lib/site-config';
 
-export function Footer() {
+interface FooterProps {
+  siteConfig?: SiteConfigData;
+}
+
+export function Footer({ siteConfig }: FooterProps = {}) {
   const [email, setEmail] = useState('');
   const { trackEvent } = useAnalytics();
 
@@ -39,9 +44,22 @@ export function Footer() {
               </Link>
               <span className="text-[7px] tracking-[0.4em] uppercase text-[#FF5E36] font-bold mt-0.5">EST. 1951</span>
             </div>
-            <p className="text-zinc-400 text-xs md:text-sm max-w-sm leading-relaxed font-light mb-6">
+            <p className="text-zinc-400 text-xs md:text-sm max-w-sm leading-relaxed font-light mb-4">
               Contemporary silhouettes, luxury Indian handlooms, and timeless craftsmanship designed for the modern woman. Rooted in heritage, styled for the world.
             </p>
+            {siteConfig?.contactInfo && (
+              <div className="text-xs text-zinc-400 space-y-1 mb-6 font-light">
+                {siteConfig.contactInfo.phoneNumber && (
+                  <p>Tel: <a href={`tel:${siteConfig.contactInfo.phoneNumber.replace(/\s+/g, '')}`} className="text-zinc-300 hover:text-white">{siteConfig.contactInfo.phoneNumber}</a></p>
+                )}
+                {siteConfig.contactInfo.email && (
+                  <p>Email: <a href={`mailto:${siteConfig.contactInfo.email}`} className="text-zinc-300 hover:text-white">{siteConfig.contactInfo.email}</a></p>
+                )}
+                {siteConfig.contactInfo.address && (
+                  <p className="text-zinc-500 text-[11px] mt-1">{siteConfig.contactInfo.address}</p>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 text-zinc-500 text-[10px] uppercase tracking-wider font-semibold">
             <Globe size={12} className="text-[#FF5E36]" />
@@ -104,7 +122,7 @@ export function Footer() {
           {/* Social Links */}
           <div className="flex items-center gap-4">
             <a
-              href="https://instagram.com/jb51_clothing_house"
+              href={siteConfig?.contactInfo?.instagramUrl || "https://instagram.com/jb51_clothing_house"}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'instagram' })}
@@ -114,7 +132,7 @@ export function Footer() {
               <Instagram size={14} />
             </a>
             <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}`}
+              href={`https://wa.me/${siteConfig?.contactInfo?.whatsappNumber || WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'whatsapp' })}

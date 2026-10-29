@@ -1,4 +1,5 @@
-import { pgTable, uuid, varchar, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { user } from './users.js';
 
 export const customerDetails = pgTable(
@@ -24,6 +25,9 @@ export const customerDetails = pgTable(
       table.nameSlug,
       table.phoneNumber
     ),
+    nameTrgmIdx: index('customer_name_trgm_idx').using('gin', sql`${table.name} gin_trgm_ops`),
+    phoneTrgmIdx: index('customer_phone_trgm_idx').using('gin', sql`${table.phoneNumber} gin_trgm_ops`),
+    emailTrgmIdx: index('customer_email_trgm_idx').using('gin', sql`${table.email} gin_trgm_ops`),
   })
 );
 

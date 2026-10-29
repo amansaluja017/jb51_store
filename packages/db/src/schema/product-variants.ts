@@ -1,4 +1,5 @@
-import { pgTable, uuid, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, varchar, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { product } from './products.js';
 
 export const productVariant = pgTable('product_variant', {
@@ -13,7 +14,9 @@ export const productVariant = pgTable('product_variant', {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (table) => ({
+  colorTrgmIdx: index('product_variant_color_trgm_idx').using('gin', sql`${table.color} gin_trgm_ops`),
+}));
 
 export type ProductVariantEntity = typeof productVariant.$inferSelect;
 export type NewProductVariantEntity = typeof productVariant.$inferInsert;

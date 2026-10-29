@@ -3,6 +3,8 @@ import { router, publicProcedure, adminProcedure } from './base.js';
 import {
   getProducts,
   getPaginatedProducts,
+  searchProducts,
+  getProductSuggestions,
   getProductBySlug,
   createProduct,
   updateProduct,
@@ -58,6 +60,37 @@ export const productsRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedProducts(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search products matching name, description, tags, fabric, category using ilike' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          category: z.string().nullish(),
+          inStockOnly: z.boolean().nullish(),
+          sortBy: z
+            .enum(['name-asc', 'name-desc', 'price-asc', 'price-desc', 'stock-desc', 'stock-asc', 'newest', 'default'])
+            .nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchProducts(input || undefined);
+    }),
+
+  suggestions: publicProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for products, categories, and tags using pg_trgm' })
+    .input(
+      z.object({
+        query: z.string().nullish(),
+        limit: z.number().int().positive().nullish().default(8),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getProductSuggestions(input.query || '', input.limit || 8);
     }),
 
   getBySlug: publicProcedure

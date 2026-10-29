@@ -36,8 +36,10 @@ import {
   Package,
   TrendingUp,
   ShoppingBag,
+  Sparkles,
 } from 'lucide-react-native';
 import { Customer, Order } from '../types';
+import { useDebounce } from '../hooks/useDebounce';
 import { colors } from '../theme/colors';
 import { CustomerListSkeleton } from './SkeletonLoader';
 
@@ -88,6 +90,8 @@ export interface CustomerManagerModalProps {
     type: 'info' | 'success' | 'error' | 'confirm',
     onConfirm?: () => void
   ) => void;
+  onSearchCustomers?: (query: string) => Promise<any>;
+  onGetCustomerSuggestions?: (query: string) => Promise<any>;
 }
 
 type SortOption = 'name-asc' | 'name-desc' | 'newest';
@@ -104,8 +108,12 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
   onUpdateCustomer,
   onDeleteCustomer,
   showAlert,
+  onSearchCustomers,
+  onGetCustomerSuggestions,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
+  const [suggestions, setSuggestions] = useState<any[] | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('name-asc');
 
   // Paginated remote customers state
@@ -203,46 +211,78 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
     [onFetchPaginatedCustomers, customerPage, searchQuery, sortOption]
   );
 
+  // Fetch customer suggestions via pg_trgm backend route
   useEffect(() => {
-    if (!visible || !onFetchPaginatedCustomers) return;
+    let isCancelled = false;
+    if (debouncedSearch && onGetCustomerSuggestions) {
+      onGetCustomerSuggestions(debouncedSearch)
+        .then((res) => {
+          const list = Array.isArray(res) ? res : (res as any)?.suggestions;
+          if (!isCancelled && Array.isArray(list)) setSuggestions(list);
+        })
+        .catch(() => {
+          if (!isCancelled) setSuggestions(null);
+        });
+    } else {
+      setSuggestions(null);
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [debouncedSearch, onGetCustomerSuggestions]);
+
+  // Fetch customers from backend (search or paginated route)
+  useEffect(() => {
+    if (!visible) return;
 
     let isCancelled = false;
-    const timer = setTimeout(async () => {
+    const fetchCustomers = async () => {
       try {
         setIsLoadingPaginated(true);
-        const mappedSort =
-          sortOption === 'newest'
-            ? 'createdAt-desc'
-            : sortOption === 'name-desc'
-            ? 'name-desc'
-            : 'name-asc';
+        if (debouncedSearch && onSearchCustomers) {
+          // Backend search route for customers
+          const res = await onSearchCustomers(debouncedSearch);
+          const items = Array.isArray(res) ? res : (res as any)?.items;
+          if (!isCancelled && Array.isArray(items)) {
+            setRemoteCustomers(items);
+            setCustomerTotalPages(1);
+            setCustomerTotalCount((res as any)?.total ?? items.length);
+          }
+        } else if (onFetchPaginatedCustomers) {
+          const mappedSort =
+            sortOption === 'newest'
+              ? 'createdAt-desc'
+              : sortOption === 'name-desc'
+              ? 'name-desc'
+              : 'name-asc';
 
-        const res = await onFetchPaginatedCustomers({
-          page: customerPage,
-          limit: 10,
-          search: searchQuery.trim() || undefined,
-          sortBy: mappedSort,
-        });
+          const res = await onFetchPaginatedCustomers({
+            page: customerPage,
+            limit: 10,
+            search: debouncedSearch || undefined,
+            sortBy: mappedSort,
+          });
 
-        if (!isCancelled && res) {
-          setRemoteCustomers(res.items || []);
-          setCustomerTotalPages(res.totalPages || 1);
-          setCustomerTotalCount(res.total ?? 0);
+          if (!isCancelled && res) {
+            setRemoteCustomers(res.items || []);
+            setCustomerTotalPages(res.totalPages || 1);
+            setCustomerTotalCount(res.total ?? 0);
+          }
         }
       } catch (err) {
-        console.error('[CustomerManagerModal] Error fetching paginated customers:', err);
+        console.error('[CustomerManagerModal] Error fetching customers:', err);
       } finally {
         if (!isCancelled) {
           setIsLoadingPaginated(false);
         }
       }
-    }, searchQuery ? 250 : 0);
+    };
 
+    fetchCustomers();
     return () => {
       isCancelled = true;
-      clearTimeout(timer);
     };
-  }, [visible, customerPage, sortOption, searchQuery, onFetchPaginatedCustomers]);
+  }, [visible, customerPage, sortOption, debouncedSearch, onSearchCustomers, onFetchPaginatedCustomers]);
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
@@ -328,17 +368,20 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
 
   // Filter & Sort customers on frontend directory
   const filteredCustomers = useMemo(() => {
-    if (onFetchPaginatedCustomers && remoteCustomers !== null) {
+    if (remoteCustomers !== null) {
       return remoteCustomers;
     }
     let list = [...customers];
 
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
+      const cleanDigits = q.replace(/\D/g, '');
+      const isPhoneSearch = cleanDigits.length >= 10;
       list = list.filter(
         c =>
           c.name.toLowerCase().includes(q) ||
           c.phoneNumber.toLowerCase().includes(q) ||
+          (isPhoneSearch && (c.phoneNumber || '').replace(/\D/g, '') === cleanDigits) ||
           (c.email && c.email.toLowerCase().includes(q)) ||
           (c.address && c.address.toLowerCase().includes(q))
       );
@@ -484,6 +527,26 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Backend pg_trgm Customer Suggestions */}
+              {debouncedSearch.length > 0 && suggestions && suggestions.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 8, maxHeight: 30 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={11} color="#FF5E36" />
+                    {suggestions.slice(0, 5).map((item, idx) => (
+                      <TouchableOpacity
+                        key={`cust-sug-${item.id || idx}`}
+                        onPress={() => handleSearchChange(item.name || item.phoneNumber || '')}
+                        style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                      >
+                        <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
+                          {item.name} {item.phoneNumber ? `(${item.phoneNumber})` : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
 
               {/* Sort Filter Tabs */}
               <View style={styles.sortRow}>

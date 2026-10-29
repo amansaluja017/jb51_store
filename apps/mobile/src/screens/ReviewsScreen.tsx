@@ -16,12 +16,13 @@ import {
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Clock } from 'lucide-react-native';
+import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Clock, Sparkles } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, Controller } from 'react-hook-form';
 import { ReviewsSkeleton } from '../components/SkeletonLoader';
 import { Review } from '../types';
 import { uploadProductImage } from '../services/api';
+import { useDebounce } from '../hooks/useDebounce';
 import styles from './ReviewsScreen.styles';
 
 export interface ReviewFormValues {
@@ -47,6 +48,8 @@ interface ReviewsScreenProps {
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
   token?: string | null;
   apiHost?: string;
+  onSearchReviews?: (query: string) => Promise<any>;
+  onGetReviewSuggestions?: (query: string) => Promise<any>;
 }
 
 const uploadMediaAsset = async (localUri: string, options?: { token?: string | null; apiHost?: string }): Promise<string> => {
@@ -73,13 +76,56 @@ export default function ReviewsScreen({
   showAlert,
   token,
   apiHost,
+  onSearchReviews,
+  onGetReviewSuggestions,
 }: ReviewsScreenProps) {
   const [formVisible, setFormVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
+  const [remoteReviews, setRemoteReviews] = useState<Review[] | null>(null);
+  const [suggestions, setSuggestions] = useState<any[] | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'approved' | 'pending'>('all');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const reviewScrollRef = useRef<ScrollView>(null);
   const fieldOffsets = useRef<{ [key: string]: number }>({});
+
+  // Backend suggestions via pg_trgm
+  useEffect(() => {
+    let isCancelled = false;
+    if (debouncedSearch && onGetReviewSuggestions) {
+      onGetReviewSuggestions(debouncedSearch)
+        .then((res) => {
+          if (!isCancelled && Array.isArray(res)) setSuggestions(res);
+        })
+        .catch(() => {
+          if (!isCancelled) setSuggestions(null);
+        });
+    } else {
+      setSuggestions(null);
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [debouncedSearch, onGetReviewSuggestions]);
+
+  // Backend search via ILIKE (no local in-memory filtering)
+  useEffect(() => {
+    let isCancelled = false;
+    if (debouncedSearch && onSearchReviews) {
+      onSearchReviews(debouncedSearch)
+        .then((res) => {
+          if (!isCancelled && Array.isArray(res)) setRemoteReviews(res);
+        })
+        .catch(() => {
+          if (!isCancelled) setRemoteReviews([]);
+        });
+    } else {
+      setRemoteReviews(null);
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [debouncedSearch, onSearchReviews]);
 
   const handleFieldFocus = (key: string) => {
     setTimeout(() => {
@@ -164,27 +210,17 @@ export default function ReviewsScreen({
   const approvedCount = useMemo(() => reviews.filter(r => r.approved).length, [reviews]);
   const pendingCount = useMemo(() => reviews.filter(r => !r.approved).length, [reviews]);
 
-  // Filter reviews by activeFilter, search query across name, message, location, and instagramId
+  // Filter reviews by activeFilter, using remote backend search if debouncedSearch is active
   const filteredReviews = useMemo(() => {
-    return reviews.filter(rev => {
+    const baseList = remoteReviews !== null ? remoteReviews : reviews;
+    return baseList.filter(rev => {
       const matchesFilter =
         activeFilter === 'all' ||
         (activeFilter === 'approved' && rev.approved) ||
         (activeFilter === 'pending' && !rev.approved);
-      if (!matchesFilter) return false;
-
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-
-      return (
-        rev.name.toLowerCase().includes(q) ||
-        rev.message.toLowerCase().includes(q) ||
-        (rev.location && rev.location.toLowerCase().includes(q)) ||
-        (rev.phone && rev.phone.toLowerCase().includes(q)) ||
-        (rev.instagramId && rev.instagramId.toLowerCase().includes(q))
-      );
+      return matchesFilter;
     });
-  }, [reviews, searchQuery, activeFilter]);
+  }, [reviews, remoteReviews, activeFilter]);
 
   const onFormSubmit = async (data: ReviewFormValues) => {
     let uploadedImageUrl: string | null = null;
@@ -246,6 +282,27 @@ export default function ReviewsScreen({
           <Text style={styles.addButtonText}>Add Review</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Backend pg_trgm Review Suggestions */}
+      {debouncedSearch.length > 0 && suggestions && suggestions.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 8, maxHeight: 30 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={11} color="#FF5E36" />
+            {suggestions.slice(0, 5).map((item, idx) => (
+              <TouchableOpacity
+                key={`rev-sug-${item.id || idx}`}
+                onPress={() => setSearchQuery(item.customerName || item.review || '')}
+                style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+              >
+                <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
+                  {item.customerName ? `${item.customerName}: ` : ''}
+                  {item.review ? (item.review.length > 25 ? `${item.review.slice(0, 25)}...` : item.review) : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      )}
 
       {/* Filter Tabs Chips */}
       <View style={styles.filterTabsRow}>

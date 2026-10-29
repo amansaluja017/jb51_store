@@ -34,9 +34,11 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react-native';
 import { Credit, CreditMetrics, CreditTransaction } from '../types';
 import { formatDateSafe, formatDateToYMD } from '../utils/date';
+import { useDebounce } from '../hooks/useDebounce';
 
 export interface CreditManagerModalProps {
   visible: boolean;
@@ -75,6 +77,7 @@ export interface CreditManagerModalProps {
     type: 'info' | 'success' | 'error' | 'confirm',
     onConfirm?: () => void
   ) => void;
+  onSearchCredits?: (query: string) => Promise<any>;
 }
 
 type FilterTab = 'all' | 'pending' | 'overdue' | 'settled';
@@ -92,8 +95,10 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
   onDeleteCredit,
   onFetchPaginatedCredits,
   showAlert,
-}) => {
+  onSearchCredits,
+}: CreditManagerModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
 
   // Paginated remote credits state
@@ -140,42 +145,59 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
     [onFetchPaginatedCredits, creditPage, filterTab, searchQuery]
   );
 
-  // Fetch paginated credits from backend with debounce on search
+
+  // Fetch credits from backend (search or paginated route)
   useEffect(() => {
-    if (!visible || !onFetchPaginatedCredits) return;
+    if (!visible) return;
 
     let isCancelled = false;
-    const timer = setTimeout(async () => {
+    const fetchCredits = async () => {
       try {
         setIsLoadingRemoteCredits(true);
-        const res = await onFetchPaginatedCredits({
-          page: creditPage,
-          limit: 10,
-          search: searchQuery.trim() || undefined,
-          filterTab: filterTab,
-        });
-        if (!isCancelled && res) {
-          setRemoteCredits(res.items || []);
-          setCreditTotalPages(res.totalPages || 1);
-          setCreditTotalCount(res.total ?? res.totalCount ?? 0);
-          if (res.metrics) {
-            setRemoteMetrics(res.metrics as CreditMetrics);
+        if (debouncedSearch && onSearchCredits) {
+          // Backend search route for credits
+          const res = await onSearchCredits(debouncedSearch);
+          const items = Array.isArray(res) ? res : (res as any)?.items;
+          if (!isCancelled && Array.isArray(items)) {
+            setRemoteCredits(items);
+            setCreditTotalPages(1);
+            setCreditTotalCount((res as any)?.total ?? items.length);
+            if ((res as any)?.metrics) {
+              setRemoteMetrics((res as any).metrics as CreditMetrics);
+            }
           }
+        } else if (onFetchPaginatedCredits) {
+          const res = await onFetchPaginatedCredits({
+            page: creditPage,
+            limit: 10,
+            search: debouncedSearch || undefined,
+            filterTab: filterTab,
+          });
+          if (!isCancelled && res) {
+            setRemoteCredits(res.items || []);
+            setCreditTotalPages(res.totalPages || 1);
+            setCreditTotalCount(res.total ?? res.totalCount ?? 0);
+            if (res.metrics) {
+              setRemoteMetrics(res.metrics as CreditMetrics);
+            }
+          }
+        } else {
+          setRemoteCredits(null);
         }
       } catch (err) {
-        console.error('[fetchPaginatedCredits] Error:', err);
+        console.error('[fetchCredits] Error:', err);
       } finally {
         if (!isCancelled) {
           setIsLoadingRemoteCredits(false);
         }
       }
-    }, searchQuery ? 250 : 0);
+    };
 
+    fetchCredits();
     return () => {
       isCancelled = true;
-      clearTimeout(timer);
     };
-  }, [visible, creditPage, filterTab, searchQuery, onFetchPaginatedCredits]);
+  }, [visible, creditPage, filterTab, debouncedSearch, onSearchCredits, onFetchPaginatedCredits]);
 
   const handleSearchChange = (q: string) => {
     setSearchQuery(q);
@@ -302,10 +324,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
 
   // Filter credits
   const filteredCredits = useMemo(() => {
-    if (remoteCredits !== null) {
-      return remoteCredits;
-    }
-    let list = [...credits];
+    let list = remoteCredits !== null ? [...remoteCredits] : [...credits];
 
     // Filter by tab
     const now = Date.now();
@@ -322,16 +341,32 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
       list = list.filter(c => Number(c.dueAmount) <= 0);
     }
 
-    // Search query
-    if (searchQuery.trim()) {
+    // Apply local search filtering when remoteCredits is null (e.g. offline/fallback)
+    if (remoteCredits === null && searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      list = list.filter(
-        c =>
-          (c.customerName && c.customerName.toLowerCase().includes(q)) ||
-          (c.customerPhone && c.customerPhone.toLowerCase().includes(q)) ||
-          (c.orderNumber && c.orderNumber.toLowerCase().includes(q)) ||
-          (c.invoiceNumber && c.invoiceNumber.toLowerCase().includes(q))
-      );
+      const cleanDigits = q.replace(/\D/g, '');
+      const isPhoneSearch = cleanDigits.length >= 10;
+      list = list.filter(c => {
+        const cName = (c.customerName || '').toLowerCase();
+        const cPhone = (c.customerPhone || '').toLowerCase();
+        const cleanPhoneDigits = (c.customerPhone || '').replace(/\D/g, '');
+        const ordNum = (c.orderNumber || '').toLowerCase();
+        const invNum = (c.invoiceNumber || '').toLowerCase();
+        const id = (c.id || '').toLowerCase();
+        const orderId = (c.orderId || '').toLowerCase();
+        const invoiceId = (c.invoiceId || '').toLowerCase();
+
+        return (
+          id === q ||
+          orderId === q ||
+          invoiceId === q ||
+          cName.includes(q) ||
+          cPhone === q ||
+          (isPhoneSearch && cleanPhoneDigits === cleanDigits) ||
+          ordNum === q ||
+          invNum === q
+        );
+      });
     }
 
     return list;
@@ -434,6 +469,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
               </TouchableOpacity>
             )}
           </View>
+
 
           {/* Filter Pills */}
           <ScrollView

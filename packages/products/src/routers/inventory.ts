@@ -4,6 +4,8 @@ import {
   recordInventoryTransaction,
   getInventoryTransactions,
   getPaginatedInventory,
+  searchInventory,
+  getInventorySuggestions,
   updateInventory,
 } from '../inventory.js';
 
@@ -78,6 +80,35 @@ export const inventoryRouter = router({
     )
     .query(async ({ input }) => {
       return await getPaginatedInventory(input || undefined);
+    }),
+
+  search: publicProcedure
+    .meta({ description: 'Fast search inventory items with metrics using ilike' })
+    .input(
+      z
+        .object({
+          query: z.string().nullish(),
+          category: z.string().nullish(),
+          stockFilter: z.enum(['all', 'inStock', 'outOfStock', 'lowStock', 'reserved']).nullish(),
+          sortBy: z.enum(['default', 'name-asc', 'name-desc', 'stock-asc', 'stock-desc']).nullish(),
+          limit: z.number().int().positive().nullish().default(20),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await searchInventory(input || undefined);
+    }),
+
+  suggestions: publicProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for inventory items using pg_trgm' })
+    .input(
+      z.object({
+        query: z.string().nullish(),
+        limit: z.number().int().positive().nullish().default(8),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getInventorySuggestions(input.query || '', input.limit || 8);
     }),
 
   update: adminProcedure

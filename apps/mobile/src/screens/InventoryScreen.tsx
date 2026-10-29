@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Text,
   View,
@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Package,
   CheckCircle2,
@@ -34,6 +35,7 @@ import {
   ChevronUp,
   ArrowUpDown,
   History,
+  Sparkles,
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
 import { Product, Variant, InventoryTransaction, isProductInStock } from '../types';
@@ -73,6 +75,14 @@ interface InventoryScreenProps {
     page?: number;
     limit?: number;
   }) => Promise<any>;
+  onSearchInventory?: (params: {
+    query?: string;
+    category?: string;
+    stockFilter?: any;
+    sortBy?: any;
+    limit?: number;
+  }) => Promise<any>;
+  onGetInventorySuggestions?: (query: string) => Promise<any>;
 }
 
 type StockFilter = 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
@@ -118,6 +128,8 @@ export default function InventoryScreen({
   onViewProductDetails,
   showAlert: _showAlert,
   onFetchPaginatedStock,
+  onSearchInventory,
+  onGetInventorySuggestions,
 }: InventoryScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const keyboardHeight = useKeyboardHeight();
@@ -147,13 +159,95 @@ export default function InventoryScreen({
   const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
 
+  // Debounced search (250ms) to prevent excessive backend queries
+  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
+  const [suggestions, setSuggestions] = useState<any[] | null>(null);
+
   // History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   // Reset page to 1 whenever search, filter, category or sort changes
   React.useEffect(() => {
     setPage(1);
-  }, [searchQuery, activeFilter, selectedCategory, sortBy]);
+  }, [debouncedSearch, activeFilter, selectedCategory, sortBy]);
+
+  // Fetch Inventory suggestions via backend pg_trgm route
+  useEffect(() => {
+    let isMounted = true;
+    if (debouncedSearch && onGetInventorySuggestions) {
+      onGetInventorySuggestions(debouncedSearch)
+        .then((res) => {
+          if (isMounted && Array.isArray(res)) {
+            setSuggestions(res);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setSuggestions(null);
+        });
+    } else {
+      setSuggestions(null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, onGetInventorySuggestions]);
+
+  // Hit backend ILIKE search route for inventory or paginated route
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStock = async () => {
+      setIsFetchingRemote(true);
+      try {
+        if (debouncedSearch && onSearchInventory) {
+          const res = await onSearchInventory({
+            query: debouncedSearch,
+            category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            stockFilter: activeFilter,
+            sortBy: sortBy === 'stockAsc' ? 'stock-asc' : sortBy === 'stockDesc' ? 'stock-desc' : 'default',
+            limit: PAGE_SIZE,
+          });
+          if (isMounted && res) {
+            const items = res.items || [];
+            const total = res.total ?? items.length;
+            setRemoteStockData({
+              items,
+              total,
+              totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+              page,
+              metrics: res.metrics,
+            });
+          }
+        } else if (onFetchPaginatedStock) {
+          const res = await onFetchPaginatedStock({
+            search: debouncedSearch || undefined,
+            category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            stockFilter: activeFilter,
+            sortBy: sortBy === 'stockAsc' ? 'stock-asc' : sortBy === 'stockDesc' ? 'stock-desc' : 'default',
+            page,
+            limit: PAGE_SIZE,
+          });
+          if (isMounted && res) {
+            setRemoteStockData({
+              items: res.items || [],
+              total: res.total || 0,
+              totalPages: res.totalPages || Math.max(1, Math.ceil((res.total || 0) / PAGE_SIZE)),
+              page: res.page || page,
+              metrics: res.metrics,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[InventoryScreen fetch error]:', err);
+      } finally {
+        if (isMounted) setIsFetchingRemote(false);
+      }
+    };
+
+    fetchStock();
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, activeFilter, selectedCategory, sortBy, page, refreshKey, onSearchInventory, onFetchPaginatedStock]);
 
   // Local pending variant stock edits: { [productSlug]: Variant[] }
   const [pendingStockEdits, setPendingStockEdits] = useState<Record<string, Variant[]>>({});
@@ -570,6 +664,26 @@ export default function InventoryScreen({
               )}
             </TouchableOpacity>
           </View>
+
+          {/* Backend pg_trgm Inventory Suggestions */}
+          {debouncedSearch.length > 0 && suggestions && suggestions.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 4, maxHeight: 30 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={11} color="#FF5E36" />
+                {suggestions.slice(0, 5).map((item, idx) => (
+                  <TouchableOpacity
+                    key={`inv-sug-${item.id || idx}`}
+                    onPress={() => setSearchQuery(item.name)}
+                    style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                  >
+                    <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
+                      {item.name} {item.color ? `(${item.color})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          )}
 
           {/* Category Pill Scroll */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>

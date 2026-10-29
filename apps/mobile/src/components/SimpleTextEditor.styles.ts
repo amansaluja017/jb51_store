@@ -14,6 +14,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexWrap: 'wrap',
+    flex: 1,
+    marginRight: 8,
   },
   fieldLabel: {
     fontSize: 12,
@@ -41,21 +44,85 @@ export const styles = StyleSheet.create({
     backgroundColor: '#fff7f5',
     borderWidth: 1,
     borderColor: '#ffd8d0',
-    paddingVertical: 3.5,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     borderRadius: 8,
+    gap: 4,
   },
   openEditorBtnText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FF5E36',
   },
+
+  /* Inline Quick Action Toolbar */
+  inlineToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  inlineToolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  inlineToolBtnActive: {
+    backgroundColor: '#fff1ee',
+    borderColor: '#ffddce',
+  },
+  inlineToolBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  inlineToolBtnTextActive: {
+    color: '#FF5E36',
+  },
+  templateChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fff1ee',
+    borderWidth: 1,
+    borderColor: '#ffd8d0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 'auto',
+  },
+  templateChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF5E36',
+  },
+
+  /* Resizable Text Box */
   editorBox: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e4e4e7',
     overflow: 'hidden',
+  },
+  editorBoxWithInlineToolbar: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   textInput: {
     paddingHorizontal: 12,
@@ -74,10 +141,10 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* -------------------- SAFE AREA MODAL STYLES -------------------- */
+  /* -------------------- FULL EDITOR STUDIO MODAL -------------------- */
   modalRoot: {
     flex: 1,
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#f8fafc',
   },
   modalHeaderBar: {
     flexDirection: 'row',
@@ -85,15 +152,15 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderColor: '#e4e4e7',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   modalCloseBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -104,21 +171,26 @@ export const styles = StyleSheet.create({
   },
   modalHeaderTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#09090b',
+    fontWeight: '800',
+    color: '#0f172a',
   },
   modalHeaderSubtitle: {
     fontSize: 11,
-    color: '#71717a',
+    color: '#64748b',
     marginTop: 1,
   },
   modalApplyHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FF5E36',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 9,
+    shadowColor: '#FF5E36',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   modalApplyHeaderBtnText: {
     fontSize: 12,
@@ -126,13 +198,50 @@ export const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* Editor View Container */
+  /* Mode Segmented Bar: [Write] vs [Live Preview] */
+  segmentedBar: {
+    flexDirection: 'row',
+    backgroundColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 3,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  segmentTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 8,
+    gap: 6,
+  },
+  segmentTabActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  segmentTabTextActive: {
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+
+  /* Editor Workspace Container */
   editorViewContainer: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 4,
   },
 
   /* Formatting Tools Bar */
@@ -140,13 +249,13 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e4e4e7',
-    paddingVertical: 7,
+    borderColor: '#e2e8f0',
+    paddingVertical: 6,
     paddingHorizontal: 6,
-    marginBottom: 10,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.03,
     shadowRadius: 2,
     elevation: 1,
   },
@@ -159,12 +268,16 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e4e4e7',
+    borderColor: '#e2e8f0',
     borderRadius: 8,
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
+  },
+  formatToolBtnHighlight: {
+    backgroundColor: '#fff1ee',
+    borderColor: '#ffddce',
   },
   formatToolBtnClear: {
     backgroundColor: '#fafafa',
@@ -172,19 +285,63 @@ export const styles = StyleSheet.create({
   formatToolBtnText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#09090b',
+    color: '#0f172a',
   },
 
-  /* Main Text Input Area */
+  /* Template Suggestions Drawer / Tray */
+  templateDrawer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffddce',
+    padding: 10,
+    marginBottom: 8,
+  },
+  templateDrawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  templateDrawerTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF5E36',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  templateScroll: {
+    gap: 8,
+  },
+  templateCard: {
+    backgroundColor: '#fff7f5',
+    borderWidth: 1,
+    borderColor: '#ffd8d0',
+    borderRadius: 9,
+    padding: 10,
+    maxWidth: 240,
+  },
+  templateCardTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 3,
+  },
+  templateCardText: {
+    fontSize: 10,
+    color: '#475569',
+    lineHeight: 14,
+  },
+
+  /* Main Text Input Area in Write Mode */
   textInputWrapper: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e4e4e7',
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
-    minHeight: 160,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   textInputTopBar: {
     flexDirection: 'row',
@@ -192,80 +349,108 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
-    borderColor: '#f4f4f5',
+    borderColor: '#f1f5f9',
   },
   textInputTopHint: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#71717a',
+    color: '#64748b',
     letterSpacing: 0.2,
   },
   charCounterText: {
     fontSize: 10,
-    color: '#a1a1aa',
+    color: '#94a3b8',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   modalTextInput: {
     flex: 1,
     fontSize: 14,
-    color: '#09090b',
+    color: '#0f172a',
     lineHeight: 22,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingTop: 12,
-    paddingBottom: 12,
+    paddingBottom: 14,
   },
 
-  /* Live Preview Section */
-  previewContainer: {
+  /* Standalone Full Live Preview Mode */
+  fullPreviewContainer: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e4e4e7',
-    padding: 10,
-    maxHeight: 140,
+    borderColor: '#e2e8f0',
+    padding: 16,
     marginBottom: 10,
   },
-  previewHeader: {
+  fullPreviewScroll: {
+    flex: 1,
+  },
+  fullPreviewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 6,
+    paddingBottom: 8,
     borderBottomWidth: 1,
-    borderColor: '#f4f4f5',
-    marginBottom: 6,
+    borderColor: '#f1f5f9',
+    marginBottom: 12,
   },
-  previewHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  previewTitle: {
-    fontSize: 10,
-    fontWeight: '700',
+  fullPreviewTitle: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#FF5E36',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  previewSubtitle: {
-    fontSize: 10,
-    color: '#a1a1aa',
-  },
-  previewScroll: {
-    maxHeight: 90,
-  },
-  previewScrollContent: {
-    paddingVertical: 2,
+  fullPreviewHint: {
+    fontSize: 11,
+    color: '#94a3b8',
   },
   previewEmptyText: {
-    fontSize: 12,
-    color: '#a1a1aa',
+    fontSize: 13,
+    color: '#94a3b8',
     fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 40,
+  },
+
+  /* Keyboard Accessory Bar inside modal */
+  modalKeyboardBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  modalKeyboardBarHint: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  modalKeyboardDoneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 7,
+  },
+  modalKeyboardDoneBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 
   /* Bottom Primary Button */
   bottomBarContainer: {
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   modalApplyPrimaryBtn: {
     flexDirection: 'row',
@@ -273,7 +458,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FF5E36',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 13,
     shadowColor: '#FF5E36',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -281,7 +466,7 @@ export const styles = StyleSheet.create({
     elevation: 3,
   },
   modalApplyPrimaryBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
   },

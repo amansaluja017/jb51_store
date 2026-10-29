@@ -10,7 +10,7 @@ import {
   creditTransactions as creditTransactionsTable,
   InvoiceItem,
 } from '@repo/db';
-import { desc, eq, or, and, isNotNull, inArray } from 'drizzle-orm';
+import { desc, eq, or, and, isNotNull, inArray, ilike, sql } from 'drizzle-orm';
 
 export interface CreateInvoiceInput {
   invoiceNumber?: string;
@@ -288,9 +288,9 @@ export async function getInvoices() {
       .where(
         creditIds.length > 0
           ? or(
-              inArray(creditTransactionsTable.creditId, creditIds),
-              inArray(creditTransactionsTable.invoiceId, invoiceIds)
-            )
+            inArray(creditTransactionsTable.creditId, creditIds),
+            inArray(creditTransactionsTable.invoiceId, invoiceIds)
+          )
           : inArray(creditTransactionsTable.invoiceId, invoiceIds)
       )
       .orderBy(desc(creditTransactionsTable.createdAt));
@@ -477,9 +477,9 @@ export async function updateInvoice(input: UpdateInvoiceInput) {
               .where(
                 oldIt.productVariantId
                   ? and(
-                      eq(inventryTable.productId, oldIt.productId),
-                      eq(inventryTable.productVariant, oldIt.productVariantId)
-                    )
+                    eq(inventryTable.productId, oldIt.productId),
+                    eq(inventryTable.productVariant, oldIt.productVariantId)
+                  )
                   : eq(inventryTable.productId, oldIt.productId)
               );
             if (invRows.length > 0) {
@@ -508,9 +508,9 @@ export async function updateInvoice(input: UpdateInvoiceInput) {
               .where(
                 newIt.productVariantId
                   ? and(
-                      eq(inventryTable.productId, newIt.productId),
-                      eq(inventryTable.productVariant, newIt.productVariantId)
-                    )
+                    eq(inventryTable.productId, newIt.productId),
+                    eq(inventryTable.productVariant, newIt.productVariantId)
+                  )
                   : eq(inventryTable.productId, newIt.productId)
               );
             if (invRows.length > 0) {
@@ -669,19 +669,35 @@ export async function getPaginatedInvoices(input?: GetPaginatedInvoicesInput) {
   let all = await getInvoices();
 
   if (search) {
+    const searchLower = search.toLowerCase();
+    const cleanDigits = search.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
+
     all = all.filter((inv) => {
-      const invNum = (inv.invoiceNumber || inv.id || '').toLowerCase();
-      const custName = (inv.customerName || '').toLowerCase();
-      const phone = (inv.phoneNumber || '').toLowerCase();
-      const email = (inv.email || '').toLowerCase();
-      const orderNum = (inv.orderNumber || '').toLowerCase();
-      return (
-        invNum.includes(search) ||
-        custName.includes(search) ||
-        phone.includes(search) ||
-        email.includes(search) ||
-        orderNum.includes(search)
-      );
+      const invNum = (inv.invoiceNumber || '').toLowerCase();
+      const invId = (inv.id || '').toLowerCase();
+      const orderNum = ((inv as any).orderNumber || '').toLowerCase();
+      const orderId = (inv.orderId || '').toLowerCase();
+      const custName = (inv.customerName || (inv as any).custName || '').toLowerCase();
+      const phone = (inv.phoneNumber || (inv as any).custPhone || '').trim();
+      const cleanPhoneDigits = phone.replace(/\D/g, '');
+
+      // Exact match for invoice number / ID or order number / ID
+      const idOrNumberMatch =
+        invNum === searchLower ||
+        invId === searchLower ||
+        orderNum === searchLower ||
+        orderId === searchLower;
+
+      // Exact match for phone number (no substring/ilike)
+      const phoneMatch =
+        phone.toLowerCase() === searchLower ||
+        (isPhoneSearch && cleanPhoneDigits.length >= 10 && cleanPhoneDigits === cleanDigits);
+
+      // Customer name uses substring (ilike)
+      const nameMatch = custName.includes(searchLower);
+
+      return idOrNumberMatch || phoneMatch || nameMatch;
     });
   }
 
@@ -731,3 +747,90 @@ export async function getPaginatedInvoices(input?: GetPaginatedInvoicesInput) {
     cashCollected,
   };
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface SearchInvoicesInput {
+  query?: string | null;
+  mode?: 'all' | 'cash' | 'online' | 'credit' | null;
+  limit?: number | null;
+}
+
+export async function searchInvoices(input?: SearchInvoicesInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    try {
+      const searchLower = query.toLowerCase();
+      const cleanDigits = query.replace(/\D/g, '');
+      const isPhoneSearch = cleanDigits.length >= 10;
+
+      const conditions = [
+        // Exact invoice number (case-insensitive exact match)
+        eq(sql`lower(${invoicesTable.invoiceNumber})`, searchLower),
+        // Exact order number (joined from ordersTable)
+        eq(sql`lower(${ordersTable.orderNumber})`, searchLower),
+        // Exact phone number
+        eq(invoicesTable.phoneNumber, query),
+        eq(customerDetailsTable.phoneNumber, query),
+        // Customer name uses ilike
+        ilike(invoicesTable.customerName, `%${query}%`),
+        ilike(customerDetailsTable.name, `%${query}%`),
+      ];
+
+      if (UUID_REGEX.test(query)) {
+        conditions.push(eq(invoicesTable.id, query));
+        conditions.push(eq(invoicesTable.orderId, query));
+      }
+
+      if (isPhoneSearch) {
+        conditions.push(sql`regexp_replace(${invoicesTable.phoneNumber}, '[^0-9]', '', 'g') = ${cleanDigits}`);
+        conditions.push(sql`regexp_replace(${customerDetailsTable.phoneNumber}, '[^0-9]', '', 'g') = ${cleanDigits}`);
+      }
+
+      const dbMatched = await db
+        .select({ id: invoicesTable.id })
+        .from(invoicesTable)
+        .leftJoin(ordersTable, eq(invoicesTable.orderId, ordersTable.id))
+        .leftJoin(customerDetailsTable, eq(invoicesTable.customerId, customerDetailsTable.id))
+        .where(or(...conditions))
+        .limit(limit);
+
+      const matchedIds = new Set(dbMatched.map((inv) => inv.id));
+      const all = await getInvoices();
+      let matched = all.filter((inv) => matchedIds.has(inv.id));
+
+      if (input?.mode && input.mode !== 'all') {
+        matched = matched.filter((inv) => (inv.mode || '').toLowerCase() === input.mode!.toLowerCase());
+      }
+
+      return {
+        items: matched.slice(0, limit),
+        total: matched.length,
+        totalCollected: matched.reduce((sum, inv) => sum + (Number(inv.finalAmount ?? inv.totalAmount ?? 0) || 0), 0),
+        cashCollected: matched.reduce((sum, inv) => {
+          return (inv.mode || '').toLowerCase() === 'cash' ? sum + (Number(inv.finalAmount ?? inv.totalAmount ?? 0) || 0) : sum;
+        }, 0),
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchInvoices DB notice]:', err);
+    }
+  }
+
+  const result = await getPaginatedInvoices({
+    search: query,
+    mode: input?.mode,
+    page: 1,
+    limit,
+  });
+  return {
+    items: result.items,
+    total: result.total,
+    totalCollected: result.totalCollected,
+    cashCollected: result.cashCollected,
+    query,
+  };
+}
+

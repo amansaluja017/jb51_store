@@ -3,7 +3,7 @@ import {
   customerDetails as customerDetailsTable,
   user as userTable,
 } from '@repo/db';
-import { desc, eq, and } from 'drizzle-orm';
+import { desc, eq, and, or, ilike, sql } from 'drizzle-orm';
 
 export function generateSlug(name: string): string {
   return name
@@ -137,14 +137,20 @@ export async function getPaginatedCustomers(input?: GetPaginatedCustomersInput) 
   let all = await getCustomers();
 
   if (search) {
+    const cleanDigits = search.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
     all = all.filter((c) => {
       const name = (c.name || '').toLowerCase();
       const phone = (c.phoneNumber || '').toLowerCase();
+      const cleanPhoneDigits = (c.phoneNumber || '').replace(/\D/g, '');
       const email = (c.email || '').toLowerCase();
       const address = (c.address || '').toLowerCase();
+      const id = (c.id || '').toLowerCase();
       return (
+        id === search ||
         name.includes(search) ||
         phone.includes(search) ||
+        (isPhoneSearch && cleanPhoneDigits === cleanDigits) ||
         email.includes(search) ||
         address.includes(search)
       );
@@ -257,5 +263,131 @@ export async function deleteCustomer(id: string) {
   }
 
   return { success: true, id: deleted.id };
+}
+
+export interface SearchCustomersInput {
+  query?: string | null;
+  limit?: number | null;
+}
+
+export async function searchCustomers(input?: SearchCustomersInput) {
+  const query = (input?.query || '').trim();
+  const limit = Math.max(1, input?.limit || 20);
+
+  if (query) {
+    const pattern = `%${query}%`;
+    const cleanDigits = query.replace(/\D/g, '');
+    const isPhoneSearch = cleanDigits.length >= 10;
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    try {
+      const conditions = [
+        ilike(customerDetailsTable.name, pattern),
+        ilike(customerDetailsTable.phoneNumber, pattern),
+        ilike(customerDetailsTable.email, pattern),
+        ilike(customerDetailsTable.address, pattern),
+      ];
+
+      if (UUID_REGEX.test(query)) {
+        conditions.push(eq(customerDetailsTable.id, query));
+      }
+
+      if (isPhoneSearch) {
+        conditions.push(sql`regexp_replace(${customerDetailsTable.phoneNumber}, '[^0-9]', '', 'g') = ${cleanDigits}`);
+      }
+
+      const rows = await db
+        .select({
+          id: customerDetailsTable.id,
+          userId: customerDetailsTable.userId,
+          name: customerDetailsTable.name,
+          nameSlug: customerDetailsTable.nameSlug,
+          phoneNumber: customerDetailsTable.phoneNumber,
+          email: customerDetailsTable.email,
+          address: customerDetailsTable.address,
+          createdAt: customerDetailsTable.createdAt,
+          updatedAt: customerDetailsTable.updatedAt,
+        })
+        .from(customerDetailsTable)
+        .where(or(...conditions))
+        .orderBy(desc(customerDetailsTable.createdAt))
+        .limit(limit);
+
+      return {
+        items: rows,
+        total: rows.length,
+        query,
+      };
+    } catch (err) {
+      console.warn('[searchCustomers ILIKE DB notice]:', err);
+    }
+  }
+
+  const res = await getPaginatedCustomers({
+    search: query,
+    limit,
+    page: 1,
+  });
+  return {
+    items: res.items,
+    total: res.total,
+    query,
+  };
+}
+
+export interface CustomerSuggestionItem {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  email?: string | null;
+  address?: string | null;
+  similarity?: number;
+}
+
+export async function getCustomerSuggestions(query: string, limit = 8) {
+  const q = (query || '').trim();
+  if (!q) {
+    return { query: '', suggestions: [] };
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: customerDetailsTable.id,
+        name: customerDetailsTable.name,
+        phoneNumber: customerDetailsTable.phoneNumber,
+        email: customerDetailsTable.email,
+        address: customerDetailsTable.address,
+        nameSim: sql<number>`similarity(${customerDetailsTable.name}, ${q})`,
+        wordSim: sql<number>`word_similarity(${q}, ${customerDetailsTable.name})`,
+        phoneSim: sql<number>`word_similarity(${q}, ${customerDetailsTable.phoneNumber})`,
+      })
+      .from(customerDetailsTable)
+      .where(
+        or(
+          sql`similarity(${customerDetailsTable.name}, ${q}) > 0.1`,
+          sql`word_similarity(${q}, ${customerDetailsTable.name}) > 0.15`,
+          sql`word_similarity(${q}, ${customerDetailsTable.phoneNumber}) > 0.15`,
+          sql`word_similarity(${q}, ${customerDetailsTable.email}) > 0.15`
+        )
+      )
+      .orderBy(sql`GREATEST(similarity(${customerDetailsTable.name}, ${q}), word_similarity(${q}, ${customerDetailsTable.name})) DESC`)
+      .limit(limit);
+
+    return {
+      query: q,
+      suggestions: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        phoneNumber: r.phoneNumber,
+        email: r.email,
+        address: r.address,
+        similarity: Math.max(r.nameSim || 0, r.wordSim || 0, r.phoneSim || 0),
+      })),
+    };
+  } catch (err) {
+    console.warn('[getCustomerSuggestions pg_trgm DB notice]:', err);
+    return { query: q, suggestions: [] };
+  }
 }
 
