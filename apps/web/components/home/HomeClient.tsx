@@ -123,13 +123,17 @@ export function HomeClient({ initialConfig }: HomeClientProps) {
       />
 
       {/* 5. Editorial Advertisement Section */}
-      <BespokeBanner config={initialConfig?.adBanner} />
+      {initialConfig?.adBanner?.enabled !== false && (
+        <BespokeBanner config={initialConfig?.adBanner} />
+      )}
 
       {/* 6. Curated Silhouettes Curation tabs */}
       <TrendingGrid products={products} isLoading={isLoadingTrending} />
 
       {/* 7. Interactive Flash Sale Banner Section */}
-      <FlashSale config={initialConfig?.saleSection} />
+      {initialConfig?.saleSection?.enabled !== false && (
+        <FlashSale config={initialConfig?.saleSection} />
+      )}
 
       {/* 8. Best Sellers Grid */}
       <ProductRow 
@@ -145,7 +149,9 @@ export function HomeClient({ initialConfig }: HomeClientProps) {
       <Testimonials />
 
       {/* 8.5 Seasonal Discount Advertisement Section */}
-      <SeasonalPrivilege config={initialConfig?.secondAdBanner} />
+      {initialConfig?.secondAdBanner?.enabled !== false && (
+        <SeasonalPrivilege config={initialConfig?.secondAdBanner} />
+      )}
 
       {/* 9. Frequently Asked Questions */}
       <Faqs items={initialConfig?.faqs} />

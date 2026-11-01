@@ -11,6 +11,10 @@ interface SeasonalPrivilegeProps {
 }
 
 export function SeasonalPrivilege({ config }: SeasonalPrivilegeProps) {
+  if (config?.enabled === false) {
+    return null;
+  }
+
   const tagline = config?.tagline || 'SEASONAL PRIVILEGE';
   const title = config?.title || 'The Festive Couture Edit';
   const subtitle = config?.subtitle || 'Unlock extraordinary savings on signature handcrafted ensembles. Hand-spun silk, intricate zardozi, and heritage loom masterpieces tailored to perfection.';

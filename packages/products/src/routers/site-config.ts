@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { router, publicProcedure, adminProcedure } from './base.js';
 import { getSiteConfig, updateSiteConfig, triggerWebRevalidation } from '../site-config.js';
 
+const maintenanceModeSchema = z.object({
+  enabled: z.boolean().default(false),
+  title: z.string().optional(),
+  message: z.string().optional(),
+  expectedBackTime: z.string().optional(),
+});
+
 const heroSlideSchema = z.object({
   image: z.string().min(1),
   tagline: z.string().default(''),
@@ -18,6 +25,7 @@ const heroSlideSchema = z.object({
 });
 
 const adBannerSchema = z.object({
+  enabled: z.boolean().default(true),
   tagline: z.string().default(''),
   title: z.string().default(''),
   subtitle: z.string().default(''),
@@ -67,6 +75,8 @@ export const siteConfigRouter = router({
     .meta({ description: 'Update web UI configuration and trigger revalidation (Admin only)' })
     .input(
       z.object({
+        maintenanceMode: maintenanceModeSchema.optional(),
+        promotionalHeaderEnabled: z.boolean().optional(),
         promotionalHeader: z.array(z.string()).optional(),
         heroSlides: z.array(heroSlideSchema).optional(),
         adBanner: adBannerSchema.optional(),

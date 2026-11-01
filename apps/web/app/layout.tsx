@@ -14,6 +14,7 @@ import { WishlistProvider } from '@/context/WishlistContext';
 import { TRPCReactProvider } from '@/lib/trpc/client/react';
 import { cn, SITE_URL } from '@/lib/utils';
 import { getCachedSiteConfig } from '@/lib/site-config';
+import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -119,9 +120,11 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const siteConfig = await getCachedSiteConfig();
+  const isMaintenance = siteConfig.maintenanceMode?.enabled === true;
+
   return (
     <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
-      <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
+      <body suppressHydrationWarning className={cn("min-h-screen flex flex-col font-sans", isMaintenance ? "bg-zinc-950 text-white" : "bg-brand-cream text-brand-brown")}>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-ZMV3P7PPRH"
           strategy="afterInteractive"
@@ -159,19 +162,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }),
           }}
         />
-        <TRPCReactProvider>
-          <WishlistProvider>
-            <StoreAnalyticsTracker />
-            <Navbar siteConfig={siteConfig} />
-            <main className="flex-1 flex flex-col">
-              <PageTransition>
-                {children}
-              </PageTransition>
-            </main>
-            <Footer siteConfig={siteConfig} />
-            <Toaster position="bottom-center" />
-          </WishlistProvider>
-        </TRPCReactProvider>
+        {isMaintenance ? (
+          <MaintenanceScreen config={siteConfig.maintenanceMode} contactInfo={siteConfig.contactInfo} />
+        ) : (
+          <TRPCReactProvider>
+            <WishlistProvider>
+              <StoreAnalyticsTracker />
+              <Navbar siteConfig={siteConfig} />
+              <main className="flex-1 flex flex-col">
+                <PageTransition>
+                  {children}
+                </PageTransition>
+              </main>
+              <Footer siteConfig={siteConfig} />
+              <Toaster position="bottom-center" />
+            </WishlistProvider>
+          </TRPCReactProvider>
+        )}
         <Analytics debug={false} />
         <SpeedInsights debug={false} />
       </body>

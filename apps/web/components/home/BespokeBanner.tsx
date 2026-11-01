@@ -22,6 +22,10 @@ const SparkleMotif = () => (
 );
 
 export function BespokeBanner({ config }: BespokeBannerProps) {
+  if (config?.enabled === false) {
+    return null;
+  }
+
   const tagline = config?.tagline || 'JB51 COUTURE';
   const title = config?.title && config.title !== 'The Art of Custom Drape' ? config.title : 'Diwali SALE';
   const subtitle = config?.subtitle && !config.subtitle.startsWith('Experience the pinnacle') ? config.subtitle : '1000+ Pieces Starting at';

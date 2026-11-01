@@ -3,6 +3,7 @@ import {
   getSiteConfig,
   DEFAULT_SITE_CONFIG,
   type SiteConfigData,
+  type MaintenanceModeConfig,
   type HeroSlideItem,
   type AdBannerConfig,
   type SaleSectionConfig,
@@ -12,6 +13,7 @@ import {
 
 export type {
   SiteConfigData,
+  MaintenanceModeConfig,
   HeroSlideItem,
   AdBannerConfig,
   SaleSectionConfig,
@@ -24,6 +26,9 @@ export const getCachedSiteConfig = unstable_cache(
     try {
       const data = await getSiteConfig();
       return {
+        maintenanceMode: data.maintenanceMode || DEFAULT_SITE_CONFIG.maintenanceMode,
+        promotionalHeaderEnabled:
+          data.promotionalHeaderEnabled !== undefined ? data.promotionalHeaderEnabled : true,
         promotionalHeader: data.promotionalHeader || DEFAULT_SITE_CONFIG.promotionalHeader,
         heroSlides: data.heroSlides || DEFAULT_SITE_CONFIG.heroSlides,
         adBanner: data.adBanner || DEFAULT_SITE_CONFIG.adBanner,

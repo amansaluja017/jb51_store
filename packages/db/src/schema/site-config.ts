@@ -1,4 +1,11 @@
-import { pgTable, varchar, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, jsonb, timestamp, boolean } from 'drizzle-orm/pg-core';
+
+export interface MaintenanceModeConfig {
+  enabled: boolean;
+  title?: string;
+  message?: string;
+  expectedBackTime?: string;
+}
 
 export interface HeroSlideItem {
   image: string;
@@ -14,6 +21,7 @@ export interface HeroSlideItem {
 }
 
 export interface AdBannerConfig {
+  enabled?: boolean;
   tagline: string;
   title: string;
   subtitle: string;
@@ -53,6 +61,8 @@ export interface ContactInfoConfig {
 }
 
 export interface SiteConfigData {
+  maintenanceMode?: MaintenanceModeConfig;
+  promotionalHeaderEnabled?: boolean;
   promotionalHeader: string[];
   heroSlides: HeroSlideItem[];
   adBanner: AdBannerConfig;
@@ -64,6 +74,8 @@ export interface SiteConfigData {
 
 export const siteConfigTable = pgTable('site_config', {
   id: varchar('id', { length: 64 }).primaryKey().default('default'),
+  maintenanceMode: jsonb('maintenance_mode').$type<MaintenanceModeConfig>(),
+  promotionalHeaderEnabled: boolean('promotional_header_enabled').default(true),
   promotionalHeader: jsonb('promotional_header').$type<string[]>(),
   heroSlides: jsonb('hero_slides').$type<HeroSlideItem[]>(),
   adBanner: jsonb('ad_banner').$type<AdBannerConfig>(),
@@ -77,3 +89,4 @@ export const siteConfigTable = pgTable('site_config', {
 
 export type SiteConfigRow = typeof siteConfigTable.$inferSelect;
 export type NewSiteConfigRow = typeof siteConfigTable.$inferInsert;
+

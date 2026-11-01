@@ -62,7 +62,7 @@ export interface DeveloperSectionModalProps {
   token: string | null;
 }
 
-type TabType = 'promo' | 'hero' | 'adBanner' | 'secondAdBanner' | 'sale' | 'faqs' | 'contact';
+type TabType = 'maintenance' | 'promo' | 'hero' | 'adBanner' | 'secondAdBanner' | 'sale' | 'faqs' | 'contact';
 
 // ============================================================================
 // REUSABLE IMAGE UPLOAD & PREVIEW COMPONENT (CLOUDINARY CDN INTEGRATION)
@@ -469,6 +469,24 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
             imageUrl: '/assets/discount_ad_banner.jpg',
           };
         }
+        if (!data.maintenanceMode) {
+          data.maintenanceMode = {
+            enabled: false,
+            title: 'We Are Refining Our Collection',
+            message:
+              'Our digital atelier is currently undergoing scheduled enhancements to elevate your shopping experience. We shall reopen shortly.',
+            expectedBackTime: 'Within 2 hours',
+          };
+        }
+        if (data.promotionalHeaderEnabled === undefined) {
+          data.promotionalHeaderEnabled = true;
+        }
+        if (data.adBanner && data.adBanner.enabled === undefined) {
+          data.adBanner.enabled = true;
+        }
+        if (data.secondAdBanner && data.secondAdBanner.enabled === undefined) {
+          data.secondAdBanner.enabled = true;
+        }
         if (data.saleSection) {
           if (data.saleSection.endTime) {
             const diffMs = new Date(data.saleSection.endTime).getTime() - Date.now();
@@ -507,8 +525,13 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
 
   const getSectionPayload = (tab: TabType, currentConfig: MobileSiteConfigData): Partial<MobileSiteConfigData> => {
     switch (tab) {
+      case 'maintenance':
+        return { maintenanceMode: currentConfig.maintenanceMode };
       case 'promo':
-        return { promotionalHeader: currentConfig.promotionalHeader };
+        return {
+          promotionalHeader: currentConfig.promotionalHeader,
+          promotionalHeaderEnabled: currentConfig.promotionalHeaderEnabled !== false,
+        };
       case 'hero':
         return { heroSlides: currentConfig.heroSlides };
       case 'adBanner':
@@ -540,7 +563,8 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
 
   const getTabTitle = (tab: TabType): string => {
     switch (tab) {
-      case 'promo': return 'Promo Header';
+      case 'maintenance': return 'Maintenance Mode';
+      case 'promo': return 'Promo Bar';
       case 'hero': return 'Hero Slider';
       case 'adBanner': return 'Ad Banner 1';
       case 'secondAdBanner': return 'Ad Banner 2';
@@ -555,6 +579,12 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
     if (!initialConfig) return getSectionPayload(activeTab, config);
 
     const payload: Partial<MobileSiteConfigData> = {};
+    if (JSON.stringify(config.maintenanceMode) !== JSON.stringify(initialConfig.maintenanceMode)) {
+      payload.maintenanceMode = config.maintenanceMode;
+    }
+    if (config.promotionalHeaderEnabled !== initialConfig.promotionalHeaderEnabled) {
+      payload.promotionalHeaderEnabled = config.promotionalHeaderEnabled;
+    }
     if (JSON.stringify(config.promotionalHeader) !== JSON.stringify(initialConfig.promotionalHeader)) {
       payload.promotionalHeader = config.promotionalHeader;
     }
@@ -839,6 +869,35 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
             contentContainerStyle={styles.tabsScroll}
           >
             <TouchableOpacity
+              style={[
+                styles.tab,
+                activeTab === 'maintenance' && styles.activeTab,
+                config?.maintenanceMode?.enabled && { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
+              ]}
+              onPress={() => setActiveTab('maintenance')}
+            >
+              <ShieldAlert
+                size={13}
+                color={
+                  activeTab === 'maintenance'
+                    ? '#FF5E36'
+                    : config?.maintenanceMode?.enabled
+                      ? '#ef4444'
+                      : '#71717a'
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === 'maintenance' && styles.activeTabText,
+                  config?.maintenanceMode?.enabled && { color: '#ef4444', fontWeight: '800' },
+                ]}
+              >
+                {config?.maintenanceMode?.enabled ? 'Maintenance (ON)' : 'Maintenance'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.tab, activeTab === 'promo' && styles.activeTab]}
               onPress={() => setActiveTab('promo')}
             >
@@ -941,13 +1000,167 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
+              {/* TAB 0: MAINTENANCE MODE */}
+              {activeTab === 'maintenance' && (
+                <View style={styles.sectionCard}>
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.sectionTitle}>Storefront Maintenance Mode</Text>
+                      <Text style={styles.sectionDesc}>
+                        When enabled, the web storefront displays the luxury maintenance screen and blocks public browsing.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.toggleBtn,
+                        config.maintenanceMode?.enabled ? styles.toggleOff : styles.toggleOn,
+                      ]}
+                      onPress={() =>
+                        setConfig({
+                          ...config,
+                          maintenanceMode: {
+                            ...(config.maintenanceMode || {
+                              title: 'We Are Refining Our Collection',
+                              message:
+                                'Our digital atelier is currently undergoing scheduled enhancements to elevate your shopping experience. We shall reopen shortly.',
+                              expectedBackTime: 'Within 2 hours',
+                            }),
+                            enabled: !config.maintenanceMode?.enabled,
+                          },
+                        })
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          config.maintenanceMode?.enabled ? styles.toggleTextOff : styles.toggleTextOn,
+                        ]}
+                      >
+                        {config.maintenanceMode?.enabled ? 'ACTIVE (BLOCKING)' : 'DISABLED (LIVE)'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Status Banner */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: 12,
+                      borderRadius: 10,
+                      backgroundColor: config.maintenanceMode?.enabled ? '#fef2f2' : '#f0fdf4',
+                      borderWidth: 1,
+                      borderColor: config.maintenanceMode?.enabled ? '#fecaca' : '#bbf7d0',
+                      marginVertical: 12,
+                    }}
+                  >
+                    {config.maintenanceMode?.enabled ? (
+                      <ShieldAlert size={18} color="#dc2626" />
+                    ) : (
+                      <CheckCircle2 size={18} color="#16a34a" />
+                    )}
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: config.maintenanceMode?.enabled ? '#991b1b' : '#166534',
+                      }}
+                    >
+                      {config.maintenanceMode?.enabled
+                        ? 'Storefront is currently DOWN for visitors. Maintenance page with concierge contacts is active.'
+                        : 'Storefront is fully LIVE and open for customers worldwide.'}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.inputLabel}>Maintenance Headline</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. We Are Refining Our Collection"
+                    placeholderTextColor="#a1a1aa"
+                    value={config.maintenanceMode?.title || ''}
+                    onChangeText={(txt) =>
+                      setConfig({
+                        ...config,
+                        maintenanceMode: {
+                          ...(config.maintenanceMode || { enabled: false }),
+                          title: txt,
+                        },
+                      })
+                    }
+                  />
+
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>Maintenance Narrative / Description</Text>
+                  <TextInput
+                    style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+                    placeholder="Our digital atelier is currently undergoing scheduled enhancements to elevate your shopping experience. We shall reopen shortly."
+                    placeholderTextColor="#a1a1aa"
+                    multiline
+                    numberOfLines={3}
+                    value={config.maintenanceMode?.message || ''}
+                    onChangeText={(txt) =>
+                      setConfig({
+                        ...config,
+                        maintenanceMode: {
+                          ...(config.maintenanceMode || { enabled: false }),
+                          message: txt,
+                        },
+                      })
+                    }
+                  />
+
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>Estimated Reopening Time (Optional)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Within 2 hours / Today at 8:00 PM"
+                    placeholderTextColor="#a1a1aa"
+                    value={config.maintenanceMode?.expectedBackTime || ''}
+                    onChangeText={(txt) =>
+                      setConfig({
+                        ...config,
+                        maintenanceMode: {
+                          ...(config.maintenanceMode || { enabled: false }),
+                          expectedBackTime: txt,
+                        },
+                      })
+                    }
+                  />
+                </View>
+              )}
+
               {/* TAB 1: PROMO HEADER */}
               {activeTab === 'promo' && (
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>Promotional Announcement Header</Text>
-                  <Text style={styles.sectionDesc}>
-                    Rotated in the top dark announcement bar across all web pages.
-                  </Text>
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.sectionTitle}>Promotional Announcement Header</Text>
+                      <Text style={styles.sectionDesc}>
+                        Rotated in the top dark announcement bar across all web pages.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.toggleBtn,
+                        config.promotionalHeaderEnabled !== false ? styles.toggleOn : styles.toggleOff,
+                      ]}
+                      onPress={() =>
+                        setConfig({
+                          ...config,
+                          promotionalHeaderEnabled: config.promotionalHeaderEnabled === false ? true : false,
+                        })
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          config.promotionalHeaderEnabled !== false ? styles.toggleTextOn : styles.toggleTextOff,
+                        ]}
+                      >
+                        {config.promotionalHeaderEnabled !== false ? 'ACTIVE' : 'DISABLED'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
                   {config.promotionalHeader.map((msg, idx) => (
                     <View key={idx} style={styles.itemRow}>
@@ -1177,10 +1390,38 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
               {/* TAB 3: PRIMARY ADVERTISEMENT BANNER */}
               {activeTab === 'adBanner' && (
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>Primary Advertisement Banner (Ad Banner 1)</Text>
-                  <Text style={styles.sectionDesc}>
-                    Diwali Sale & Bespoke Drape editorial showcase on the homepage.
-                  </Text>
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.sectionTitle}>Primary Advertisement Banner (Ad Banner 1)</Text>
+                      <Text style={styles.sectionDesc}>
+                        Diwali Sale & Bespoke Drape editorial showcase on the homepage.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.toggleBtn,
+                        config.adBanner.enabled !== false ? styles.toggleOn : styles.toggleOff,
+                      ]}
+                      onPress={() =>
+                        setConfig({
+                          ...config,
+                          adBanner: {
+                            ...config.adBanner,
+                            enabled: config.adBanner.enabled === false ? true : false,
+                          },
+                        })
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          config.adBanner.enabled !== false ? styles.toggleTextOn : styles.toggleTextOff,
+                        ]}
+                      >
+                        {config.adBanner.enabled !== false ? 'ACTIVE' : 'DISABLED'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
                   {/* CDN IMAGE UPLOAD FIELD FOR AD BANNER 1 */}
                   <ImageUploadField
@@ -1298,10 +1539,38 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
               {/* TAB 3.5: SECONDARY ADVERTISEMENT BANNER */}
               {activeTab === 'secondAdBanner' && config.secondAdBanner && (
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>Secondary Advertisement Banner (Ad Banner 2)</Text>
-                  <Text style={styles.sectionDesc}>
-                    Seasonal Privilege & Festive Couture Edit dark showcase on the homepage.
-                  </Text>
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.sectionTitle}>Secondary Advertisement Banner (Ad Banner 2)</Text>
+                      <Text style={styles.sectionDesc}>
+                        Seasonal Privilege & Festive Couture Edit dark showcase on the homepage.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.toggleBtn,
+                        config.secondAdBanner.enabled !== false ? styles.toggleOn : styles.toggleOff,
+                      ]}
+                      onPress={() =>
+                        setConfig({
+                          ...config,
+                          secondAdBanner: {
+                            ...config.secondAdBanner!,
+                            enabled: config.secondAdBanner!.enabled === false ? true : false,
+                          },
+                        })
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          config.secondAdBanner.enabled !== false ? styles.toggleTextOn : styles.toggleTextOff,
+                        ]}
+                      >
+                        {config.secondAdBanner.enabled !== false ? 'ACTIVE' : 'DISABLED'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
                   {/* CDN IMAGE UPLOAD FIELD FOR AD BANNER 2 */}
                   <ImageUploadField

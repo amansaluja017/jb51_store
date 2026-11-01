@@ -422,7 +422,15 @@ export interface MobileHeroSlideItem {
   };
 }
 
+export interface MobileMaintenanceModeConfig {
+  enabled: boolean;
+  title?: string;
+  message?: string;
+  expectedBackTime?: string;
+}
+
 export interface MobileAdBannerConfig {
+  enabled?: boolean;
   tagline: string;
   title: string;
   subtitle: string;
@@ -462,6 +470,8 @@ export interface MobileContactInfoConfig {
 }
 
 export interface MobileSiteConfigData {
+  maintenanceMode?: MobileMaintenanceModeConfig;
+  promotionalHeaderEnabled?: boolean;
   promotionalHeader: string[];
   heroSlides: MobileHeroSlideItem[];
   adBanner: MobileAdBannerConfig;

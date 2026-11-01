@@ -2,6 +2,7 @@ import { db } from '@repo/db/client';
 import {
   siteConfigTable,
   SiteConfigData,
+  MaintenanceModeConfig,
   HeroSlideItem,
   AdBannerConfig,
   SaleSectionConfig,
@@ -12,6 +13,7 @@ import { eq, sql } from 'drizzle-orm';
 
 export type {
   SiteConfigData,
+  MaintenanceModeConfig,
   HeroSlideItem,
   AdBannerConfig,
   SaleSectionConfig,
@@ -20,6 +22,13 @@ export type {
 };
 
 export const DEFAULT_SITE_CONFIG: SiteConfigData = {
+  maintenanceMode: {
+    enabled: false,
+    title: 'Bespoke Atelier Maintenance',
+    message: 'Our digital boutique is undergoing scheduled enhancements to elevate your shopping experience. We shall reopen shortly.',
+    expectedBackTime: 'Within 2 hours',
+  },
+  promotionalHeaderEnabled: true,
   promotionalHeader: [
     'Summer Sale: Up to 70% Off',
     'Complimentary shipping on orders above ₹15,000',
@@ -64,6 +73,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfigData = {
     },
   ],
   adBanner: {
+    enabled: true,
     tagline: 'BESPOKE SERVICE',
     title: 'The Art of Custom Drape',
     subtitle: 'Experience the pinnacle of bespoke couture. Our master craftsmen tailor each ensemble to your exact measurements, ensuring a silhouette that flows with effortless grace and timeless sophistication.',
@@ -74,6 +84,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfigData = {
     imageUrl: '/assets/luxury_ad_banner.png',
   },
   secondAdBanner: {
+    enabled: true,
     tagline: 'SEASONAL PRIVILEGE',
     title: 'The Festive Couture Edit',
     subtitle: 'Unlock extraordinary savings on signature handcrafted ensembles. Hand-spun silk, intricate zardozi, and heritage loom masterpieces tailored to perfection.',
@@ -135,6 +146,8 @@ async function ensureSiteConfigTable() {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS site_config (
         id VARCHAR(64) PRIMARY KEY DEFAULT 'default',
+        maintenance_mode JSONB,
+        promotional_header_enabled BOOLEAN DEFAULT true,
         promotional_header JSONB,
         hero_slides JSONB,
         ad_banner JSONB,
@@ -146,6 +159,8 @@ async function ensureSiteConfigTable() {
         updated_by VARCHAR(128)
       );
       ALTER TABLE site_config ADD COLUMN IF NOT EXISTS second_ad_banner JSONB;
+      ALTER TABLE site_config ADD COLUMN IF NOT EXISTS maintenance_mode JSONB;
+      ALTER TABLE site_config ADD COLUMN IF NOT EXISTS promotional_header_enabled BOOLEAN DEFAULT true;
     `);
     tableCreated = true;
   } catch (err) {
@@ -166,6 +181,8 @@ export async function getSiteConfig(): Promise<SiteConfigData & { updatedAt?: Da
       // Seed default config into DB
       await db.insert(siteConfigTable).values({
         id: 'default',
+        maintenanceMode: DEFAULT_SITE_CONFIG.maintenanceMode,
+        promotionalHeaderEnabled: DEFAULT_SITE_CONFIG.promotionalHeaderEnabled,
         promotionalHeader: DEFAULT_SITE_CONFIG.promotionalHeader,
         heroSlides: DEFAULT_SITE_CONFIG.heroSlides,
         adBanner: DEFAULT_SITE_CONFIG.adBanner,
@@ -179,10 +196,17 @@ export async function getSiteConfig(): Promise<SiteConfigData & { updatedAt?: Da
     }
 
     return {
+      maintenanceMode: row.maintenanceMode || DEFAULT_SITE_CONFIG.maintenanceMode,
+      promotionalHeaderEnabled:
+        row.promotionalHeaderEnabled !== undefined && row.promotionalHeaderEnabled !== null
+          ? row.promotionalHeaderEnabled
+          : true,
       promotionalHeader: row.promotionalHeader || DEFAULT_SITE_CONFIG.promotionalHeader,
       heroSlides: row.heroSlides || DEFAULT_SITE_CONFIG.heroSlides,
-      adBanner: row.adBanner || DEFAULT_SITE_CONFIG.adBanner,
-      secondAdBanner: row.secondAdBanner || DEFAULT_SITE_CONFIG.secondAdBanner,
+      adBanner: row.adBanner ? { ...DEFAULT_SITE_CONFIG.adBanner, ...row.adBanner } : DEFAULT_SITE_CONFIG.adBanner,
+      secondAdBanner: row.secondAdBanner
+        ? { ...DEFAULT_SITE_CONFIG.secondAdBanner, ...row.secondAdBanner }
+        : DEFAULT_SITE_CONFIG.secondAdBanner,
       saleSection: row.saleSection || DEFAULT_SITE_CONFIG.saleSection,
       faqs: row.faqs || DEFAULT_SITE_CONFIG.faqs,
       contactInfo: row.contactInfo || DEFAULT_SITE_CONFIG.contactInfo,
@@ -196,6 +220,8 @@ export async function getSiteConfig(): Promise<SiteConfigData & { updatedAt?: Da
 }
 
 export interface UpdateSiteConfigInput {
+  maintenanceMode?: MaintenanceModeConfig;
+  promotionalHeaderEnabled?: boolean;
   promotionalHeader?: string[];
   heroSlides?: HeroSlideItem[];
   adBanner?: AdBannerConfig;
@@ -216,6 +242,9 @@ export async function updateSiteConfig(input: UpdateSiteConfigInput) {
     updatedBy: input.updatedBy || 'admin',
   };
 
+  if (input.maintenanceMode !== undefined) updateValues.maintenanceMode = input.maintenanceMode;
+  if (input.promotionalHeaderEnabled !== undefined)
+    updateValues.promotionalHeaderEnabled = input.promotionalHeaderEnabled;
   if (input.promotionalHeader !== undefined) updateValues.promotionalHeader = input.promotionalHeader;
   if (input.heroSlides !== undefined) updateValues.heroSlides = input.heroSlides;
   if (input.adBanner !== undefined) updateValues.adBanner = input.adBanner;
@@ -228,6 +257,12 @@ export async function updateSiteConfig(input: UpdateSiteConfigInput) {
     .insert(siteConfigTable)
     .values({
       id: 'default',
+      maintenanceMode:
+        input.maintenanceMode !== undefined ? input.maintenanceMode : current.maintenanceMode,
+      promotionalHeaderEnabled:
+        input.promotionalHeaderEnabled !== undefined
+          ? input.promotionalHeaderEnabled
+          : current.promotionalHeaderEnabled,
       promotionalHeader: input.promotionalHeader || current.promotionalHeader,
       heroSlides: input.heroSlides || current.heroSlides,
       adBanner: input.adBanner || current.adBanner,
