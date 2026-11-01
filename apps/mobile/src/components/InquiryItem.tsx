@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { MessageCircle, Camera, CheckCircle2, Phone, Mail, Check, Globe } from 'lucide-react-native';
 import { Inquiry } from '../types';
 
@@ -23,6 +23,18 @@ export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
       Linking.openURL(`mailto:${inquiry.email}?subject=${encodeURIComponent(subject)}`).catch(() => {
         // Fallback
       });
+    }
+  };
+
+  const [isResolving, setIsResolving] = useState(false);
+
+  const handleResolve = async () => {
+    if (isResolving) return;
+    setIsResolving(true);
+    try {
+      await onResolve(inquiry.id, inquiry.customerName);
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -116,12 +128,19 @@ export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
 
         {inquiry.status !== 'Resolved' ? (
           <TouchableOpacity 
-            onPress={() => onResolve(inquiry.id, inquiry.customerName)}
-            style={styles.resolveBtn}
+            onPress={handleResolve}
+            style={[styles.resolveBtn, isResolving && { opacity: 0.7 }]}
             activeOpacity={0.8}
+            disabled={isResolving}
           >
-            <CheckCircle2 size={12} color="#ffffff" />
-            <Text style={styles.resolveBtnText}>Resolve</Text>
+            {isResolving ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <>
+                <CheckCircle2 size={12} color="#ffffff" />
+                <Text style={styles.resolveBtnText}>Resolve</Text>
+              </>
+            )}
           </TouchableOpacity>
         ) : (
           <View style={styles.resolvedConfirmedBadge}>

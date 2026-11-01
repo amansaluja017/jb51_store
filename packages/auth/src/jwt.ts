@@ -33,11 +33,11 @@ export interface JwtPayload {
 }
 
 export const generateAccessToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '15m' });
 };
 
 export const generateRefreshToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, getJwtRefreshSecret(), { expiresIn: '30d' });
+  return jwt.sign(payload, getJwtRefreshSecret(), { expiresIn: '7d' });
 };
 
 export const verifyAccessToken = (token: string): JwtPayload => {
@@ -68,7 +68,7 @@ export const generateAuthTokens = async (userData: {
   const refreshToken = generateRefreshToken(payload);
 
   const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   // Store refresh token hash in DB for tracking/revocation
   await db.insert(tokenTable).values({

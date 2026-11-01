@@ -24,6 +24,8 @@ import {
 import InquiryItem from './InquiryItem';
 import { Inquiry } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
+import { Pagination } from './ui';
+import { InquiryListSkeleton } from './SkeletonLoader';
 
 export type InquirySortOption = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
 export type InquiryStatusFilter = 'all' | 'pending' | 'resolved';
@@ -76,7 +78,7 @@ export default function InquiriesModal({
   pagination,
   sortBy = 'recent',
   onSortChange,
-  statusFilter = 'all',
+  statusFilter = 'pending',
   onStatusFilterChange,
   searchQuery = '',
   onSearchChange,
@@ -85,6 +87,7 @@ export default function InquiriesModal({
   onSearchInquiries,
   onGetInquirySuggestions,
 }: InquiriesModalProps) {
+  const scrollViewRef = useRef<ScrollView>(null);
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch.trim(), 250);
   const [suggestions, setSuggestions] = useState<any[] | null>(null);
@@ -92,7 +95,6 @@ export default function InquiriesModal({
   const [activeSort, setActiveSort] = useState<InquirySortOption>(sortBy);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Sync internal state if prop updates externally
   useEffect(() => {
@@ -143,6 +145,7 @@ export default function InquiriesModal({
   const handleSelectFilter = (filter: InquiryStatusFilter) => {
     setActiveFilter(filter);
     onStatusFilterChange?.(filter);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     onFetchPaginatedInquiries?.({
       page: 1,
       status: filter,
@@ -156,6 +159,7 @@ export default function InquiriesModal({
     setActiveSort(sort);
     onSortChange?.(sort);
     setSortSheetOpen(false);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     onFetchPaginatedInquiries?.({
       page: 1,
       sortBy: sort,
@@ -180,20 +184,15 @@ export default function InquiriesModal({
     }
   };
 
-  const handleLoadMore = async () => {
-    if (!pagination?.hasMore || isLoadingMore || isLoading) return;
-    setIsLoadingMore(true);
-    try {
-      await onFetchPaginatedInquiries?.({
-        page: pagination.page + 1,
-        status: activeFilter,
-        sortBy: activeSort,
-        search: localSearch,
-        append: true,
-      });
-    } finally {
-      setIsLoadingMore(false);
-    }
+  const handlePageChange = (page: number) => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    onFetchPaginatedInquiries?.({
+      page,
+      status: activeFilter,
+      sortBy: activeSort,
+      search: debouncedSearch,
+      append: false,
+    });
   };
 
   const activeSortLabel = useMemo(() => {
@@ -219,16 +218,18 @@ export default function InquiriesModal({
             <View style={styles.headerIconBox}>
               <MessageCircle size={18} color="#FF5E36" />
             </View>
-            <View>
+            <View style={styles.headerTextWrap}>
               <View style={styles.titleWithBadge}>
-                <Text style={styles.headerTitle}>Customer Inquiries</Text>
+                <Text style={styles.headerTitle} numberOfLines={1}>Customer Inquiries</Text>
                 {pendingCount > 0 && (
                   <View style={styles.pendingBadge}>
                     <Text style={styles.pendingBadgeText}>{pendingCount} new</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.headerSubtitle}>Direct customer WhatsApp, Web & concierge chats</Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                Customer chats & inquiries
+              </Text>
             </View>
           </View>
 
@@ -240,15 +241,17 @@ export default function InquiriesModal({
               activeOpacity={0.7}
               disabled={isLoading || refreshing}
             >
-              <RefreshCw
-                size={16}
-                color={isLoading || refreshing ? '#FF5E36' : '#52525b'}
-              />
+              {isLoading || refreshing ? (
+                <ActivityIndicator size="small" color="#FF5E36" />
+              ) : (
+                <RefreshCw size={15} color="#52525b" />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeBtn}
               accessibilityLabel="Close inquiries modal"
+              activeOpacity={0.7}
             >
               <X size={18} color="#09090b" />
             </TouchableOpacity>
@@ -296,17 +299,9 @@ export default function InquiriesModal({
 
           <View style={styles.statusTabsRow}>
             <TouchableOpacity
-              onPress={() => handleSelectFilter('all')}
-              style={[styles.statusTab, activeFilter === 'all' && styles.statusTabActive]}
-            >
-              <Text style={[styles.statusTabText, activeFilter === 'all' && styles.statusTabTextActive]}>
-                All ({totalCount})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
               onPress={() => handleSelectFilter('pending')}
               style={[styles.statusTab, activeFilter === 'pending' && styles.statusTabActive]}
+              activeOpacity={0.7}
             >
               <Text style={[styles.statusTabText, activeFilter === 'pending' && styles.statusTabTextActive]}>
                 Active ({pendingCount})
@@ -316,6 +311,7 @@ export default function InquiriesModal({
             <TouchableOpacity
               onPress={() => handleSelectFilter('resolved')}
               style={[styles.statusTab, activeFilter === 'resolved' && styles.statusTabActive]}
+              activeOpacity={0.7}
             >
               <Text style={[styles.statusTabText, activeFilter === 'resolved' && styles.statusTabTextActive]}>
                 Resolved ({resolvedCount})
@@ -326,7 +322,7 @@ export default function InquiriesModal({
           {/* Sort Selection Row */}
           <View style={styles.sortBar}>
             <Text style={styles.sortCountLabel}>
-              Showing {inquiries.length} of {totalCount} inquiries
+              Showing {inquiries.length} of {activeFilter === 'pending' ? pendingCount : resolvedCount} inquiries
             </Text>
             <TouchableOpacity
               onPress={() => setSortSheetOpen(true)}
@@ -342,6 +338,7 @@ export default function InquiriesModal({
 
         {/* Inquiries List */}
         <ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
@@ -353,10 +350,7 @@ export default function InquiriesModal({
           }
         >
           {isLoading && inquiries.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF5E36" />
-              <Text style={styles.loadingText}>Fetching inquiries...</Text>
-            </View>
+            <InquiryListSkeleton />
           ) : inquiries.length === 0 ? (
             <View style={styles.emptyContainer}>
               <MessageCircle size={44} color="#d4d4d8" />
@@ -366,13 +360,17 @@ export default function InquiriesModal({
                   ? 'No inquiries match your active search criteria.'
                   : activeFilter === 'pending'
                   ? 'Great job! No pending customer inquiries right now.'
-                  : activeFilter === 'resolved'
-                  ? 'No resolved inquiries to display.'
-                  : 'No client inquiries recorded yet.'}
+                  : 'No resolved inquiries to display.'}
               </Text>
             </View>
           ) : (
             <>
+              {isLoading && (
+                <View style={styles.inlineLoadingBar}>
+                  <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 8 }} />
+                  <Text style={styles.inlineLoadingText}>Updating inquiries...</Text>
+                </View>
+              )}
               {inquiries.map((inq) => (
                 <InquiryItem
                   key={inq.id}
@@ -381,31 +379,26 @@ export default function InquiriesModal({
                 />
               ))}
 
-              {/* Load More Pagination Section */}
-              {pagination?.hasMore ? (
-                <View style={styles.loadMoreContainer}>
-                  <TouchableOpacity
-                    onPress={handleLoadMore}
-                    style={styles.loadMoreBtn}
-                    activeOpacity={0.8}
-                    disabled={isLoadingMore}
-                  >
-                    {isLoadingMore ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <>
-                        <Text style={styles.loadMoreText}>
-                          Load More (Page {pagination.page + 1} of {pagination.totalPages})
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              ) : inquiries.length > 0 ? (
-                <View style={styles.endOfListContainer}>
-                  <Text style={styles.endOfListText}>All {totalCount} inquiries loaded</Text>
-                </View>
-              ) : null}
+              {/* Standard Reusable Pagination Component */}
+              {pagination && pagination.totalPages > 1 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalCount={pagination.total}
+                  startRecord={
+                    pagination.total === 0
+                      ? 0
+                      : (pagination.page - 1) * (pagination.limit || 10) + 1
+                  }
+                  endRecord={Math.min(
+                    pagination.page * (pagination.limit || 10),
+                    pagination.total
+                  )}
+                  itemLabel="inquiries"
+                  onPageChange={handlePageChange}
+                  style={styles.paginationWrapper}
+                />
+              )}
             </>
           )}
         </ScrollView>
@@ -486,8 +479,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderColor: '#e2e8f0',
@@ -495,32 +488,43 @@ const styles = StyleSheet.create({
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
+    marginRight: 10,
+    minWidth: 0,
   },
   headerIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: '#fff0ed',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
   },
   titleWithBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexWrap: 'nowrap',
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#09090b',
+    flexShrink: 1,
   },
   pendingBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
     backgroundColor: '#FF5E36',
+    flexShrink: 0,
   },
   pendingBadgeText: {
     fontSize: 10,
@@ -536,6 +540,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
   refreshBtn: {
     width: 32,
@@ -585,16 +590,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
     backgroundColor: '#f4f4f5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusTabActive: {
     backgroundColor: '#09090b',
   },
   statusTabText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#71717a',
   },
@@ -634,6 +641,23 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  inlineLoadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff0ed',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#ffd5cc',
+  },
+  inlineLoadingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF5E36',
+  },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -663,32 +687,9 @@ const styles = StyleSheet.create({
     maxWidth: 260,
   },
 
-  loadMoreContainer: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  loadMoreBtn: {
-    backgroundColor: '#09090b',
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    minWidth: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadMoreText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  endOfListContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  endOfListText: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    fontWeight: '500',
+  paginationWrapper: {
+    paddingTop: 12,
+    paddingBottom: 28,
   },
 
   /* Sort Sheet Styles */

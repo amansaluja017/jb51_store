@@ -18,6 +18,7 @@ import {
   Palette,
   Wand2,
   Lightbulb,
+  Maximize2,
 } from 'lucide-react-native';
 import { Variant } from '../../types';
 import DraggableImageList from '../DraggableImageList';
@@ -156,6 +157,38 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                         <View style={styles.variantGalleryHeader}>
                           <Text style={styles.variantGalleryTitle}>STEP 1: VARIANT IMAGES • DRAG TO REORDER</Text>
                           <Text style={styles.variantGalleryCount}>{(v.images || []).length} photos</Text>
+                        </View>
+
+                        {/* Product Image Dimension Specs & Guideline */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 6,
+                            backgroundColor: '#f8fafc',
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 8,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Maximize2 size={11} color="#FF5E36" />
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#64748b' }}>
+                            RECOMMENDED:
+                          </Text>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#0f172a' }}>
+                            1200 × 1600 px (3:4 Portrait)
+                          </Text>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8' }}>•</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#64748b' }}>
+                            MIN:
+                          </Text>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#0f172a' }}>
+                            600 × 600 px
+                          </Text>
                         </View>
 
                         <DraggableImageList

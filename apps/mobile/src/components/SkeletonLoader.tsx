@@ -496,6 +496,38 @@ export function TransactionHistorySkeleton() {
   );
 }
 
+// -----------------------------------------------------------
+// 10. Inquiry List Skeleton
+// -----------------------------------------------------------
+export function InquiryListSkeleton() {
+  return (
+    <View style={{ gap: 12, paddingVertical: 4 }}>
+      {[1, 2, 3, 4].map(idx => (
+        <View key={idx} style={[styles.cardContainer, { padding: 14, borderRadius: 14, gap: 10 }]}>
+          <View style={styles.rowBetween}>
+            <View style={[styles.row, { gap: 10 }]}>
+              <SkeletonBox width={32} height={32} borderRadius={8} />
+              <View style={{ gap: 4 }}>
+                <SkeletonLine width={120} height={14} />
+                <SkeletonLine width={80} height={10} />
+              </View>
+            </View>
+            <SkeletonBox width={64} height={20} borderRadius={10} />
+          </View>
+          <View style={{ backgroundColor: '#f8fafc', padding: 8, borderRadius: 8, gap: 4 }}>
+            <SkeletonLine width="60%" height={12} />
+            <SkeletonLine width="90%" height={11} />
+          </View>
+          <View style={styles.rowBetween}>
+            <SkeletonLine width={100} height={12} />
+            <SkeletonBox width={72} height={26} borderRadius={8} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   skeletonBase: {
     overflow: 'hidden',

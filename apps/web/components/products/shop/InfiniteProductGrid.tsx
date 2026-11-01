@@ -3,7 +3,7 @@ import { type Product } from '@repo/products';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
 import { LotusIcon } from './ShopHeader';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface InfiniteProductGridProps {
   products: Product[];
@@ -70,20 +70,12 @@ export function InfiniteProductGrid({
             </div>
           )}
 
-          {/* 4. Subsequent Batch Loading Indicator & Skeletons */}
+          {/* 4. Subsequent Batch Skeletons */}
           {isFetchingNextBatch && (
-            <div className="mt-8">
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <Loader2 className="w-5 h-5 text-[#FF5E36] animate-spin" />
-                <span className="text-xs uppercase font-bold tracking-widest text-zinc-500">
-                  Fetching next batch of creations...
-                </span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8 lg:gap-10">
-                {[...Array(4)].map((_, i) => (
-                  <SkeletonCard key={`next-${i}`} />
-                ))}
-              </div>
+            <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8 lg:gap-10">
+              {[...Array(4)].map((_, i) => (
+                <SkeletonCard key={`next-${i}`} />
+              ))}
             </div>
           )}
 
@@ -94,6 +86,7 @@ export function InfiniteProductGrid({
                 onClick={onManualLoadMore}
                 variant="outline"
                 disabled={isFetchingNextBatch}
+                isLoading={isFetchingNextBatch}
                 className="text-xs uppercase tracking-widest rounded-full px-6 py-2 border-zinc-200 text-zinc-600 hover:border-[#FF5E36] hover:text-[#FF5E36] transition-all cursor-pointer"
               >
                 {isFetchingNextBatch ? 'Loading...' : 'Load Next Batch'}

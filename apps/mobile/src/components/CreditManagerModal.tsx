@@ -39,6 +39,8 @@ import {
 import { Credit, CreditMetrics, CreditTransaction } from '../types';
 import { formatDateSafe, formatDateToYMD } from '../utils/date';
 import { useDebounce } from '../hooks/useDebounce';
+import { Pagination } from './ui';
+import { TransactionHistorySkeleton } from './SkeletonLoader';
 
 export interface CreditManagerModalProps {
   visible: boolean;
@@ -536,6 +538,12 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
         </View>
 
         {/* Credits List */}
+        {isLoadingRemoteCredits && filteredCredits.length > 0 && (
+          <View style={styles.inlineLoadingBar}>
+            <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 8 }} />
+            <Text style={styles.inlineLoadingText}>Updating credit records...</Text>
+          </View>
+        )}
         <FlatList
           data={filteredCredits}
           keyExtractor={item => item.id}
@@ -556,55 +564,33 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
           }
           ListFooterComponent={
             creditTotalPages > 1 ? (
-              <View style={styles.paginationBar}>
-                <Text style={styles.paginationInfo}>
-                  Page {creditPage} of {creditTotalPages}
-                  {(activeMetrics?.totalCredits ?? creditTotalCount) > 0 ? ` • ${activeMetrics?.totalCredits ?? creditTotalCount} total` : ''}
-                </Text>
-                <View style={styles.paginationControls}>
-                  <TouchableOpacity
-                    style={[styles.pageButton, creditPage <= 1 && styles.pageButtonDisabled]}
-                    onPress={() => setCreditPage(p => Math.max(1, p - 1))}
-                    disabled={creditPage <= 1}
-                    accessibilityLabel="Previous page"
-                    accessibilityRole="button"
-                  >
-                    <ChevronLeft size={16} color={creditPage <= 1 ? '#d4d4d8' : '#18181b'} />
-                  </TouchableOpacity>
-
-                  <View style={styles.pageNumberBadge}>
-                    <Text style={styles.pageNumberText}>
-                      {creditPage} / {creditTotalPages}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.pageButton, creditPage >= creditTotalPages && styles.pageButtonDisabled]}
-                    onPress={() => setCreditPage(p => Math.min(creditTotalPages, p + 1))}
-                    disabled={creditPage >= creditTotalPages}
-                    accessibilityLabel="Next page"
-                    accessibilityRole="button"
-                  >
-                    <ChevronRight size={16} color={creditPage >= creditTotalPages ? '#d4d4d8' : '#18181b'} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <Pagination
+                currentPage={creditPage}
+                totalPages={creditTotalPages}
+                totalCount={activeMetrics?.totalCredits ?? creditTotalCount}
+                itemLabel="credits"
+                onPageChange={(page) => setCreditPage(page)}
+              />
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconWrap}>
-                <CreditCard size={36} color="#a1a1aa" />
+            isLoading || isLoadingRemoteCredits ? (
+              <TransactionHistorySkeleton />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconWrap}>
+                  <CreditCard size={36} color="#a1a1aa" />
+                </View>
+                <Text style={styles.emptyTitle}>
+                  {searchQuery ? 'No Matching Credits' : 'No Credit Records Found'}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {searchQuery
+                    ? `No credit account matches "${searchQuery}".`
+                    : 'Customer credits are recorded automatically when creating invoices with credit or pending balance dues.'}
+                </Text>
               </View>
-              <Text style={styles.emptyTitle}>
-                {searchQuery ? 'No Matching Credits' : 'No Credit Records Found'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {searchQuery
-                  ? `No credit account matches "${searchQuery}".`
-                  : 'Customer credits are recorded automatically when creating invoices with credit or pending balance dues.'}
-              </Text>
-            </View>
+            )
           }
           renderItem={({ item }) => {
             const dueNum = Number(item.dueAmount) || 0;
@@ -1453,6 +1439,24 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  inlineLoadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff0ed',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ffd5cc',
+  },
+  inlineLoadingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF5E36',
   },
   creditCard: {
     backgroundColor: '#FFFFFF',

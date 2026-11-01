@@ -2,59 +2,99 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
-export function SeasonalPrivilege() {
+import type { AdBannerConfig } from '@/lib/site-config';
+
+interface SeasonalPrivilegeProps {
+  config?: AdBannerConfig;
+}
+
+export function SeasonalPrivilege({ config }: SeasonalPrivilegeProps) {
+  const tagline = config?.tagline || 'SEASONAL PRIVILEGE';
+  const title = config?.title || 'The Festive Couture Edit';
+  const subtitle = config?.subtitle || 'Unlock extraordinary savings on signature handcrafted ensembles. Hand-spun silk, intricate zardozi, and heritage loom masterpieces tailored to perfection.';
+  const buttonText = config?.buttonText || 'Shop Festive Sale';
+  const buttonLink = config?.buttonLink || '/shop?filter=sale';
+  const secondaryButtonText = config?.secondaryButtonText || 'Consult Stylist';
+  const secondaryButtonLink = config?.secondaryButtonLink || '/support';
+  const imageUrl = config?.imageUrl || '/assets/discount_ad_banner.jpg';
+
   return (
-    <section className="py-16 px-6 max-w-7xl mx-auto w-full fade-up">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-zinc-950 text-white rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative">
+    <section className="w-full relative overflow-hidden bg-zinc-950 text-white my-8 sm:my-14 select-none">
+      <div className="relative w-full min-h-[480px] sm:min-h-[520px] md:min-h-[580px] flex items-center">
         
-        {/* Subtle design aura blobs */}
-        <div className="absolute top-0 left-0 w-96 h-96 rounded-full bg-[#FF5E36]/5 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-white/5 blur-3xl pointer-events-none" />
-
-        {/* Left Block: Image advertisement frame */}
-        <div className="md:col-span-7 order-2 md:order-1 relative z-10 w-full h-full min-h-[350px] md:min-h-[480px] rounded-2xl overflow-hidden fabric-reveal shadow-xl">
+        {/* Full-width Crisp Background Image (100% opacity, no milky wash, no chevron artifacts) */}
+        <div className="absolute inset-0 z-0">
           <Image
-            src="/assets/discount_ad_banner.png"
-            alt="Limited Festive Discount - Couture Edit"
+            src={imageUrl}
+            alt={title}
             fill
-            className="object-cover hover:scale-105 transition-transform duration-[1.5s]"
-            sizes="(max-width: 768px) 100vw, 50vw"
+            priority
+            className="object-cover object-[80%_center] md:object-[75%_center]"
+            sizes="100vw"
+            quality={90}
           />
-          {/* Elegant discount badge overlay */}
-          <div className="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/40 shadow-lg flex flex-col items-center">
-            <span className="text-[9px] uppercase tracking-widest font-extrabold text-zinc-400">Exclusive Code</span>
-            <span className="font-serif text-sm font-bold text-zinc-950 mt-0.5">FESTIVE15</span>
-            <span className="text-[9px] font-bold text-[#FF5E36] mt-0.5">15% OFF ALL COUTURE</span>
-          </div>
+
+          {/* Gentle edge gradient on desktop to keep typography crisp on the far left */}
+          <div className="hidden md:block absolute inset-0 bg-gradient-to-r from-zinc-950/85 via-zinc-950/40 to-transparent pointer-events-none" />
         </div>
 
-        {/* Right Block: Narrative & Call to Action */}
-        <div className="md:col-span-5 order-1 md:order-2 flex flex-col justify-center relative z-10">
-          <span className="text-[10px] tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-3 block">
-            SEASONAL PRIVILEGE
-          </span>
-          <h2 className="font-serif text-3xl md:text-5xl font-normal leading-[1.1] mb-6 tracking-tight">
-            The Festive <br className="hidden md:block"/>Couture <span className="font-serif italic text-zinc-300">Edit</span>
-          </h2>
-          <p className="text-zinc-400 font-light text-xs md:text-sm leading-relaxed mb-8">
-            Unlock extraordinary savings on our signature collections. Hand-spun silk, intricate zardozi, and handloom masterpieces designed to make every celebration memorable. Enjoy exclusive privileged pricing for a limited time.
-          </p>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link
-              href="/shop?filter=sale"
-              className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"
-            >
-              <span>Shop Festive Sale</span>
-              <ArrowRight size={12} />
-            </Link>
-            <Link
-              href="/support"
-              className="border border-white/20 hover:border-white/40 hover:bg-white/5 text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300"
-            >
-              Consult Stylist
-            </Link>
+        {/* Text Content Layer (Positioned Above the image) */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-10 md:px-16 w-full py-8 sm:py-12">
+          {/* Card on mobile, clean overlay on desktop */}
+          <div className="w-full md:w-7/12 lg:w-5/12 flex flex-col items-start text-left bg-zinc-950/85 backdrop-blur-md md:bg-transparent md:backdrop-blur-none p-6 sm:p-8 md:p-0 rounded-3xl md:rounded-none border border-white/10 md:border-0 shadow-2xl md:shadow-none mx-auto md:mx-0 max-w-sm sm:max-w-md md:max-w-none">
+            
+            {/* Tagline */}
+            <span className="text-[10px] sm:text-xs tracking-[0.3em] uppercase text-[#FF5E36] font-bold mb-2.5 block">
+              {tagline}
+            </span>
+
+            {/* Headline */}
+            <h2 className="font-serif text-2xl sm:text-4xl md:text-5xl font-light leading-[1.1] mb-3.5 tracking-tight text-white">
+              {title.includes('Couture') ? (
+                <>
+                  {title.split('Couture')[0]}Couture <span className="font-serif italic text-amber-200">{title.split('Couture')[1] || 'Edit'}</span>
+                </>
+              ) : (
+                title
+              )}
+            </h2>
+
+            {/* Paragraph Description */}
+            <p className="text-zinc-300 font-light text-xs sm:text-sm leading-relaxed mb-5 max-w-md">
+              {subtitle}
+            </p>
+
+            {/* Exclusive Code Badge */}
+            <div className="mb-6 inline-flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15">
+              <Sparkles size={13} className="text-[#FF5E36]" />
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] uppercase tracking-widest font-extrabold text-zinc-300">Code</span>
+                <span className="font-mono text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded">FESTIVE15</span>
+                <span className="text-[10px] font-bold text-[#FF5E36]">• 15% OFF</span>
+              </div>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              <Link
+                href={buttonLink}
+                className="bg-[#FF5E36] hover:bg-[#E04D27] text-white px-7 py-3 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center justify-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 text-center"
+              >
+                <span>{buttonText}</span>
+                <ArrowRight size={13} />
+              </Link>
+              {secondaryButtonText && (
+                <Link
+                  href={secondaryButtonLink}
+                  className="border border-white/25 hover:border-white/50 hover:bg-white/5 text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300 text-center"
+                >
+                  {secondaryButtonText}
+                </Link>
+              )}
+            </div>
+
           </div>
         </div>
 

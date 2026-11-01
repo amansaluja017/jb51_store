@@ -250,6 +250,7 @@ export default function ProductFormModal({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [tempUrl, setTempUrl] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingUris, setUploadingUris] = useState<string[]>([]);
   const [deletingUris, setDeletingUris] = useState<string[]>([]);
   const [activeVariantIdxForMedia, setActiveVariantIdxForMedia] = useState<number | null>(null);
@@ -535,6 +536,9 @@ export default function ProductFormModal({
             productId: initialProduct?.id,
             apiHost,
             token,
+            targetType: 'product',
+            minWidth: 600,
+            minHeight: 600,
           });
 
           const cloudUrl = res.url;
@@ -718,6 +722,16 @@ export default function ProductFormModal({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        const smallAssets = result.assets.filter(
+          (a) => (a.width && a.width < 600) || (a.height && a.height < 600)
+        );
+        if (smallAssets.length > 0) {
+          showAlert(
+            'Resolution Notice',
+            'One or more selected photos are below 600×600 px. Recommended is 1200×1600 px (3:4 portrait) for optimal storefront clarity.',
+            'error'
+          );
+        }
         const uris = result.assets.map(asset => asset.uri);
         addImageUris(uris);
       }
@@ -745,6 +759,14 @@ export default function ProductFormModal({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if ((asset.width && asset.width < 600) || (asset.height && asset.height < 600)) {
+          showAlert(
+            'Resolution Notice',
+            'Captured photo is below 600×600 px. Recommended is 1200×1600 px (3:4 portrait).',
+            'error'
+          );
+        }
         const uri = result.assets[0].uri;
         addImageUris([uri]);
       }
@@ -897,6 +919,9 @@ export default function ProductFormModal({
               productId: initialProduct?.id,
               apiHost,
               token,
+              targetType: 'product',
+              minWidth: 600,
+              minHeight: 600,
             });
             const cloudUrl = res.url;
             if (!item.isVariant) {
@@ -1001,7 +1026,12 @@ export default function ProductFormModal({
       savePayload.variants = cleanedVariants;
     }
 
-    onSave(savePayload);
+    setIsSubmitting(true);
+    try {
+      await onSave(savePayload);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1162,12 +1192,21 @@ export default function ProductFormModal({
           ) : (
             <TouchableOpacity
               onPress={handleSubmit(() => handleSave())}
-              style={[styles.submitBottomBtn, (isUploadingImage || deletingUris.length > 0) && { opacity: 0.6 }]}
+              style={[
+                styles.submitBottomBtn,
+                (isUploadingImage || deletingUris.length > 0 || isSubmitting) && { opacity: 0.6 }
+              ]}
               activeOpacity={0.8}
-              disabled={isUploadingImage || deletingUris.length > 0}
+              disabled={isUploadingImage || deletingUris.length > 0 || isSubmitting}
             >
-              <Text style={styles.primaryBottomBtnText}>{isEditing ? 'Save Outfit' : 'Publish Outfit'}</Text>
-              <Check size={14} color="#ffffff" />
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={styles.primaryBottomBtnText}>{isEditing ? 'Save Outfit' : 'Publish Outfit'}</Text>
+                  <Check size={14} color="#ffffff" />
+                </>
+              )}
             </TouchableOpacity>
           )}
         </View>

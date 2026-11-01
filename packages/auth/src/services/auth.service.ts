@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { db, user, token as tokenTable } from '@repo/db';
-import { eq, or, and } from 'drizzle-orm';
+import { eq, or, and, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '../password';
 import { generateAuthTokens, verifyRefreshToken } from '../jwt';
 import type {
@@ -9,6 +9,8 @@ import type {
   ChangePasswordInput,
   ChangeUsernameInput,
   ChangeEmailInput,
+  UpdateUserInput,
+  DeleteUserInput,
 } from './validations';
 
 export const sanitizeUser = (rawUser: typeof user.$inferSelect, fallbackUserName?: string) => {
@@ -71,10 +73,27 @@ export const registerUser = async (input: RegisterInput) => {
 export const loginUser = async (input: LoginInput) => {
   const identifierLower = input.identifier.toLowerCase();
 
-  const [foundUser] = await db
-    .select()
-    .from(user)
-    .where(eq(user.email, identifierLower));
+  const isEmail = identifierLower.includes('@');
+  let foundUser: typeof user.$inferSelect | undefined;
+
+  if (isEmail) {
+    const [u] = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, identifierLower));
+    foundUser = u;
+  } else {
+    const users = await db
+      .select()
+      .from(user)
+      .where(
+        or(
+          eq(user.email, identifierLower),
+          sql`lower(split_part(${user.email}, '@', 1)) = ${identifierLower}`
+        )
+      );
+    foundUser = users[0];
+  }
 
   if (!foundUser) {
     throw new Error('Invalid email/username or password');
@@ -261,4 +280,108 @@ export const logoutUser = async (userId?: string, refreshToken?: string) => {
       .where(eq(tokenTable.userId, userId));
   }
   return { success: true, message: 'Logged out successfully' };
+};
+
+export const updateUser = async (
+  input: UpdateUserInput,
+  ctxUser?: { sub: string; role?: string }
+) => {
+  const targetUserId = input.userId || ctxUser?.sub;
+  if (!targetUserId) {
+    throw new Error('User ID is required');
+  }
+
+  const [existingUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, targetUserId));
+
+  if (!existingUser) {
+    throw new Error('User not found');
+  }
+
+  const updates: Partial<typeof user.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+
+  if (input.email) {
+    const newEmail = input.email.toLowerCase();
+    const [emailInUse] = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, newEmail));
+    if (emailInUse && emailInUse.id !== targetUserId) {
+      throw new Error('Email address is already in use by another account');
+    }
+    updates.email = newEmail;
+  }
+
+  if (input.password) {
+    if (input.currentPassword) {
+      const isValid = await verifyPassword(input.currentPassword, existingUser.password);
+      if (!isValid) {
+        throw new Error('Current password is incorrect');
+      }
+    }
+    updates.password = await hashPassword(input.password);
+  }
+
+  const [updatedUser] = await db
+    .update(user)
+    .set(updates)
+    .where(eq(user.id, targetUserId))
+    .returning();
+
+  const sanitized = sanitizeUser(updatedUser, input.userName);
+  const tokens = await generateAuthTokens({
+    id: sanitized.id,
+    email: sanitized.email,
+    userName: sanitized.userName,
+    role: sanitized.role,
+  });
+
+  return {
+    user: sanitized,
+    token: tokens.accessToken,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  };
+};
+
+export const deleteUser = async (
+  input: DeleteUserInput,
+  ctxUser?: { sub: string; role?: string }
+) => {
+  const targetUserId = input.userId || ctxUser?.sub;
+  if (!targetUserId) {
+    throw new Error('User ID is required');
+  }
+
+  const [existingUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, targetUserId));
+
+  if (!existingUser) {
+    throw new Error('User not found');
+  }
+
+  if (input.password) {
+    const isValid = await verifyPassword(input.password, existingUser.password);
+    if (!isValid) {
+      throw new Error('Current password is incorrect');
+    }
+  }
+
+  await db
+    .update(tokenTable)
+    .set({ isRevoked: true })
+    .where(eq(tokenTable.userId, targetUserId));
+
+  await db.delete(user).where(eq(user.id, targetUserId));
+
+  return {
+    success: true,
+    message: 'User deleted successfully',
+  };
 };

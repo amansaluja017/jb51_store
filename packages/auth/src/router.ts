@@ -7,6 +7,8 @@ import {
   ChangeEmailInputSchema,
   RefreshTokenInputSchema,
   LogoutInputSchema,
+  UpdateUserInputSchema,
+  DeleteUserInputSchema,
 } from './services/validations';
 import {
   registerUser,
@@ -16,6 +18,8 @@ import {
   changeEmail,
   refreshAuthToken,
   logoutUser,
+  updateUser,
+  deleteUser,
 } from './services/auth.service';
 import { AuthContext } from './middleware';
 
@@ -169,6 +173,48 @@ export const authRouter = t.router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error.message || 'Logout failed',
+        });
+      }
+    }),
+
+  update: protectedProcedure
+    .meta({ description: 'Update user account profile or password' })
+    .input(UpdateUserInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const targetUserId = input.userId || ctx.user?.sub;
+      if (!targetUserId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
+      }
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
+      try {
+        return await updateUser({ ...input, userId: targetUserId }, ctx.user || undefined);
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: error.message || 'Update failed',
+        });
+      }
+    }),
+
+  delete: protectedProcedure
+    .meta({ description: 'Delete user account' })
+    .input(DeleteUserInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const targetUserId = input.userId || ctx.user?.sub;
+      if (!targetUserId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
+      }
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
+      try {
+        return await deleteUser({ ...input, userId: targetUserId }, ctx.user || undefined);
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: error.message || 'Delete user failed',
         });
       }
     }),

@@ -27,6 +27,7 @@ export const getCachedSiteConfig = unstable_cache(
         promotionalHeader: data.promotionalHeader || DEFAULT_SITE_CONFIG.promotionalHeader,
         heroSlides: data.heroSlides || DEFAULT_SITE_CONFIG.heroSlides,
         adBanner: data.adBanner || DEFAULT_SITE_CONFIG.adBanner,
+        secondAdBanner: data.secondAdBanner || DEFAULT_SITE_CONFIG.secondAdBanner,
         saleSection: data.saleSection || DEFAULT_SITE_CONFIG.saleSection,
         faqs: data.faqs || DEFAULT_SITE_CONFIG.faqs,
         contactInfo: data.contactInfo || DEFAULT_SITE_CONFIG.contactInfo,

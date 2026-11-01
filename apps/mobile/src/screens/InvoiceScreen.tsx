@@ -1150,11 +1150,13 @@ export default function InvoiceScreen({
           invoiceTotalCount={invoiceTotalCount || (remoteInvoices ? remoteInvoices.length : invoices.length)}
           onInvoicePrevPage={() => setInvoicePage((p) => Math.max(1, p - 1))}
           onInvoiceNextPage={() => setInvoicePage((p) => Math.min(invoiceTotalPages, p + 1))}
+          onInvoicePageChange={(p) => setInvoicePage(p)}
           orderPage={orderPage}
           orderTotalPages={orderTotalPages}
           orderTotalCount={orderTotalCount || (remoteOrders ? remoteOrders.length : orders.length)}
           onOrderPrevPage={() => setOrderPage((p) => Math.max(1, p - 1))}
           onOrderNextPage={() => setOrderPage((p) => Math.min(orderTotalPages, p + 1))}
+          onOrderPageChange={(p) => setOrderPage(p)}
           onOpenNewInvoice={handleOpenNewInvoice}
           onViewInvoice={(inv) => {
             setViewingInvoice(inv);

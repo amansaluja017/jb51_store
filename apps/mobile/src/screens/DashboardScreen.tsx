@@ -16,7 +16,6 @@ import {
   MessageCircle,
   Send,
   Percent,
-  ChevronDown,
   Award,
   ShoppingBag,
   TrendingUp,
@@ -252,7 +251,14 @@ export default function DashboardScreen({
         };
       })
       .sort((a, b) => b.views - a.views || b.totalClicks - a.totalClicks);
-  }, [products, allProductsAnalytics]);
+  }, [products, allProductsAnalytics, catalogueTelemetryAnalytics]);
+
+  // Catalogue Telemetry 5 products display limit
+  const TELEMETRY_INITIAL_COUNT = 5;
+
+  const visibleTelemetryProducts = useMemo(() => {
+    return productPerformanceList.slice(0, TELEMETRY_INITIAL_COUNT);
+  }, [productPerformanceList]);
 
   // Leaderboard Highlights
   const localMostViewed = useMemo(() => {
@@ -625,79 +631,6 @@ export default function DashboardScreen({
         ) : undefined
       }
     >
-      {/* Filter & Live Status Bar */}
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          onPress={() => setShowAnalyticsSelector(!showAnalyticsSelector)}
-          style={styles.scopeSelector}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.scopeLabel}>Outfit Focus:</Text>
-          <Text style={styles.scopeValue} numberOfLines={1}>
-            {activeAnalyticsProduct
-              ? activeAnalyticsProduct.name
-              : 'All Products (Store Overview)'}
-          </Text>
-          <ChevronDown size={14} color="#71717a" />
-        </TouchableOpacity>
-
-        {activeAnalyticsProduct && (
-          <TouchableOpacity
-            onPress={() => setSelectedAnalyticsSlug('all')}
-            style={styles.clearScopeButton}
-            activeOpacity={0.7}
-          >
-            <RotateCcw size={12} color="#64748b" />
-          </TouchableOpacity>
-        )}
-
-        <Badge variant="success" icon={<View style={styles.liveDot} />}>
-          Live
-        </Badge>
-      </View>
-
-      {/* Outfit Dropdown Options */}
-      {showAnalyticsSelector && (
-        <View style={styles.dropdownPickerList}>
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedAnalyticsSlug('all');
-              setShowAnalyticsSelector(false);
-            }}
-            style={styles.dropdownOption}
-          >
-            <Text
-              style={[
-                styles.dropdownOptionText,
-                selectedAnalyticsSlug === 'all' && styles.activeOption,
-              ]}
-            >
-              All Products (Store Overview)
-            </Text>
-          </TouchableOpacity>
-          {products.map((p) => (
-            <TouchableOpacity
-              key={p.slug}
-              onPress={() => {
-                setSelectedAnalyticsSlug(p.slug);
-                setShowAnalyticsSelector(false);
-              }}
-              style={styles.dropdownOption}
-            >
-              <Text
-                style={[
-                  styles.dropdownOptionText,
-                  selectedAnalyticsSlug === p.slug && styles.activeOption,
-                ]}
-              >
-                {p.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-
       {/* Interactive Engagement & Conversion Telemetry */}
       <Card style={{ padding: 14 }}>
         <CardHeader style={{ marginBottom: 12 }}>
@@ -912,7 +845,9 @@ export default function DashboardScreen({
                 <Text style={styles.funnelStepVal}>
                   {funnelAnalytics?.views ?? analyticsMetrics?.views ?? 0}
                 </Text>
-                <Text style={styles.funnelStepLbl}>Views</Text>
+                <Text style={styles.funnelStepLbl} numberOfLines={1}>
+                  Views
+                </Text>
                 <Text style={styles.funnelStepSub}>100% traffic</Text>
               </View>
 
@@ -923,7 +858,9 @@ export default function DashboardScreen({
                 <Text style={styles.funnelStepVal}>
                   {funnelAnalytics?.inquiries ?? totalInquiries}
                 </Text>
-                <Text style={styles.funnelStepLbl}>Inquiries</Text>
+                <Text style={styles.funnelStepLbl} numberOfLines={1}>
+                  Inquiries
+                </Text>
                 <Text style={styles.funnelStepSub}>
                   {funnelAnalytics?.inquiryRate ?? analyticsMetrics?.conversion ?? 0}%
                 </Text>
@@ -931,12 +868,18 @@ export default function DashboardScreen({
 
               <ArrowRight size={14} color="#d4d4d8" style={styles.funnelArrow} />
 
-              {/* Step 3: Online Orders (STRICTLY taking online orders for the funnel) */}
+              {/* Step 3: Online Orders */}
               <View style={styles.funnelStep}>
                 <Text style={styles.funnelStepVal}>
                   {funnelAnalytics?.onlineOrders ?? analyticsOverview?.onlineOrderCount ?? 0}
                 </Text>
-                <Text style={styles.funnelStepLbl}>Online Orders</Text>
+                <Text
+                  style={styles.funnelStepLbl}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Online Orders
+                </Text>
                 <Text style={styles.funnelStepSub}>
                   {funnelAnalytics?.onlineOrderRate ?? analyticsOverview?.onlineOrderConversionRate ?? 0}%
                 </Text>
@@ -1556,7 +1499,6 @@ export default function DashboardScreen({
 
                 {/* Export Actions Toolbar */}
                 <View style={styles.catalogueHeaderActions}>
-
                   <TouchableOpacity
                     onPress={handleExportPdf}
                     disabled={isExportingPdf}
@@ -1597,7 +1539,7 @@ export default function DashboardScreen({
                 <Text style={styles.thConv}>Conv. %</Text>
               </View>
 
-              {productPerformanceList.map((item) => (
+              {visibleTelemetryProducts.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   onPress={() => setSelectedAnalyticsSlug(item.slug)}
@@ -1668,18 +1610,20 @@ export default function DashboardScreen({
                 </TouchableOpacity>
               ))}
 
-              {/* Full View Banner Link */}
-              <TouchableOpacity
-                onPress={() => setShowFullAnalysisModal(true)}
-                style={styles.fullViewBannerBtn}
-                activeOpacity={0.7}
-              >
-                <Maximize2 size={13} color="#ea580c" />
-                <Text style={styles.fullViewBannerText}>
-                  View All Products Analysis ({productPerformanceList.length} items)
-                </Text>
-                <ArrowRight size={13} color="#ea580c" />
-              </TouchableOpacity>
+              {/* View All Products Banner Link - Opens Full All Products Telemetry Modal */}
+              {productPerformanceList.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setShowFullAnalysisModal(true)}
+                  style={styles.fullViewBannerBtn}
+                  activeOpacity={0.7}
+                >
+                  <Maximize2 size={13} color="#ea580c" />
+                  <Text style={styles.fullViewBannerText}>
+                    View All Products ({productPerformanceList.length} items)
+                  </Text>
+                  <ArrowRight size={13} color="#ea580c" />
+                </TouchableOpacity>
+              )}
             </CardContent>
           </Card>
         )}

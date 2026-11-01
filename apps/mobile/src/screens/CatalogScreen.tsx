@@ -15,6 +15,7 @@ import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight, Sparkle
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
 import { Product } from '../types';
+import { Pagination } from '../components/ui';
 import styles from './CatalogScreen.styles';
 
 interface CatalogScreenProps {
@@ -193,22 +194,6 @@ export default function CatalogScreen({
   const safePage = Math.min(page, totalPages);
   const startRecord = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
-
-  // Generate page numbers for the bottom pagination bar: e.g. [1, 2, 3, 4] or [1, '...', 4, 5, '...', 10]
-  const pageNumbers = useMemo(() => {
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    const pages: (number | string)[] = [];
-    if (safePage <= 3) {
-      pages.push(1, 2, 3, 4, '...', totalPages);
-    } else if (safePage >= totalPages - 2) {
-      pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-    } else {
-      pages.push(1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages);
-    }
-    return pages;
-  }, [totalPages, safePage]);
 
   const handleToggleStock = (prod: Product) => {
     onToggleStock(prod);
@@ -441,64 +426,14 @@ export default function CatalogScreen({
               />
             ))}
 
-            {/* Pagination Numbers at Bottom of Page */}
-            {totalPages > 1 && (
-              <View style={styles.paginationSection}>
-                <View style={styles.paginationNumbersRow}>
-                  {/* Previous Page Button */}
-                  <TouchableOpacity
-                    style={[styles.pageButton, safePage <= 1 && styles.pageButtonDisabled]}
-                    onPress={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={safePage <= 1}
-                    accessibilityLabel="Previous page"
-                    accessibilityRole="button"
-                  >
-                    <ChevronLeft size={16} color={safePage <= 1 ? '#d4d4d8' : '#18181b'} />
-                  </TouchableOpacity>
-
-                  {/* Numbered Page Buttons */}
-                  {pageNumbers.map((pNum, idx) => {
-                    if (pNum === '...') {
-                      return (
-                        <View key={`ellipsis-${idx}`} style={styles.pageEllipsis}>
-                          <Text style={styles.pageEllipsisText}>...</Text>
-                        </View>
-                      );
-                    }
-
-                    const isCurrent = pNum === safePage;
-                    return (
-                      <TouchableOpacity
-                        key={`page-${pNum}`}
-                        style={[styles.pageNumberBtn, isCurrent && styles.pageNumberBtnActive]}
-                        onPress={() => setPage(pNum as number)}
-                        accessibilityLabel={`Page ${pNum}`}
-                        accessibilityRole="button"
-                      >
-                        <Text style={[styles.pageNumberBtnText, isCurrent && styles.pageNumberBtnTextActive]}>
-                          {pNum}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-
-                  {/* Next Page Button */}
-                  <TouchableOpacity
-                    style={[styles.pageButton, safePage >= totalPages && styles.pageButtonDisabled]}
-                    onPress={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={safePage >= totalPages}
-                    accessibilityLabel="Next page"
-                    accessibilityRole="button"
-                  >
-                    <ChevronRight size={16} color={safePage >= totalPages ? '#d4d4d8' : '#18181b'} />
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.paginationInfoText}>
-                  Page {safePage} of {totalPages} ({totalCount} total {totalCount === 1 ? 'item' : 'items'})
-                </Text>
-              </View>
-            )}
+            {/* Bottom Pagination */}
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              itemLabel={totalCount === 1 ? 'item' : 'items'}
+              onPageChange={setPage}
+            />
           </>
         )}
       </ScrollView>

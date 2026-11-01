@@ -3,38 +3,54 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { ProductCard } from '@/components/products/ProductCard';
+import { ProductCardSkeleton } from '@/components/products/ProductCardSkeleton';
 import { type Product } from '@repo/products';
 
 interface ProductRowProps {
   title: string;
   tagline: string;
-  products: Product[];
+  products?: Product[];
+  isLoading?: boolean;
   viewAllHref: string;
   viewAllText: string;
 }
 
-export function ProductRow({ title, tagline, products, viewAllHref, viewAllText }: ProductRowProps) {
-  if (!products || products.length === 0) {
-    return null;
-  }
+export function ProductRow({
+  title,
+  tagline,
+  products = [],
+  isLoading = false,
+  viewAllHref,
+  viewAllText,
+}: ProductRowProps) {
+  const showSkeleton = isLoading || !products || products.length === 0;
 
   return (
     <section className="py-20 px-6 max-w-7xl mx-auto w-full">
       <div className="flex justify-between items-end mb-10">
         <div>
-          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">{tagline}</span>
-          <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">{title}</h2>
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">
+            {tagline}
+          </span>
+          <h2 className="font-serif text-3xl md:text-4xl font-bold text-zinc-950 tracking-tight">
+            {title}
+          </h2>
         </div>
-        <Link href={viewAllHref} className="text-xs font-bold text-[#FF5E36] hover:text-[#E04D27] flex items-center gap-1 uppercase tracking-widest border-b border-transparent hover:border-[#E04D27] pb-1 transition-all">
+        <Link
+          href={viewAllHref}
+          className="text-xs font-bold text-[#FF5E36] hover:text-[#E04D27] flex items-center gap-1 uppercase tracking-widest border-b border-transparent hover:border-[#E04D27] pb-1 transition-all"
+        >
           <span>{viewAllText}</span>
           <ArrowRight size={14} />
         </Link>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        {products.map(product => (
-          <ProductCard key={product.id} product={product} />
-        ))}
+        {showSkeleton
+          ? [...Array(4)].map((_, i) => <ProductCardSkeleton key={i} />)
+          : products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
       </div>
     </section>
   );

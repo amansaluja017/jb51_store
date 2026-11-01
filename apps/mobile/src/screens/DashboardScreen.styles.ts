@@ -185,6 +185,7 @@ export const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     padding: 12,
     overflow: 'hidden',
+    marginTop: 16,
   },
 
   // Conversion Funnel & Channel Breakdown
@@ -223,13 +224,27 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#fafafa',
     borderRadius: 16,
-    padding: 12,
+    padding: 10,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    gap: 6,
   },
   funnelStep: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+    minHeight: 74,
     gap: 3,
   },
   funnelStepVal: {
@@ -238,10 +253,12 @@ export const styles = StyleSheet.create({
     color: '#09090b',
   },
   funnelStepLbl: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
     color: '#64748b',
     textTransform: 'uppercase',
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   funnelStepSub: {
     fontSize: 10,
@@ -249,13 +266,14 @@ export const styles = StyleSheet.create({
     color: '#10B981',
   },
   funnelArrow: {
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
 
   // Channels Grid
   channelsGrid: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
+    marginTop: 14,
   },
   channelCard: {
     flex: 1,
@@ -1045,6 +1063,24 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#ea580c',
+  },
+  catalogueFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  showLessBtn: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+  },
+  showLessBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  modalIconBtn: {
+    paddingHorizontal: 12,
   },
 
   // Full View Telemetry Modal Styles

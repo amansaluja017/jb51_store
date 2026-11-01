@@ -34,6 +34,11 @@ import {
   Camera,
   Upload,
   Link as LinkIcon,
+  Maximize2,
+  ShieldAlert,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type {
@@ -57,7 +62,7 @@ export interface DeveloperSectionModalProps {
   token: string | null;
 }
 
-type TabType = 'promo' | 'hero' | 'adBanner' | 'sale' | 'faqs' | 'contact';
+type TabType = 'promo' | 'hero' | 'adBanner' | 'secondAdBanner' | 'sale' | 'faqs' | 'contact';
 
 // ============================================================================
 // REUSABLE IMAGE UPLOAD & PREVIEW COMPONENT (CLOUDINARY CDN INTEGRATION)
@@ -71,6 +76,12 @@ interface ImageUploadFieldProps {
   token: string | null;
   aspectRatio?: number;
   placeholder?: string;
+  targetType?: 'hero' | 'adBanner' | 'secondAdBanner' | 'sale' | 'product' | 'badge';
+  recommendedDimensions?: string;
+  aspectRatioLabel?: string;
+  minDimensions?: string;
+  minWidth?: number;
+  minHeight?: number;
 }
 
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
@@ -82,13 +93,33 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   token,
   aspectRatio = 16 / 9,
   placeholder,
+  targetType,
+  recommendedDimensions,
+  aspectRatioLabel,
+  minDimensions,
+  minWidth,
+  minHeight,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUrlField, setShowUrlField] = useState(false);
   const [customUrl, setCustomUrl] = useState(value);
+  const [detectedDims, setDetectedDims] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     setCustomUrl(value);
+    if (value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('file://') || value.startsWith('data:'))) {
+      Image.getSize(
+        value,
+        (w, h) => {
+          setDetectedDims({ width: w, height: h });
+        },
+        () => {
+          setDetectedDims(null);
+        }
+      );
+    } else {
+      setDetectedDims(null);
+    }
   }, [value]);
 
   const handleUploadUri = async (uri: string) => {
@@ -97,10 +128,16 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       const res = await uploadProductImage(uri, {
         apiHost,
         token,
+        targetType,
+        minWidth,
+        minHeight,
       });
       if (res && res.url) {
         onChange(res.url);
         setShowUrlField(false);
+        if (res.width && res.height) {
+          setDetectedDims({ width: res.width, height: res.height });
+        }
       } else {
         throw new Error('Upload server did not return a valid URL.');
       }
@@ -109,6 +146,30 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const validateAndProceed = (asset: { uri: string; width?: number; height?: number }) => {
+    if (asset.width && asset.height) {
+      const isWidthTooSmall = minWidth !== undefined && asset.width < minWidth;
+      const isHeightTooSmall = minHeight !== undefined && asset.height < minHeight;
+
+      if (isWidthTooSmall || isHeightTooSmall) {
+        Alert.alert(
+          'Image Resolution Warning',
+          `The selected photo is ${asset.width} × ${asset.height} px.\n\nMinimum required for this section is ${minDimensions || `${minWidth}×${minHeight} px`}.\n(Recommended: ${recommendedDimensions || '1920×1080 px'}).\n\nLow-resolution images will appear blurry on modern mobile and retina screens.`,
+          [
+            { text: 'Choose Different Image', style: 'cancel' },
+            {
+              text: 'Upload Anyway',
+              style: 'destructive',
+              onPress: () => handleUploadUri(asset.uri),
+            },
+          ]
+        );
+        return;
+      }
+    }
+    handleUploadUri(asset.uri);
   };
 
   const handlePickFromGallery = async () => {
@@ -124,7 +185,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         quality: 0.85,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        await handleUploadUri(result.assets[0].uri);
+        validateAndProceed(result.assets[0]);
       }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to select image.');
@@ -143,18 +204,44 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         quality: 0.85,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        await handleUploadUri(result.assets[0].uri);
+        validateAndProceed(result.assets[0]);
       }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to capture photo.');
     }
   };
 
+  const isBelowMin =
+    detectedDims &&
+    ((minWidth !== undefined && detectedDims.width < minWidth) ||
+      (minHeight !== undefined && detectedDims.height < minHeight));
+
   return (
     <View style={uploadStyles.container}>
       <View style={uploadStyles.labelRow}>
         <Text style={uploadStyles.label}>{label}</Text>
         {subLabel && <Text style={uploadStyles.subLabel}>{subLabel}</Text>}
+      </View>
+
+      {/* DIMENSION GUIDELINES BADGE */}
+      <View style={uploadStyles.dimensionGuideBox}>
+        <View style={uploadStyles.dimensionGuideItem}>
+          <Maximize2 size={11} color="#FF5E36" />
+          <Text style={uploadStyles.dimensionGuideTitle}>Recommended:</Text>
+          <Text style={uploadStyles.dimensionGuideVal}>{recommendedDimensions || '1920 × 1080 px'}</Text>
+        </View>
+        <View style={uploadStyles.dimensionGuideItem}>
+          <Layers size={11} color="#3b82f6" />
+          <Text style={uploadStyles.dimensionGuideTitle}>Ratio:</Text>
+          <Text style={uploadStyles.dimensionGuideVal}>{aspectRatioLabel || '16:9'}</Text>
+        </View>
+        {minDimensions && (
+          <View style={uploadStyles.dimensionGuideItem}>
+            <ShieldAlert size={11} color="#d97706" />
+            <Text style={uploadStyles.dimensionGuideTitle}>Min:</Text>
+            <Text style={uploadStyles.dimensionGuideVal}>{minDimensions}</Text>
+          </View>
+        )}
       </View>
 
       {isUploading ? (
@@ -176,6 +263,27 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
                 {value.includes('cloudinary') ? 'Cloudinary CDN' : 'Live Image'}
               </Text>
             </View>
+
+            {detectedDims && (
+              <View
+                style={[
+                  uploadStyles.dimensionStatusBadge,
+                  isBelowMin
+                    ? uploadStyles.dimensionStatusBadgeWarning
+                    : uploadStyles.dimensionStatusBadgeValid,
+                ]}
+              >
+                {isBelowMin ? (
+                  <AlertTriangle size={10} color="#fff" />
+                ) : (
+                  <CheckCircle2 size={10} color="#fff" />
+                )}
+                <Text style={uploadStyles.dimensionStatusBadgeText}>
+                  {detectedDims.width} × {detectedDims.height} px
+                  {isBelowMin ? ' • Below Min' : ' • Crisp'}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={uploadStyles.actionsRow}>
@@ -348,25 +456,39 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
     try {
       setLoading(true);
       const data = await fetchSiteConfig(apiHost, token);
-      if (data && data.saleSection) {
-        if (data.saleSection.endTime) {
-          const diffMs = new Date(data.saleSection.endTime).getTime() - Date.now();
-          if (diffMs > 0) {
-            data.saleSection.hoursLeft = Math.floor(diffMs / 3600000);
-            data.saleSection.minutesLeft = Math.floor((diffMs % 3600000) / 60000);
-            data.saleSection.secondsLeft = Math.floor((diffMs % 60000) / 1000);
-          } else {
-            data.saleSection.hoursLeft = 0;
-            data.saleSection.minutesLeft = 0;
-            data.saleSection.secondsLeft = 0;
-          }
-        } else {
-          data.saleSection.minutesLeft = data.saleSection.minutesLeft || 0;
-          data.saleSection.secondsLeft = data.saleSection.secondsLeft || 0;
+      if (data) {
+        if (!data.secondAdBanner) {
+          data.secondAdBanner = {
+            tagline: 'SEASONAL PRIVILEGE',
+            title: 'The Festive Couture Edit',
+            subtitle: 'Unlock extraordinary savings on signature handcrafted ensembles. Hand-spun silk, intricate zardozi, and heritage loom masterpieces tailored to perfection.',
+            buttonText: 'Shop Festive Sale',
+            buttonLink: '/shop?filter=sale',
+            secondaryButtonText: 'Consult Stylist',
+            secondaryButtonLink: '/support',
+            imageUrl: '/assets/discount_ad_banner.jpg',
+          };
         }
-        setTimerHours(String(data.saleSection.hoursLeft ?? 0));
-        setTimerMinutes(String(data.saleSection.minutesLeft ?? 0));
-        setTimerSeconds(String(data.saleSection.secondsLeft ?? 0));
+        if (data.saleSection) {
+          if (data.saleSection.endTime) {
+            const diffMs = new Date(data.saleSection.endTime).getTime() - Date.now();
+            if (diffMs > 0) {
+              data.saleSection.hoursLeft = Math.floor(diffMs / 3600000);
+              data.saleSection.minutesLeft = Math.floor((diffMs % 3600000) / 60000);
+              data.saleSection.secondsLeft = Math.floor((diffMs % 60000) / 1000);
+            } else {
+              data.saleSection.hoursLeft = 0;
+              data.saleSection.minutesLeft = 0;
+              data.saleSection.secondsLeft = 0;
+            }
+          } else {
+            data.saleSection.minutesLeft = data.saleSection.minutesLeft || 0;
+            data.saleSection.secondsLeft = data.saleSection.secondsLeft || 0;
+          }
+          setTimerHours(String(data.saleSection.hoursLeft ?? 0));
+          setTimerMinutes(String(data.saleSection.minutesLeft ?? 0));
+          setTimerSeconds(String(data.saleSection.secondsLeft ?? 0));
+        }
       }
       setConfig(data);
       setInitialConfig(JSON.parse(JSON.stringify(data)));
@@ -391,6 +513,8 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
         return { heroSlides: currentConfig.heroSlides };
       case 'adBanner':
         return { adBanner: currentConfig.adBanner };
+      case 'secondAdBanner':
+        return { secondAdBanner: currentConfig.secondAdBanner };
       case 'sale': {
         const h = parseInt(timerHours, 10) || 0;
         const m = parseInt(timerMinutes, 10) || 0;
@@ -418,7 +542,8 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
     switch (tab) {
       case 'promo': return 'Promo Header';
       case 'hero': return 'Hero Slider';
-      case 'adBanner': return 'Ad Banner';
+      case 'adBanner': return 'Ad Banner 1';
+      case 'secondAdBanner': return 'Ad Banner 2';
       case 'sale': return 'Flash Sale';
       case 'faqs': return 'FAQs';
       case 'contact': return 'Contact Info';
@@ -438,6 +563,9 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
     }
     if (JSON.stringify(config.adBanner) !== JSON.stringify(initialConfig.adBanner)) {
       payload.adBanner = config.adBanner;
+    }
+    if (JSON.stringify(config.secondAdBanner) !== JSON.stringify(initialConfig.secondAdBanner)) {
+      payload.secondAdBanner = config.secondAdBanner;
     }
     if (
       JSON.stringify(config.saleSection) !== JSON.stringify(initialConfig.saleSection) ||
@@ -736,7 +864,17 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
             >
               <Sparkles size={13} color={activeTab === 'adBanner' ? '#FF5E36' : '#71717a'} />
               <Text style={[styles.tabText, activeTab === 'adBanner' && styles.activeTabText]}>
-                Ad Banner
+                Ad Banner 1
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'secondAdBanner' && styles.activeTab]}
+              onPress={() => setActiveTab('secondAdBanner')}
+            >
+              <Sparkles size={13} color={activeTab === 'secondAdBanner' ? '#FF5E36' : '#71717a'} />
+              <Text style={[styles.tabText, activeTab === 'secondAdBanner' && styles.activeTabText]}>
+                Ad Banner 2
               </Text>
             </TouchableOpacity>
 
@@ -867,12 +1005,18 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                       {/* CDN IMAGE UPLOAD FIELD FOR HERO SLIDE */}
                       <ImageUploadField
                         label="Hero Slide Background Image"
-                        subLabel="High-resolution landscape (16:9 or editorial format)"
+                        subLabel="High-resolution landscape (16:9 widescreen or editorial format)"
                         value={slideImage}
                         onChange={setSlideImage}
                         apiHost={apiHost}
                         token={token}
                         aspectRatio={16 / 9}
+                        targetType="hero"
+                        recommendedDimensions="1920 × 1080 px"
+                        aspectRatioLabel="16:9 Widescreen"
+                        minDimensions="1200 × 675 px"
+                        minWidth={1200}
+                        minHeight={675}
                         placeholder="Upload hero background photo to Cloudinary"
                       />
 
@@ -951,12 +1095,18 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                       {/* CDN IMAGE UPLOAD FIELD FOR OUTFIT THUMBNAIL */}
                       <ImageUploadField
                         label="Outfit Badge Thumbnail"
-                        subLabel="Square thumbnail (1:1 ratio)"
+                        subLabel="Square thumbnail crop featured inside floating hero outfit pill"
                         value={slideBadgeImg}
                         onChange={setSlideBadgeImg}
                         apiHost={apiHost}
                         token={token}
                         aspectRatio={1}
+                        targetType="badge"
+                        recommendedDimensions="500 × 500 px"
+                        aspectRatioLabel="1:1 Square"
+                        minDimensions="200 × 200 px"
+                        minWidth={200}
+                        minHeight={200}
                         placeholder="Upload outfit thumbnail to CDN"
                       />
 
@@ -1024,25 +1174,31 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                 </View>
               )}
 
-              {/* TAB 3: ADVERTISEMENT BANNER */}
+              {/* TAB 3: PRIMARY ADVERTISEMENT BANNER */}
               {activeTab === 'adBanner' && (
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>Advertisement Banner</Text>
+                  <Text style={styles.sectionTitle}>Primary Advertisement Banner (Ad Banner 1)</Text>
                   <Text style={styles.sectionDesc}>
-                    Dark-themed bespoke couture editorial showcase on the homepage.
+                    Diwali Sale & Bespoke Drape editorial showcase on the homepage.
                   </Text>
 
-                  {/* CDN IMAGE UPLOAD FIELD FOR AD BANNER */}
+                  {/* CDN IMAGE UPLOAD FIELD FOR AD BANNER 1 */}
                   <ImageUploadField
-                    label="Advertisement Banner Image"
-                    subLabel="High-impact editorial image uploaded to Cloudinary"
+                    label="Primary Advertisement Banner Image"
+                    subLabel="High-impact widescreen editorial banner (16:9 or 21:9 aspect ratio)"
                     value={config.adBanner.imageUrl}
                     onChange={(url) =>
                       setConfig({ ...config, adBanner: { ...config.adBanner, imageUrl: url } })
                     }
                     apiHost={apiHost}
                     token={token}
-                    aspectRatio={16 / 10}
+                    aspectRatio={16 / 9}
+                    targetType="adBanner"
+                    recommendedDimensions="1920 × 820 px (or 1920 × 1080 px)"
+                    aspectRatioLabel="21:9 to 16:9 Banner"
+                    minDimensions="1200 × 500 px"
+                    minWidth={1200}
+                    minHeight={500}
                     placeholder="Choose banner image from device gallery"
                   />
 
@@ -1139,6 +1295,139 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                 </View>
               )}
 
+              {/* TAB 3.5: SECONDARY ADVERTISEMENT BANNER */}
+              {activeTab === 'secondAdBanner' && config.secondAdBanner && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Secondary Advertisement Banner (Ad Banner 2)</Text>
+                  <Text style={styles.sectionDesc}>
+                    Seasonal Privilege & Festive Couture Edit dark showcase on the homepage.
+                  </Text>
+
+                  {/* CDN IMAGE UPLOAD FIELD FOR AD BANNER 2 */}
+                  <ImageUploadField
+                    label="Secondary Advertisement Banner Image"
+                    subLabel="High-impact regal dark photography (16:9 or 21:9 aspect ratio)"
+                    value={config.secondAdBanner.imageUrl}
+                    onChange={(url) =>
+                      setConfig({
+                        ...config,
+                        secondAdBanner: { ...config.secondAdBanner!, imageUrl: url },
+                      })
+                    }
+                    apiHost={apiHost}
+                    token={token}
+                    aspectRatio={16 / 9}
+                    targetType="secondAdBanner"
+                    recommendedDimensions="1920 × 820 px (or 1920 × 1080 px)"
+                    aspectRatioLabel="21:9 to 16:9 Banner"
+                    minDimensions="1200 × 500 px"
+                    minWidth={1200}
+                    minHeight={500}
+                    placeholder="Choose banner image from device gallery"
+                  />
+
+                  <Text style={styles.inputLabel}>Tagline</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={config.secondAdBanner.tagline}
+                    onChangeText={(txt) =>
+                      setConfig({
+                        ...config,
+                        secondAdBanner: { ...config.secondAdBanner!, tagline: txt },
+                      })
+                    }
+                  />
+
+                  <Text style={styles.inputLabel}>Title / Headline</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={config.secondAdBanner.title}
+                    onChangeText={(txt) =>
+                      setConfig({
+                        ...config,
+                        secondAdBanner: { ...config.secondAdBanner!, title: txt },
+                      })
+                    }
+                  />
+
+                  {/* RICH TEXT EDITOR FOR SECOND AD BANNER DESCRIPTION */}
+                  <View style={{ marginTop: 10 }}>
+                    <SimpleTextEditor
+                      label="Banner Description / Discount Narrative"
+                      value={config.secondAdBanner.subtitle}
+                      onChangeText={(txt) =>
+                        setConfig({
+                          ...config,
+                          secondAdBanner: { ...config.secondAdBanner!, subtitle: txt },
+                        })
+                      }
+                      placeholder="Unlock extraordinary savings on signature handcrafted ensembles..."
+                      multiline
+                      numberOfLines={4}
+                      sectionType="adBanner"
+                    />
+                  </View>
+
+                  <View style={[styles.gridRow, isSmallPhone && styles.gridRowColumn]}>
+                    <View style={{ flex: 1, marginRight: isSmallPhone ? 0 : 8, marginBottom: isSmallPhone ? 8 : 0 }}>
+                      <Text style={styles.inputSubLabel}>Primary Button Text</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={config.secondAdBanner.buttonText}
+                        onChangeText={(txt) =>
+                          setConfig({
+                            ...config,
+                            secondAdBanner: { ...config.secondAdBanner!, buttonText: txt },
+                          })
+                        }
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputSubLabel}>Primary Button Link</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={config.secondAdBanner.buttonLink}
+                        onChangeText={(txt) =>
+                          setConfig({
+                            ...config,
+                            secondAdBanner: { ...config.secondAdBanner!, buttonLink: txt },
+                          })
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  <View style={[styles.gridRow, isSmallPhone && styles.gridRowColumn]}>
+                    <View style={{ flex: 1, marginRight: isSmallPhone ? 0 : 8, marginBottom: isSmallPhone ? 8 : 0 }}>
+                      <Text style={styles.inputSubLabel}>Secondary Button Text</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={config.secondAdBanner.secondaryButtonText || ''}
+                        onChangeText={(txt) =>
+                          setConfig({
+                            ...config,
+                            secondAdBanner: { ...config.secondAdBanner!, secondaryButtonText: txt },
+                          })
+                        }
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputSubLabel}>Secondary Button Link</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={config.secondAdBanner.secondaryButtonLink || ''}
+                        onChangeText={(txt) =>
+                          setConfig({
+                            ...config,
+                            secondAdBanner: { ...config.secondAdBanner!, secondaryButtonLink: txt },
+                          })
+                        }
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
+
               {/* TAB 4: FLASH SALE */}
               {activeTab === 'sale' && (
                 <View style={styles.sectionCard}>
@@ -1178,7 +1467,7 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                   {/* CDN IMAGE UPLOAD FIELD FOR FLASH SALE BACKGROUND */}
                   <ImageUploadField
                     label="Flash Sale Background Image (Optional)"
-                    subLabel="High-res background graphic overlay"
+                    subLabel="High-res background graphic overlay (16:9 landscape format)"
                     value={config.saleSection.bannerImageUrl || ''}
                     onChange={(url) =>
                       setConfig({
@@ -1189,6 +1478,12 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                     apiHost={apiHost}
                     token={token}
                     aspectRatio={16 / 9}
+                    targetType="sale"
+                    recommendedDimensions="1920 × 1080 px"
+                    aspectRatioLabel="16:9 Landscape"
+                    minDimensions="1200 × 675 px"
+                    minWidth={1200}
+                    minHeight={675}
                     placeholder="Choose flash sale background from device"
                   />
 
@@ -1750,6 +2045,60 @@ const uploadStyles = StyleSheet.create({
     fontSize: 11,
     color: '#71717a',
     marginTop: 2,
+  },
+  dimensionGuideBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  dimensionGuideItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginRight: 6,
+  },
+  dimensionGuideTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+  },
+  dimensionGuideVal: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  dimensionStatusBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  dimensionStatusBadgeValid: {
+    backgroundColor: 'rgba(16, 185, 129, 0.9)',
+  },
+  dimensionStatusBadgeWarning: {
+    backgroundColor: 'rgba(234, 179, 8, 0.9)',
+  },
+  dimensionStatusBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   uploadingBox: {
     flexDirection: 'row',

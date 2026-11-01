@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { Invoice, Order } from '../../types';
 import { InvoiceSkeleton, OrderHistorySkeleton } from '../SkeletonLoader';
+import { Pagination } from '../ui';
 import styles from '../../screens/InvoiceScreen.styles';
 
 export interface InvoiceLedgerViewProps {
@@ -53,11 +54,13 @@ export interface InvoiceLedgerViewProps {
   invoiceTotalCount?: number;
   onInvoicePrevPage?: () => void;
   onInvoiceNextPage?: () => void;
+  onInvoicePageChange?: (page: number) => void;
   orderPage?: number;
   orderTotalPages?: number;
   orderTotalCount?: number;
   onOrderPrevPage?: () => void;
   onOrderNextPage?: () => void;
+  onOrderPageChange?: (page: number) => void;
   suggestions?: any[];
 }
 
@@ -84,11 +87,13 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   invoiceTotalCount,
   onInvoicePrevPage,
   onInvoiceNextPage,
+  onInvoicePageChange,
   orderPage = 1,
   orderTotalPages = 1,
   orderTotalCount,
   onOrderPrevPage,
   onOrderNextPage,
+  onOrderPageChange,
   suggestions,
 }) => {
   const totalCollected = useMemo(() => {
@@ -396,42 +401,22 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   })
                 )}
 
-                {/* Invoices Pagination Bar */}
-                {invoiceTotalPages > 1 && (
-                  <View style={styles.paginationBar}>
-                    <Text style={styles.paginationInfo}>
-                      Page {invoicePage} of {invoiceTotalPages}
-                      {invoiceTotalCount !== undefined ? ` • ${invoiceTotalCount} total` : ''}
-                    </Text>
-                    <View style={styles.paginationControls}>
-                      <TouchableOpacity
-                        style={[styles.pageButton, invoicePage <= 1 && styles.pageButtonDisabled]}
-                        onPress={onInvoicePrevPage}
-                        disabled={invoicePage <= 1}
-                        accessibilityLabel="Previous invoice page"
-                        accessibilityRole="button"
-                      >
-                        <ChevronLeft size={16} color={invoicePage <= 1 ? '#d4d4d8' : '#18181b'} />
-                      </TouchableOpacity>
-
-                      <View style={styles.pageNumberBadge}>
-                        <Text style={styles.pageNumberText}>
-                          {invoicePage} / {invoiceTotalPages}
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.pageButton, invoicePage >= invoiceTotalPages && styles.pageButtonDisabled]}
-                        onPress={onInvoiceNextPage}
-                        disabled={invoicePage >= invoiceTotalPages}
-                        accessibilityLabel="Next invoice page"
-                        accessibilityRole="button"
-                      >
-                        <ChevronRight size={16} color={invoicePage >= invoiceTotalPages ? '#d4d4d8' : '#18181b'} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+                {/* Invoices Pagination */}
+                <Pagination
+                  currentPage={invoicePage}
+                  totalPages={invoiceTotalPages}
+                  totalCount={invoiceTotalCount}
+                  itemLabel="invoices"
+                  onPageChange={(page) => {
+                    if (onInvoicePageChange) {
+                      onInvoicePageChange(page);
+                    } else if (page > invoicePage) {
+                      onInvoiceNextPage?.();
+                    } else {
+                      onInvoicePrevPage?.();
+                    }
+                  }}
+                />
               </>
             ) : (
               // ================= ORDER HISTORY TAB =================
@@ -606,42 +591,22 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   })
                 )}
 
-                {/* Order History Pagination Bar */}
-                {orderTotalPages > 1 && (
-                  <View style={styles.paginationBar}>
-                    <Text style={styles.paginationInfo}>
-                      Page {orderPage} of {orderTotalPages}
-                      {orderTotalCount !== undefined ? ` • ${orderTotalCount} total` : ''}
-                    </Text>
-                    <View style={styles.paginationControls}>
-                      <TouchableOpacity
-                        style={[styles.pageButton, orderPage <= 1 && styles.pageButtonDisabled]}
-                        onPress={onOrderPrevPage}
-                        disabled={orderPage <= 1}
-                        accessibilityLabel="Previous order history page"
-                        accessibilityRole="button"
-                      >
-                        <ChevronLeft size={16} color={orderPage <= 1 ? '#d4d4d8' : '#18181b'} />
-                      </TouchableOpacity>
-
-                      <View style={styles.pageNumberBadge}>
-                        <Text style={styles.pageNumberText}>
-                          {orderPage} / {orderTotalPages}
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.pageButton, orderPage >= orderTotalPages && styles.pageButtonDisabled]}
-                        onPress={onOrderNextPage}
-                        disabled={orderPage >= orderTotalPages}
-                        accessibilityLabel="Next order history page"
-                        accessibilityRole="button"
-                      >
-                        <ChevronRight size={16} color={orderPage >= orderTotalPages ? '#d4d4d8' : '#18181b'} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+                {/* Order History Pagination */}
+                <Pagination
+                  currentPage={orderPage}
+                  totalPages={orderTotalPages}
+                  totalCount={orderTotalCount}
+                  itemLabel="orders"
+                  onPageChange={(page) => {
+                    if (onOrderPageChange) {
+                      onOrderPageChange(page);
+                    } else if (page > orderPage) {
+                      onOrderNextPage?.();
+                    } else {
+                      onOrderPrevPage?.();
+                    }
+                  }}
+                />
               </>
             )}
           </ScrollView>

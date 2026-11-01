@@ -1,6 +1,7 @@
 import axios from 'axios';
 import superjson from 'superjson';
 import { Platform } from 'react-native';
+import { tokenStorage } from './tokenStorage';
 
 export const getInitialApiHost = () => {
   const host = process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL;
@@ -100,6 +101,93 @@ export const extractErrorMessage = (err: unknown): string => {
   return 'An unexpected error occurred';
 };
 
+let refreshTokenPromise: Promise<string | null> | null = null;
+type AuthTokenListener = (newToken: string | null) => void;
+const tokenListeners = new Set<AuthTokenListener>();
+
+export const onAuthTokenChange = (listener: AuthTokenListener) => {
+  tokenListeners.add(listener);
+  return () => {
+    tokenListeners.delete(listener);
+  };
+};
+
+export const refreshAccessToken = async (apiHost?: string): Promise<string | null> => {
+  if (refreshTokenPromise) {
+    return refreshTokenPromise;
+  }
+
+  refreshTokenPromise = (async () => {
+    try {
+      const storedRefreshToken = await tokenStorage.getRefreshToken();
+      if (!storedRefreshToken) {
+        console.warn('[refreshAccessToken] No refresh token available in secure storage.');
+        return null;
+      }
+
+      const host = (apiHost || getInitialApiHost()).trim().replace(/\/$/, '');
+      const url = `${host}/trpc/auth.refreshToken`;
+
+      console.log(`[refreshAccessToken] Requesting new access token from ${url}`);
+      const response = await axios.post(
+        url,
+        { json: { refreshToken: storedRefreshToken } },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-trpc-source': 'expo-mobile-react',
+          },
+          timeout: 20000,
+        }
+      );
+
+      let data = response.data?.result?.data;
+      if (data?.json) {
+        data = data.json;
+      }
+
+      const newAccessToken = data?.accessToken || data?.token;
+      const newRefreshToken = data?.refreshToken;
+
+      if (newAccessToken) {
+        await tokenStorage.saveAuthData({
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken || storedRefreshToken,
+          user: data?.user,
+        });
+
+        tokenListeners.forEach((listener) => {
+          try {
+            listener(newAccessToken);
+          } catch (e) {
+            console.warn('[refreshAccessToken] Listener error:', e);
+          }
+        });
+
+        console.log('[refreshAccessToken] Access token successfully refreshed and stored in secure storage.');
+        return newAccessToken;
+      }
+
+      return null;
+    } catch (refreshErr) {
+      console.warn('[refreshAccessToken] Failed to refresh token, clearing session:', refreshErr);
+      await tokenStorage.clearAuthData();
+      tokenListeners.forEach((listener) => {
+        try {
+          listener(null);
+        } catch {
+          // ignore
+        }
+      });
+      return null;
+    } finally {
+      refreshTokenPromise = null;
+    }
+  })();
+
+  return refreshTokenPromise;
+};
+
 export const trpcRequest = async (
   path: string,
   options: {
@@ -108,8 +196,9 @@ export const trpcRequest = async (
     input?: unknown;
     token?: string | null;
     apiHost: string;
+    _isRetry?: boolean;
   }
-) => {
+): Promise<any> => {
   const cleanHost = options.apiHost.trim().replace(/\/$/, '');
   const url = `${cleanHost}/trpc/${path}`;
   const headers: Record<string, string> = {
@@ -117,8 +206,22 @@ export const trpcRequest = async (
     'x-trpc-source': 'expo-mobile-react',
   };
 
-  if (options.token) {
-    headers['Authorization'] = `Bearer ${options.token}`;
+  let effectiveToken = options.token;
+  if (
+    !effectiveToken &&
+    !path.startsWith('auth.login') &&
+    !path.startsWith('auth.register') &&
+    !path.startsWith('auth.refreshToken')
+  ) {
+    try {
+      effectiveToken = await tokenStorage.getAccessToken();
+    } catch {
+      // ignore
+    }
+  }
+
+  if (effectiveToken) {
+    headers['Authorization'] = `Bearer ${effectiveToken}`;
   }
 
   const method = options.method || (options.body !== undefined ? 'POST' : 'GET');
@@ -163,6 +266,33 @@ export const trpcRequest = async (
   } catch (err: any) {
     const serverError = extractErrorMessage(err);
     console.error(`[tRPC Axios Error] ${path}:`, serverError);
+
+    const isUnauthorized =
+      err?.response?.status === 401 ||
+      err?.response?.data?.error?.data?.code === 'UNAUTHORIZED' ||
+      err?.response?.data?.error?.json?.data?.code === 'UNAUTHORIZED' ||
+      serverError?.toLowerCase().includes('jwt expired') ||
+      serverError?.toLowerCase().includes('authentication required') ||
+      serverError?.toLowerCase().includes('invalid or expired');
+
+    const isAuthRoute =
+      path.startsWith('auth.login') ||
+      path.startsWith('auth.register') ||
+      path.startsWith('auth.refreshToken');
+
+    if (isUnauthorized && !isAuthRoute && !options._isRetry) {
+      console.log(`[tRPC 401 Token Expired] ${path} returned unauthorized. Refreshing token...`);
+      const refreshedToken = await refreshAccessToken(options.apiHost);
+      if (refreshedToken) {
+        console.log(`[tRPC Retrying] ${path} with newly refreshed access token...`);
+        return await trpcRequest(path, {
+          ...options,
+          token: refreshedToken,
+          _isRetry: true,
+        });
+      }
+    }
+
     throw new Error(serverError);
   }
 };
@@ -172,8 +302,10 @@ export interface UploadImageResult {
   publicId?: string;
   width?: number;
   height?: number;
+  aspectRatio?: number;
   format?: string;
   image?: any;
+  rule?: any;
 }
 
 export const uploadProductImage = async (
@@ -184,6 +316,9 @@ export const uploadProductImage = async (
     orderIndex?: number;
     token?: string | null;
     apiHost?: string;
+    targetType?: 'hero' | 'adBanner' | 'secondAdBanner' | 'sale' | 'product' | 'badge';
+    minWidth?: number;
+    minHeight?: number;
   }
 ): Promise<UploadImageResult> => {
   // If already an HTTP/HTTPS URL, no upload needed
@@ -233,6 +368,15 @@ export const uploadProductImage = async (
   }
   if (options?.orderIndex !== undefined) {
     formData.append('orderIndex', options.orderIndex.toString());
+  }
+  if (options?.targetType) {
+    formData.append('targetType', options.targetType);
+  }
+  if (options?.minWidth !== undefined) {
+    formData.append('minWidth', options.minWidth.toString());
+  }
+  if (options?.minHeight !== undefined) {
+    formData.append('minHeight', options.minHeight.toString());
   }
 
   // NOTE: Do NOT set 'Content-Type': 'multipart/form-data' manually.

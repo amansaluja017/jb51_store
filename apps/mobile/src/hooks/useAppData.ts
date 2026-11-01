@@ -29,7 +29,9 @@ import { TabType } from '../components/NavigationTabBar';
 import {
   getInitialApiHost,
   trpcRequest as trpcRequestService,
+  onAuthTokenChange,
 } from '../services/api';
+import { tokenStorage } from '../services/tokenStorage';
 import {
   searchProducts as searchProductsService,
   getProductSuggestions as getProductSuggestionsService,
@@ -80,6 +82,43 @@ export function useAppData() {
     ).start();
   }, [activeTab]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const hydrateAuth = async () => {
+      try {
+        const storedToken = await tokenStorage.getAccessToken();
+        const storedUser = await tokenStorage.getUser();
+        if (storedToken && isMounted) {
+          setToken(storedToken);
+          if (storedUser) {
+            setCurrentUser(storedUser);
+            if (storedUser.email) setEmail(storedUser.email);
+            if (storedUser.userName) setUsername(storedUser.userName);
+          }
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.warn('[useAppData] Error hydrating auth token from secure storage:', err);
+      }
+    };
+
+    hydrateAuth();
+
+    const unsubscribe = onAuthTokenChange((newToken) => {
+      if (!isMounted) return;
+      setToken(newToken);
+      if (!newToken) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   const [apiHost, setApiHost] = useState(getInitialApiHost);
   const [showConfig, setShowConfig] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -107,7 +146,7 @@ export function useAppData() {
     resolvedCount: 0,
   });
   const [inquiriesSortBy, setInquiriesSortBy] = useState<'recent' | 'oldest' | 'name-asc' | 'name-desc'>('recent');
-  const [inquiriesStatusFilter, setInquiriesStatusFilter] = useState<'all' | 'pending' | 'resolved'>('all');
+  const [inquiriesStatusFilter, setInquiriesStatusFilter] = useState<'all' | 'pending' | 'resolved'>('pending');
   const [inquiriesSearchQuery, setInquiriesSearchQuery] = useState('');
   const hasFetchedInquiries = useRef(false);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -317,12 +356,19 @@ export function useAppData() {
       });
 
       const tokenValue = authResult?.accessToken || authResult?.token;
+      const refreshTokenValue = authResult?.refreshToken;
       if (tokenValue) {
         if (authResult?.user?.role && authResult.user.role !== 'admin') {
           throw new Error('Access denied: Admin privileges required.');
         }
+        const userObj = authResult?.user || { userName: identifier, role: 'admin' };
+        await tokenStorage.saveAuthData({
+          accessToken: tokenValue,
+          refreshToken: refreshTokenValue,
+          user: userObj,
+        });
         setToken(tokenValue);
-        setCurrentUser(authResult?.user || { userName: identifier, role: 'admin' });
+        setCurrentUser(userObj);
         setIsAuthenticated(true);
         showAlert('Authentication Successful', `Welcome back ${authResult?.user?.name || authResult?.user?.userName || identifier}!`, 'success');
       } else {
@@ -338,14 +384,17 @@ export function useAppData() {
 
   const handleLogout = async () => {
     try {
-      if (token) {
+      const refreshToken = await tokenStorage.getRefreshToken();
+      if (token || refreshToken) {
         await trpcRequest('auth.logout', {
           method: 'POST',
+          body: { refreshToken: refreshToken || undefined },
         });
       }
     } catch (err: any) {
       console.log('[handleLogout] Logout API notice:', err.message);
     } finally {
+      await tokenStorage.clearAuthData();
       setToken(null);
       setCurrentUser(null);
       setIsAuthenticated(false);
@@ -372,7 +421,11 @@ export function useAppData() {
       method: 'POST',
       body: { newUserName },
     });
-    setCurrentUser((prev: any) => (prev ? { ...prev, userName: newUserName } : prev));
+    setCurrentUser((prev: any) => {
+      const updated = prev ? { ...prev, userName: newUserName } : { userName: newUserName };
+      tokenStorage.setUser(updated);
+      return updated;
+    });
     setUsername(newUserName);
   };
 
@@ -388,7 +441,47 @@ export function useAppData() {
       method: 'POST',
       body: { newEmail },
     });
-    setCurrentUser((prev: any) => (prev ? { ...prev, email: newEmail } : prev));
+    setCurrentUser((prev: any) => {
+      const updated = prev ? { ...prev, email: newEmail } : { email: newEmail };
+      tokenStorage.setUser(updated);
+      return updated;
+    });
+    setEmail(newEmail);
+  };
+
+  const handleUpdateUser = async (data: {
+    email?: string;
+    userName?: string;
+    password?: string;
+    currentPassword?: string;
+  }) => {
+    const res: any = await trpcRequest('auth.update', {
+      method: 'POST',
+      body: data,
+    });
+    if (res?.accessToken) {
+      await tokenStorage.saveAuthData({
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+        user: res.user,
+      });
+      setToken(res.accessToken);
+    }
+    if (res?.user) {
+      setCurrentUser(res.user);
+      if (res.user.email) setEmail(res.user.email);
+      if (res.user.userName) setUsername(res.user.userName);
+      await tokenStorage.setUser(res.user);
+    }
+    return res;
+  };
+
+  const handleDeleteAccount = async (passwordInput?: string) => {
+    await trpcRequest('auth.delete', {
+      method: 'POST',
+      body: { password: passwordInput },
+    });
+    await handleLogout();
   };
 
   // Product Mutators
@@ -1224,15 +1317,35 @@ export function useAppData() {
         method: 'POST',
         body: { id, status: 'resolved' },
       });
-      setInquiries(prev =>
-        prev.map(inq => (inq.id === id ? { ...inq, status: 'Resolved' as const } : inq))
-      );
-      setInquiriesPagination(prev => ({
-        ...prev,
-        pendingCount: Math.max(0, prev.pendingCount - 1),
-        resolvedCount: prev.resolvedCount + 1,
-      }));
+      setInquiries(prev => {
+        if (inquiriesStatusFilter === 'pending') {
+          return prev.filter(inq => inq.id !== id);
+        }
+        return prev.map(inq => (inq.id === id ? { ...inq, status: 'Resolved' as const } : inq));
+      });
+      setInquiriesPagination(prev => {
+        const nextPending = Math.max(0, prev.pendingCount - 1);
+        const nextResolved = prev.resolvedCount + 1;
+        const nextTotal = inquiriesStatusFilter === 'pending' ? Math.max(0, prev.total - 1) : prev.total;
+        const nextTotalPages =
+          inquiriesStatusFilter === 'pending'
+            ? Math.max(1, Math.ceil(nextTotal / (prev.limit || 10)))
+            : prev.totalPages;
+        return {
+          ...prev,
+          total: nextTotal,
+          totalPages: nextTotalPages,
+          pendingCount: nextPending,
+          resolvedCount: nextResolved,
+        };
+      });
       showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Resolved.`, 'success');
+      // Silently refresh current page from backend so pagination boundaries and limits stay exact
+      handleFetchPaginatedInquiries({
+        page: inquiriesPagination.page,
+        status: inquiriesStatusFilter,
+        append: false,
+      });
     } catch (err: any) {
       console.error('[handleResolveInquiry Error]:', err);
       showAlert('Error', err?.message || 'Failed to update inquiry status', 'error');
@@ -1564,6 +1677,8 @@ export function useAppData() {
     handleChangeUsername,
     handleChangeEmail,
     handleChangePassword,
+    handleUpdateUser,
+    handleDeleteAccount,
     activeTab,
     setActiveTab,
     tabValues,

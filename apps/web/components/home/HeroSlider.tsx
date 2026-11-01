@@ -113,7 +113,8 @@ export function HeroSlider({ slides, currentSlide, setCurrentSlide }: HeroSlider
                 <div className="max-w-md mb-8">
                   <FormattedRichText
                     text={slide.subtitle}
-                    paragraphClassName="text-zinc-300 font-light text-xs md:text-sm leading-relaxed"
+                    className="text-white/90 font-light text-xs md:text-sm leading-relaxed drop-shadow-sm"
+                    paragraphClassName="text-white/90 font-light text-xs md:text-sm leading-relaxed drop-shadow-sm"
                   />
                 </div>
 

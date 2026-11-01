@@ -14,7 +14,6 @@ import { FlashSale } from '@/components/home/FlashSale';
 import { Testimonials } from '@/components/home/Testimonials';
 import { SeasonalPrivilege } from '@/components/home/SeasonalPrivilege';
 import { Faqs } from '@/components/home/Faqs';
-import { InstagramFeed } from '@/components/home/InstagramFeed';
 
 import type { SiteConfigData, HeroSlideItem } from '@/lib/site-config';
 
@@ -63,13 +62,20 @@ const DEFAULT_SLIDES = [
 
 export function HomeClient({ initialConfig }: HomeClientProps) {
   // Fetch products in focused batches instead of getting entire database at once
-  const { data: trendingData } = api.products.getPaginated.useQuery({ limit: 12 });
-  const { data: bestSellerData } = api.products.getPaginated.useQuery({ filter: 'bestseller', limit: 6 });
-  const { data: newArrivalData } = api.products.getPaginated.useQuery({ filter: 'new', limit: 6 });
+  const { data: trendingData, isLoading: isLoadingTrending } = api.products.getPaginated.useQuery({ limit: 12 });
+  const { data: bestSellerData, isLoading: isLoadingBestSeller } = api.products.getPaginated.useQuery({ filter: 'bestseller', limit: 6 });
+  const { data: newArrivalData, isLoading: isLoadingNewArrival } = api.products.getPaginated.useQuery({ filter: 'new', limit: 6 });
 
   const products = trendingData?.items || [];
   const bestSellerProducts = (bestSellerData?.items || []).slice(0, 4);
   const newArrivalProducts = (newArrivalData?.items || []).slice(0, 4);
+  const fallbackNewArrivals = (
+    products.filter((p) => p.newArrival).length > 0
+      ? products.filter((p) => p.newArrival)
+      : products
+  ).slice(0, 4);
+  const displayNewArrivals =
+    newArrivalProducts.length > 0 ? newArrivalProducts : fallbackNewArrivals;
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const slides = (initialConfig?.heroSlides && initialConfig.heroSlides.length > 0)
@@ -106,48 +112,43 @@ export function HomeClient({ initialConfig }: HomeClientProps) {
       {/* 3. Shop by Categories Grid */}
       <CategoryGrid />
 
-      {/* 3.5 Editorial Advertisement Section */}
+      {/* 4. New Arrivals Section (Placed immediately after Category section) */}
+      <ProductRow 
+        title="New Arrivals"
+        tagline="LATEST DROPS"
+        products={displayNewArrivals}
+        isLoading={isLoadingNewArrival}
+        viewAllHref="/shop?filter=new"
+        viewAllText="View All New"
+      />
+
+      {/* 5. Editorial Advertisement Section */}
       <BespokeBanner config={initialConfig?.adBanner} />
 
-      {/* 4. Curated Silhouettes Curation tabs */}
-      <TrendingGrid products={products} />
+      {/* 6. Curated Silhouettes Curation tabs */}
+      <TrendingGrid products={products} isLoading={isLoadingTrending} />
 
-      {/* 5. New Arrivals Grid (Shown only if new arrival products exist) */}
-      {newArrivalProducts.length > 0 && (
-        <ProductRow 
-          title="New Arrivals"
-          tagline="LATEST DROPS"
-          products={newArrivalProducts}
-          viewAllHref="/shop?filter=new"
-          viewAllText="View All New"
-        />
-      )}
-
-      {/* 6. Interactive Flash Sale Banner Section */}
+      {/* 7. Interactive Flash Sale Banner Section */}
       <FlashSale config={initialConfig?.saleSection} />
 
-      {/* 7. Best Sellers Grid (Shown only if bestseller products exist) */}
-      {bestSellerProducts.length > 0 && (
-        <ProductRow 
-          title="Best Sellers"
-          tagline="TRENDING BESTSELLERS"
-          products={bestSellerProducts}
-          viewAllHref="/shop?filter=bestseller"
-          viewAllText="View All Bestsellers"
-        />
-      )}
+      {/* 8. Best Sellers Grid */}
+      <ProductRow 
+        title="Best Sellers"
+        tagline="TRENDING BESTSELLERS"
+        products={bestSellerProducts}
+        isLoading={isLoadingBestSeller}
+        viewAllHref="/shop?filter=bestseller"
+        viewAllText="View All Bestsellers"
+      />
 
       {/* 8. Testimonials Section */}
       <Testimonials />
 
       {/* 8.5 Seasonal Discount Advertisement Section */}
-      <SeasonalPrivilege />
+      <SeasonalPrivilege config={initialConfig?.secondAdBanner} />
 
       {/* 9. Frequently Asked Questions */}
       <Faqs items={initialConfig?.faqs} />
-
-      {/* 10. Follow us on Instagram Grid */}
-      <InstagramFeed />
     </div>
   );
 }

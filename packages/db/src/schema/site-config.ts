@@ -56,6 +56,7 @@ export interface SiteConfigData {
   promotionalHeader: string[];
   heroSlides: HeroSlideItem[];
   adBanner: AdBannerConfig;
+  secondAdBanner?: AdBannerConfig;
   saleSection: SaleSectionConfig;
   faqs: FaqItem[];
   contactInfo: ContactInfoConfig;
@@ -66,6 +67,7 @@ export const siteConfigTable = pgTable('site_config', {
   promotionalHeader: jsonb('promotional_header').$type<string[]>(),
   heroSlides: jsonb('hero_slides').$type<HeroSlideItem[]>(),
   adBanner: jsonb('ad_banner').$type<AdBannerConfig>(),
+  secondAdBanner: jsonb('second_ad_banner').$type<AdBannerConfig>(),
   saleSection: jsonb('sale_section').$type<SaleSectionConfig>(),
   faqs: jsonb('faqs').$type<FaqItem[]>(),
   contactInfo: jsonb('contact_info').$type<ContactInfoConfig>(),

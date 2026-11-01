@@ -70,6 +70,7 @@ export const siteConfigRouter = router({
         promotionalHeader: z.array(z.string()).optional(),
         heroSlides: z.array(heroSlideSchema).optional(),
         adBanner: adBannerSchema.optional(),
+        secondAdBanner: adBannerSchema.optional(),
         saleSection: saleSectionSchema.optional(),
         faqs: z.array(faqItemSchema).optional(),
         contactInfo: contactInfoSchema.optional(),

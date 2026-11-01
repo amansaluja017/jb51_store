@@ -11,7 +11,8 @@
   },
   "scripts": {
     "test": "echo \"No unit tests specified\"",
-    "test:integration": "tsx --test src/products.test.ts"
+    "test:integration": "tsx --test src/products.test.ts",
+    "seed:products": "tsx src/scripts/seed-products.ts"
   },
   "dependencies": {
     "@repo/db": "workspace:*",

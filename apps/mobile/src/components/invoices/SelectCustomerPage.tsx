@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { Customer } from '../../types';
 import { CustomerListSkeleton } from '../SkeletonLoader';
+import { Pagination } from '../ui';
 
 export interface SelectCustomerPageProps {
   customers: Customer[];
@@ -379,42 +380,17 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
         )}
       </ScrollView>
 
-      {/* Pagination Bar (when customers exist) */}
-      {totalCount > 0 && (
-        <View style={styles.paginationBar}>
-          <Text style={styles.paginationInfo}>
-            {startRecord}–{endRecord} of {totalCount}
-          </Text>
-
-          <View style={styles.paginationControls}>
-            <TouchableOpacity
-              style={[styles.pageButton, safePage <= 1 && styles.pageButtonDisabled]}
-              onPress={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-              accessibilityLabel="Previous page"
-              accessibilityRole="button"
-            >
-              <ChevronLeft size={16} color={safePage <= 1 ? '#d4d4d8' : '#18181b'} />
-            </TouchableOpacity>
-
-            <View style={styles.pageNumberBadge}>
-              <Text style={styles.pageNumberText}>
-                {safePage} / {totalPages}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.pageButton, safePage >= totalPages && styles.pageButtonDisabled]}
-              onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage >= totalPages}
-              accessibilityLabel="Next page"
-              accessibilityRole="button"
-            >
-              <ChevronRight size={16} color={safePage >= totalPages ? '#d4d4d8' : '#18181b'} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      {/* Pagination Bar */}
+      <Pagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        startRecord={startRecord}
+        endRecord={endRecord}
+        itemLabel="customers"
+        onPageChange={(p) => setPage(p)}
+        style={{ paddingBottom: 16 }}
+      />
     </KeyboardAvoidingView>
   );
 };

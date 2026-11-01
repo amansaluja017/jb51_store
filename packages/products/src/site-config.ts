@@ -73,6 +73,16 @@ export const DEFAULT_SITE_CONFIG: SiteConfigData = {
     secondaryButtonLink: '/shop',
     imageUrl: '/assets/luxury_ad_banner.png',
   },
+  secondAdBanner: {
+    tagline: 'SEASONAL PRIVILEGE',
+    title: 'The Festive Couture Edit',
+    subtitle: 'Unlock extraordinary savings on signature handcrafted ensembles. Hand-spun silk, intricate zardozi, and heritage loom masterpieces tailored to perfection.',
+    buttonText: 'Shop Festive Sale',
+    buttonLink: '/shop?filter=sale',
+    secondaryButtonText: 'Consult Stylist',
+    secondaryButtonLink: '/support',
+    imageUrl: '/assets/discount_ad_banner.jpg',
+  },
   saleSection: {
     enabled: true,
     tagline: 'LIMITED TIME PROMO',
@@ -128,12 +138,14 @@ async function ensureSiteConfigTable() {
         promotional_header JSONB,
         hero_slides JSONB,
         ad_banner JSONB,
+        second_ad_banner JSONB,
         sale_section JSONB,
         faqs JSONB,
         contact_info JSONB,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_by VARCHAR(128)
       );
+      ALTER TABLE site_config ADD COLUMN IF NOT EXISTS second_ad_banner JSONB;
     `);
     tableCreated = true;
   } catch (err) {
@@ -157,6 +169,7 @@ export async function getSiteConfig(): Promise<SiteConfigData & { updatedAt?: Da
         promotionalHeader: DEFAULT_SITE_CONFIG.promotionalHeader,
         heroSlides: DEFAULT_SITE_CONFIG.heroSlides,
         adBanner: DEFAULT_SITE_CONFIG.adBanner,
+        secondAdBanner: DEFAULT_SITE_CONFIG.secondAdBanner,
         saleSection: DEFAULT_SITE_CONFIG.saleSection,
         faqs: DEFAULT_SITE_CONFIG.faqs,
         contactInfo: DEFAULT_SITE_CONFIG.contactInfo,
@@ -169,6 +182,7 @@ export async function getSiteConfig(): Promise<SiteConfigData & { updatedAt?: Da
       promotionalHeader: row.promotionalHeader || DEFAULT_SITE_CONFIG.promotionalHeader,
       heroSlides: row.heroSlides || DEFAULT_SITE_CONFIG.heroSlides,
       adBanner: row.adBanner || DEFAULT_SITE_CONFIG.adBanner,
+      secondAdBanner: row.secondAdBanner || DEFAULT_SITE_CONFIG.secondAdBanner,
       saleSection: row.saleSection || DEFAULT_SITE_CONFIG.saleSection,
       faqs: row.faqs || DEFAULT_SITE_CONFIG.faqs,
       contactInfo: row.contactInfo || DEFAULT_SITE_CONFIG.contactInfo,
@@ -185,6 +199,7 @@ export interface UpdateSiteConfigInput {
   promotionalHeader?: string[];
   heroSlides?: HeroSlideItem[];
   adBanner?: AdBannerConfig;
+  secondAdBanner?: AdBannerConfig;
   saleSection?: SaleSectionConfig;
   faqs?: FaqItem[];
   contactInfo?: ContactInfoConfig;
@@ -204,6 +219,7 @@ export async function updateSiteConfig(input: UpdateSiteConfigInput) {
   if (input.promotionalHeader !== undefined) updateValues.promotionalHeader = input.promotionalHeader;
   if (input.heroSlides !== undefined) updateValues.heroSlides = input.heroSlides;
   if (input.adBanner !== undefined) updateValues.adBanner = input.adBanner;
+  if (input.secondAdBanner !== undefined) updateValues.secondAdBanner = input.secondAdBanner;
   if (input.saleSection !== undefined) updateValues.saleSection = input.saleSection;
   if (input.faqs !== undefined) updateValues.faqs = input.faqs;
   if (input.contactInfo !== undefined) updateValues.contactInfo = input.contactInfo;
@@ -215,6 +231,7 @@ export async function updateSiteConfig(input: UpdateSiteConfigInput) {
       promotionalHeader: input.promotionalHeader || current.promotionalHeader,
       heroSlides: input.heroSlides || current.heroSlides,
       adBanner: input.adBanner || current.adBanner,
+      secondAdBanner: input.secondAdBanner || current.secondAdBanner,
       saleSection: input.saleSection || current.saleSection,
       faqs: input.faqs || current.faqs,
       contactInfo: input.contactInfo || current.contactInfo,

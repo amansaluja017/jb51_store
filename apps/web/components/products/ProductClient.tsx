@@ -47,6 +47,41 @@ const getColorHex = (colorName: string) => {
   return '#E4E4E7'; // light zinc fallback
 };
 
+// Trust Badges Icons (Reference 2)
+const ReturnBoxIcon = ({ className = "w-8 h-8 text-zinc-700" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+    {/* Package box */}
+    <path d="M24 14L34 19.5V31L24 36.5L14 31V19.5L24 14Z" strokeLinejoin="round" />
+    <path d="M24 22.5V36" strokeLinecap="round" />
+    <path d="M14 19.5L24 25L34 19.5" strokeLinejoin="round" />
+    {/* Circular return arrows */}
+    <path d="M11 27C9.5 24 9.5 19 12.5 15.5C16.5 11 23 10 27 11.5" strokeLinecap="round" />
+    <path d="M9 16L12.5 15.5L13 19" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M37 21C38.5 24 38.5 29 35.5 32.5C31.5 37 25 38 21 36.5" strokeLinecap="round" />
+    <path d="M39 32L35.5 32.5L35 29" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ExchangeCycleIcon = ({ className = "w-8 h-8 text-zinc-700" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M38 24C38 31.732 31.732 38 24 38C19 38 14.5 35.5 12 31.5" strokeLinecap="round" />
+    <path d="M10 35L12 31.5L16 33.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M10 24C10 16.268 16.268 10 24 10C29 10 33.5 12.5 36 16.5" strokeLinecap="round" />
+    <path d="M38 13L36 16.5L32 14.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const CashOnDeliveryIcon = ({ className = "w-8 h-8 text-zinc-700" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <circle cx="24" cy="24" r="16" strokeLinecap="round" />
+    {/* Indian Rupee ₹ symbol */}
+    <path d="M19 17H29" strokeLinecap="round" />
+    <path d="M19 21.5H27" strokeLinecap="round" />
+    <path d="M23.5 17V26C26.5 26 28 24 27.5 21.5" strokeLinecap="round" />
+    <path d="M22 26L28 33" strokeLinecap="round" />
+  </svg>
+);
+
 export function ProductClient({ product }: { product: Product }) {
   const variants = product.variants || [];
   const images: string[] = product.images || [];
@@ -56,6 +91,8 @@ export function ProductClient({ product }: { product: Product }) {
   // Magnifier State
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isHovering, setIsHovering] = useState(false);
+
+
 
   const { isInWishlist, toggleWishlist } = useWishlist();
   const isLiked = isInWishlist(product.id);
@@ -117,14 +154,20 @@ export function ProductClient({ product }: { product: Product }) {
     }
   }, [product?.id, product?.slug, trackEvent]);
 
+  // Magnifier zoom settings (decreased from 4x to 2x for a sharp, natural magnification)
+  const ZOOM_SCALE = 2;
+  const LENS_SIZE = 100 / ZOOM_SCALE; // 50%
+  const HALF_LENS = LENS_SIZE / 2; // 25%
+  const TRAVEL_RANGE = 100 - LENS_SIZE; // 50%
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - left) / width) * 100;
     const y = ((e.clientY - top) / height) * 100;
 
-    // Clamp coordinates to keep the 25% lens selector box fully within the image bounds (12.5% padding from edges)
-    const clampedX = Math.max(12.5, Math.min(87.5, x));
-    const clampedY = Math.max(12.5, Math.min(87.5, y));
+    // Clamp coordinates to keep the lens selector box fully within the image bounds
+    const clampedX = Math.max(HALF_LENS, Math.min(100 - HALF_LENS, x));
+    const clampedY = Math.max(HALF_LENS, Math.min(100 - HALF_LENS, y));
 
     setZoomPos({ x: clampedX, y: clampedY });
     setIsHovering(true);
@@ -224,7 +267,7 @@ export function ProductClient({ product }: { product: Product }) {
                   alt={product.name || 'Product'}
                   fill
                   priority
-                  className={cn("object-cover transition-transform duration-100 ease-out z-10", isHovering ? "scale-150 lg:scale-100" : "scale-100")}
+                  className={cn("object-cover transition-transform duration-100 ease-out z-10", isHovering ? "scale-115 lg:scale-100" : "scale-100")}
                   style={{
                     transformOrigin: isHovering ? `${zoomPos.x}% ${zoomPos.y}%` : 'center center'
                   }}
@@ -234,10 +277,12 @@ export function ProductClient({ product }: { product: Product }) {
                 {/* Magnifier glass selector square */}
                 {isHovering && (
                   <div
-                    className="absolute w-[25%] h-[25%] bg-[#FF5E36]/5 border border-[#FF5E36]/20 pointer-events-none z-30 rounded-2xl hidden lg:block"
+                    className="absolute bg-[#FF5E36]/5 border border-[#FF5E36]/25 pointer-events-none z-30 rounded-2xl hidden lg:block shadow-sm"
                     style={{
-                      left: `calc(${zoomPos.x}% - 12.5%)`,
-                      top: `calc(${zoomPos.y}% - 12.5%)`,
+                      width: `${LENS_SIZE}%`,
+                      height: `${LENS_SIZE}%`,
+                      left: `calc(${zoomPos.x}% - ${HALF_LENS}%)`,
+                      top: `calc(${zoomPos.y}% - ${HALF_LENS}%)`,
                     }}
                   />
                 )}
@@ -272,8 +317,8 @@ export function ProductClient({ product }: { product: Product }) {
                     fill
                     className="object-cover pointer-events-none"
                     style={{
-                      transform: 'scale(4)',
-                      transformOrigin: `${((zoomPos.x - 12.5) / 75) * 100}% ${((zoomPos.y - 12.5) / 75) * 100}%`
+                      transform: `scale(${ZOOM_SCALE})`,
+                      transformOrigin: `${((zoomPos.x - HALF_LENS) / TRAVEL_RANGE) * 100}% ${((zoomPos.y - HALF_LENS) / TRAVEL_RANGE) * 100}%`
                     }}
                     sizes="(max-width: 1024px) 100vw, 60vw"
                   />
@@ -329,11 +374,6 @@ export function ProductClient({ product }: { product: Product }) {
             {/* Luxury Editorial Divider */}
             <div className="editorial-divider my-2" />
 
-            {/* Description */}
-            <div className="text-zinc-600 text-xs md:text-sm leading-relaxed mb-6 font-light">
-              <FormattedRichText text={product.description} />
-            </div>
-
             {/* Color Selection Pill Swatches - Redesigned as luxurious color swatches */}
             <div className="mb-5 border-t border-zinc-100 pt-5">
               <div className="flex justify-between items-center mb-3">
@@ -380,7 +420,7 @@ export function ProductClient({ product }: { product: Product }) {
               </div>
             </div>
 
-            {/* Actions & Concierge Inquiry Buttons - Redesigned side-by-side grid to prevent stretching and overflow */}
+            {/* Actions & Concierge Inquiry Buttons */}
             <div className="flex flex-col gap-3 mb-6">
               <div className="grid grid-cols-2 gap-3">
                 {/* WhatsApp Inquiry Button */}
@@ -445,44 +485,147 @@ export function ProductClient({ product }: { product: Product }) {
               </div>
             </div>
 
-            {/* Specs / Care Accordion */}
-            <div className="border-t border-zinc-200/50">
-              <Accordion type="single" collapsible className="w-full font-sans">
-                <AccordionItem value="fabric" className="border-b border-zinc-200/50">
-                  <AccordionTrigger className="font-serif text-xs uppercase tracking-wider py-4 hover:no-underline font-semibold text-zinc-900 hover:text-[#FF5E36] transition-colors flex justify-between items-center w-full">
-                    <span>Craft & Embellishments</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-zinc-650 leading-relaxed pb-4 font-light">
-                    <div className="mb-2"><strong>Composition:</strong> <FormattedRichText text={product.fabric} className="inline" /></div>
-                    <p className="mb-2"><strong>Artisanal Detail:</strong> Woven on traditional handlooms utilizing genuine threads, intricate borders, and local embroidery patterns.</p>
-                    <div><strong>Care Instructions:</strong> <FormattedRichText text={product.careInstructions} className="inline" /></div>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="fit" className="border-b border-zinc-200/50">
-                  <AccordionTrigger className="font-serif text-xs uppercase tracking-wider py-4 hover:no-underline font-semibold text-zinc-900 hover:text-[#FF5E36] transition-colors flex justify-between items-center w-full">
-                    <span>Silhouette & Styling</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-zinc-650 leading-relaxed pb-4 font-light">
-                    <div className="mb-2"><strong>Profile:</strong> <FormattedRichText text={product.fit} className="inline" /></div>
-                    <p><strong>Styling Tip:</strong> Pair with raw-silk flats, subtle brass jewelry, and let the sheer dupatta carry the drape for classic celebratory elegance.</p>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="delivery" className="border-b border-zinc-200/50">
-                  <AccordionTrigger className="font-serif text-xs uppercase tracking-wider py-4 hover:no-underline font-semibold text-zinc-900 hover:text-[#FF5E36] transition-colors flex justify-between items-center w-full">
-                    <span>Concierge Delivery & Returns</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-zinc-650 leading-relaxed pb-4 font-light">
-                    <p className="mb-2">We offer complimentary express delivery across India and globally. Made-to-measure orders require 15–20 business days of design and tailoring time prior to shipment.</p>
-                    <p>Exchange ready-to-wear items within 7 days. Standard sizes can be returned, but custom/bespoke altered pieces are final sale, backed by free alterations.</p>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-
           </div>
         </div>
 
-        {/* 2. Editorial Craftsmanship Banner */}
+        {/* 2. Return and Exchange Section (Reference 2: 2 Days Return, 10 Days Exchange, Cash On Delivery) */}
+        <section className="border-y border-zinc-200/80 bg-white py-8 mb-16 w-full select-none">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-3 gap-6 md:gap-12 text-center items-center">
+              
+              {/* 2 Days Return */}
+              <div className="flex flex-col items-center justify-center group cursor-default">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mb-2.5 text-zinc-700 transition-transform duration-300 group-hover:scale-105">
+                  <ReturnBoxIcon className="w-8 h-8 md:w-9 md:h-9 text-zinc-700 stroke-[1.2]" />
+                </div>
+                <span className="text-xs md:text-sm font-medium text-zinc-800 tracking-wide">
+                  2 Days Return
+                </span>
+              </div>
+
+              {/* 10 Days Exchange */}
+              <div className="flex flex-col items-center justify-center group cursor-default">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mb-2.5 text-zinc-700 transition-transform duration-300 group-hover:scale-105">
+                  <ExchangeCycleIcon className="w-8 h-8 md:w-9 md:h-9 text-zinc-700 stroke-[1.2]" />
+                </div>
+                <span className="text-xs md:text-sm font-medium text-zinc-800 tracking-wide">
+                  10 Days Exchange
+                </span>
+              </div>
+
+              {/* Cash On Delivery */}
+              <div className="flex flex-col items-center justify-center group cursor-default">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mb-2.5 text-zinc-700 transition-transform duration-300 group-hover:scale-105">
+                  <CashOnDeliveryIcon className="w-8 h-8 md:w-9 md:h-9 text-zinc-700 stroke-[1.2]" />
+                </div>
+                <span className="text-xs md:text-sm font-medium text-zinc-800 tracking-wide">
+                  Cash On Delivery
+                </span>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Product Description and All Sections (Reference 1: Description, Specifications, Supplier Info, Return Policy) */}
+        <section className="max-w-5xl mx-auto px-6 mb-20 w-full">
+          <div className="border-t border-zinc-200">
+            <Accordion type="single" collapsible className="w-full font-sans">
+              {/* 1. Description */}
+              <AccordionItem value="description" className="border-b border-zinc-200">
+                <AccordionTrigger className="text-sm md:text-base font-semibold text-zinc-900 hover:text-[#FF5E36] py-5 transition-colors">
+                  <span>Description</span>
+                </AccordionTrigger>
+                <AccordionContent className="text-xs md:text-sm text-zinc-650 leading-relaxed pb-6 font-light">
+                  <FormattedRichText text={product.description} />
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* 2. Specifications */}
+              <AccordionItem value="specifications" className="border-b border-zinc-200">
+                <AccordionTrigger className="text-sm md:text-base font-semibold text-zinc-900 hover:text-[#FF5E36] py-5 transition-colors">
+                  <span>Specifications</span>
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-zinc-650 leading-relaxed pb-6 font-light">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 bg-zinc-50/70 p-5 rounded-2xl border border-zinc-150">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Fabric Composition</span>
+                      <FormattedRichText text={product.fabric || 'Pure Handloom Luxury Indian Weave'} className="text-zinc-800 font-medium inline" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Silhouette & Fit</span>
+                      <FormattedRichText text={product.fit || 'Tailored Classic Punjabi Silhouette'} className="text-zinc-800 font-medium inline" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Occasion</span>
+                      <span className="text-zinc-800 font-medium">Festive, Wedding & Occasion Couture</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Care Instructions</span>
+                      <FormattedRichText text={product.careInstructions || 'Dry Clean Only'} className="text-zinc-800 font-medium inline" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Craft Technique</span>
+                      <span className="text-zinc-800 font-medium">Artisanal Loom Weave & Zari Borders</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Package Contents</span>
+                      <span className="text-zinc-800 font-medium">1 Suit / Kurta, 1 Salwar / Bottom, 1 Dupatta</span>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* 3. Supplier Information */}
+              <AccordionItem value="supplier" className="border-b border-zinc-200">
+                <AccordionTrigger className="text-sm md:text-base font-semibold text-zinc-900 hover:text-[#FF5E36] py-5 transition-colors">
+                  <span>Supplier Information</span>
+                </AccordionTrigger>
+                <AccordionContent className="text-xs md:text-sm text-zinc-650 leading-relaxed pb-6 font-light space-y-3">
+                  <div className="flex justify-between py-2 border-b border-zinc-100">
+                    <span className="text-zinc-400">Brand Name</span>
+                    <span className="font-semibold text-zinc-900">JB51</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-zinc-100">
+                    <span className="text-zinc-400">Manufactured & Marketed By</span>
+                    <span className="font-medium text-zinc-800 text-right">JB51 Bespoke Indian Couture, Punjab, India</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-zinc-100">
+                    <span className="text-zinc-400">Country of Origin</span>
+                    <span className="font-semibold text-zinc-900">India</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-zinc-400">Customer Support</span>
+                    <span className="font-medium text-zinc-800">WhatsApp Concierge & Email Support</span>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* 4. Return Policy */}
+              <AccordionItem value="returns" className="border-b border-zinc-200">
+                <AccordionTrigger className="text-sm md:text-base font-semibold text-zinc-900 hover:text-[#FF5E36] py-5 transition-colors">
+                  <span>Return Policy</span>
+                </AccordionTrigger>
+                <AccordionContent className="text-xs md:text-sm text-zinc-650 leading-relaxed pb-6 font-light space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF5E36] mt-2 shrink-0" />
+                    <p><strong className="text-zinc-800 font-semibold">2 Days Return:</strong> Eligible items in original, unworn condition with tags intact can be returned within 2 days of delivery.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF5E36] mt-2 shrink-0" />
+                    <p><strong className="text-zinc-800 font-semibold">10 Days Exchange:</strong> Complimentary size or shade exchange available within 10 days of receiving your outfit.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF5E36] mt-2 shrink-0" />
+                    <p><strong className="text-zinc-800 font-semibold">Complimentary Alterations:</strong> Made-to-measure orders receive complimentary lifetime fitting adjustments by our master karigars.</p>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        </section>
+
+        {/* 4. Editorial Craftsmanship Banner */}
         <HeritageCraftBanner />
 
         {/* 3. Similar Products Section */}

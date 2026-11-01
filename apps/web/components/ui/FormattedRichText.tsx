@@ -75,7 +75,7 @@ export function FormattedRichText({
     .replace(/&nbsp;/g, ' ');
 
   if (!decodedText.includes('<') && !decodedText.includes('•') && !decodedText.includes('\n')) {
-    return <span className={className}>{decodedText}</span>;
+    return <span className={className || paragraphClassName}>{decodedText}</span>;
   }
 
   const normalized = decodedText

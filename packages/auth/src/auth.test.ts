@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import * as dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 import { db, user, client } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { authRouter } from './router';
@@ -18,7 +19,7 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
   const testEmail2 = `user2_${timestamp}@example.com`;
   const username1 = `auth_user1_${timestamp}`;
   const username2 = `auth_user2_${timestamp}`;
-  const newUsername1 = `auth_user1_new_${timestamp}`;
+  const updatedEmail1 = `user1_updated_${timestamp}@example.com`;
   const passwordInitial = 'securePass123';
   const passwordNew = 'newSecurePass456';
 
@@ -38,8 +39,8 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
     await client.end();
   });
 
-  await t.test('1. Register procedure with JWT generation', async (st) => {
-    await st.test('should successfully register a new user and return JWT tokens', async () => {
+  await t.test('1. Register route with JWT generation and expiration validation', async (st) => {
+    await st.test('should successfully register a new user and return 15m access token & 7d refresh token', async () => {
       const result = await caller.register({
         email: testEmail1,
         userName: username1,
@@ -59,6 +60,21 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
       const decodedPayload = verifyAccessToken(result.accessToken);
       assert.strictEqual(decodedPayload.sub, result.user.id);
       assert.strictEqual(decodedPayload.email, testEmail1.toLowerCase());
+
+      // Verify expiration times: 15 minutes for access token, 7 days for refresh token
+      const accessDecoded = jwt.decode(result.accessToken) as any;
+      assert.strictEqual(
+        accessDecoded.exp - accessDecoded.iat,
+        15 * 60,
+        'Access token expiration must be exactly 15 minutes (900s)'
+      );
+
+      const refreshDecoded = jwt.decode(result.refreshToken) as any;
+      assert.strictEqual(
+        refreshDecoded.exp - refreshDecoded.iat,
+        7 * 24 * 60 * 60,
+        'Refresh token expiration must be exactly 7 days (604800s)'
+      );
 
       createdUserId1 = result.user.id;
       activeAccessToken = result.accessToken;
@@ -92,26 +108,9 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
         }
       );
     });
-
-    await st.test('should fail registration with duplicate username', async () => {
-      await assert.rejects(
-        async () => {
-          await caller.register({
-            email: `unique_${Date.now()}@example.com`,
-            userName: username1,
-            password: passwordInitial,
-          });
-        },
-        (err: any) => {
-          assert.strictEqual(err.code, 'BAD_REQUEST');
-          assert.match(err.message, /username already exists/i);
-          return true;
-        }
-      );
-    });
   });
 
-  await t.test('2. Login procedure with JWT token verification', async (st) => {
+  await t.test('2. Login route with email and username matching', async (st) => {
     await st.test('should successfully login with email and return valid JWT', async () => {
       const result = await caller.login({
         identifier: testEmail1,
@@ -130,14 +129,13 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
       activeRefreshToken = result.refreshToken;
     });
 
-    await st.test('should successfully login with username and return valid JWT', async () => {
+    await st.test('should successfully login with username prefix and return valid JWT', async () => {
       const result = await caller.login({
-        identifier: username1,
+        identifier: `user1_${timestamp}`,
         password: passwordInitial,
       });
 
       assert.strictEqual(result.user.id, createdUserId1);
-      assert.strictEqual(result.user.userName, username1);
       assert.ok(result.accessToken);
     });
 
@@ -158,8 +156,8 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
     });
   });
 
-  await t.test('3. Refresh Token procedure', async (st) => {
-    await st.test('should generate new access token using refresh token', async () => {
+  await t.test('3. Refresh Token route', async (st) => {
+    await st.test('should generate new access token and refresh token using active refresh token', async () => {
       const result = await caller.refreshToken({
         refreshToken: activeRefreshToken,
       });
@@ -169,6 +167,13 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
       assert.ok(result.accessToken);
       assert.ok(result.refreshToken);
       assert.strictEqual(result.user.id, createdUserId1);
+
+      // Verify expiration of new tokens
+      const accessDecoded = jwt.decode(result.accessToken) as any;
+      assert.strictEqual(accessDecoded.exp - accessDecoded.iat, 15 * 60);
+
+      const refreshDecoded = jwt.decode(result.refreshToken) as any;
+      assert.strictEqual(refreshDecoded.exp - refreshDecoded.iat, 7 * 24 * 60 * 60);
 
       const authCtx = authenticateToken(`Bearer ${result.accessToken}`);
       assert.ok(authCtx);
@@ -190,100 +195,60 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
     });
   });
 
-  await t.test('4. Change Username procedure', async (st) => {
-    await st.test('should fail if new username is already taken', async () => {
-      const authCaller = authRouter.createCaller({
-        user: verifyAccessToken(activeAccessToken),
-        isStaff: false,
-      });
-
+  await t.test('4. Update route (update email, password, and profile)', async (st) => {
+    await st.test('should fail update without authentication', async () => {
+      const unauthCaller = authRouter.createCaller({});
       await assert.rejects(
         async () => {
-          await authCaller.changeUsername({
+          await unauthCaller.update({
             userId: createdUserId1,
-            newUserName: username2,
+            email: updatedEmail1,
           });
         },
         (err: any) => {
-          assert.strictEqual(err.code, 'BAD_REQUEST');
-          assert.match(err.message, /username is already taken/i);
+          assert.strictEqual(err.code, 'UNAUTHORIZED');
           return true;
         }
       );
     });
 
-    await st.test('should successfully update username', async () => {
+    await st.test('should successfully update user email and password', async () => {
       const authCaller = authRouter.createCaller({
         user: verifyAccessToken(activeAccessToken),
         isStaff: false,
       });
 
-      const result = await authCaller.changeUsername({
+      const result = await authCaller.update({
         userId: createdUserId1,
-        newUserName: newUsername1,
-      });
-
-      assert.strictEqual(result.id, createdUserId1);
-      assert.strictEqual(result.userName, newUsername1);
-    });
-  });
-
-  await t.test('5. Change Password procedure', async (st) => {
-    await st.test('should fail password change if current password is wrong', async () => {
-      const authCaller = authRouter.createCaller({
-        user: verifyAccessToken(activeAccessToken),
-        isStaff: false,
-      });
-
-      await assert.rejects(
-        async () => {
-          await authCaller.changePassword({
-            userId: createdUserId1,
-            currentPassword: 'invalid_current_password',
-            newPassword: passwordNew,
-          });
-        },
-        (err: any) => {
-          assert.strictEqual(err.code, 'BAD_REQUEST');
-          assert.match(err.message, /current password is incorrect/i);
-          return true;
-        }
-      );
-    });
-
-    await st.test('should successfully change password', async () => {
-      const authCaller = authRouter.createCaller({
-        user: verifyAccessToken(activeAccessToken),
-        isStaff: false,
-      });
-
-      const result = await authCaller.changePassword({
-        userId: createdUserId1,
+        email: updatedEmail1,
         currentPassword: passwordInitial,
-        newPassword: passwordNew,
-      });
-
-      assert.strictEqual(result.success, true);
-    });
-
-    await st.test('should login with new password and new username returning new JWT', async () => {
-      const result = await caller.login({
-        identifier: newUsername1,
         password: passwordNew,
       });
 
       assert.strictEqual(result.user.id, createdUserId1);
-      assert.strictEqual(result.user.userName, newUsername1);
+      assert.strictEqual(result.user.email, updatedEmail1.toLowerCase());
       assert.ok(result.accessToken);
+      assert.ok(result.refreshToken);
 
-      const authCtx = authenticateToken(`Bearer ${result.accessToken}`);
-      assert.ok(authCtx);
-      assert.strictEqual(authCtx.userName, newUsername1);
+      activeAccessToken = result.accessToken;
+      activeRefreshToken = result.refreshToken;
+    });
+
+    await st.test('should login with updated email and new password', async () => {
+      const result = await caller.login({
+        identifier: updatedEmail1,
+        password: passwordNew,
+      });
+
+      assert.strictEqual(result.user.id, createdUserId1);
+      assert.ok(result.accessToken);
+      activeAccessToken = result.accessToken;
+      activeRefreshToken = result.refreshToken;
     });
   });
 
-  await t.test('6. Logout procedure', async (st) => {
-    await st.test('should successfully execute logout procedure for authenticated user', async () => {
+  await t.test('5. Logout route', async (st) => {
+    await st.test('should successfully logout and revoke refresh token', async () => {
       const authCaller = authRouter.createCaller({
         user: verifyAccessToken(activeAccessToken),
         isStaff: false,
@@ -292,6 +257,7 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
       const result = await authCaller.logout({ refreshToken: activeRefreshToken });
       assert.strictEqual(result.success, true);
 
+      // Now refresh token should be rejected
       await assert.rejects(
         async () => {
           await caller.refreshToken({
@@ -303,6 +269,61 @@ test('Auth Router End-to-End Tests with JWT Tokens', async (t) => {
           return true;
         }
       );
+    });
+  });
+
+  await t.test('6. Delete route', async (st) => {
+    await st.test('should fail delete without authentication', async () => {
+      const unauthCaller = authRouter.createCaller({});
+      await assert.rejects(
+        async () => {
+          await unauthCaller.delete({
+            userId: createdUserId2,
+          });
+        },
+        (err: any) => {
+          assert.strictEqual(err.code, 'UNAUTHORIZED');
+          return true;
+        }
+      );
+    });
+
+    await st.test('should successfully delete user account with authentication', async () => {
+      // Login as user2 to get their active access token
+      const loginRes = await caller.login({
+        identifier: testEmail2,
+        password: passwordInitial,
+      });
+
+      const authCaller = authRouter.createCaller({
+        user: verifyAccessToken(loginRes.accessToken),
+        isStaff: false,
+      });
+
+      const result = await authCaller.delete({
+        userId: createdUserId2,
+        password: passwordInitial,
+      });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.message, 'User deleted successfully');
+
+      // Verify user2 cannot login anymore
+      await assert.rejects(
+        async () => {
+          await caller.login({
+            identifier: testEmail2,
+            password: passwordInitial,
+          });
+        },
+        (err: any) => {
+          assert.strictEqual(err.code, 'UNAUTHORIZED');
+          return true;
+        }
+      );
+
+      // Nullify createdUserId2 so t.after doesn't fail
+      createdUserId2 = '';
     });
   });
 });

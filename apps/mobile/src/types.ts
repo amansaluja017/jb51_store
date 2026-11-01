@@ -465,6 +465,7 @@ export interface MobileSiteConfigData {
   promotionalHeader: string[];
   heroSlides: MobileHeroSlideItem[];
   adBanner: MobileAdBannerConfig;
+  secondAdBanner?: MobileAdBannerConfig;
   saleSection: MobileSaleSectionConfig;
   faqs: MobileFaqItem[];
   contactInfo: MobileContactInfoConfig;

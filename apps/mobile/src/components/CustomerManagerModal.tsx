@@ -42,6 +42,7 @@ import { Customer, Order } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
 import { colors } from '../theme/colors';
 import { CustomerListSkeleton } from './SkeletonLoader';
+import { Pagination } from './ui';
 
 export interface CustomerHistoryResponse {
   customer: Customer;
@@ -139,6 +140,7 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
   const [formEmail, setFormEmail] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Trigger fetching customer order history via backend route
   const handleOpenHistory = async (cust: Customer) => {
@@ -606,6 +608,12 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
             </View>
 
             {/* Customers List */}
+            {isLoadingPaginated && remoteCustomers && remoteCustomers.length > 0 && (
+              <View style={styles.inlineLoadingBar}>
+                <ActivityIndicator size="small" color="#FF5E36" style={{ marginRight: 8 }} />
+                <Text style={styles.inlineLoadingText}>Updating customer list...</Text>
+              </View>
+            )}
             <FlatList
               data={filteredCustomers}
               keyExtractor={item => item.id}
@@ -648,55 +656,13 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
               }
               ListFooterComponent={
                 customerTotalPages > 1 ? (
-                  <View style={styles.paginationBar}>
-                    <Text style={styles.paginationInfo}>
-                      Page {customerPage} of {customerTotalPages}
-                      {customerTotalCount > 0 ? ` • ${customerTotalCount} total` : ''}
-                    </Text>
-                    <View style={styles.paginationControls}>
-                      <TouchableOpacity
-                        style={[
-                          styles.pageButton,
-                          customerPage <= 1 && styles.pageButtonDisabled,
-                        ]}
-                        onPress={() => setCustomerPage(p => Math.max(1, p - 1))}
-                        disabled={customerPage <= 1}
-                        accessibilityLabel="Previous page"
-                        accessibilityRole="button"
-                      >
-                        <ChevronLeft
-                          size={16}
-                          color={customerPage <= 1 ? '#d4d4d8' : '#18181b'}
-                        />
-                      </TouchableOpacity>
-
-                      <View style={styles.pageNumberBadge}>
-                        <Text style={styles.pageNumberText}>
-                          {customerPage} / {customerTotalPages}
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.pageButton,
-                          customerPage >= customerTotalPages && styles.pageButtonDisabled,
-                        ]}
-                        onPress={() =>
-                          setCustomerPage(p => Math.min(customerTotalPages, p + 1))
-                        }
-                        disabled={customerPage >= customerTotalPages}
-                        accessibilityLabel="Next page"
-                        accessibilityRole="button"
-                      >
-                        <ChevronRight
-                          size={16}
-                          color={
-                            customerPage >= customerTotalPages ? '#d4d4d8' : '#18181b'
-                          }
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  <Pagination
+                    currentPage={customerPage}
+                    totalPages={customerTotalPages}
+                    totalCount={customerTotalCount}
+                    itemLabel="customers"
+                    onPageChange={(page) => setCustomerPage(page)}
+                  />
                 ) : null
               }
               renderItem={({ item }) => (
@@ -1457,6 +1423,24 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  inlineLoadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff0ed',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ffd5cc',
+  },
+  inlineLoadingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF5E36',
   },
   customerCard: {
     backgroundColor: '#FFFFFF',

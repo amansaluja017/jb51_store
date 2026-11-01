@@ -43,6 +43,24 @@ export const LogoutInputSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required').optional(),
 }).optional();
 
+export const UpdateUserInputSchema = z.object({
+  userId: z.string().uuid('Invalid user ID').optional(),
+  email: z.string().email('Invalid email address').optional(),
+  userName: z
+    .string()
+    .min(3, 'Username must be at least 3 characters long')
+    .max(50, 'Username cannot exceed 50 characters')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
+    .optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters long').optional(),
+  currentPassword: z.string().optional(),
+});
+
+export const DeleteUserInputSchema = z.object({
+  userId: z.string().uuid('Invalid user ID').optional(),
+  password: z.string().optional(),
+});
+
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 export type LoginInput = z.infer<typeof LoginInputSchema>;
 export type ChangePasswordInput = z.infer<typeof ChangePasswordInputSchema>;
@@ -50,3 +68,5 @@ export type ChangeUsernameInput = z.infer<typeof ChangeUsernameInputSchema>;
 export type ChangeEmailInput = z.infer<typeof ChangeEmailInputSchema>;
 export type RefreshTokenInput = z.infer<typeof RefreshTokenInputSchema>;
 export type LogoutInput = z.infer<typeof LogoutInputSchema>;
+export type UpdateUserInput = z.infer<typeof UpdateUserInputSchema>;
+export type DeleteUserInput = z.infer<typeof DeleteUserInputSchema>;

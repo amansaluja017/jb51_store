@@ -33,7 +33,8 @@
           "cameraPermission": "The app accesses your camera to let you take product photos."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
