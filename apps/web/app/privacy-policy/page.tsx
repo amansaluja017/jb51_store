@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { SITE_URL } from '@/lib/utils';
 import { getCachedSiteConfig } from '@/lib/site-config';
-import { formatContactInfo } from '@/context/SiteConfigContext';
+import { formatContactInfo } from '@/lib/contact-info';
 
 export const metadata: Metadata = {
   title: 'Website Privacy Policy | JB51',
