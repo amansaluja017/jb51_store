@@ -141,7 +141,7 @@ export const productsRouter = router({
     .query(async ({ ctx, input }) => {
       const statusData = await getProductStatus(input.slug);
       if (!statusData) return null;
-      const isAdmin = ctx.user?.role === 'admin' || ctx.isStaff;
+      const isAdmin = ctx.user?.role === 'admin' || ctx.user?.role === 'superadmin' || ctx.isStaff;
       if (!isAdmin && (statusData.status === 'unListed' || statusData.status === 'discontinued')) {
         return null;
       }

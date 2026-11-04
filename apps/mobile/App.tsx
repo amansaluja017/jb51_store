@@ -248,7 +248,13 @@ export default function App() {
           creditsDueCount={data.creditMetrics?.pendingCount}
           pendingInquiriesCount={data.pendingInquiriesCount}
           currentUser={data.currentUser}
-          onOpenDeveloperSection={() => setDeveloperModalOpen(true)}
+          onOpenDeveloperSection={() => {
+            if (data.currentUser?.role === 'superadmin') {
+              setDeveloperModalOpen(true);
+            } else {
+              data.showAlert('Access Denied', 'Only superadmin accounts can access developer operations.', 'error');
+            }
+          }}
         />
 
         {/* Customer Directory Management Modal (CRUD & On-Demand Order History) */}
@@ -285,13 +291,15 @@ export default function App() {
           onSearchCredits={data.handleSearchCredits}
         />
 
-        {/* Developer Section (Web UI Editor) Modal */}
-        <DeveloperSectionModal
-          visible={developerModalOpen}
-          onClose={() => setDeveloperModalOpen(false)}
-          apiHost={data.apiHost}
-          token={data.token}
-        />
+        {/* Developer Section (Web UI Editor) Modal - Superadmin Only */}
+        {data.currentUser?.role === 'superadmin' && (
+          <DeveloperSectionModal
+            visible={developerModalOpen}
+            onClose={() => setDeveloperModalOpen(false)}
+            apiHost={data.apiHost}
+            token={data.token}
+          />
+        )}
 
         {/* Global Toast Alert */}
         <CustomAlert

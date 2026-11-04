@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Mail, MessageCircle, MapPin } from 'lucide-react';
-import { WHATSAPP_NUMBER, COMPANY_EMAIL } from '@/lib/utils';
+import { Mail, MessageCircle, MapPin, Phone, Instagram } from 'lucide-react';
+import { useContactInfo } from '@/context/SiteConfigContext';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ const Dropdown = dynamic(() => import('@/components/ui/Dropdown').then(mod => mo
 
 export function SupportClient() {
   const { trackEvent } = useAnalytics();
+  const contact = useContactInfo();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -102,51 +103,97 @@ export function SupportClient() {
               <h2 className="font-serif text-2xl text-brand-maroon mb-8">Direct Contact</h2>
               
               <div className="flex flex-col gap-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 border border-brand-brass/30 text-brand-saffron">
-                    <MessageCircle size={20} strokeWidth={1.5} />
+                {contact.phoneNumber && (
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 border border-brand-brass/30 text-brand-saffron">
+                      <Phone size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Phone Inquiries</h3>
+                      <p className="text-brand-brown/70 font-light mb-2">Available Mon-Sat, 10am to 7pm IST</p>
+                      <a
+                        href={contact.telLink}
+                        className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5"
+                      >
+                        {contact.phoneNumber}
+                      </a>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm tracking-widest uppercase font-medium mb-1">WhatsApp Concierge</h3>
-                    <p className="text-brand-brown/70 font-light mb-2">Available Mon-Sat, 10am to 7pm IST</p>
-                    <a
-                      href={`https://wa.me/${WHATSAPP_NUMBER}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => trackEvent({ type: 'whatsapp' })}
-                      className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5"
-                    >
-                      +{WHATSAPP_NUMBER}
-                    </a>
-                  </div>
-                </div>
+                )}
 
-                <div className="flex items-start gap-4">
-                  <div className="p-2 border border-brand-brass/30 text-brand-saffron">
-                    <Mail size={20} strokeWidth={1.5} />
+                {contact.whatsappNumber && (
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 border border-brand-brass/30 text-brand-saffron">
+                      <MessageCircle size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm tracking-widest uppercase font-medium mb-1">WhatsApp Concierge</h3>
+                      <p className="text-brand-brown/70 font-light mb-2">Available Mon-Sat, 10am to 7pm IST</p>
+                      <a
+                        href={contact.waLink()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => trackEvent({ type: 'whatsapp' })}
+                        className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5"
+                      >
+                        +{contact.cleanWhatsApp || contact.whatsappNumber}
+                      </a>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Email Support</h3>
-                    <p className="text-brand-brown/70 font-light mb-2">Expect a response within 24 hours</p>
-                    <a href={`mailto:${COMPANY_EMAIL}`} className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5">
-                      {COMPANY_EMAIL}
-                    </a>
-                  </div>
-                </div>
+                )}
 
-                <div className="flex items-start gap-4">
-                  <div className="p-2 border border-brand-brass/30 text-brand-saffron">
-                    <MapPin size={20} strokeWidth={1.5} />
+                {contact.email && (
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 border border-brand-brass/30 text-brand-saffron">
+                      <Mail size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Email Support</h3>
+                      <p className="text-brand-brown/70 font-light mb-2">Expect a response within 24 hours</p>
+                      <a
+                        href={contact.mailtoLink()}
+                        className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5"
+                      >
+                        {contact.email}
+                      </a>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Flagship Studio</h3>
-                    <p className="text-brand-brown/70 font-light leading-relaxed">
-                      12, Heritage Villa, Banjara Hills<br />
-                      Hyderabad, Telangana 500034<br />
-                      India
-                    </p>
+                )}
+
+                {contact.instagramUrl && (
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 border border-brand-brass/30 text-brand-saffron">
+                      <Instagram size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Instagram</h3>
+                      <p className="text-brand-brown/70 font-light mb-2">Follow our daily atelier showcases</p>
+                      <a
+                        href={contact.instaLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => trackEvent({ type: 'instagram' })}
+                        className="text-brand-maroon hover:text-brand-sienna transition-colors border-b border-brand-maroon pb-0.5"
+                      >
+                        @{contact.instagramHandle}
+                      </a>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {contact.address && (
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 border border-brand-brass/30 text-brand-saffron">
+                      <MapPin size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm tracking-widest uppercase font-medium mb-1">Flagship Studio</h3>
+                      <p className="text-brand-brown/70 font-light leading-relaxed whitespace-pre-line">
+                        {contact.address}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

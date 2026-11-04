@@ -24,7 +24,7 @@ export type {
 export const DEFAULT_SITE_CONFIG: SiteConfigData = {
   maintenanceMode: {
     enabled: false,
-    title: 'Bespoke Atelier Maintenance',
+    title: 'Bespoke Store Maintenance',
     message: 'Our digital boutique is undergoing scheduled enhancements to elevate your shopping experience. We shall reopen shortly.',
     expectedBackTime: 'Within 2 hours',
   },

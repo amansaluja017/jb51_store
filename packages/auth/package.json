@@ -14,6 +14,7 @@
   },
   "scripts": {
     "create-admin": "tsx src/scripts/create-admin.ts",
+    "create-superadmin": "tsx src/scripts/create-superadmin.ts",
     "test": "echo \"No unit tests specified\"",
     "test:integration": "tsx --test src/auth.test.ts"
   },

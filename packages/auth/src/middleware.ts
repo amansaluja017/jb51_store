@@ -31,10 +31,13 @@ export type ExpressNextFunction = (err?: any) => void;
  */
 export const checkRole = (
   ctx: AuthContext,
-  requiredRole: 'admin' | 'customer' = 'admin'
+  requiredRole: 'admin' | 'customer' | 'seller' | 'superadmin' = 'admin'
 ): boolean => {
   if (ctx.isStaff) return true; // Support legacy staff token
   if (!ctx.user) return false;
+  if (requiredRole === 'admin') {
+    return ctx.user.role === 'admin' || ctx.user.role === 'superadmin';
+  }
   return ctx.user.role === requiredRole;
 };
 
@@ -56,7 +59,7 @@ export const requireAuth = () => {
 /**
  * Express Middleware for enforcing role-based access control
  */
-export const requireRole = (allowedRoles: Array<'admin' | 'customer' | 'seller'>) => {
+export const requireRole = (allowedRoles: Array<'admin' | 'customer' | 'seller' | 'superadmin'>) => {
   return (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
     const authHeader = req.headers.authorization;
     const user = authenticateToken(authHeader);
@@ -72,16 +75,21 @@ export const requireRole = (allowedRoles: Array<'admin' | 'customer' | 'seller'>
 };
 
 /**
- * Express Middleware shortcut for requiring admin role
+ * Express Middleware shortcut for requiring admin role (or superadmin)
  */
-export const requireAdmin = requireRole(['admin']);
+export const requireAdmin = requireRole(['admin', 'superadmin']);
+
+/**
+ * Express Middleware shortcut for requiring superadmin role
+ */
+export const requireSuperAdmin = requireRole(['superadmin']);
 
 /**
  * tRPC Middleware helper to enforce role access on tRPC procedures
  */
-export const createRoleMiddleware = (allowedRoles: Array<'admin' | 'customer' | 'seller'>) => {
+export const createRoleMiddleware = (allowedRoles: Array<'admin' | 'customer' | 'seller' | 'superadmin'>) => {
   return async ({ ctx, next }: { ctx: AuthContext; next: () => Promise<any> }) => {
-    if (ctx.isStaff && allowedRoles.includes('admin')) {
+    if (ctx.isStaff && (allowedRoles.includes('admin') || allowedRoles.includes('superadmin'))) {
       return next();
     }
     if (!ctx.user) {

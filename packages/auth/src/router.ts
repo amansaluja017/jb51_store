@@ -48,10 +48,10 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
       message: 'Authentication required. Please log in to perform this action.',
     });
   }
-  if (ctx.user.role !== 'admin') {
+  if (ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
     throw new TRPCError({
       code: 'FORBIDDEN',
-      message: 'Access denied: Admin role required.',
+      message: 'Access denied: Admin or Superadmin role required.',
     });
   }
   return next();
@@ -108,7 +108,7 @@ export const authRouter = t.router({
       if (!targetUserId) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
       }
-      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin' && !ctx.isStaff) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
       }
       try {
@@ -129,7 +129,7 @@ export const authRouter = t.router({
       if (!targetUserId) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
       }
-      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin' && !ctx.isStaff) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
       }
       try {
@@ -150,7 +150,7 @@ export const authRouter = t.router({
       if (!targetUserId) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
       }
-      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin' && !ctx.isStaff) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
       }
       try {
@@ -185,7 +185,7 @@ export const authRouter = t.router({
       if (!targetUserId) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
       }
-      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin' && !ctx.isStaff) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
       }
       try {
@@ -206,7 +206,7 @@ export const authRouter = t.router({
       if (!targetUserId) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User ID missing or not authenticated' });
       }
-      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && !ctx.isStaff) {
+      if (ctx.user && targetUserId !== ctx.user.sub && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin' && !ctx.isStaff) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
       }
       try {

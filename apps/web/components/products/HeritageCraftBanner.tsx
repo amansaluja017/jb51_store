@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowRight } from 'lucide-react';
-import { WHATSAPP_NUMBER } from '@/lib/utils';
+import { useContactInfo } from '@/context/SiteConfigContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
 
 const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
@@ -15,6 +15,7 @@ const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
 
 export function HeritageCraftBanner() {
   const { trackEvent } = useAnalytics();
+  const contact = useContactInfo();
   return (
     <section className="max-w-7xl mx-auto px-6 mb-24 mt-12 w-full">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-brand-maroon text-brand-cream rounded-[2.5rem] overflow-hidden p-8 md:p-12 relative shadow-xl shadow-brand-maroon/5 pattern-jaali">
@@ -35,7 +36,7 @@ export function HeritageCraftBanner() {
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}`}
+              href={contact.waLink('Hello JB51 team, I would like to consult your weaver guild regarding bespoke handloom garments.')}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'whatsapp' })}

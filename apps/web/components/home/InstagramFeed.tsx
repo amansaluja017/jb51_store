@@ -2,8 +2,10 @@
 
 import Image from 'next/image';
 import { Instagram } from 'lucide-react';
+import { useContactInfo } from '@/context/SiteConfigContext';
 
 export function InstagramFeed() {
+  const contact = useContactInfo();
   const images = [
     {
       url: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&h=600&q=80",
@@ -32,7 +34,7 @@ export function InstagramFeed() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12 fade-up">
           <span className="text-[10px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">FOLLOW THE JOURNEY</span>
-          <h2 className="font-serif text-3xl font-bold text-zinc-950">@jb51_clothing_house</h2>
+          <h2 className="font-serif text-3xl font-bold text-zinc-950">@{contact.instagramHandle}</h2>
           <p className="text-zinc-400 text-xs mt-2 uppercase tracking-widest font-semibold">
             • Share your style using #JB51Store •
           </p>
@@ -42,7 +44,7 @@ export function InstagramFeed() {
           {images.map((img, idx) => (
             <a
               key={idx}
-              href="https://instagram.com/jb51clothing"
+              href={contact.instaLink}
               target="_blank"
               rel="noopener noreferrer"
               className="group relative aspect-square w-full overflow-hidden bg-zinc-900 rounded-2xl border border-zinc-200/50 block shadow-sm"
@@ -63,13 +65,13 @@ export function InstagramFeed() {
 
         <div className="text-center">
           <a
-            href="https://instagram.com/jb51_clothing_house"
+            href={contact.instaLink}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2.5 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white py-3.5 px-8 text-xs tracking-widest uppercase font-bold transition-all duration-300 rounded-full hover:scale-105 active:scale-95 shadow-sm hover:shadow"
           >
             <Instagram size={14} />
-            <span>Follow @jb51_clothing_house</span>
+            <span>Follow @{contact.instagramHandle}</span>
           </a>
         </div>
       </div>

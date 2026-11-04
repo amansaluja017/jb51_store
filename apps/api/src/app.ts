@@ -9,6 +9,7 @@ import {
 import { appRouter, createTRPCContext } from './router.js';
 import { corsOptions } from './config/cors.js';
 import uploadRouter from './routes/upload.js';
+import docsRouter from './routes/docs.js';
 
 export function createApp(): Express {
   const app = express();
@@ -34,6 +35,13 @@ export function createApp(): Express {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // OpenAPI JSON specification
+  app.get('/openapi.json', (_req, res) => res.redirect('/docs/openapi.json'));
+
+  // Scalar Interactive OpenAPI Documentation & /docs/openapi.json
+  app.use('/docs', docsRouter);
+  app.get('/reference', (_req, res) => res.redirect('/docs'));
 
   // REST API endpoints with specialized upload rate limiting
   app.use('/api', uploadRateLimiter, uploadRouter);

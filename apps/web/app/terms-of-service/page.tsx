@@ -19,7 +19,9 @@ import {
   Lock,
   Scissors
 } from 'lucide-react';
-import { WHATSAPP_NUMBER, SITE_URL, COMPANY_EMAIL } from '@/lib/utils';
+import { SITE_URL } from '@/lib/utils';
+import { getCachedSiteConfig } from '@/lib/site-config';
+import { formatContactInfo } from '@/context/SiteConfigContext';
 
 export const metadata: Metadata = {
   title: 'Website Terms of Service & Conditions | JB51',
@@ -60,7 +62,9 @@ const LotusIcon = ({ className = "w-5 h-5 text-[#FF5E36]" }) => (
   </svg>
 );
 
-export default function TermsOfServicePage() {
+export default async function TermsOfServicePage() {
+  const siteConfig = await getCachedSiteConfig();
+  const contact = formatContactInfo(siteConfig.contactInfo);
   const lastUpdated = "October 29, 2026";
   const effectiveDate = "January 1, 2026";
 
@@ -219,7 +223,7 @@ export default function TermsOfServicePage() {
                   Our bespoke tailoring concierge is available to guide you on sizing, delivery dates, and custom specifications.
                 </p>
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello JB51, I have a question regarding your Website Terms of Service and an upcoming order.")}`}
+                  href={contact.waLink("Hello JB51, I have a question regarding your Website Terms of Service and an upcoming order.")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
@@ -540,10 +544,8 @@ export default function TermsOfServicePage() {
                     <MapPin size={16} className="text-[#FF5E36] shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-zinc-900 block mb-0.5">Flagship Studio & Atelier</strong>
-                      <p className="text-zinc-600 leading-relaxed">
-                        JB51 Clothing House<br />
-                        Model Town, Kaithal<br />
-                        Haryana 136027, India
+                      <p className="text-zinc-600 leading-relaxed whitespace-pre-line">
+                        {contact.address}
                       </p>
                     </div>
                   </div>
@@ -552,8 +554,9 @@ export default function TermsOfServicePage() {
                     <MessageCircle size={16} className="text-[#FF5E36] shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-zinc-900 block mb-0.5">Direct Web Concierge</strong>
-                      <p className="text-zinc-600">WhatsApp: +{WHATSAPP_NUMBER}</p>
-                      <p className="text-zinc-600">Email: {COMPANY_EMAIL}</p>
+                      <p className="text-zinc-600">WhatsApp: +{contact.cleanWhatsApp}</p>
+                      {contact.phoneNumber && <p className="text-zinc-600">Tel: {contact.phoneNumber}</p>}
+                      <p className="text-zinc-600">Email: {contact.email}</p>
                       <p className="text-zinc-600">Hours: Mon – Sat, 10:00 AM – 7:00 PM IST</p>
                     </div>
                   </div>

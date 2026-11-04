@@ -358,8 +358,8 @@ export function useAppData() {
       const tokenValue = authResult?.accessToken || authResult?.token;
       const refreshTokenValue = authResult?.refreshToken;
       if (tokenValue) {
-        if (authResult?.user?.role && authResult.user.role !== 'admin') {
-          throw new Error('Access denied: Admin privileges required.');
+        if (authResult?.user?.role && authResult.user.role !== 'admin' && authResult.user.role !== 'superadmin') {
+          throw new Error('Access denied: Admin or Superadmin privileges required.');
         }
         const userObj = authResult?.user || { userName: identifier, role: 'admin' };
         await tokenStorage.saveAuthData({

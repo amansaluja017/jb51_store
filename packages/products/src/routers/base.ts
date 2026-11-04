@@ -22,11 +22,28 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
       message: 'Authentication token required',
     });
   }
-  if (ctx.user.role !== 'admin') {
+  if (ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
     throw new TRPCError({
       code: 'FORBIDDEN',
-      message: 'Access denied: Admin role required',
+      message: 'Access denied: Admin or Superadmin role required',
     });
   }
   return next();
 });
+
+export const superAdminProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Authentication token required',
+    });
+  }
+  if (ctx.user.role !== 'superadmin') {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Access denied: Superadmin role required for developer operations',
+    });
+  }
+  return next();
+});
+

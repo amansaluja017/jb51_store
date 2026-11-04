@@ -1,17 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { 
-  Sparkles, 
   MessageCircle, 
   Phone, 
   Mail, 
   Instagram, 
   Clock, 
   RotateCw, 
-  ShieldCheck,
-  CheckCircle2
+  ShieldCheck 
 } from 'lucide-react';
 import type { MaintenanceModeConfig, ContactInfoConfig } from '@/lib/site-config';
 import { WHATSAPP_NUMBER, COMPANY_EMAIL, INSTAGRAM_HANDLE } from '@/lib/utils';
@@ -25,22 +22,27 @@ export function MaintenanceScreen({ config, contactInfo }: MaintenanceScreenProp
   const [checking, setChecking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const title = config?.title?.trim() || 'We Are Refining Our Collection';
-  const message = config?.message?.trim() || 
-    'Our digital atelier is currently undergoing scheduled enhancements to curate new haute couture silhouettes. We shall reopen shortly to welcome you.';
+  const rawTitle = config?.title?.trim() || 'We Are Refining Our Collection';
+  const title = rawTitle.replace(/\batelier\b/gi, 'Boutique');
+
+  const rawMessage = config?.message?.trim() || 
+    'Our online boutique is currently undergoing scheduled enhancements to curate new haute couture silhouettes. We shall reopen shortly to welcome you.';
+  const message = rawMessage.replace(/\batelier\b/gi, 'boutique');
+
   const expectedBack = config?.expectedBackTime?.trim() || 'Shortly';
 
-  const waNumber = contactInfo?.whatsappNumber || WHATSAPP_NUMBER || '919306234357';
+  const rawWa = contactInfo?.whatsappNumber || WHATSAPP_NUMBER || '919306234357';
+  const waNumber = rawWa.replace(/\D/g, '');
   const phone = contactInfo?.phoneNumber || '+91 93062 34357';
   const email = contactInfo?.email || COMPANY_EMAIL || 'support@jb51.shop';
-  const insta = contactInfo?.instagramUrl || `https://instagram.com/${INSTAGRAM_HANDLE}`;
+  const rawInsta = contactInfo?.instagramUrl || `https://instagram.com/${INSTAGRAM_HANDLE}`;
+  const instaUrl = rawInsta.startsWith('http') ? rawInsta : `https://instagram.com/${rawInsta}`;
 
   const handleCheckStatus = async () => {
     setChecking(true);
     setStatusMessage(null);
     try {
-      // Re-fetch current window location to check if maintenance is disabled
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 800));
       window.location.reload();
     } catch {
       setStatusMessage('Storefront remains in scheduled maintenance. Please check back shortly.');
@@ -49,159 +51,171 @@ export function MaintenanceScreen({ config, contactInfo }: MaintenanceScreenProp
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-zinc-950 text-white flex flex-col justify-between overflow-hidden font-sans selection:bg-[#FF5E36] selection:text-white">
-      {/* Background Ambience & Radial Glows */}
+    <div className="relative min-h-screen w-full bg-brand-cream text-brand-brown flex flex-col justify-between overflow-hidden font-sans selection:bg-brand-maroon selection:text-white">
+      {/* Background Ambience & Traditional Textures */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-gradient-to-b from-[#FF5E36]/15 via-amber-700/5 to-transparent blur-3xl" />
-        <div className="absolute -bottom-40 right-1/4 w-[500px] h-[500px] rounded-full bg-gradient-to-t from-amber-600/10 to-transparent blur-3xl" />
-        <div 
-          className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" 
-        />
+        {/* Subtle jaali / block-print motif */}
+        <div className="absolute inset-0 pattern-jaali opacity-40" />
+        
+        {/* Soft royal warm auras */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[650px] h-[650px] rounded-full bg-gradient-to-b from-brand-gold/15 via-brand-terracotta/5 to-transparent blur-3xl" />
+        <div className="absolute -bottom-32 right-1/4 w-[450px] h-[450px] rounded-full bg-gradient-to-t from-brand-brass/10 to-transparent blur-3xl" />
+        <div className="absolute top-1/3 left-10 w-72 h-72 rounded-full bg-brand-cream/60 blur-2xl" />
       </div>
 
       {/* Top Header / Brand Crest */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-200/20 to-amber-900/40 border border-amber-400/30 flex items-center justify-center shadow-lg shadow-amber-950/40">
-            <span className="font-serif font-bold text-amber-200 text-sm tracking-wider">JB</span>
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 flex items-center justify-between border-b border-brand-brass/20">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-full bg-brand-maroon border border-brand-gold/40 flex items-center justify-center shadow-md">
+            <span className="font-serif font-bold text-brand-cream text-sm tracking-wider">JB</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-serif tracking-[0.25em] text-white font-medium uppercase">
+            <span className="text-base font-serif tracking-[0.2em] text-brand-maroon font-bold uppercase leading-tight">
               JB51
             </span>
-            <span className="text-[8px] uppercase tracking-[0.3em] text-zinc-400 font-medium">
+            <span className="text-[8px] uppercase tracking-[0.32em] text-brand-terracotta font-semibold">
               Clothing House • Kaithal
             </span>
           </div>
         </div>
 
         {/* Live Status Pill */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-brand-brass/30 shadow-xs backdrop-blur-sm">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5E36] opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF5E36]" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-terracotta opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-terracotta" />
           </span>
-          <span className="text-[9px] uppercase tracking-[0.2em] font-semibold text-zinc-300">
-            Atelier Maintenance
+          <span className="text-[9px] uppercase tracking-[0.2em] font-semibold text-brand-maroon">
+            Store Maintenance
           </span>
         </div>
       </header>
 
       {/* Center Main Stage */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 max-w-4xl mx-auto text-center">
-        {/* Subtle royal sparkle motif */}
-        <div className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-medium tracking-[0.2em] uppercase">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+        {/* Script Accent / Flourish */}
+        <span className="font-script text-3xl sm:text-4xl text-brand-saffron block mb-3">
+          Refining Our Collection
+        </span>
+
+        {/* Status Chip (without sparkles) */}
+        <div className="mb-6 inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-brand-sand/70 border border-brand-brass/30 text-brand-maroon text-[11px] font-semibold tracking-[0.22em] uppercase shadow-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-terracotta" />
           <span>Curating Heritage Silhouettes</span>
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-terracotta" />
         </div>
 
         {/* Grand Headline */}
-        <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl font-light text-white tracking-tight leading-[1.15] mb-5">
+        <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl font-normal text-brand-maroon tracking-tight leading-[1.18] mb-5">
           {title}
         </h1>
 
+        {/* Subtle Editorial Divider */}
+        <div className="w-24 h-[1px] bg-gradient-to-r from-transparent via-brand-brass/60 to-transparent mx-auto mb-6 relative flex items-center justify-center">
+          <span className="w-1.5 h-1.5 rotate-45 bg-brand-brass absolute" />
+        </div>
+
         {/* Narrative Message */}
-        <p className="text-zinc-400 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-light mb-8">
+        <p className="text-brand-brown/80 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-light mb-8">
           {message}
         </p>
 
-        {/* Expected Back Time Pill Card */}
+        {/* Expected Back Time Card */}
         {expectedBack && (
-          <div className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-lg mb-10 shadow-2xl">
-            <Clock className="w-4 h-4 text-[#FF5E36]" />
+          <div className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/85 border border-brand-brass/30 backdrop-blur-md mb-8 shadow-sm">
+            <Clock className="w-4 h-4 text-brand-terracotta" />
             <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <span className="text-zinc-400">Estimated Reopening:</span>
-              <span className="font-medium text-white tracking-wide">{expectedBack}</span>
+              <span className="text-brand-brown/70 font-light">Estimated Reopening:</span>
+              <span className="font-serif font-semibold text-brand-maroon tracking-wide">{expectedBack}</span>
             </div>
           </div>
         )}
 
         {/* Action Button: Live Status Check */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md justify-center mb-12">
+        <div className="flex flex-col items-center gap-3 w-full max-w-md justify-center mb-12">
           <button
             onClick={handleCheckStatus}
             disabled={checking}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white text-zinc-950 font-semibold text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all duration-300 flex items-center justify-center gap-2 shadow-xl shadow-white/10 active:scale-[0.98] disabled:opacity-75"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-brand-maroon text-brand-cream hover:bg-brand-burgundy font-medium text-xs uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg active:scale-[0.98] disabled:opacity-75 border border-brand-maroon cursor-pointer"
           >
             <RotateCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
             <span>{checking ? 'Checking Status...' : 'Check If Store Is Open'}</span>
           </button>
+
+          {statusMessage && (
+            <p className="text-xs text-brand-terracotta font-medium mt-2 animate-fade-in">
+              {statusMessage}
+            </p>
+          )}
         </div>
 
-        {statusMessage && (
-          <p className="text-xs text-amber-300/90 font-medium mb-8 animate-fade-in">
-            {statusMessage}
-          </p>
-        )}
-
-        {/* VIP Concierge Assistance Grid */}
-        <div className="w-full pt-8 border-t border-white/10">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-400 font-bold mb-5">
-            Require Urgent Assistance or Bespoke Inquiries?
+        {/* VIP Concierge Assistance Section */}
+        <div className="w-full pt-8 border-t border-brand-brass/20">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-brand-maroon font-bold mb-6 font-serif">
+            Require Bespoke Consultation or Urgent Inquiries?
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 w-full">
             {/* WhatsApp */}
             <a
               href={`https://wa.me/${waNumber}?text=${encodeURIComponent('Hello JB51 team, I would like to inquire about your collection.')}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-emerald-500/40 transition-all duration-300 group"
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white/80 hover:bg-white border border-brand-brass/25 hover:border-brand-maroon/40 shadow-xs hover:shadow-md transition-all duration-300 group"
             >
-              <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/50 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <MessageCircle className="w-4 h-4" />
               </div>
-              <span className="text-xs font-medium text-white">WhatsApp</span>
-              <span className="text-[10px] text-zinc-400">Instant Chat</span>
+              <span className="text-xs font-semibold text-brand-maroon">WhatsApp</span>
+              <span className="text-[10px] text-brand-brown/65">Instant Chat</span>
             </a>
 
             {/* Direct Call */}
             <a
               href={`tel:${phone.replace(/\s+/g, '')}`}
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-amber-500/40 transition-all duration-300 group"
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white/80 hover:bg-white border border-brand-brass/25 hover:border-brand-maroon/40 shadow-xs hover:shadow-md transition-all duration-300 group"
             >
-              <div className="w-9 h-9 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-full bg-amber-50 text-brand-saffron border border-amber-200/50 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Phone className="w-4 h-4" />
               </div>
-              <span className="text-xs font-medium text-white">Call Stylist</span>
-              <span className="text-[10px] text-zinc-400">Direct Line</span>
+              <span className="text-xs font-semibold text-brand-maroon">Call Stylist</span>
+              <span className="text-[10px] text-brand-brown/65">Direct Line</span>
             </a>
 
             {/* Instagram */}
             <a
-              href={insta.startsWith('http') ? insta : `https://instagram.com/${insta}`}
+              href={instaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-pink-500/40 transition-all duration-300 group"
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white/80 hover:bg-white border border-brand-brass/25 hover:border-brand-maroon/40 shadow-xs hover:shadow-md transition-all duration-300 group"
             >
-              <div className="w-9 h-9 rounded-full bg-pink-500/10 text-pink-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-full bg-rose-50 text-brand-terracotta border border-rose-200/50 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Instagram className="w-4 h-4" />
               </div>
-              <span className="text-xs font-medium text-white">Instagram</span>
-              <span className="text-[10px] text-zinc-400">@jb51_clothing_house</span>
+              <span className="text-xs font-semibold text-brand-maroon">Instagram</span>
+              <span className="text-[10px] text-brand-brown/65">@{INSTAGRAM_HANDLE}</span>
             </a>
 
             {/* Email */}
             <a
               href={`mailto:${email}?subject=Concierge%20Inquiry%20-%20JB51`}
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-sky-500/40 transition-all duration-300 group"
+              className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white/80 hover:bg-white border border-brand-brass/25 hover:border-brand-maroon/40 shadow-xs hover:shadow-md transition-all duration-300 group"
             >
-              <div className="w-9 h-9 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-full bg-stone-50 text-brand-brown border border-brand-brass/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Mail className="w-4 h-4" />
               </div>
-              <span className="text-xs font-medium text-white">Email Us</span>
-              <span className="text-[10px] text-zinc-400">support@jb51.shop</span>
+              <span className="text-xs font-semibold text-brand-maroon">Email Us</span>
+              <span className="text-[10px] text-brand-brown/65">Customer Care</span>
             </a>
           </div>
         </div>
       </main>
 
       {/* Bottom Footer */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/5 text-[10px] text-zinc-400 uppercase tracking-[0.2em]">
+      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-brand-brass/20 text-[10px] text-brand-brown/70 uppercase tracking-[0.2em]">
         <span>© {new Date().getFullYear()} JB51 Clothing House. All rights reserved.</span>
-        <div className="flex items-center gap-2 text-zinc-400">
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-500/80" />
+        <div className="flex items-center gap-2 text-brand-brown/80">
+          <ShieldCheck className="w-3.5 h-3.5 text-brand-maroon" />
           <span>Authentic Handcrafted Punjabi Suits • Kaithal, Haryana</span>
         </div>
       </footer>

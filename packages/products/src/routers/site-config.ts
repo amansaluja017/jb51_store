@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, publicProcedure, adminProcedure } from './base.js';
+import { router, publicProcedure, adminProcedure, superAdminProcedure } from './base.js';
 import { getSiteConfig, updateSiteConfig, triggerWebRevalidation } from '../site-config.js';
 
 const maintenanceModeSchema = z.object({
@@ -71,8 +71,8 @@ export const siteConfigRouter = router({
       return await getSiteConfig();
     }),
 
-  update: adminProcedure
-    .meta({ description: 'Update web UI configuration and trigger revalidation (Admin only)' })
+  update: superAdminProcedure
+    .meta({ description: 'Update web UI configuration and trigger revalidation (Superadmin only)' })
     .input(
       z.object({
         maintenanceMode: maintenanceModeSchema.optional(),
@@ -93,8 +93,8 @@ export const siteConfigRouter = router({
       });
     }),
 
-  revalidate: adminProcedure
-    .meta({ description: 'Trigger Next.js cache revalidation for the web application' })
+  revalidate: superAdminProcedure
+    .meta({ description: 'Trigger Next.js cache revalidation for the web application (Superadmin only)' })
     .input(
       z
         .object({

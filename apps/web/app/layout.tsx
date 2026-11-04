@@ -15,6 +15,7 @@ import { TRPCReactProvider } from '@/lib/trpc/client/react';
 import { cn, SITE_URL } from '@/lib/utils';
 import { getCachedSiteConfig } from '@/lib/site-config';
 import { MaintenanceScreen } from '@/components/MaintenanceScreen';
+import { SiteConfigProvider } from '@/context/SiteConfigContext';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -124,7 +125,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className={cn(playfair.variable, plusJakarta.variable, caveat.variable, "font-sans", geist.variable)}>
-      <body suppressHydrationWarning className={cn("min-h-screen flex flex-col font-sans", isMaintenance ? "bg-zinc-950 text-white" : "bg-brand-cream text-brand-brown")}>
+      <body suppressHydrationWarning className="min-h-screen flex flex-col font-sans bg-brand-cream text-brand-brown">
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-ZMV3P7PPRH"
           strategy="afterInteractive"
@@ -147,13 +148,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               "name": "JB51",
               "url": SITE_URL,
               "description": "Discover JB51 — luxury designer Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique suits in Kaithal.",
-              "telephone": "+91 98765 43210",
-              "email": "support@jb51.shop",
+              "telephone": siteConfig.contactInfo?.phoneNumber || "+91 93062 34357",
+              "email": siteConfig.contactInfo?.email || "support@jb51.shop",
               "currenciesAccepted": "INR",
               "priceRange": "₹₹ - ₹₹₹₹",
               "address": {
                 "@type": "PostalAddress",
-                "streetAddress": "Main Bazaar",
+                "streetAddress": siteConfig.contactInfo?.address || "Model Town",
                 "addressLocality": "Kaithal",
                 "addressRegion": "Haryana",
                 "postalCode": "136027",
@@ -166,17 +167,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <MaintenanceScreen config={siteConfig.maintenanceMode} contactInfo={siteConfig.contactInfo} />
         ) : (
           <TRPCReactProvider>
-            <WishlistProvider>
-              <StoreAnalyticsTracker />
-              <Navbar siteConfig={siteConfig} />
-              <main className="flex-1 flex flex-col">
-                <PageTransition>
-                  {children}
-                </PageTransition>
-              </main>
-              <Footer siteConfig={siteConfig} />
-              <Toaster position="bottom-center" />
-            </WishlistProvider>
+            <SiteConfigProvider siteConfig={siteConfig}>
+              <WishlistProvider>
+                <StoreAnalyticsTracker />
+                <Navbar siteConfig={siteConfig} />
+                <main className="flex-1 flex flex-col">
+                  <PageTransition>
+                    {children}
+                  </PageTransition>
+                </main>
+                <Footer siteConfig={siteConfig} />
+                <Toaster position="bottom-center" />
+              </WishlistProvider>
+            </SiteConfigProvider>
           </TRPCReactProvider>
         )}
         <Analytics debug={false} />

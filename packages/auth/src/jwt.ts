@@ -29,7 +29,7 @@ export interface JwtPayload {
   email: string;
   name?: string;
   userName: string;
-  role: 'customer' | 'admin' | 'seller';
+  role: 'customer' | 'admin' | 'seller' | 'superadmin';
 }
 
 export const generateAccessToken = (payload: JwtPayload): string => {
@@ -53,7 +53,7 @@ export const generateAuthTokens = async (userData: {
   email: string;
   name?: string;
   userName?: string;
-  role: 'customer' | 'admin' | 'seller';
+  role: 'customer' | 'admin' | 'seller' | 'superadmin';
 }) => {
   const nameStr = userData.name || userData.userName || userData.email.split('@')[0];
   const payload: JwtPayload = {

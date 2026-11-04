@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { formatPrice, cn, generateWhatsAppMessage, generateInstagramMessage, WHATSAPP_NUMBER, INSTAGRAM_HANDLE } from '@/lib/utils';
+import { formatPrice, cn, generateWhatsAppMessage, generateInstagramMessage } from '@/lib/utils';
+import { useContactInfo } from '@/context/SiteConfigContext';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { Heart, MessageCircle, Instagram, ZoomIn, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -177,6 +178,8 @@ export function ProductClient({ product }: { product: Product }) {
     setIsHovering(false);
   };
 
+  const contact = useContactInfo();
+
   const handleWhatsAppInquiry = () => {
     trackEvent({
       type: 'whatsapp',
@@ -184,7 +187,7 @@ export function ProductClient({ product }: { product: Product }) {
       slug: product.slug,
     });
     const message = generateWhatsAppMessage(product, selectedColor, window.location.href);
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+    window.open(contact.waLink(message), '_blank');
   };
 
   const handleInstagramInquiry = () => {
@@ -197,7 +200,7 @@ export function ProductClient({ product }: { product: Product }) {
     navigator.clipboard.writeText(message);
     toast.success("Product details copied to clipboard!");
     setTimeout(() => {
-      window.open(`https://instagram.com/${INSTAGRAM_HANDLE}`, '_blank');
+      window.open(contact.instaLink, '_blank');
     }, 1000);
   };
 

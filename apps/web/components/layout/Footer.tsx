@@ -122,7 +122,13 @@ export function Footer({ siteConfig }: FooterProps = {}) {
           {/* Social Links */}
           <div className="flex items-center gap-4">
             <a
-              href={siteConfig?.contactInfo?.instagramUrl || "https://instagram.com/jb51_clothing_house"}
+              href={
+                siteConfig?.contactInfo?.instagramUrl
+                  ? (siteConfig.contactInfo.instagramUrl.startsWith('http')
+                      ? siteConfig.contactInfo.instagramUrl
+                      : `https://instagram.com/${siteConfig.contactInfo.instagramUrl.replace(/^@/, '')}`)
+                  : "https://instagram.com/jb51_clothing_house"
+              }
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'instagram' })}
@@ -132,7 +138,7 @@ export function Footer({ siteConfig }: FooterProps = {}) {
               <Instagram size={14} />
             </a>
             <a
-              href={`https://wa.me/${siteConfig?.contactInfo?.whatsappNumber || WHATSAPP_NUMBER}`}
+              href={`https://wa.me/${(siteConfig?.contactInfo?.whatsappNumber || WHATSAPP_NUMBER).replace(/\D/g, '')}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'whatsapp' })}

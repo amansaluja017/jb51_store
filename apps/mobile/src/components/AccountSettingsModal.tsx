@@ -31,6 +31,9 @@ import {
 } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import styles from './AccountSettingsModal.styles';
+import appJson from '../../app.json';
+
+const APP_VERSION = appJson.expo?.version || '1.0.0';
 
 export interface AccountSettingsModalProps {
   visible: boolean;
@@ -244,7 +247,7 @@ export default function AccountSettingsModal({
                     <View style={styles.roleBadge}>
                       <ShieldCheck size={12} color="#FF5E36" />
                       <Text style={styles.roleBadgeText}>
-                        {(user?.role || 'SUPER ADMIN').toUpperCase()}
+                        {(user?.role === 'superadmin' ? 'SUPER ADMIN' : user?.role === 'admin' ? 'STORE ADMIN' : (user?.role || 'ADMIN')).toUpperCase()}
                       </Text>
                     </View>
                     <View style={styles.statusBadge}>
@@ -338,22 +341,24 @@ export default function AccountSettingsModal({
                     <View style={styles.actionTextBox}>
                       <Text style={styles.actionTitle}>Privilege Scope</Text>
                       <Text style={styles.actionSub}>
-                        Full Store Access (Products, Invoices, Customers)
+                        {user?.role === 'superadmin'
+                          ? 'Full Store Access & Developer Operations (Superadmin)'
+                          : 'Store Management Access (Products, Invoices, Customers)'}
                       </Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Section: System Info */}
-                <Text style={styles.sectionLabel}>SYSTEM ENVIRONMENT</Text>
+                {/* Section: Application Version */}
+                <Text style={styles.sectionLabel}>APPLICATION VERSION</Text>
                 <View style={styles.sectionCard}>
                   <View style={styles.actionRow}>
                     <View style={styles.actionIconBox}>
                       <Server size={18} color="#71717a" />
                     </View>
                     <View style={styles.actionTextBox}>
-                      <Text style={styles.actionTitle}>JB51 Portal</Text>
-                      <Text style={styles.actionSub}>Version 2.4 • Production API Connected</Text>
+                      <Text style={styles.actionTitle}>JB51 Mobile App</Text>
+                      <Text style={styles.actionSub}>Version {APP_VERSION} • Production API Connected</Text>
                     </View>
                   </View>
                 </View>

@@ -79,7 +79,7 @@ export const reviewsRouter = router({
     .meta({ description: 'Submit a new customer review' })
     .input(CreateReviewInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const isAdmin = ctx.isStaff || ctx.user?.role === 'admin';
+      const isAdmin = ctx.isStaff || ctx.user?.role === 'admin' || ctx.user?.role === 'superadmin';
       return await createReview({
         ...input,
         approved: input.approved !== undefined ? input.approved : (isAdmin ? true : false),

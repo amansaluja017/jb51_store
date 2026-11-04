@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { tokenStorage } from './tokenStorage';
 
 export const getInitialApiHost = () => {
-  const host = process.env.EXPO_PUBLIC_API_HOST || process.env.EXPO_PUBLIC_API_URL;
+  const host = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_HOST;
   if (!host) {
     return 'http://localhost:3001';
   }

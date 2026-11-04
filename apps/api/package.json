@@ -9,13 +9,16 @@
     "build": "tsc",
     "start": "tsx src/server.ts",
     "test": "tsx --test src/all-routes.test.ts",
+    "test:docs": "tsx --test src/docs.test.ts",
     "test:all": "tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/docs": "workspace:*",
     "@repo/products": "workspace:*",
     "@repo/rate-limiting": "workspace:*",
+    "@scalar/express-api-reference": "^0.10.34",
     "@trpc/server": "^11.18.0",
     "cloudinary": "^2.11.0",
     "cors": "^2.8.5",

@@ -432,7 +432,7 @@ export function Navbar({ siteConfig }: NavbarProps = {}) {
               Wishlist
             </Link>
             <a
-              href={`https://wa.me/${siteConfig?.contactInfo?.whatsappNumber || WHATSAPP_NUMBER}`}
+              href={`https://wa.me/${(siteConfig?.contactInfo?.whatsappNumber || WHATSAPP_NUMBER).replace(/\D/g, '')}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ type: 'whatsapp' })}

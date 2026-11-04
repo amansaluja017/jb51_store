@@ -19,7 +19,7 @@ export const createTRPCContext = async ({
 
   if (authHeader) {
     user = authenticateToken(authHeader);
-    if (user && user.role === 'admin') {
+    if (user && (user.role === 'admin' || user.role === 'superadmin')) {
       isStaff = true;
     }
   }
