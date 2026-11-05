@@ -2,6 +2,7 @@
   "expo": {
     "name": "JB51 clothing house",
     "slug": "admin-app",
+    "scheme": "jb51",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -34,7 +35,8 @@
         }
       ],
       "expo-sharing",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-router"
     ],
     "extra": {
       "eas": {

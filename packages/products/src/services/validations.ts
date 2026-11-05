@@ -186,11 +186,18 @@ export const UpdateProductStatusOutputSchema = z.object({
   updatedAt: z.string().optional(),
 }).nullable();
 // Review Schemas
+export const ReviewRatingSchema = z.preprocess(
+  (v) => (typeof v === 'string' ? parseFloat(v) : v),
+  z.number()
+    .min(0.5, 'Rating must be between 0.5 and 5')
+    .max(5, 'Rating must be between 0.5 and 5')
+);
+
 export const ReviewSchema = z.object({
   id: z.string(),
   name: z.string().min(1, "Name is required"),
   message: z.string().min(1, "Message is required"),
-  stars: z.number().min(1).max(5),
+  stars: ReviewRatingSchema,
   image: z.string().optional().nullable(),
   video: z.string().optional().nullable(),
   instagramId: z.string().optional().nullable(),
@@ -203,7 +210,7 @@ export const ReviewSchema = z.object({
 export const CreateReviewInputSchema = z.object({
   name: z.string().min(1, "Name is required"),
   message: z.string().min(1, "Message is required"),
-  stars: z.number().min(1).max(5),
+  stars: ReviewRatingSchema,
   image: z.string().optional().nullable(),
   video: z.string().optional().nullable(),
   instagramId: z.string().optional().nullable(),
@@ -215,6 +222,15 @@ export const CreateReviewInputSchema = z.object({
 
 export const UpdateReviewInputSchema = z.object({
   id: z.string(),
+  name: z.string().min(1).optional(),
+  message: z.string().min(1).optional(),
+  stars: ReviewRatingSchema.optional(),
+  image: z.string().optional().nullable(),
+  video: z.string().optional().nullable(),
+  instagramId: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
   approved: z.boolean().optional(),
 });
 

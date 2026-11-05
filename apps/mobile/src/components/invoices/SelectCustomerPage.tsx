@@ -26,9 +26,11 @@ import {
   ArrowUpDown,
   UserX,
 } from 'lucide-react-native';
-import { Customer } from '../../types';
+import { Customer, PaginatedCustomersResponse } from '../../types';
 import { CustomerListSkeleton } from '../SkeletonLoader';
 import { Pagination } from '../ui';
+
+export type PaginatedCustomersResult = PaginatedCustomersResponse;
 
 export interface SelectCustomerPageProps {
   customers: Customer[];
@@ -37,12 +39,12 @@ export interface SelectCustomerPageProps {
   onBack: () => void;
   onOpenAddCustomerModal: () => void;
   isLoading?: boolean;
-  onFetchPaginatedCustomers?: (params: {
+  onFetchPaginatedCustomers?: (params?: {
     search?: string;
-    sortBy?: 'name-asc' | 'name-desc';
+    sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
     page?: number;
     limit?: number;
-  }) => Promise<any>;
+  }) => Promise<PaginatedCustomersResult>;
   refreshing?: boolean;
   onRefresh?: () => void;
 }
@@ -64,12 +66,7 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
-  const [remoteData, setRemoteData] = useState<{
-    items: Customer[];
-    total: number;
-    totalPages: number;
-    page: number;
-  } | null>(null);
+  const [remoteData, setRemoteData] = useState<PaginatedCustomersResult | null>(null);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
 
   // Hit the backend route for sorting, search, and pagination
@@ -139,7 +136,7 @@ export const SelectCustomerPage: React.FC<SelectCustomerPageProps> = ({
   }, [searchQuery, sortOrder]);
 
   const totalCount = remoteData ? remoteData.total : localFilteredAndSorted.length;
-  const totalPages = remoteData ? Math.max(1, remoteData.totalPages) : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = remoteData ? Math.max(1, remoteData.totalPages || 1) : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
 
   const displayCustomers = useMemo(() => {

@@ -5,6 +5,17 @@ import { extractPalette, MmcqQuantizer, validateOptions } from 'colorthief/inter
 import * as jpeg from 'jpeg-js';
 import * as UPNG from 'upng-js';
 
+interface ColorWithHex {
+  hex: () => string;
+}
+
+interface JpegDecoder {
+  decode: (
+    data: Uint8Array,
+    opts?: { useTArray?: boolean }
+  ) => { data: Uint8Array; width: number; height: number };
+}
+
 /**
  * Standard fashion & apparel color dictionary for intelligent name suggestions
  */
@@ -197,7 +208,7 @@ async function extractColorsWeb(imageUri: string, count: number): Promise<string
       try {
         const palette = await getPalette(img, { colorCount: count + 2 });
         if (palette && palette.length > 0) {
-          const hexes: string[] = palette.map((c: any) => c.hex().toUpperCase());
+          const hexes: string[] = (palette as unknown as ColorWithHex[]).map((c) => c.hex().toUpperCase());
           resolve(Array.from(new Set(hexes)).slice(0, count) as string[]);
           return;
         }
@@ -225,7 +236,7 @@ async function extractColorsWeb(imageUri: string, count: number): Promise<string
         const colors = extractPalette(imgData.data, canvas.width, canvas.height, opts, quantizer, 'srgb');
 
         if (colors && colors.length > 0) {
-          const hexes: string[] = colors.map((c: any) => c.hex().toUpperCase());
+          const hexes: string[] = (colors as unknown as ColorWithHex[]).map((c) => c.hex().toUpperCase());
           return resolve(Array.from(new Set(hexes)).slice(0, count) as string[]);
         }
       } catch (canvasErr) {
@@ -307,7 +318,7 @@ async function extractColorsNative(imageUri: string, count: number): Promise<str
     // Default or JPEG decode
     if (!rgbaData) {
       try {
-        const decoded = (jpeg as any).decode(uint8Data, { useTArray: true });
+        const decoded = (jpeg as unknown as JpegDecoder).decode(uint8Data, { useTArray: true });
         if (decoded && decoded.data) {
           rgbaData = decoded.data;
           width = decoded.width;
@@ -328,7 +339,7 @@ async function extractColorsNative(imageUri: string, count: number): Promise<str
     const colors = extractPalette(rgbaData, width, height, opts, quantizer, 'srgb');
 
     if (colors && colors.length > 0) {
-      const hexes: string[] = colors.map((c: any) => c.hex().toUpperCase());
+      const hexes: string[] = (colors as unknown as ColorWithHex[]).map((c) => c.hex().toUpperCase());
       return Array.from(new Set(hexes)).slice(0, count) as string[];
     }
   } catch (err) {

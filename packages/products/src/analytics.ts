@@ -9,6 +9,7 @@ import {
 } from '@repo/db';
 import { eq, sql } from 'drizzle-orm';
 import { matchesSlug, getProducts, Product } from './data.js';
+import pLimit from 'p-limit';
 
 export interface TrackEventInput {
   type: 'view' | 'whatsapp' | 'instagram';
@@ -171,14 +172,29 @@ export interface AnalyticsSummary {
   growth?: GrowthMetrics;
   payments?: PaymentAnalytics;
   updatedAt?: string | null;
+
+  // Extended overview batch payload (p-limit & Promise.allSettled)
+  viewsAnalytics?: ViewsAnalytics | null;
+  clicksAnalytics?: ClicksAnalytics | null;
+  conversionAnalytics?: ConversionAnalytics | null;
+  funnelAnalytics?: ConversionFunnelAnalytics | null;
+  channelRatioAnalytics?: ChannelRatioAnalytics | null;
+  growthPulseAnalytics?: GrowthPulseAnalytics | null;
+  paymentModesAnalytics?: PaymentModesAnalytics | null;
+  demandHighlightsAnalytics?: DemandHighlightsAnalytics | null;
+  catalogueTelemetryAnalytics?: ProductAnalyticsItem[];
+  inventorySummaryAnalytics?: InventorySummaryAnalytics | null;
+  overview?: any;
 }
 
 export interface ProductAnalyticsItem {
+  id?: string;
   productId: string;
   slug: string;
   name: string;
   category: string;
   price: number;
+  image?: string | null;
   views: number;
   whatsappClicks: number;
   instagramClicks: number;
@@ -614,11 +630,13 @@ export async function getAllProductsAnalytics(): Promise<ProductAnalyticsItem[]>
     const offlineOrderCount = counts.offline;
 
     return {
+      id: p.id,
       productId: p.id,
       slug: p.slug,
       name: p.name,
       category: p.category || 'Uncategorized',
       price: p.price ? Number(p.price) : 0,
+      image: (p.images && p.images[0]) || null,
       views,
       whatsappClicks,
       instagramClicks,
@@ -986,12 +1004,139 @@ export async function getDemandHighlightsAnalytics(): Promise<DemandHighlightsAn
 /**
  * 9. Modular Catalogue Telemetry Route Handler
  */
-export async function getCatalogueTelemetryAnalytics(): Promise<ProductAnalyticsItem[]> {
+export async function getCatalogueTelemetryAnalytics(options?: { limit?: number }): Promise<ProductAnalyticsItem[]> {
   try {
-    return await getAllProductsAnalytics();
+    const all = await getAllProductsAnalytics();
+    const sorted = [...all].sort((a, b) => b.views - a.views || b.totalClicks - a.totalClicks);
+    if (options?.limit && options.limit > 0) {
+      return sorted.slice(0, options.limit);
+    }
+    return sorted;
   } catch (err) {
     console.warn('[getCatalogueTelemetryAnalytics Error]:', err);
     return [];
+  }
+}
+
+export interface PaginatedCatalogueTelemetryInput {
+  page?: number | null;
+  limit?: number | null;
+  search?: string | null;
+  sortBy?: 'views' | 'inquiries' | 'orders' | 'conversion' | 'revenue' | null;
+}
+
+export interface PaginatedCatalogueTelemetryResult {
+  items: ProductAnalyticsItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  summary: {
+    totalViews: number;
+    totalInquiries: number;
+    totalOrders: number;
+    totalRevenue: number;
+    overallConv: string;
+  };
+}
+
+export async function getPaginatedCatalogueTelemetryAnalytics(
+  input?: PaginatedCatalogueTelemetryInput
+): Promise<PaginatedCatalogueTelemetryResult> {
+  try {
+    const all = await getAllProductsAnalytics();
+
+    const totalViews = all.reduce((acc, p) => acc + (p.views || 0), 0);
+    const totalInquiries = all.reduce((acc, p) => acc + (p.totalClicks || 0), 0);
+    const totalOrders = all.reduce((acc, p) => acc + (p.orderCount || 0), 0);
+    const totalRevenue = all.reduce((acc, p) => acc + (p.totalRevenue || 0), 0);
+    const overallConv =
+      totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0';
+
+    let list = [...all];
+
+    if (input?.search && input.search.trim()) {
+      const q = input.search.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q)
+      );
+    }
+
+    const sortKey = input?.sortBy || 'views';
+    switch (sortKey) {
+      case 'views':
+        list.sort((a, b) => b.views - a.views);
+        break;
+      case 'inquiries':
+        list.sort((a, b) => b.totalClicks - a.totalClicks);
+        break;
+      case 'orders':
+        list.sort(
+          (a, b) =>
+            b.orderCount - a.orderCount ||
+            (b.onlineOrderCount ?? 0) - (a.onlineOrderCount ?? 0)
+        );
+        break;
+      case 'conversion':
+        list.sort(
+          (a, b) =>
+            (b.onlineOrderConversionRate ?? 0) -
+              (a.onlineOrderConversionRate ?? 0) ||
+            b.conversionRate - a.conversionRate
+        );
+        break;
+      case 'revenue':
+        list.sort((a, b) => (b.totalRevenue ?? 0) - (a.totalRevenue ?? 0));
+        break;
+      default:
+        list.sort((a, b) => b.views - a.views);
+    }
+
+    const limit = Math.max(1, Math.min(input?.limit || 10, 50));
+    const total = list.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(Math.max(1, input?.page || 1), totalPages);
+    const offset = (safePage - 1) * limit;
+    const items = list.slice(offset, offset + limit);
+
+    return {
+      items,
+      total,
+      page: safePage,
+      limit,
+      totalPages,
+      hasNextPage: safePage < totalPages,
+      hasPreviousPage: safePage > 1,
+      summary: {
+        totalViews,
+        totalInquiries,
+        totalOrders,
+        totalRevenue,
+        overallConv,
+      },
+    };
+  } catch (err) {
+    console.warn('[getPaginatedCatalogueTelemetryAnalytics Error]:', err);
+    return {
+      items: [],
+      total: 0,
+      page: 1,
+      limit: input?.limit || 10,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      summary: {
+        totalViews: 0,
+        totalInquiries: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        overallConv: '0',
+      },
+    };
   }
 }
 
@@ -1054,5 +1199,149 @@ export async function getInventorySummaryAnalytics(): Promise<InventorySummaryAn
       totalReservedUnits: 0,
     };
   }
+}
+
+/**
+ * 11. Consolidated Dashboard Overview Route Handler
+ * Uses p-limit with concurrency 3 to queue background telemetry tasks
+ * and resolves them using Promise.allSettled.
+ */
+export async function getDashboardOverviewAnalytics(options?: {
+  slug?: string | null;
+  productId?: string | null;
+}): Promise<AnalyticsSummary> {
+  const limit = pLimit(3);
+  const targetSlug = options?.slug && options.slug !== 'all' ? options.slug : undefined;
+  const inputOptions = targetSlug ? { slug: targetSlug, productId: options?.productId } : (options?.productId ? { productId: options.productId } : undefined);
+
+  // Queue tasks with p-limit (concurrency: 3) and evaluate with Promise.allSettled
+  const results = await Promise.allSettled([
+    limit(() => getViewsAnalytics(inputOptions)),
+    limit(() => getClicksAnalytics(inputOptions)),
+    limit(() => getConversionAnalytics(inputOptions)),
+    limit(() => getFunnelAnalytics(inputOptions)),
+    limit(() => getChannelRatioAnalytics(inputOptions)),
+    limit(() => getGrowthPulseAnalytics(inputOptions)),
+    limit(() => getPaymentModesAnalytics(inputOptions)),
+    limit(() => getDemandHighlightsAnalytics()),
+    limit(() => getCatalogueTelemetryAnalytics({ limit: 5 })),
+    limit(() => getInventorySummaryAnalytics()),
+  ]);
+
+  const [
+    viewsResult,
+    clicksResult,
+    convResult,
+    funnelResult,
+    ratioResult,
+    growthResult,
+    paymentsResult,
+    highlightsResult,
+    catalogueResult,
+    inventoryResult,
+  ] = results;
+
+  const viewsData = viewsResult.status === 'fulfilled' ? viewsResult.value : null;
+  const clicksData = clicksResult.status === 'fulfilled' ? clicksResult.value : null;
+  const conversionData = convResult.status === 'fulfilled' ? convResult.value : null;
+  const funnelData = funnelResult.status === 'fulfilled' ? funnelResult.value : null;
+  const channelRatioData = ratioResult.status === 'fulfilled' ? ratioResult.value : null;
+  const growthPulseData = growthResult.status === 'fulfilled' ? growthResult.value : null;
+  const paymentModesData = paymentsResult.status === 'fulfilled' ? paymentsResult.value : null;
+  const demandHighlightsData = highlightsResult.status === 'fulfilled' ? highlightsResult.value : null;
+  const catalogueTelemetryData = catalogueResult.status === 'fulfilled' && Array.isArray(catalogueResult.value) ? catalogueResult.value : [];
+  const inventorySummaryData = inventoryResult.status === 'fulfilled' ? inventoryResult.value : null;
+
+  const v = viewsData?.views ?? 0;
+  const wa = clicksData?.whatsappClicks ?? 0;
+  const ig = clicksData?.instagramClicks ?? 0;
+  const totClicks = clicksData?.totalClicks ?? (wa + ig);
+  const conv = conversionData?.conversionRate ?? 0;
+  const waConv = conversionData?.whatsappConversionRate ?? 0;
+  const igConv = conversionData?.instagramConversionRate ?? 0;
+  const ordConv = conversionData?.orderConversionRate ?? 0;
+  const onlineOrdConv = conversionData?.onlineOrderConversionRate ?? 0;
+
+  const ordCount = channelRatioData?.totalOrderCount ?? 0;
+  const onlineCount = channelRatioData?.onlineOrderCount ?? 0;
+  const offlineCount = channelRatioData?.offlineOrderCount ?? 0;
+
+  let productInfo = null;
+  if (targetSlug || options?.productId) {
+    const prods = await getProducts();
+    const prod = options?.productId
+      ? prods.find((p) => p.id === options.productId)
+      : prods.find((p) => matchesSlug(p, targetSlug!));
+    if (prod) {
+      productInfo = {
+        id: prod.id,
+        slug: prod.slug,
+        name: prod.name,
+        category: prod.category,
+        price: prod.price ? Number(prod.price) : 0,
+      };
+    }
+  }
+
+  const composedOverview = {
+    scope: (targetSlug ? 'product' : 'overall') as 'product' | 'overall',
+    product: productInfo,
+    views: v,
+    whatsappClicks: wa,
+    instagramClicks: ig,
+    totalClicks: totClicks,
+    conversionRate: conv,
+    whatsappConversionRate: waConv,
+    instagramConversionRate: igConv,
+    orderCount: ordCount,
+    onlineOrderCount: onlineCount,
+    offlineOrderCount: offlineCount,
+    orderConversionRate: ordConv,
+    onlineOrderConversionRate: onlineOrdConv,
+    channelRatio: channelRatioData ? {
+      onlineRatio: channelRatioData.onlineRatio,
+      offlineRatio: channelRatioData.offlineRatio,
+    } : undefined,
+    growth: growthPulseData ? {
+      totalOrderGrowth: growthPulseData.totalOrderGrowth,
+      onlineOrderGrowth: growthPulseData.onlineOrderGrowth,
+      offlineOrderGrowth: growthPulseData.offlineOrderGrowth,
+      current30DaysOrders: growthPulseData.current30DaysOrders,
+      previous30DaysOrders: growthPulseData.previous30DaysOrders,
+      current30DaysOnline: growthPulseData.current30DaysOnline,
+      previous30DaysOnline: growthPulseData.previous30DaysOnline,
+      current30DaysOffline: growthPulseData.current30DaysOffline,
+      previous30DaysOffline: growthPulseData.previous30DaysOffline,
+    } : undefined,
+    payments: paymentModesData ? {
+      onlineAmount: paymentModesData.onlineAmount,
+      cashAmount: paymentModesData.cashAmount,
+      creditAmount: paymentModesData.creditAmount,
+      totalAmount: paymentModesData.totalAmount,
+      onlineShare: paymentModesData.onlineShare,
+      cashShare: paymentModesData.cashShare,
+      creditShare: paymentModesData.creditShare,
+      onlineCount: paymentModesData.onlineCount,
+      cashCount: paymentModesData.cashCount,
+      creditCount: paymentModesData.creditCount,
+      creditDueAmount: paymentModesData.creditDueAmount,
+      creditPaidAmount: paymentModesData.creditPaidAmount,
+    } : undefined,
+  };
+
+  return {
+    ...composedOverview,
+    viewsAnalytics: viewsData,
+    clicksAnalytics: clicksData,
+    conversionAnalytics: conversionData,
+    funnelAnalytics: funnelData,
+    channelRatioAnalytics: channelRatioData,
+    growthPulseAnalytics: growthPulseData,
+    paymentModesAnalytics: paymentModesData,
+    demandHighlightsAnalytics: demandHighlightsData,
+    catalogueTelemetryAnalytics: catalogueTelemetryData,
+    inventorySummaryAnalytics: inventorySummaryData,
+    overview: composedOverview,
+  };
 }
 

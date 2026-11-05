@@ -29,7 +29,7 @@ export default function NavigationTabBar({
   tabValues,
 }: NavigationTabBarProps) {
   // 5 core navigation tabs
-  const tabs: { key: TabType; label: string; Icon: React.ComponentType<any> }[] = [
+  const tabs: { key: TabType; label: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
     { key: 'dashboard', label: 'Home', Icon: LayoutDashboard },
     { key: 'catalogue', label: 'Catalog', Icon: Shirt },
     { key: 'inventory', label: 'Stock', Icon: Package },
@@ -38,15 +38,16 @@ export default function NavigationTabBar({
   ];
 
   // Internal animated values if tabValues not provided
-  const internalAnimValues = useRef<Record<string, Animated.Value>>({
+  const internalAnimValues = useRef<Record<TabType, Animated.Value>>({
     dashboard: new Animated.Value(activeTab === 'dashboard' || activeTab === 'analytics' ? 1 : 0),
     catalogue: new Animated.Value(activeTab === 'catalogue' ? 1 : 0),
     inventory: new Animated.Value(activeTab === 'inventory' ? 1 : 0),
+    analytics: new Animated.Value(activeTab === 'analytics' ? 1 : 0),
     invoices: new Animated.Value(activeTab === 'invoices' ? 1 : 0),
     reviews: new Animated.Value(activeTab === 'reviews' ? 1 : 0),
   }).current;
 
-  const anims = tabValues || (internalAnimValues as any);
+  const anims = tabValues || internalAnimValues;
 
   useEffect(() => {
     tabs.forEach(({ key }) => {

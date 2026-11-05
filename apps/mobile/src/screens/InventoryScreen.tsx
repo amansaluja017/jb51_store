@@ -38,12 +38,29 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
-import { Product, Variant, InventoryTransaction, isProductInStock } from '../types';
+import { Product, Variant, InventoryTransaction, InventoryMetrics, isProductInStock } from '../types';
+
+export interface PaginatedStockResponse {
+  items: Product[];
+  total: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+  metrics?: InventoryMetrics;
+}
 import InventoryHistoryModal from '../components/InventoryHistoryModal';
 import { Pagination } from '../components/ui';
 import styles from './InventoryScreen.styles';
 
-interface InventoryScreenProps {
+export interface InventorySuggestionItem {
+  id: string;
+  name: string;
+  category: string;
+  availableStock: number;
+  color?: string | null;
+}
+
+export interface InventoryScreenProps {
   products: Product[];
   categories?: string[];
   isLoading: boolean;
@@ -75,15 +92,15 @@ interface InventoryScreenProps {
     sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
     page?: number;
     limit?: number;
-  }) => Promise<any>;
+  }) => Promise<PaginatedStockResponse>;
   onSearchInventory?: (params: {
     query?: string;
     category?: string;
-    stockFilter?: any;
-    sortBy?: any;
+    stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
+    sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
     limit?: number;
-  }) => Promise<any>;
-  onGetInventorySuggestions?: (query: string) => Promise<any>;
+  }) => Promise<{ items: Product[]; total: number; metrics?: InventoryMetrics; query?: string }>;
+  onGetInventorySuggestions?: (query: string) => Promise<InventorySuggestionItem[]>;
 }
 
 type StockFilter = 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
@@ -140,29 +157,16 @@ export default function InventoryScreen({
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 8;
-  const [remoteStockData, setRemoteStockData] = useState<{
-    items: Product[];
-    total: number;
-    totalPages: number;
-    page: number;
-    metrics?: {
-      totalProducts: number;
-      inStockProducts: number;
-      outOfStockProducts: number;
-      lowStockProducts: number;
-      hasReservedProducts: number;
-      totalStockUnits: number;
-      totalReservedUnits: number;
-    };
-  } | null>(null);
+  const [remoteStockData, setRemoteStockData] = useState<PaginatedStockResponse | null>(null);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
 
-  // Debounced search (250ms) to prevent excessive backend queries
-  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
-  const [suggestions, setSuggestions] = useState<any[] | null>(null);
+  // Debounced search (500ms) - waits until user stops typing before querying backend
+  const debouncedSearch = useDebounce(searchQuery.trim(), 500);
+  const isSearchTyping = searchQuery.trim() !== debouncedSearch;
+  const [suggestions, setSuggestions] = useState<InventorySuggestionItem[] | null>(null);
 
   // History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -172,8 +176,10 @@ export default function InventoryScreen({
     setPage(1);
   }, [debouncedSearch, activeFilter, selectedCategory, sortBy]);
 
-  // Fetch Inventory suggestions via backend pg_trgm route
+  // Fetch Inventory suggestions via backend pg_trgm route (only after typing stops)
   useEffect(() => {
+    if (isSearchTyping) return;
+
     let isMounted = true;
     if (debouncedSearch && onGetInventorySuggestions) {
       onGetInventorySuggestions(debouncedSearch)
@@ -191,10 +197,12 @@ export default function InventoryScreen({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, onGetInventorySuggestions]);
+  }, [debouncedSearch, isSearchTyping, onGetInventorySuggestions]);
 
-  // Hit backend ILIKE search route for inventory or paginated route
+  // Hit backend ILIKE search route for inventory or paginated route (only after typing stops)
   useEffect(() => {
+    if (isSearchTyping) return;
+
     let isMounted = true;
     const fetchStock = async () => {
       setIsFetchingRemote(true);
@@ -248,7 +256,7 @@ export default function InventoryScreen({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, activeFilter, selectedCategory, sortBy, page, refreshKey, onSearchInventory, onFetchPaginatedStock]);
+  }, [debouncedSearch, isSearchTyping, activeFilter, selectedCategory, sortBy, page, refreshKey, onSearchInventory, onFetchPaginatedStock]);
 
   // Local pending variant stock edits: { [productSlug]: Variant[] }
   const [pendingStockEdits, setPendingStockEdits] = useState<Record<string, Variant[]>>({});
@@ -380,7 +388,7 @@ export default function InventoryScreen({
     : sortedAndFilteredProducts.length;
 
   const totalPages = onFetchPaginatedStock && remoteStockData
-    ? remoteStockData.totalPages
+    ? (remoteStockData.totalPages || Math.max(1, Math.ceil(totalCount / PAGE_SIZE)))
     : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const safePage = Math.min(page, totalPages);
@@ -486,7 +494,7 @@ export default function InventoryScreen({
       });
       // Refresh transactions history immediately
       await onFetchTransactions?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Inventory Update Error]:', err);
     } finally {
       setSavingSlugs(prev => ({ ...prev, [product.slug]: false }));

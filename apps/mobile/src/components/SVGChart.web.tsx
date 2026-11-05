@@ -71,7 +71,7 @@ export default function SVGChart({
           height={220}
           grid={{ horizontal: true }}
           slotProps={{
-            legend: { hidden: true } as any
+            legend: { hidden: true } as unknown as Record<string, unknown>,
           }}
           sx={{
             width: '100%',

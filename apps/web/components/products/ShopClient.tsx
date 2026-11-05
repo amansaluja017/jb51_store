@@ -10,14 +10,6 @@ import { ShopToolbar } from './shop/ShopToolbar';
 import { ShopFiltersDrawer } from './shop/ShopFiltersDrawer';
 import { InfiniteProductGrid } from './shop/InfiniteProductGrid';
 
-export const CATEGORIES = [
-  'Formal Suits',
-  'Anarkali Suits',
-  'Silk Co-ords',
-  'Velvet Edit',
-  'Occasion Wear',
-];
-
 export function ShopClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -38,9 +30,9 @@ export function ShopClient() {
   // 1. Fetch categories dynamically from API route: api.products.getCategories
   const { data: apiCategories = [] } = api.products.getCategories.useQuery();
 
-  // Combine default boutique categories with database categories
+  // Dynamic database categories without mock/fallback categories
   const dynamicCategories = useMemo(() => {
-    return Array.from(new Set([...CATEGORIES, ...(apiCategories || [])]));
+    return apiCategories || [];
   }, [apiCategories]);
 
   // Map sort UI selection to backend sortBy enum

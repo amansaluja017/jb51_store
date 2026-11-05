@@ -38,7 +38,7 @@ import {
   ShoppingBag,
   Sparkles,
 } from 'lucide-react-native';
-import { Customer, Order } from '../types';
+import { Customer, Order, PaginatedCustomersResponse } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
 import { colors } from '../theme/colors';
 import { CustomerListSkeleton } from './SkeletonLoader';
@@ -52,6 +52,14 @@ export interface CustomerHistoryResponse {
   orders: Order[];
 }
 
+export interface CustomerSuggestion {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  email?: string | null;
+  address?: string | null;
+}
+
 export interface CustomerManagerModalProps {
   visible: boolean;
   customers?: Customer[];
@@ -63,27 +71,21 @@ export interface CustomerManagerModalProps {
     sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
     page?: number;
     limit?: number;
-  }) => Promise<{
-    items: Customer[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }>;
+  }) => Promise<PaginatedCustomersResponse>;
   onFetchCustomerHistory: (customerId: string) => Promise<CustomerHistoryResponse>;
   onCreateCustomer: (data: {
     name: string;
     phoneNumber: string;
     email?: string;
     address?: string;
-  }) => Promise<any>;
+  }) => Promise<Customer>;
   onUpdateCustomer: (data: {
     id: string;
     name?: string;
     phoneNumber?: string;
     email?: string | null;
     address?: string | null;
-  }) => Promise<any>;
+  }) => Promise<Customer>;
   onDeleteCustomer: (id: string, name?: string, onSuccess?: () => void) => void;
   showAlert: (
     title: string,
@@ -91,8 +93,8 @@ export interface CustomerManagerModalProps {
     type: 'info' | 'success' | 'error' | 'confirm',
     onConfirm?: () => void
   ) => void;
-  onSearchCustomers?: (query: string) => Promise<any>;
-  onGetCustomerSuggestions?: (query: string) => Promise<any>;
+  onSearchCustomers?: (query: string) => Promise<Customer[] | { items: Customer[]; total?: number }>;
+  onGetCustomerSuggestions?: (query: string) => Promise<CustomerSuggestion[] | { suggestions: CustomerSuggestion[] }>;
 }
 
 type SortOption = 'name-asc' | 'name-desc' | 'newest';
@@ -113,8 +115,10 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
   onGetCustomerSuggestions,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
-  const [suggestions, setSuggestions] = useState<any[] | null>(null);
+  // Debounce search (500ms) - waits until typing stops before querying backend
+  const debouncedSearch = useDebounce(searchQuery.trim(), 500);
+  const isSearchTyping = searchQuery.trim() !== debouncedSearch;
+  const [suggestions, setSuggestions] = useState<CustomerSuggestion[] | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('name-asc');
 
   // Paginated remote customers state
@@ -213,13 +217,15 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
     [onFetchPaginatedCustomers, customerPage, searchQuery, sortOption]
   );
 
-  // Fetch customer suggestions via pg_trgm backend route
+  // Fetch customer suggestions via pg_trgm backend route (only after typing stops)
   useEffect(() => {
+    if (isSearchTyping) return;
+
     let isCancelled = false;
     if (debouncedSearch && onGetCustomerSuggestions) {
       onGetCustomerSuggestions(debouncedSearch)
         .then((res) => {
-          const list = Array.isArray(res) ? res : (res as any)?.suggestions;
+          const list = Array.isArray(res) ? res : res?.suggestions;
           if (!isCancelled && Array.isArray(list)) setSuggestions(list);
         })
         .catch(() => {
@@ -231,11 +237,11 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [debouncedSearch, onGetCustomerSuggestions]);
+  }, [debouncedSearch, isSearchTyping, onGetCustomerSuggestions]);
 
-  // Fetch customers from backend (search or paginated route)
+  // Fetch customers from backend (search or paginated route) (only after typing stops)
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || isSearchTyping) return;
 
     let isCancelled = false;
     const fetchCustomers = async () => {
@@ -244,11 +250,12 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
         if (debouncedSearch && onSearchCustomers) {
           // Backend search route for customers
           const res = await onSearchCustomers(debouncedSearch);
-          const items = Array.isArray(res) ? res : (res as any)?.items;
+          const items = Array.isArray(res) ? res : res?.items;
           if (!isCancelled && Array.isArray(items)) {
             setRemoteCustomers(items);
             setCustomerTotalPages(1);
-            setCustomerTotalCount((res as any)?.total ?? items.length);
+            const total = Array.isArray(res) ? items.length : (res?.total ?? items.length);
+            setCustomerTotalCount(total);
           }
         } else if (onFetchPaginatedCustomers) {
           const mappedSort =
@@ -284,7 +291,7 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [visible, customerPage, sortOption, debouncedSearch, onSearchCustomers, onFetchPaginatedCustomers]);
+  }, [visible, customerPage, sortOption, debouncedSearch, isSearchTyping, onSearchCustomers, onFetchPaginatedCustomers]);
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);

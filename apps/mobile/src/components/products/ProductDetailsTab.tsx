@@ -4,16 +4,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
 } from 'react-native';
 import {
-  Plus,
   Trash2,
   ChevronDown,
-  X,
-  Layers,
   AlertCircle,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react-native';
 import { Control, Controller } from 'react-hook-form';
 import SimpleTextEditor from '../SimpleTextEditor';
@@ -33,8 +30,8 @@ export interface ProductDetailsTabProps {
   setFormCare: (val: string) => void;
   setFormTags: (val: string) => void;
   setFormDescription: (val: string) => void;
-  formSlug: string;
-  setFormSlug: (val: string) => void;
+  formSlug?: string;
+  setFormSlug?: (val: string) => void;
   formCategory: string;
   setFormCategory: (val: string) => void;
   showCategorySelector: boolean;
@@ -46,6 +43,7 @@ export interface ProductDetailsTabProps {
   handleCreateCategory: () => void;
   handleDeleteCategoryClick: (cat: string) => void;
   handleNameChange: (val: string) => void;
+  onOpenAiDescription?: () => void;
 }
 
 export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
@@ -60,8 +58,6 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
   setFormCare,
   setFormTags,
   setFormDescription,
-  formSlug,
-  setFormSlug,
   formCategory,
   setFormCategory,
   showCategorySelector,
@@ -73,6 +69,7 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
   handleCreateCategory,
   handleDeleteCategoryClick,
   handleNameChange,
+  onOpenAiDescription,
 }) => {
   return (
     <View style={styles.tabContentContainer}>
@@ -103,20 +100,21 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                   </View>
 
                   <View style={styles.modalInputGroup}>
-                    <Text style={styles.fieldLabel}>SEO URL Slug</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={styles.fieldLabel}>SEO URL Slug</Text>
+                      <View style={{ backgroundColor: '#f4f4f5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#e4e4e7' }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: '#71717a' }}>AUTO-GENERATED</Text>
+                      </View>
+                    </View>
                     <Controller
                       control={control}
                       name="slug"
-                      render={({ field: { onChange, onBlur, value } }) => (
+                      render={({ field: { value } }) => (
                         <TextInput
                           value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            setFormSlug(val);
-                          }}
-                          placeholder="e.g. palace-silk-kurta"
-                          style={styles.modalInput}
+                          editable={false}
+                          placeholder="Auto-generated from design name"
+                          style={[styles.modalInput, { backgroundColor: '#f4f4f5', color: '#71717a', borderColor: '#e4e4e7' }]}
                           placeholderTextColor="#a1a1aa"
                         />
                       )}
@@ -274,6 +272,7 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                         placeholder="e.g. 100% Chanderi Silk with Zari borders"
                         multiline
                         numberOfLines={2}
+                        sectionType="fabric"
                       />
                     )}
                   />
@@ -294,6 +293,7 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                         placeholder="e.g. Straight Silhouette with comfort ease"
                         multiline
                         numberOfLines={2}
+                        sectionType="fit"
                       />
                     )}
                   />
@@ -314,6 +314,7 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                         placeholder="e.g. Dry Clean only. Store in muslin cloth."
                         multiline
                         numberOfLines={2}
+                        sectionType="care"
                       />
                     )}
                   />
@@ -332,6 +333,7 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                           setFormTags(val);
                         }}
                         placeholder="e.g. silk, minimalist, wedding, coord"
+                        sectionType="tags"
                       />
                     )}
                   />
@@ -339,7 +341,34 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
 
                 {/* Editorial Description Card */}
                 <View style={styles.sectionCard}>
-                  <Text style={styles.cardHeaderTitle}>Editorial Narration</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.cardHeaderTitle}>Editorial Narration</Text>
+                      <Text style={[styles.cardHeaderSubtitle, { marginBottom: 0 }]}>
+                        Heritage storytelling & styling notes
+                      </Text>
+                    </View>
+                    {onOpenAiDescription && (
+                      <TouchableOpacity
+                        onPress={onOpenAiDescription}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 5,
+                          backgroundColor: '#faf5ff',
+                          paddingHorizontal: 11,
+                          paddingVertical: 6,
+                          borderRadius: 20,
+                          borderWidth: 1,
+                          borderColor: '#e9d5ff',
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Sparkles size={12} color="#9333ea" />
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#7e22ce' }}>AI Studio</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
 
                   <Controller
                     control={control}

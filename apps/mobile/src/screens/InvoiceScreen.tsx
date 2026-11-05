@@ -17,19 +17,31 @@ import * as Sharing from 'expo-sharing';
 import { useForm } from 'react-hook-form';
 import { InvoiceSkeleton } from '../components/SkeletonLoader';
 import styles from './InvoiceScreen.styles';
-import { generateInvoiceHtml } from '../utils/invoicePdfGenerator';
+import { generateInvoiceHtml, type GenerateInvoicePdfData } from '../utils/invoicePdfGenerator';
 import { formatDateSafe, formatDateToYMD } from '../utils/date';
 import OrderDetailsModal from '../components/invoices/OrderDetailsModal';
 import AddCustomerModal from '../components/invoices/AddCustomerModal';
 import InvoicePreviewModal from '../components/invoices/InvoicePreviewModal';
-import InvoiceLedgerView from '../components/invoices/InvoiceLedgerView';
+import InvoiceLedgerView, { type LedgerSuggestion } from '../components/invoices/InvoiceLedgerView';
 import InvoiceFormView from '../components/invoices/InvoiceFormView';
 import SelectCustomerPage from '../components/invoices/SelectCustomerPage';
 import SelectProductPage from '../components/invoices/SelectProductPage';
 import { useDebounce } from '../hooks/useDebounce';
 
 
-import { Product, Variant, Customer, Invoice, Order, isProductInStock, isProductDiscontinued } from '../types';
+import {
+  Product,
+  Variant,
+  Customer,
+  Invoice,
+  Order,
+  isProductInStock,
+  isProductDiscontinued,
+  PaginatedCustomersResponse,
+  PaginatedProductsResponse,
+  PaginatedInvoicesResponse,
+  PaginatedOrdersResponse,
+} from '../types';
 
 export interface InvoiceFormValues {
   invoiceNumber: string;
@@ -85,19 +97,43 @@ interface InvoiceScreenProps {
   }) => Promise<Customer>;
   onFetchInvoices: () => Promise<void>;
   onFetchOrders: (force?: boolean) => Promise<void>;
-  onCreateOrder: (orderData: any) => Promise<any>;
-  onUpdateInvoice?: (invoiceData: any) => Promise<any>;
+  onCreateOrder: (orderData: Record<string, unknown>) => Promise<Order>;
+  onUpdateInvoice?: (invoiceData: Partial<Invoice> & { id: string }) => Promise<Invoice>;
   onDeleteOrder?: (id: string, label: string) => Promise<void>;
-  onFetchCredits?: () => Promise<any> | void;
+  onFetchCredits?: () => Promise<unknown> | void;
   onFetchProducts?: () => Promise<void>;
-  onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
-  onFetchPaginatedProducts?: (params?: any) => Promise<any>;
-  onFetchPaginatedInvoices?: (params?: any) => Promise<any>;
-  onFetchPaginatedOrders?: (params?: any) => Promise<any>;
+  onFetchPaginatedCustomers?: (params?: {
+    search?: string;
+    sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedCustomersResponse>;
+  onFetchPaginatedProducts?: (params?: {
+    search?: string;
+    category?: string;
+    inStockOnly?: boolean;
+    sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedProductsResponse>;
+  onFetchPaginatedInvoices?: (params?: {
+    search?: string;
+    mode?: 'all' | 'cash' | 'online' | 'credit';
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'amount-desc' | 'amount-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedInvoicesResponse>;
+  onFetchPaginatedOrders?: (params?: {
+    search?: string;
+    status?: string;
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'totalAmount-desc' | 'totalAmount-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedOrdersResponse>;
   isLoadingCustomers?: boolean;
   isLoadingProducts?: boolean;
-  onSearchInvoices?: (query: string) => Promise<any>;
-  onSearchOrders?: (query: string) => Promise<any>;
+  onSearchInvoices?: (query: string) => Promise<Invoice[]>;
+  onSearchOrders?: (query: string) => Promise<Order[]>;
 }
 
 export default function InvoiceScreen({
@@ -133,7 +169,7 @@ export default function InvoiceScreen({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formSubPage, setFormSubPage] = useState<'form' | 'select-customer' | 'select-product'>('form');
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
-  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -157,8 +193,10 @@ export default function InvoiceScreen({
 
   // Search filter for past invoices & orders in Ledger
   const [searchFilter, setSearchFilter] = useState('');
-  const debouncedSearch = useDebounce(searchFilter.trim(), 250);
-  const [ledgerSuggestions, setLedgerSuggestions] = useState<any[] | null>(null);
+  // Debounce search filter (500ms) - waits until typing stops before querying backend
+  const debouncedSearch = useDebounce(searchFilter.trim(), 500);
+  const isSearchTyping = searchFilter.trim() !== debouncedSearch;
+  const [ledgerSuggestions, setLedgerSuggestions] = useState<LedgerSuggestion[] | null>(null);
 
   const handleSearchFilterChange = (q: string) => {
     setSearchFilter(q);
@@ -171,6 +209,8 @@ export default function InvoiceScreen({
   // Fetch invoices from backend (dedicated ILIKE search or paginated route)
   const prevRefreshingRef = useRef(false);
   useEffect(() => {
+    if (isSearchTyping) return;
+
     if (prevRefreshingRef.current && !refreshing) {
       prevRefreshingRef.current = false;
       return;
@@ -184,7 +224,7 @@ export default function InvoiceScreen({
         if (debouncedSearch && onSearchInvoices) {
           // Backend search route for invoices
           const res = await onSearchInvoices(debouncedSearch);
-          const items = Array.isArray(res) ? res : (res as any)?.items;
+          const items = Array.isArray(res) ? res : [];
           if (!isCancelled && Array.isArray(items)) {
             setRemoteInvoices(items);
             setInvoiceTotalPages(1);
@@ -215,11 +255,13 @@ export default function InvoiceScreen({
     return () => {
       isCancelled = true;
     };
-  }, [invoicePage, debouncedSearch, onSearchInvoices, onFetchPaginatedInvoices, refreshing]);
+  }, [invoicePage, debouncedSearch, isSearchTyping, onSearchInvoices, onFetchPaginatedInvoices, refreshing]);
 
   // Fetch orders from backend (dedicated search or paginated route)
   const prevOrderRefreshingRef = useRef(false);
   useEffect(() => {
+    if (isSearchTyping) return;
+
     if (prevOrderRefreshingRef.current && !refreshing) {
       prevOrderRefreshingRef.current = false;
       return;
@@ -235,7 +277,7 @@ export default function InvoiceScreen({
         if (debouncedSearch && onSearchOrders) {
           // Backend search route for orders
           const res = await onSearchOrders(debouncedSearch);
-          const items = Array.isArray(res) ? res : (res as any)?.items;
+          const items = Array.isArray(res) ? res : [];
           if (!isCancelled && Array.isArray(items)) {
             setRemoteOrders(items);
             setOrderTotalPages(1);
@@ -266,7 +308,7 @@ export default function InvoiceScreen({
     return () => {
       isCancelled = true;
     };
-  }, [orderPage, debouncedSearch, onSearchOrders, onFetchPaginatedOrders, activeLedgerTab, refreshing]);
+  }, [orderPage, debouncedSearch, isSearchTyping, onSearchOrders, onFetchPaginatedOrders, activeLedgerTab, refreshing]);
 
   // Hit order history route upon loading invoices section if needed
   useEffect(() => {
@@ -372,10 +414,10 @@ export default function InvoiceScreen({
     return invoices.filter((inv) => {
       const invNum = (inv.invoiceNumber || '').toLowerCase();
       const invId = (inv.id || '').toLowerCase();
-      const orderNum = ((inv as any).orderNumber || '').toLowerCase();
-      const orderId = ((inv as any).orderId || '').toLowerCase();
-      const name = (inv.customerName || (inv as any).custName || '').toLowerCase();
-      const phone = (inv.phoneNumber || (inv as any).custPhone || '').trim();
+      const orderNum = (inv.orderNumber || '').toLowerCase();
+      const orderId = (inv.orderId || '').toLowerCase();
+      const name = (inv.customerName || inv.custName || '').toLowerCase();
+      const phone = (inv.phoneNumber || inv.custPhone || '').trim();
       const cleanPhoneDigits = phone.replace(/\D/g, '');
 
       // Exact invoice number / order number / UUID
@@ -442,23 +484,23 @@ export default function InvoiceScreen({
     const gstAmount = Number(viewingInvoice.gst ?? 0);
     const disc = Number(viewingInvoice.discount ?? 0);
 
-    const items = Array.isArray(viewingInvoice.items)
-      ? viewingInvoice.items.map((it: any) => ({
+    const items: InvoiceItem[] = Array.isArray(viewingInvoice.items)
+      ? viewingInvoice.items.map((it) => ({
         id: it.id || it.productId || Math.random().toString(),
-        productId: it.productId,
+        productId: it.productId || '',
         productVariantId: it.productVariantId,
-        name: it.name || it.productName || 'Product',
+        name: it.productName || it.name || 'Product',
         variantColor: it.variantColor,
-        price: Number(it.price || it.unitPrice || 0),
+        price: Number(it.unitPrice || it.price || 0),
         quantity: Number(it.quantity || 1),
         total: Number(
           it.total ||
-          Number(it.price || it.unitPrice || 0) * Number(it.quantity || 1)
+          Number(it.unitPrice || it.price || 0) * Number(it.quantity || 1)
         ),
       }))
       : [];
 
-    const itemsSum = items.reduce((sum: number, it: any) => sum + (it.total || 0), 0);
+    const itemsSum = items.reduce((sum: number, it) => sum + (it.total || 0), 0);
     const sub = Number(
       viewingInvoice.subtotal ??
       (itemsSum > 0
@@ -564,15 +606,15 @@ export default function InvoiceScreen({
 
   const activeSubtotal = isViewingPast
     ? resolvedInvoice.subtotal
-    : activeItems.reduce((sum: number, item: any) => sum + item.total, 0);
+    : activeItems.reduce((sum: number, item) => sum + item.total, 0);
 
   const activeTaxAmount = isViewingPast
     ? resolvedInvoice.taxAmount
     : Math.round((activeSubtotal * (parseFloat(activeTaxRate) || 0)) / 100);
 
   const activeDiscountAmount = isViewingPast
-    ? resolvedInvoice.discount
-    : (parseFloat(activeDiscount) || 0);
+    ? Number(resolvedInvoice?.discount || 0)
+    : (parseFloat(String(activeDiscount)) || 0);
 
   const activeTotalAmount = isViewingPast
     ? resolvedInvoice.totalAmount
@@ -669,7 +711,7 @@ export default function InvoiceScreen({
       setNewCustomerPhone('');
       setNewCustomerEmail('');
       setNewCustomerAddress('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Alert already handled in parent
     } finally {
       setIsSavingCustomer(false);
@@ -735,7 +777,7 @@ export default function InvoiceScreen({
 
     const price = parseFloat(itemPrice) || selectedProduct.sellingPrice || selectedProduct.price;
     const variantColor = selectedVariant?.color || null;
-    const variantId = (selectedVariant as any)?.id || null;
+    const variantId = selectedVariant?.id || selectedVariant?.productVariantId || null;
 
     const itemName = variantColor
       ? `${selectedProduct.name} (${variantColor})`
@@ -851,7 +893,7 @@ export default function InvoiceScreen({
           phoneNumber: formValues.clientPhone.trim() || null,
           email: formValues.clientEmail.trim() || null,
           address: formValues.clientAddress.trim() || null,
-          mode: formValues.paymentMethod.toLowerCase(),
+          mode: (formValues.paymentMethod.toLowerCase() === 'credit' ? 'credit' : formValues.paymentMethod.toLowerCase() === 'online' ? 'online' : 'cash') as 'cash' | 'online' | 'credit',
           subtotal,
           gst: taxAmount,
           taxRate: parseFloat(formValues.taxRate) || 0,
@@ -863,6 +905,7 @@ export default function InvoiceScreen({
           dueDate: dDate,
           advancePaymentMode: advanceMode,
           items: invoiceItems.map((item) => ({
+            id: item.id || '',
             productId: item.productId,
             productVariantId: item.productVariantId || null,
             productName: item.name,
@@ -968,16 +1011,17 @@ export default function InvoiceScreen({
       reset();
       setInvoiceItems([]);
       setSelectedCustomerId(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[handleCreateAndShareInvoice Error]:', err);
-      showAlert('Creation Failed', err.message || 'Failed to complete invoice creation.', 'error');
+      const message = err instanceof Error ? err.message : 'Failed to complete invoice creation.';
+      showAlert('Creation Failed', message, 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Share existing past invoice
-  const handleSharePastInvoice = async (inv: any) => {
+  const handleSharePastInvoice = async (inv: GenerateInvoicePdfData) => {
     setIsExporting(true);
     try {
       const html = generateInvoiceHtml(inv);
@@ -1049,9 +1093,9 @@ export default function InvoiceScreen({
     const paymentMethod = rawMode === 'credit' ? 'Credit' : rawMode === 'cash' ? 'Cash' : 'Online';
 
     const items: InvoiceItem[] = Array.isArray(inv.items)
-      ? inv.items.map((it: any, idx: number) => ({
+      ? inv.items.map((it, idx) => ({
           id: it.id || `item_${idx}_${Date.now()}`,
-          productId: it.productId,
+          productId: it.productId || '',
           productVariantId: it.productVariantId,
           name: it.productName || it.name || 'Product',
           variantColor: it.variantColor || null,
@@ -1074,7 +1118,7 @@ export default function InvoiceScreen({
       clientName: inv.customerName || '',
       clientEmail: inv.email || '',
       clientPhone: inv.phoneNumber || '',
-      clientAddress: (inv as any).address || '',
+      clientAddress: inv.address || '',
       taxRate: inv.taxRate ? String(inv.taxRate) : '0',
       discount: inv.discount ? String(inv.discount) : '0',
       paymentMethod,

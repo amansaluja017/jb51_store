@@ -25,7 +25,7 @@ import {
   Filter,
   Ban,
 } from 'lucide-react-native';
-import { Product, isProductInStock, isProductDiscontinued } from '../../types';
+import { Product, PaginatedProductsResponse, isProductInStock, isProductDiscontinued } from '../../types';
 import { ProductSelectorSkeleton } from '../SkeletonLoader';
 import { Pagination } from '../ui';
 
@@ -36,14 +36,14 @@ export interface SelectProductPageProps {
   onSelectProduct: (prod: Product) => void;
   onBack: () => void;
   isLoading?: boolean;
-  onFetchPaginatedProducts?: (params: {
+  onFetchPaginatedProducts?: (params?: {
     search?: string;
     category?: string;
     inStockOnly?: boolean;
-    sortBy?: SortOption;
+    sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
     page?: number;
     limit?: number;
-  }) => Promise<any>;
+  }) => Promise<PaginatedProductsResponse>;
   refreshing?: boolean;
   onRefresh?: () => void;
 }
@@ -70,12 +70,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [page, setPage] = useState(1);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [remoteData, setRemoteData] = useState<{
-    items: Product[];
-    total: number;
-    totalPages: number;
-    page: number;
-  } | null>(null);
+  const [remoteData, setRemoteData] = useState<PaginatedProductsResponse | null>(null);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
 
   // Hit the backend route for sorting, filter, search, and pagination
@@ -196,7 +191,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
   }, [searchQuery, selectedCategory, inStockOnly, sortBy]);
 
   const totalCount = remoteData ? remoteData.total : filteredAndSorted.length;
-  const totalPages = remoteData ? Math.max(1, remoteData.totalPages) : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = remoteData ? Math.max(1, remoteData.totalPages || 1) : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
 
   const displayProducts = useMemo(() => {

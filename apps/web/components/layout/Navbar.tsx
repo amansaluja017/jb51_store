@@ -31,13 +31,14 @@ export function Navbar({ siteConfig }: NavbarProps = {}) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
-  // Debounce search input (250ms) to prevent excessive backend queries
-  const debouncedSearchQuery = useDebounce(searchQuery.trim(), 250);
+  // Debounce search input (500ms) - waits until user stops typing before querying backend
+  const debouncedSearchQuery = useDebounce(searchQuery.trim(), 500);
+  const isSearchTyping = searchQuery.trim() !== debouncedSearchQuery;
 
-  // Hit backend pg_trgm suggestions route matching name, description, tags
+  // Hit backend pg_trgm suggestions route matching name, description, tags only after typing stops
   const { data: suggestionsData, isLoading: isSuggestionsLoading } = api.products.suggestions.useQuery(
     { query: debouncedSearchQuery },
-    { enabled: debouncedSearchQuery.length > 0 }
+    { enabled: debouncedSearchQuery.length > 0 && !isSearchTyping }
   );
 
   const suggestedProducts = suggestionsData?.products || [];

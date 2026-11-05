@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, ViewStyle } from 'react-native';
+import { StyleSheet, View, Animated, ViewStyle, DimensionValue } from 'react-native';
 
 interface SkeletonProps {
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
   borderRadius?: number;
   style?: ViewStyle | ViewStyle[];
   dark?: boolean;
@@ -43,8 +43,8 @@ export function SkeletonBox({
         styles.skeletonBase,
         dark ? styles.darkBase : styles.lightBase,
         {
-          width: width as any,
-          height: height as any,
+          width,
+          height,
           borderRadius,
           opacity: opacityAnim,
         },
@@ -521,6 +521,48 @@ export function InquiryListSkeleton() {
           <View style={styles.rowBetween}>
             <SkeletonLine width={100} height={12} />
             <SkeletonBox width={72} height={26} borderRadius={8} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// 11. Telemetry Product List Skeleton
+export function TelemetryListSkeleton({ count = 5 }: { count?: number }) {
+  return (
+    <View style={{ gap: 10, paddingVertical: 4 }}>
+      {Array.from({ length: count }).map((_, idx) => (
+        <View
+          key={idx}
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 14,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: '#e2e8f0',
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <SkeletonBox width={26} height={20} borderRadius={6} />
+            <SkeletonBox width={46} height={46} borderRadius={8} />
+            <View style={{ flex: 1, gap: 5 }}>
+              <SkeletonLine width="65%" height={14} />
+              <SkeletonLine width="40%" height={10} />
+              <SkeletonLine width="30%" height={12} />
+            </View>
+            <SkeletonBox width={65} height={22} borderRadius={6} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'space-between' }}>
+            <SkeletonBox width="23%" height={38} borderRadius={8} />
+            <SkeletonBox width="23%" height={38} borderRadius={8} />
+            <SkeletonBox width="23%" height={38} borderRadius={8} />
+            <SkeletonBox width="23%" height={38} borderRadius={8} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 2 }}>
+            <SkeletonLine width="35%" height={10} />
+            <SkeletonLine width="35%" height={10} />
           </View>
         </View>
       ))}

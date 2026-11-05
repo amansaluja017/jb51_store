@@ -59,7 +59,7 @@ export async function getReviews(filterApproved?: boolean): Promise<ReviewItem[]
       id: r.id,
       name: r.customerName || 'Anonymous',
       message: r.review || '',
-      stars: r.rating ? Math.round(Number(r.rating)) : 5,
+      stars: r.rating ? Number(r.rating) : 5,
       image: Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls[0] : null,
       video: r.videoUrl || null,
       instagramId: r.instagramId || null,
@@ -87,7 +87,7 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewItem
   }
 
   const imageUrls = input.image ? [input.image] : [];
-  const ratingValue = Math.min(Math.max(input.stars || 5, 1), 5);
+  const ratingValue = Math.min(Math.max(Number(input.stars) || 5, 0.5), 5);
 
   const [created] = await db
     .insert(reviewsTable)
@@ -109,7 +109,7 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewItem
     id: created.id,
     name: created.customerName || 'Anonymous',
     message: created.review || '',
-    stars: created.rating ? Math.round(Number(created.rating)) : 5,
+    stars: created.rating ? Number(created.rating) : 5,
     image: Array.isArray(created.imageUrls) && created.imageUrls.length > 0 ? created.imageUrls[0] : null,
     video: created.videoUrl || null,
     instagramId: created.instagramId || null,
@@ -124,16 +124,40 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewItem
 const isUuid = (str: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
+export interface UpdateReviewInput {
+  name?: string;
+  message?: string;
+  stars?: number;
+  image?: string | null;
+  video?: string | null;
+  instagramId?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  email?: string | null;
+  approved?: boolean;
+  rating?: number;
+  review?: string;
+}
+
 export async function updateReview(
   id: string,
-  data: { approved?: boolean; rating?: number; review?: string }
+  data: UpdateReviewInput
 ): Promise<ReviewItem | null> {
   if (!id || !isUuid(id)) return null;
 
   const updatePayload: Record<string, any> = {};
   if (data.approved !== undefined) updatePayload.approved = data.approved;
-  if (data.rating !== undefined) updatePayload.rating = String(data.rating);
-  if (data.review !== undefined) updatePayload.review = data.review;
+  if (data.name !== undefined) updatePayload.customerName = data.name.trim();
+  if (data.message !== undefined) updatePayload.review = data.message.trim();
+  if (data.review !== undefined) updatePayload.review = data.review.trim();
+  if (data.stars !== undefined) updatePayload.rating = String(Math.min(Math.max(Number(data.stars), 0.5), 5));
+  if (data.rating !== undefined) updatePayload.rating = String(Math.min(Math.max(Number(data.rating), 0.5), 5));
+  if (data.image !== undefined) updatePayload.imageUrls = data.image ? [data.image] : null;
+  if (data.video !== undefined) updatePayload.videoUrl = data.video?.trim() || null;
+  if (data.instagramId !== undefined) updatePayload.instagramId = data.instagramId?.trim() || null;
+  if (data.phone !== undefined) updatePayload.phoneNumber = data.phone?.trim() || null;
+  if (data.location !== undefined) updatePayload.location = data.location?.trim() || null;
+  if (data.email !== undefined) updatePayload.email = data.email?.trim() || null;
 
   const [updated] = await db
     .update(reviewsTable)
@@ -147,7 +171,7 @@ export async function updateReview(
     id: updated.id,
     name: updated.customerName || 'Anonymous',
     message: updated.review || '',
-    stars: updated.rating ? Math.round(Number(updated.rating)) : 5,
+    stars: updated.rating ? Number(updated.rating) : 5,
     image: Array.isArray(updated.imageUrls) && updated.imageUrls.length > 0 ? updated.imageUrls[0] : null,
     video: updated.videoUrl || null,
     instagramId: updated.instagramId || null,
@@ -177,13 +201,30 @@ export interface GetPaginatedReviewsInput {
   limit?: number | null;
 }
 
+export async function getReviewCounts(): Promise<{ all: number; approved: number; pending: number }> {
+  const fullList = await getReviews();
+  const approved = fullList.filter((r) => r.approved).length;
+  return {
+    all: fullList.length,
+    approved,
+    pending: fullList.length - approved,
+  };
+}
+
 export async function getPaginatedReviews(input?: GetPaginatedReviewsInput) {
   const page = Math.max(1, input?.page || 1);
   const limit = Math.max(1, input?.limit || 10);
   const search = (input?.search || '').trim().toLowerCase();
   const approved = input?.approved;
 
-  let all = await getReviews(approved !== null && approved !== undefined ? approved : undefined);
+  const fullList = await getReviews();
+  const allCount = fullList.length;
+  const approvedCount = fullList.filter((r) => r.approved).length;
+  const pendingCount = allCount - approvedCount;
+
+  let all = approved !== null && approved !== undefined
+    ? fullList.filter((r) => r.approved === approved)
+    : fullList;
 
   if (search) {
     all = all.filter((r) => {
@@ -206,6 +247,11 @@ export async function getPaginatedReviews(input?: GetPaginatedReviewsInput) {
     page: safePage,
     limit,
     totalPages,
+    counts: {
+      all: allCount,
+      approved: approvedCount,
+      pending: pendingCount,
+    },
   };
 }
 
@@ -250,8 +296,10 @@ export async function searchReviews(input?: SearchReviewsInput) {
         image: Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls[0] : null,
         video: r.videoUrl || null,
         instagramId: r.instagramId || null,
+        phone: r.phoneNumber || null,
         location: r.location || null,
-        approved: r.approved,
+        approved: !!r.approved,
+        createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
         date: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
       }));
 

@@ -9,4 +9,5 @@ export * from './analytics.js';
 export * from './inquiries.js';
 export * from './wishlist.js';
 export * from './site-config.js';
+export * from './newsletter.js';
 export * from './services/validations.js';

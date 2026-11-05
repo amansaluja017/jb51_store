@@ -6,33 +6,82 @@ import CatalogScreen from '../screens/CatalogScreen';
 import InventoryScreen from '../screens/InventoryScreen';
 import InvoiceScreen from '../screens/InvoiceScreen';
 import ReviewsScreen from '../screens/ReviewsScreen';
-import { Product, Variant, Customer, Invoice, Order, Review, InventoryTransaction } from '../types';
+import {
+  Product,
+  Variant,
+  Customer,
+  Invoice,
+  Order,
+  Review,
+  InventoryTransaction,
+  AnalyticsOverviewData,
+  ViewsAnalytics,
+  ClicksAnalytics,
+  ConversionAnalytics,
+  ConversionFunnelAnalytics,
+  ChannelRatioAnalytics,
+  GrowthPulseAnalytics,
+  PaymentModesAnalytics,
+  DemandHighlightsAnalytics,
+  ProductAnalyticsItem,
+  InventorySummaryAnalytics,
+  PaginatedCatalogueTelemetryResult,
+  PaginatedProductsResponse,
+  PaginatedInvoicesResponse,
+  PaginatedOrdersResponse,
+  PaginatedCustomersResponse,
+  PaginatedStockResponse,
+  PaginatedReviewsResponse,
+  InventoryMetrics,
+} from '../types';
+import { ProductSuggestionsData } from '../screens/CatalogScreen';
+import { InventorySuggestionItem } from '../screens/InventoryScreen';
+import { ReviewSuggestionItem } from '../screens/ReviewsScreen';
 import styles from '../styles/App.styles';
 
 export interface ScreenRouterProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   // Dashboard & Analytics
-  stats: any;
-  analyticsMetrics: any;
-  analyticsOverview?: any;
-  allProductsAnalytics?: any[];
-  activeAnalyticsProduct: any;
+  stats: {
+    total: number;
+    listed: number;
+    oos: number;
+    active: number;
+  };
+  analyticsMetrics: {
+    isUnavailable?: boolean;
+    views: number;
+    waHits: number;
+    igHits: number;
+    wlHits: number;
+    conversion: number;
+    pipeline: number;
+  };
+  analyticsOverview?: AnalyticsOverviewData | null;
+  allProductsAnalytics?: ProductAnalyticsItem[];
+  activeAnalyticsProduct: Product | null;
   selectedAnalyticsSlug: string;
   setSelectedAnalyticsSlug: (slug: string) => void;
   showAnalyticsSelector: boolean;
   setShowAnalyticsSelector: (show: boolean) => void;
   isLoadingAnalytics?: boolean;
-  viewsAnalytics?: any;
-  clicksAnalytics?: any;
-  conversionAnalytics?: any;
-  funnelAnalytics?: any;
-  channelRatioAnalytics?: any;
-  growthPulseAnalytics?: any;
-  paymentModesAnalytics?: any;
-  demandHighlightsAnalytics?: any;
-  catalogueTelemetryAnalytics?: any;
-  inventorySummaryAnalytics?: any;
+  viewsAnalytics?: ViewsAnalytics | null;
+  clicksAnalytics?: ClicksAnalytics | null;
+  conversionAnalytics?: ConversionAnalytics | null;
+  funnelAnalytics?: ConversionFunnelAnalytics | null;
+  channelRatioAnalytics?: ChannelRatioAnalytics | null;
+  growthPulseAnalytics?: GrowthPulseAnalytics | null;
+  paymentModesAnalytics?: PaymentModesAnalytics | null;
+  demandHighlightsAnalytics?: DemandHighlightsAnalytics | null;
+  catalogueTelemetryAnalytics?: ProductAnalyticsItem[];
+  inventorySummaryAnalytics?: InventorySummaryAnalytics | null;
+  fetchPaginatedCatalogueTelemetry?: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: 'views' | 'inquiries' | 'orders' | 'conversion' | 'revenue';
+  }) => Promise<PaginatedCatalogueTelemetryResult>;
   // Shared
   products: Product[];
   categories: string[];
@@ -51,7 +100,18 @@ export interface ScreenRouterProps {
   onViewProductDetails: (prod: Product) => void;
   // Inventory actions
   onUpdateInventory: (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => Promise<void>;
-  onRecordTransaction?: (data: any) => Promise<void>;
+  onRecordTransaction?: (data: {
+    productId: string;
+    productVariantId?: string | null;
+    type: 'sale' | 'purchase';
+    quantity: number;
+    name: string;
+    phoneNumber?: string;
+    email?: string;
+    notes?: string;
+    unitPrice?: number;
+    totalAmount?: number;
+  }) => Promise<void>;
   transactions: InventoryTransaction[];
   isLoadingTransactions: boolean;
   onFetchTransactions: () => Promise<void>;
@@ -64,38 +124,79 @@ export interface ScreenRouterProps {
   isLoadingOrders: boolean;
   isLoadingCustomers: boolean;
   onFetchCustomers: () => Promise<void>;
-  onFetchPaginatedCustomers?: (params?: any) => Promise<any>;
+  onFetchPaginatedCustomers?: (params?: {
+    search?: string;
+    sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedCustomersResponse>;
   onCreateCustomer: (data: { name: string; phoneNumber: string; email?: string; address?: string }) => Promise<Customer>;
   onFetchInvoices: () => Promise<void>;
-  onFetchPaginatedInvoices?: (params?: any) => Promise<any>;
+  onFetchPaginatedInvoices?: (params?: {
+    search?: string;
+    mode?: 'all' | 'cash' | 'online' | 'credit';
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'amount-desc' | 'amount-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedInvoicesResponse>;
   onFetchOrders: (force?: boolean) => Promise<void>;
-  onFetchPaginatedOrders?: (params?: any) => Promise<any>;
-  onCreateOrder: (orderData: any) => Promise<any>;
-  onUpdateInvoice?: (invoiceData: any) => Promise<any>;
+  onFetchPaginatedOrders?: (params?: {
+    search?: string;
+    status?: string;
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'totalAmount-desc' | 'totalAmount-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedOrdersResponse>;
+  onCreateOrder: (orderData: Record<string, unknown>) => Promise<Order>;
+  onUpdateInvoice?: (invoiceData: Partial<Invoice> & { id: string }) => Promise<Invoice>;
   onDeleteOrder?: (id: string, label: string) => Promise<void>;
-  onFetchCredits?: () => Promise<any> | void;
+  onFetchCredits?: () => Promise<unknown> | void;
   onFetchProducts?: () => Promise<void>;
-  onFetchPaginatedProducts?: (params?: any) => Promise<any>;
-  onFetchPaginatedStock?: (params?: any) => Promise<any>;
+  onFetchPaginatedProducts?: (params?: {
+    search?: string;
+    category?: string;
+    inStockOnly?: boolean;
+    sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedProductsResponse>;
+  onFetchPaginatedStock?: (params?: {
+    search?: string;
+    category?: string;
+    stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
+    sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedStockResponse>;
   isLoadingProducts?: boolean;
   // Reviews
   reviews: Review[];
+  reviewCounts?: { all: number; approved: number; pending: number };
   isLoadingReviews: boolean;
   onFetchReviews: () => Promise<void>;
-  onAddReview: (reviewData: any) => Promise<void>;
+  onFetchPaginatedReviews?: (params?: {
+    search?: string;
+    approved?: boolean;
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedReviewsResponse>;
+  onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'> & { email?: string | null; approved?: boolean }) => Promise<unknown> | void;
+  onUpdateReview?: (reviewData: { id: string; name?: string; message?: string; stars?: number; image?: string | null; video?: string | null; instagramId?: string | null; phone?: string | null; location?: string | null; email?: string | null; approved?: boolean }) => Promise<unknown> | void;
   onDeleteReview: (review: Review) => void;
   onToggleReviewApproval: (review: Review) => Promise<void>;
   token: string | null;
   apiHost: string;
   // Search & Suggestions Backend Route Handlers
-  onSearchProducts?: (params: any) => Promise<any>;
-  onGetProductSuggestions?: (query: string) => Promise<any>;
-  onSearchInventory?: (params: any) => Promise<any>;
-  onGetInventorySuggestions?: (query: string) => Promise<any>;
-  onSearchInvoices?: (query: string) => Promise<any>;
-  onSearchOrders?: (query: string) => Promise<any>;
-  onSearchReviews?: (query: string) => Promise<any>;
-  onGetReviewSuggestions?: (query: string) => Promise<any>;
+  onSearchProducts?: (params: { query?: string; category?: string; inStockOnly?: boolean; sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default'; limit?: number }) => Promise<{ items: Product[]; total?: number; metrics?: unknown }>;
+  onGetProductSuggestions?: (query: string) => Promise<ProductSuggestionsData>;
+  onSearchInventory?: (params: { query?: string; category?: string; stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved'; sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc'; limit?: number }) => Promise<{ items: Product[]; total: number; metrics?: InventoryMetrics; query?: string }>;
+  onGetInventorySuggestions?: (query: string) => Promise<InventorySuggestionItem[]>;
+  onSearchInvoices?: (query: string) => Promise<Invoice[]>;
+  onSearchOrders?: (query: string) => Promise<Order[]>;
+  onSearchReviews?: (query: string) => Promise<Review[]>;
+  onGetReviewSuggestions?: (query: string) => Promise<ReviewSuggestionItem[]>;
+  currentUser?: { id?: string; email?: string; userName?: string; role?: string } | null;
+  isSuperAdmin?: boolean;
 }
 
 export const ScreenRouter: React.FC<ScreenRouterProps> = ({
@@ -121,6 +222,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   demandHighlightsAnalytics,
   catalogueTelemetryAnalytics,
   inventorySummaryAnalytics,
+  fetchPaginatedCatalogueTelemetry,
   products,
   categories,
   searchQuery,
@@ -163,9 +265,12 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onFetchPaginatedStock,
   isLoadingProducts,
   reviews,
+  reviewCounts,
   isLoadingReviews,
   onFetchReviews,
+  onFetchPaginatedReviews,
   onAddReview,
+  onUpdateReview,
   onDeleteReview,
   onToggleReviewApproval,
   token,
@@ -178,6 +283,8 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
   onSearchOrders,
   onSearchReviews,
   onGetReviewSuggestions,
+  currentUser,
+  isSuperAdmin,
 }) => {
   return (
     <View style={styles.screenView}>
@@ -198,6 +305,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           demandHighlightsAnalytics={demandHighlightsAnalytics}
           catalogueTelemetryAnalytics={catalogueTelemetryAnalytics}
           inventorySummaryAnalytics={inventorySummaryAnalytics}
+          fetchPaginatedCatalogueTelemetry={fetchPaginatedCatalogueTelemetry}
           activeAnalyticsProduct={activeAnalyticsProduct}
           selectedAnalyticsSlug={selectedAnalyticsSlug}
           setSelectedAnalyticsSlug={setSelectedAnalyticsSlug}
@@ -285,11 +393,15 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
       )}
       {activeTab === 'reviews' && (
         <ReviewsScreen
+          currentUser={currentUser}
+          isSuperAdmin={isSuperAdmin}
           reviews={reviews}
+          reviewCounts={reviewCounts}
           isLoading={isLoadingReviews}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onAddReview={onAddReview}
+          onUpdateReview={onUpdateReview}
           onDeleteReview={onDeleteReview}
           onToggleApproval={onToggleReviewApproval}
           showAlert={showAlert}
@@ -297,6 +409,7 @@ export const ScreenRouter: React.FC<ScreenRouterProps> = ({
           apiHost={apiHost}
           onSearchReviews={onSearchReviews}
           onGetReviewSuggestions={onGetReviewSuggestions}
+          onFetchPaginatedReviews={onFetchPaginatedReviews}
         />
       )}
     </View>

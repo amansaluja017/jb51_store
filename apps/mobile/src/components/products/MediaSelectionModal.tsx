@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Globe,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react-native';
 import styles from '../ProductFormModal.styles';
 
@@ -21,6 +22,7 @@ export interface MediaSelectionModalProps {
   onTakePhoto: () => void;
   onPickDocument: () => void;
   onOpenUrlInput: () => void;
+  onOpenAiPrompt?: () => void;
 }
 
 export const MediaSelectionModal: React.FC<MediaSelectionModalProps> = ({
@@ -30,6 +32,7 @@ export const MediaSelectionModal: React.FC<MediaSelectionModalProps> = ({
   onTakePhoto,
   onPickDocument,
   onOpenUrlInput,
+  onOpenAiPrompt,
 }) => {
   return (
     <Modal
@@ -108,6 +111,23 @@ export const MediaSelectionModal: React.FC<MediaSelectionModalProps> = ({
               </View>
               <ChevronRight size={16} color="#71717a" />
             </TouchableOpacity>
+
+            {onOpenAiPrompt && (
+              <TouchableOpacity
+                style={styles.verticalOptionRow}
+                onPress={onOpenAiPrompt}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.optionIconBox, { backgroundColor: '#f3e8ff' }]}>
+                  <Sparkles size={20} color="#9333ea" />
+                </View>
+                <View style={styles.optionTextBox}>
+                  <Text style={[styles.optionTitle, { color: '#7e22ce' }]}>AI Image Studio Prompts</Text>
+                  <Text style={styles.optionDescription}>Generate 4-5 photorealistic prompts for Midjourney / Flux</Text>
+                </View>
+                <ChevronRight size={16} color="#71717a" />
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity

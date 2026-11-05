@@ -16,8 +16,8 @@ export interface GenerateInvoicePdfData {
   discount: number;
   totalAmount: number;
   paymentMethod: string;
-  paidAmount?: number;
-  dueAmount?: number;
+  paidAmount?: number | string | null;
+  dueAmount?: number | string | null;
   dueDate?: string | null;
   paymentDate?: string | null;
   advancePaymentMode?: string | null;
@@ -27,6 +27,7 @@ export interface GenerateInvoicePdfData {
 }
 
 export interface InvoiceTx {
+  id?: string;
   createdAt?: string | Date | null;
   transactionType?: string | null;
   paymentMode?: string | null;

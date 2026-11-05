@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Instagram, MessageCircle, Globe } from 'lucide-react';
+import { ArrowRight, Instagram, MessageCircle, Globe, Loader2 } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { api } from '@/lib/trpc/client/react';
 import type { SiteConfigData } from '@/lib/site-config';
 
 interface FooterProps {
@@ -16,12 +17,25 @@ export function Footer({ siteConfig }: FooterProps = {}) {
   const [email, setEmail] = useState('');
   const { trackEvent } = useAnalytics();
 
+  const subscribeMutation = api.newsletter.subscribe.useMutation({
+    onSuccess: (data) => {
+      toast.success(data?.message || 'Thank you for subscribing to the JB51 newsletter!');
+      setEmail('');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Unable to subscribe right now. Please try again.');
+    },
+  });
+
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
-      toast.success('Thank you for subscribing to the JB51 newsletter!');
-      setEmail('');
-    }
+    const cleanEmail = email.trim();
+    if (!cleanEmail) return;
+
+    subscribeMutation.mutate({
+      email: cleanEmail,
+      source: 'web_footer',
+    });
   };
 
   return (
@@ -112,10 +126,15 @@ export function Footer({ siteConfig }: FooterProps = {}) {
             />
             <button
               type="submit"
-              className="absolute right-1 w-9 h-9 rounded-full bg-[#FF5E36] hover:bg-[#E04D27] text-white flex items-center justify-center transition-all duration-300 shadow-md cursor-pointer"
+              disabled={subscribeMutation.isPending}
+              className="absolute right-1 w-9 h-9 rounded-full bg-[#FF5E36] hover:bg-[#E04D27] text-white flex items-center justify-center transition-all duration-300 shadow-md cursor-pointer disabled:opacity-60"
               aria-label="Subscribe"
             >
-              <ArrowRight size={14} />
+              {subscribeMutation.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <ArrowRight size={14} />
+              )}
             </button>
           </form>
 

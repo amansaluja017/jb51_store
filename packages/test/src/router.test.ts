@@ -133,5 +133,16 @@ describe('Root AppRouter & Context Suite', () => {
       assert.strictEqual(typeof overview.instagramClicks, 'number');
       assert.strictEqual(typeof overview.conversionRate, 'number');
     });
+
+    it('newsletter routes: should subscribe and unsubscribe through root appRouter', async () => {
+      const caller = appRouter.createCaller({ user: null, isStaff: false });
+      const testEmail = `root-test-${Date.now()}@jb51store.test`;
+      const subResult = await caller.newsletter.subscribe({ email: testEmail, source: 'web_footer' });
+      assert.strictEqual(subResult.success, true);
+      assert.strictEqual(subResult.email, testEmail);
+
+      const unsubResult = await caller.newsletter.unsubscribe({ email: testEmail });
+      assert.strictEqual(unsubResult.success, true);
+    });
   });
 });

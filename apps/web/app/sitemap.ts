@@ -41,21 +41,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Specific collection category filters
-  const categories = [
-    'Formal Suits',
-    'Anarkali Suits',
-    'Silk Co-ords',
-    'Velvet Edit',
-    'Occasion Wear',
-  ];
-
-  const categoryRoutes: MetadataRoute.Sitemap = categories.map((cat) => ({
-    url: `${SITE_URL}/shop?category=${encodeURIComponent(cat)}`,
-    lastModified: currentDate,
-    changeFrequency: 'daily',
-    priority: 0.8,
-  }));
+  // Collection category filters from database
+  let categoryRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const categories = await apiServer.products.getCategories.query();
+    if (Array.isArray(categories)) {
+      categoryRoutes = categories.map((cat) => ({
+        url: `${SITE_URL}/shop?category=${encodeURIComponent(cat)}`,
+        lastModified: currentDate,
+        changeFrequency: 'daily' as const,
+        priority: 0.8,
+      }));
+    }
+  } catch {
+    // Continue with empty category routes if API server is not available during build
+  }
 
   // Dynamic product detail routes fetched from database/API
   let productRoutes: MetadataRoute.Sitemap = [];

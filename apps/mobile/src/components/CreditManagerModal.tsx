@@ -42,6 +42,19 @@ import { useDebounce } from '../hooks/useDebounce';
 import { Pagination } from './ui';
 import { TransactionHistorySkeleton } from './SkeletonLoader';
 
+type FilterTab = 'all' | 'pending' | 'overdue' | 'settled';
+
+export interface PaginatedCreditsResult {
+  items?: Credit[];
+  credits?: Credit[];
+  total?: number;
+  totalCount?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+  metrics?: CreditMetrics;
+}
+
 export interface CreditManagerModalProps {
   visible: boolean;
   credits: Credit[];
@@ -57,32 +70,36 @@ export interface CreditManagerModalProps {
     dueDate?: string | null;
     advancePaymentMode?: string | null;
     notes?: string | null;
-  }) => Promise<any>;
+  }) => Promise<Credit>;
   onUpdateCredit: (data: {
     id: string;
     paidAmount?: number;
     dueAmount?: number;
     dueDate?: string | null;
     advancePaymentMode?: string | null;
-  }) => Promise<any>;
+  }) => Promise<Credit>;
   onRecordPayment: (
     id: string,
     amount: number,
     paymentMode?: string,
     notes?: string
-  ) => Promise<any>;
+  ) => Promise<Credit>;
   onDeleteCredit: (id: string, skipConfirm?: boolean) => Promise<void> | void;
-  onFetchPaginatedCredits?: (params?: any) => Promise<any>;
+  onFetchPaginatedCredits?: (params?: {
+    search?: string;
+    filterTab?: FilterTab;
+    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'dueAmount-desc' | 'dueDate-asc';
+    page?: number;
+    limit?: number;
+  }) => Promise<PaginatedCreditsResult>;
   showAlert: (
     title: string,
     message: string,
     type: 'info' | 'success' | 'error' | 'confirm',
     onConfirm?: () => void
   ) => void;
-  onSearchCredits?: (query: string) => Promise<any>;
+  onSearchCredits?: (query: string) => Promise<Credit[] | { items: Credit[]; total?: number; metrics?: CreditMetrics }>;
 }
-
-type FilterTab = 'all' | 'pending' | 'overdue' | 'settled';
 
 export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
   visible,
@@ -100,7 +117,9 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
   onSearchCredits,
 }: CreditManagerModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
+  // Debounce search query (500ms) - waits until typing stops before querying backend
+  const debouncedSearch = useDebounce(searchQuery.trim(), 500);
+  const isSearchTyping = searchQuery.trim() !== debouncedSearch;
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
 
   // Paginated remote credits state
@@ -148,9 +167,9 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
   );
 
 
-  // Fetch credits from backend (search or paginated route)
+  // Fetch credits from backend (search or paginated route) (only after typing stops)
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || isSearchTyping) return;
 
     let isCancelled = false;
     const fetchCredits = async () => {
@@ -159,13 +178,15 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
         if (debouncedSearch && onSearchCredits) {
           // Backend search route for credits
           const res = await onSearchCredits(debouncedSearch);
-          const items = Array.isArray(res) ? res : (res as any)?.items;
+          const items = Array.isArray(res) ? res : res?.items;
           if (!isCancelled && Array.isArray(items)) {
             setRemoteCredits(items);
             setCreditTotalPages(1);
-            setCreditTotalCount((res as any)?.total ?? items.length);
-            if ((res as any)?.metrics) {
-              setRemoteMetrics((res as any).metrics as CreditMetrics);
+            const total = Array.isArray(res) ? items.length : (res?.total ?? items.length);
+            setCreditTotalCount(total);
+            const metrics = !Array.isArray(res) ? res?.metrics : undefined;
+            if (metrics) {
+              setRemoteMetrics(metrics);
             }
           }
         } else if (onFetchPaginatedCredits) {
@@ -199,7 +220,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [visible, creditPage, filterTab, debouncedSearch, onSearchCredits, onFetchPaginatedCredits]);
+  }, [visible, creditPage, filterTab, debouncedSearch, isSearchTyping, onSearchCredits, onFetchPaginatedCredits]);
 
   const handleSearchChange = (q: string) => {
     setSearchQuery(q);
@@ -994,7 +1015,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
 
                 return (
                   <View style={styles.txListContainer}>
-                    {displayList.map((tx: CreditTransaction | any, idx: number) => {
+                    {displayList.map((tx: CreditTransaction, idx: number) => {
                       const isAdv = (tx.transactionType || '').toLowerCase() === 'advance';
                       const txDate = formatDateSafe(tx.createdAt);
 

@@ -19,6 +19,8 @@ import {
   Wand2,
   Lightbulb,
   Maximize2,
+  Sparkles,
+  ChevronRight,
 } from 'lucide-react-native';
 import { Variant } from '../../types';
 import DraggableImageList from '../DraggableImageList';
@@ -36,7 +38,7 @@ export interface ProductVariantsTabProps {
   formVariants: Variant[];
   extractedPalettes: { [variantIdx: number]: string[] };
   removeVariantField: (idx: number) => void;
-  updateVariantField: (idx: number, field: keyof Variant, val: any) => void;
+  updateVariantField: (idx: number, field: keyof Variant, val: string | number) => void;
   setColorPickerTargetIdx: (idx: number | null) => void;
   openMediaForVariant: (idx: number) => void;
   removeVariantImage: (variantIdx: number, imageIndex: number) => void;
@@ -49,6 +51,7 @@ export interface ProductVariantsTabProps {
   isReorderingImages: boolean;
   uploadingUris: string[];
   deletingUris: string[];
+  onOpenAiImagePrompts?: (variantIdx: number) => void;
 }
 
 export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
@@ -70,6 +73,7 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
   isReorderingImages,
   uploadingUris,
   deletingUris,
+  onOpenAiImagePrompts,
 }) => {
   return (
     <View style={styles.tabContentContainer}>
@@ -158,6 +162,44 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                           <Text style={styles.variantGalleryTitle}>STEP 1: VARIANT IMAGES • DRAG TO REORDER</Text>
                           <Text style={styles.variantGalleryCount}>{(v.images || []).length} photos</Text>
                         </View>
+
+                        {/* AI Photography Prompts Action Banner */}
+                        {onOpenAiImagePrompts && (
+                          <TouchableOpacity
+                            onPress={() => onOpenAiImagePrompts(idx)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              backgroundColor: '#faf5ff',
+                              borderWidth: 1,
+                              borderColor: '#e9d5ff',
+                              borderRadius: 10,
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              marginBottom: 8,
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#f3e8ff', alignItems: 'center', justifyContent: 'center' }}>
+                                <Sparkles size={13} color="#9333ea" />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#6b21a8' }}>
+                                  AI Photography Studio
+                                </Text>
+                                <Text style={{ fontSize: 9.5, color: '#9333ea' }} numberOfLines={1}>
+                                  Get 5 bespoke camera prompts for AI generators
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#9333ea', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                              <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#ffffff' }}>PROMPTS</Text>
+                              <ChevronRight size={11} color="#ffffff" />
+                            </View>
+                          </TouchableOpacity>
+                        )}
 
                         {/* Product Image Dimension Specs & Guideline */}
                         <View
@@ -595,7 +637,7 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                               <TextInput
                                 placeholder="Min 1"
                                 value={
-                                  v.stock !== undefined && v.stock !== null && (v.stock as any) !== ''
+                                  v.stock !== undefined && v.stock !== null && String(v.stock) !== ''
                                     ? String(v.stock)
                                     : ''
                                 }
@@ -605,7 +647,7 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                                 keyboardType="numeric"
                                 style={[
                                   styles.stylishVariantInput,
-                                  (Number(v.stock) <= 0 || (v.stock as any) === '') && {
+                                  (Number(v.stock) <= 0 || String(v.stock ?? '') === '') && {
                                     borderColor: '#fca5a5',
                                   },
                                 ]}
@@ -620,7 +662,7 @@ export const ProductVariantsTab: React.FC<ProductVariantsTabProps> = ({
                                 value={
                                   v.reservedStock !== undefined &&
                                   v.reservedStock !== null &&
-                                  (v.reservedStock as any) !== '' &&
+                                  String(v.reservedStock) !== '' &&
                                   v.reservedStock !== 0
                                     ? String(v.reservedStock)
                                     : v.reservedStock === 0

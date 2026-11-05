@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Text,
   View,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   Image,
@@ -42,7 +43,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import SVGChart from '../components/SVGChart';
-import { DashboardSkeleton } from '../components/SkeletonLoader';
+import { DashboardSkeleton, TelemetryListSkeleton } from '../components/SkeletonLoader';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Card,
   CardHeader,
@@ -67,6 +69,7 @@ import {
   PaymentModesAnalytics,
   DemandHighlightsAnalytics,
   InventorySummaryAnalytics,
+  PaginatedCatalogueTelemetryResult,
 } from '../types';
 import styles from './DashboardScreen.styles';
 
@@ -99,6 +102,12 @@ interface DashboardScreenProps {
   demandHighlightsAnalytics?: DemandHighlightsAnalytics | null;
   catalogueTelemetryAnalytics?: ProductAnalyticsItem[];
   inventorySummaryAnalytics?: InventorySummaryAnalytics | null;
+  fetchPaginatedCatalogueTelemetry?: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: 'views' | 'inquiries' | 'orders' | 'conversion' | 'revenue';
+  }) => Promise<PaginatedCatalogueTelemetryResult>;
   activeAnalyticsProduct: Product | null;
   selectedAnalyticsSlug: string;
   setSelectedAnalyticsSlug: (val: string) => void;
@@ -141,6 +150,7 @@ export default function DashboardScreen({
   demandHighlightsAnalytics,
   catalogueTelemetryAnalytics,
   inventorySummaryAnalytics,
+  fetchPaginatedCatalogueTelemetry,
   activeAnalyticsProduct,
   selectedAnalyticsSlug,
   setSelectedAnalyticsSlug,
@@ -285,81 +295,90 @@ export default function DashboardScreen({
   const mostDemandedProduct = demandHighlightsAnalytics?.mostDemandedProduct ?? localMostDemanded;
   const topConvertingProduct = demandHighlightsAnalytics?.topConvertingProduct ?? localTopConverting;
 
-  // Filtered and sorted products for Full View Telemetry Modal
-  const filteredModalProducts = useMemo(() => {
-    let list = [...productPerformanceList];
-    if (modalSearchQuery.trim()) {
-      const q = modalSearchQuery.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q)
-      );
-    }
-    switch (modalSortKey) {
-      case 'views':
-        list.sort((a, b) => b.views - a.views);
-        break;
-      case 'inquiries':
-        list.sort((a, b) => b.totalClicks - a.totalClicks);
-        break;
-      case 'orders':
-        list.sort(
-          (a, b) =>
-            b.orderCount - a.orderCount ||
-            (b.onlineOrderCount ?? 0) - (a.onlineOrderCount ?? 0)
-        );
-        break;
-      case 'conversion':
-        list.sort(
-          (a, b) =>
-            (b.onlineOrderConversionRate ?? 0) -
-              (a.onlineOrderConversionRate ?? 0) ||
-            b.conversionRate - a.conversionRate
-        );
-        break;
-      case 'revenue':
-        list.sort((a, b) => (b.totalRevenue ?? 0) - (a.totalRevenue ?? 0));
-        break;
-    }
-    return list;
-  }, [productPerformanceList, modalSearchQuery, modalSortKey]);
+  // Paginated telemetry products for View All Modal
+  const [modalTelemetryProducts, setModalTelemetryProducts] = useState<ProductAnalyticsItem[]>([]);
+  const [modalPage, setModalPage] = useState<number>(1);
+  const [modalHasNextPage, setModalHasNextPage] = useState<boolean>(true);
+  const [modalTotalCount, setModalTotalCount] = useState<number>(0);
+  const [isLoadingInitialTelemetry, setIsLoadingInitialTelemetry] = useState<boolean>(false);
+  const [isLoadingMoreTelemetry, setIsLoadingMoreTelemetry] = useState<boolean>(false);
+  const [modalSummaryStats, setModalSummaryStats] = useState({
+    totalViews: 0,
+    totalInquiries: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    overallConv: '0',
+  });
 
-  // Aggregate telemetry totals for the modal summary ribbon
-  const modalSummaryStats = useMemo(() => {
-    const totalViews = productPerformanceList.reduce(
-      (acc, p) => acc + (p.views || 0),
-      0
-    );
-    const totalInquiries = productPerformanceList.reduce(
-      (acc, p) => acc + (p.totalClicks || 0),
-      0
-    );
-    const totalOrders = productPerformanceList.reduce(
-      (acc, p) => acc + (p.orderCount || 0),
-      0
-    );
-    const totalRevenue = productPerformanceList.reduce(
-      (acc, p) => acc + (p.totalRevenue || 0),
-      0
-    );
-    const overallConv =
-      totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0';
+  const debouncedModalSearch = useDebounce(modalSearchQuery, 350);
 
-    return {
-      totalViews,
-      totalInquiries,
-      totalOrders,
-      totalRevenue,
-      overallConv,
-    };
-  }, [productPerformanceList]);
+  const loadTelemetryPage = useCallback(
+    async (
+      pageToFetch: number,
+      isInitial = false,
+      query = modalSearchQuery,
+      sort = modalSortKey
+    ) => {
+      if (!fetchPaginatedCatalogueTelemetry) return;
+      if (isInitial) {
+        setIsLoadingInitialTelemetry(true);
+      } else {
+        setIsLoadingMoreTelemetry(true);
+      }
+      try {
+        const res = await fetchPaginatedCatalogueTelemetry({
+          page: pageToFetch,
+          limit: 10,
+          search: query.trim() || undefined,
+          sortBy: sort,
+        });
+
+        if (res) {
+          if (isInitial || pageToFetch === 1) {
+            setModalTelemetryProducts(res.items || []);
+          } else {
+            setModalTelemetryProducts((prev) => [...prev, ...(res.items || [])]);
+          }
+          setModalPage(res.page);
+          setModalHasNextPage(res.hasNextPage);
+          setModalTotalCount(res.total);
+          if (res.summary) {
+            setModalSummaryStats(res.summary);
+          }
+        }
+      } catch (err) {
+        console.warn('[loadTelemetryPage Error]:', err);
+      } finally {
+        if (isInitial) {
+          setIsLoadingInitialTelemetry(false);
+        } else {
+          setIsLoadingMoreTelemetry(false);
+        }
+      }
+    },
+    [fetchPaginatedCatalogueTelemetry, modalSearchQuery, modalSortKey]
+  );
+
+  // When modal is opened or sort/search changes, load page 1
+  useEffect(() => {
+    if (showFullAnalysisModal) {
+      loadTelemetryPage(1, true, debouncedModalSearch, modalSortKey);
+    }
+  }, [showFullAnalysisModal, debouncedModalSearch, modalSortKey]);
+
+  const handleLoadMore = () => {
+    if (isLoadingInitialTelemetry || isLoadingMoreTelemetry || !modalHasNextPage) {
+      return;
+    }
+    loadTelemetryPage(modalPage + 1, false, debouncedModalSearch, modalSortKey);
+  };
 
   // Export all products analysis via PDF
   const handleExportPdf = async () => {
     try {
       setIsExportingPdf(true);
-      const rowsHtml = productPerformanceList
+      const exportList = modalTelemetryProducts.length > 0 ? modalTelemetryProducts : productPerformanceList;
+      const rowsHtml = exportList
         .map(
           (p, idx) => `
         <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
@@ -488,9 +507,10 @@ export default function DashboardScreen({
         }
       }
       showAlert?.('Report Ready', 'All products analysis PDF generated successfully', 'success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Export PDF error:', err);
-      showAlert?.('Export Failed', err.message || 'Unable to generate PDF report', 'error');
+      const message = err instanceof Error ? err.message : 'Unable to generate PDF report';
+      showAlert?.('Export Failed', message, 'error');
     } finally {
       setIsExportingPdf(false);
     }
@@ -500,6 +520,7 @@ export default function DashboardScreen({
   const handleExportExcel = async () => {
     try {
       setIsExportingExcel(true);
+      const exportList = modalTelemetryProducts.length > 0 ? modalTelemetryProducts : productPerformanceList;
       const headers = [
         'Rank',
         'Product Name',
@@ -520,7 +541,7 @@ export default function DashboardScreen({
         'Total Revenue (INR)',
       ];
 
-      const csvRows = productPerformanceList.map((p, idx) =>
+      const csvRows = exportList.map((p, idx) =>
         [
           idx + 1,
           `"${(p.name || '').replace(/"/g, '""')}"`,
@@ -571,9 +592,10 @@ export default function DashboardScreen({
         }
       }
       showAlert?.('Export Complete', 'All products analysis CSV/Excel file ready', 'success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Export Excel error:', err);
-      showAlert?.('Export Failed', err.message || 'Unable to generate Excel file', 'error');
+      const message = err instanceof Error ? err.message : 'Unable to generate Excel file';
+      showAlert?.('Export Failed', message, 'error');
     } finally {
       setIsExportingExcel(false);
     }
@@ -1611,77 +1633,21 @@ export default function DashboardScreen({
               ))}
 
               {/* View All Products Banner Link - Opens Full All Products Telemetry Modal */}
-              {productPerformanceList.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setShowFullAnalysisModal(true)}
-                  style={styles.fullViewBannerBtn}
-                  activeOpacity={0.7}
-                >
-                  <Maximize2 size={13} color="#ea580c" />
-                  <Text style={styles.fullViewBannerText}>
-                    View All Products ({productPerformanceList.length} items)
-                  </Text>
-                  <ArrowRight size={13} color="#ea580c" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={() => setShowFullAnalysisModal(true)}
+                style={styles.fullViewBannerBtn}
+                activeOpacity={0.7}
+              >
+                <Maximize2 size={13} color="#ea580c" />
+                <Text style={styles.fullViewBannerText}>
+                  View All Products
+                </Text>
+                <ArrowRight size={13} color="#ea580c" />
+              </TouchableOpacity>
             </CardContent>
           </Card>
         )}
       </>
-    )}
-
-    {/* Store Inventory & Health Pulse (Storewide Overview) */}
-    {stats && (
-      <Card>
-        <CardHeader>
-          <View style={styles.healthHeader}>
-            <Package size={15} color="#FF5E36" />
-            <CardTitle>Store Inventory Pulse</CardTitle>
-          </View>
-        </CardHeader>
-        <CardContent>
-          <View style={styles.healthGrid}>
-            <TouchableOpacity
-              onPress={() => onNavigateToTab?.('catalogue')}
-              style={styles.healthBox}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.healthBoxVal}>{stats.total}</Text>
-              <Text style={styles.healthBoxLbl}>Total Outfits</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onNavigateToTab?.('catalogue')}
-              style={styles.healthBox}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.healthBoxVal, { color: '#16a34a' }]}>
-                {stats.active}
-              </Text>
-              <Text style={styles.healthBoxLbl}>In Stock</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onNavigateToTab?.('inventory')}
-              style={styles.healthBox}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.healthBoxVal, { color: '#dc2626' }]}>
-                {stats.oos}
-              </Text>
-              <Text style={styles.healthBoxLbl}>Out of Stock</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onNavigateToTab?.('catalogue')}
-              style={styles.healthBox}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.healthBoxVal, { color: '#FF5E36' }]}>
-                {stats.listed}
-              </Text>
-              <Text style={styles.healthBoxLbl}>Listed Live</Text>
-            </TouchableOpacity>
-          </View>
-        </CardContent>
-      </Card>
     )}
     </ScrollView>
 
@@ -1701,7 +1667,9 @@ export default function DashboardScreen({
               <View>
                 <Text style={styles.modalTitle}>All Products Telemetry</Text>
                 <Text style={styles.modalSubtitle}>
-                  {productPerformanceList.length} products tracked • Full storewide telemetry
+                  {modalTotalCount > 0
+                    ? `${modalTotalCount} products tracked • Full storewide telemetry`
+                    : 'Full storewide telemetry'}
                 </Text>
               </View>
             </View>
@@ -1747,14 +1715,16 @@ export default function DashboardScreen({
             </View>
 
             <Badge variant="secondary" size="sm">
-              {`${filteredModalProducts.length} shown`}
+              {`${modalTelemetryProducts.length} shown`}
             </Badge>
           </View>
 
           {/* Aggregate Telemetry Ribbon */}
           <View style={styles.modalSummaryRow}>
             <View style={styles.modalSummaryItem}>
-              <Text style={styles.modalSummaryVal}>{productPerformanceList.length}</Text>
+              <Text style={styles.modalSummaryVal}>
+                {modalTotalCount || modalTelemetryProducts.length}
+              </Text>
               <Text style={styles.modalSummaryLbl}>Outfits</Text>
             </View>
             <View style={styles.modalSummaryItem}>
@@ -1841,25 +1811,40 @@ export default function DashboardScreen({
           </View>
 
           {/* Scrollable Products Telemetry List */}
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.modalProductList}
-            keyboardShouldPersistTaps="handled"
-          >
-            {filteredModalProducts.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingVertical: 40, gap: 8 }}>
-                <Search size={28} color="#cbd5e1" />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#64748b' }}>
-                  No matching products found
-                </Text>
-                <Text style={{ fontSize: 11, color: '#94a3b8' }}>
-                  Try a different search keyword
-                </Text>
-              </View>
-            ) : (
-              filteredModalProducts.map((p, idx) => (
+          {isLoadingInitialTelemetry ? (
+            <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}>
+              <TelemetryListSkeleton count={5} />
+            </View>
+          ) : (
+            <FlatList
+              data={modalTelemetryProducts}
+              keyExtractor={(item, index) => item.productId || item.id || `${item.slug}-${index}`}
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.modalProductList}
+              keyboardShouldPersistTaps="handled"
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.4}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', paddingVertical: 40, gap: 8 }}>
+                  <Search size={28} color="#cbd5e1" />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#64748b' }}>
+                    No matching products found
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8' }}>
+                    Try a different search keyword
+                  </Text>
+                </View>
+              }
+              ListFooterComponent={
+                isLoadingMoreTelemetry ? (
+                  <View style={{ paddingTop: 8 }}>
+                    <TelemetryListSkeleton count={2} />
+                  </View>
+                ) : null
+              }
+              renderItem={({ item: p, index: idx }) => (
                 <TouchableOpacity
-                  key={p.id}
+                  key={p.productId || p.id}
                   onPress={() => {
                     setSelectedAnalyticsSlug(p.slug);
                     setShowFullAnalysisModal(false);
@@ -1948,9 +1933,9 @@ export default function DashboardScreen({
                     </Text>
                   </View>
                 </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
+              )}
+            />
+          )}
         </View>
       </View>
     </Modal>

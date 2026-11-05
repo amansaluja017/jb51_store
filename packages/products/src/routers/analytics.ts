@@ -4,6 +4,7 @@ import {
   getOverallAnalytics,
   getProductAnalytics,
   getAnalyticsOverview,
+  getDashboardOverviewAnalytics,
   getAllProductsAnalytics,
   trackAnalyticsEvent,
   getViewsAnalytics,
@@ -15,12 +16,13 @@ import {
   getPaymentModesAnalytics,
   getDemandHighlightsAnalytics,
   getCatalogueTelemetryAnalytics,
+  getPaginatedCatalogueTelemetryAnalytics,
   getInventorySummaryAnalytics,
 } from '../analytics.js';
 
 export const analyticsRouter = router({
   getOverview: publicProcedure
-    .meta({ description: 'Get analytics overview for overall store or specific product' })
+    .meta({ description: 'Get consolidated analytics overview using p-limit (concurrency: 3) and Promise.allSettled' })
     .input(
       z
         .object({
@@ -30,7 +32,21 @@ export const analyticsRouter = router({
         .nullish()
     )
     .query(async ({ input }) => {
-      return await getAnalyticsOverview(input || undefined);
+      return await getDashboardOverviewAnalytics(input || undefined);
+    }),
+
+  getDashboardOverview: publicProcedure
+    .meta({ description: 'Batch fetch all overview telemetry with concurrency limit of 3 using p-limit and Promise.allSettled' })
+    .input(
+      z
+        .object({
+          slug: z.string().nullish(),
+          productId: z.string().nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getDashboardOverviewAnalytics(input || undefined);
     }),
 
   getOverall: publicProcedure
@@ -165,6 +181,22 @@ export const analyticsRouter = router({
     .meta({ description: 'Get detailed catalogue telemetry across products' })
     .query(async () => {
       return await getCatalogueTelemetryAnalytics();
+    }),
+
+  getCatalogueTelemetryPaginated: adminProcedure
+    .meta({ description: 'Get paginated catalogue telemetry across products' })
+    .input(
+      z
+        .object({
+          page: z.number().int().positive().nullish().default(1),
+          limit: z.number().int().positive().nullish().default(10),
+          search: z.string().nullish(),
+          sortBy: z.enum(['views', 'inquiries', 'orders', 'conversion', 'revenue']).nullish().default('views'),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getPaginatedCatalogueTelemetryAnalytics(input || undefined);
     }),
 
   getInventorySummary: publicProcedure

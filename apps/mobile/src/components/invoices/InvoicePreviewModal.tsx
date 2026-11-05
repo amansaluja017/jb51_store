@@ -12,6 +12,27 @@ import { X, Printer } from 'lucide-react-native';
 import styles from '../../screens/InvoiceScreen.styles';
 import { formatDateSafe } from '../../utils/date';
 
+export interface InvoicePreviewItem {
+  id?: string;
+  name?: string;
+  productName?: string;
+  price?: number;
+  unitPrice?: number;
+  quantity?: number;
+  total?: number;
+  variantColor?: string | null;
+}
+
+export interface InvoicePreviewTransaction {
+  id?: string;
+  createdAt?: string;
+  transactionType?: string;
+  paymentMode?: string;
+  amount: number | string;
+  notes?: string | null;
+  runningBalance?: number;
+}
+
 export interface InvoicePreviewModalProps {
   visible: boolean;
   onClose: () => void;
@@ -23,7 +44,7 @@ export interface InvoicePreviewModalProps {
   activeClientPhone?: string;
   activeClientEmail?: string;
   activeClientAddress?: string;
-  activeItems: any[];
+  activeItems: InvoicePreviewItem[];
   activeSubtotal: number;
   activeTaxRate: string;
   activeTaxAmount: number;
@@ -34,7 +55,7 @@ export interface InvoicePreviewModalProps {
   activeDueDate?: string | null;
   activePaymentDate?: string | null;
   activeAdvancePaymentMode?: string | null;
-  activeTransactions?: any[];
+  activeTransactions?: InvoicePreviewTransaction[];
   activeNotes?: string;
   isEditing?: boolean;
   isSubmitting?: boolean;
@@ -93,7 +114,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
   }
 
   // Sort transactions chronologically
-  txList.sort((a: any, b: any) => {
+  txList.sort((a, b) => {
     const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return timeA - timeB;
@@ -101,16 +122,16 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
 
   // Calculate totals
   const totalAdvance = txList
-    .filter((tx: any) => (tx.transactionType || '').toLowerCase() === 'advance')
-    .reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+    .filter((tx) => (tx.transactionType || '').toLowerCase() === 'advance')
+    .reduce((sum: number, tx) => sum + Number(tx.amount || 0), 0);
 
   const totalInstallments = txList
-    .filter((tx: any) => (tx.transactionType || '').toLowerCase() !== 'advance')
-    .reduce((sum: number, tx: any) => sum + Number(tx.amount || 0), 0);
+    .filter((tx) => (tx.transactionType || '').toLowerCase() !== 'advance')
+    .reduce((sum: number, tx) => sum + Number(tx.amount || 0), 0);
 
   // Compute running balance
   let runningDue = activeTotalAmount;
-  const enrichedTransactions = txList.map((tx: any) => {
+  const enrichedTransactions = txList.map((tx) => {
     const amt = Number(tx.amount || 0);
     runningDue = Math.max(0, runningDue - amt);
     return {
@@ -280,7 +301,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                     <Text style={[styles.tableCol, { flex: 1.2, textAlign: 'right', fontWeight: '700' }]}>Amount</Text>
                   </View>
 
-                  {activeItems.map((item: any, index: number) => {
+                  {activeItems.map((item, index) => {
                     const price = Number(item.price || item.unitPrice || 0);
                     const qty = Number(item.quantity || 1);
                     const itemTotal = Number(item.total || price * qty);
@@ -581,7 +602,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                       ₹{totalInstallments.toLocaleString('en-IN')}
                     </Text>
                     <Text style={{ fontSize: 8, color: '#0369a1', marginTop: 1 }}>
-                      {enrichedTransactions.filter((t: any) => (t.transactionType || '').toLowerCase() !== 'advance').length} Payments Received
+                      {enrichedTransactions.filter((t) => (t.transactionType || '').toLowerCase() !== 'advance').length} Payments Received
                     </Text>
                   </View>
 
@@ -683,7 +704,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                       No payment transactions recorded yet.
                     </Text>
                   ) : (
-                    enrichedTransactions.map((tx: any, idx: number) => {
+                    enrichedTransactions.map((tx, idx) => {
                       const type = (tx.transactionType || 'payment').toLowerCase();
                       const isAdvance = type === 'advance';
                       const txDate = formatDateSafe(tx.createdAt) || activeInvDate;

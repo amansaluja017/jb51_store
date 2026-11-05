@@ -13,6 +13,7 @@ import {
   inquiriesRouter,
   wishlistRouter,
   siteConfigRouter,
+  newsletterRouter,
 } from '@repo/products/router';
 
 export { createTRPCContext, type TRPCContext };
@@ -36,6 +37,7 @@ export const appRouter = createTRPCRouter({
   })),
   wishlist: wishlistRouter,
   siteConfig: siteConfigRouter,
+  newsletter: newsletterRouter,
 });
 
 export type AppRouter = typeof appRouter;

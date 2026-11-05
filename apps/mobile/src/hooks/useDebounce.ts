@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 
 /**
  * Custom hook to debounce any fast-changing value (e.g. search inputs).
+ * Waits until user stops typing before emitting the latest value.
  * @param value The value to debounce
- * @param delay Milliseconds to delay (default 250ms)
+ * @param delay Milliseconds to delay (default 500ms)
  */
-export function useDebounce<T>(value: T, delay = 250): T {
+export function useDebounce<T>(value: T, delay = 500): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {

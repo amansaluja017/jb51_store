@@ -31,6 +31,14 @@ import { InvoiceSkeleton, OrderHistorySkeleton } from '../SkeletonLoader';
 import { Pagination } from '../ui';
 import styles from '../../screens/InvoiceScreen.styles';
 
+export interface LedgerSuggestion {
+  id?: string;
+  customerName?: string;
+  invoiceNumber?: string;
+  orderNumber?: string;
+  phoneNumber?: string;
+}
+
 export interface InvoiceLedgerViewProps {
   invoices: Invoice[];
   orders: Order[];
@@ -61,7 +69,7 @@ export interface InvoiceLedgerViewProps {
   onOrderPrevPage?: () => void;
   onOrderNextPage?: () => void;
   onOrderPageChange?: (page: number) => void;
-  suggestions?: any[];
+  suggestions?: LedgerSuggestion[];
 }
 
 export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
@@ -112,7 +120,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
 
   const cashCollected = useMemo(() => {
     return invoices.reduce((sum, inv) => {
-      const mode = ((inv.mode || (inv as any).paymentMethod || 'cash') as string).toLowerCase();
+      const mode = (inv.mode || inv.paymentMethod || 'cash').toLowerCase();
       if (mode === 'cash') {
         const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);
         return sum + (isNaN(amt) ? 0 : amt);
@@ -292,7 +300,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   </View>
                 ) : (
                   filteredInvoices.map((inv) => {
-                    const mode = (inv.mode || (inv as any).paymentMethod || 'cash').toLowerCase();
+                    const mode = (inv.mode || inv.paymentMethod || 'cash').toLowerCase();
                     const isCredit = mode === 'credit';
                     const isCash = mode === 'cash';
                     const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);

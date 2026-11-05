@@ -20,4 +20,5 @@ export * from './wishlist-items.js';
 export * from './product-images.js';
 export * from './credits.js';
 export * from './site-config.js';
+export * from './newsletter.js';
 export * from './relations.js';

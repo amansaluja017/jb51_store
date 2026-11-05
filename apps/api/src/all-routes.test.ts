@@ -5,7 +5,7 @@ import { appRouter } from './router.js';
 test('Comprehensive All-Routes Integration Test Suite', async (t) => {
   const adminContext = {
     isStaff: true,
-    user: { id: 'admin-id', sub: 'admin-id', role: 'admin' as const, email: 'admin@example.com', userName: 'admin' },
+    user: { id: 'admin-id', sub: 'admin-id', role: 'superadmin' as const, email: 'admin@example.com', userName: 'admin' },
   };
 
   const publicContext = {
@@ -224,6 +224,33 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
       },
     });
     assert.strictEqual(updated.contactInfo.phoneNumber, '+91 99999 88888');
+  });
+
+  // 17. Newsletter Routes (subscribe, unsubscribe, admin getSubscribers & delete)
+  await t.test('17. newsletter.subscribe, unsubscribe & admin getSubscribers', async () => {
+    const testEmail = `all-routes-${Date.now()}@jb51store.test`;
+    
+    // Subscribe
+    const sub = await publicCaller.newsletter.subscribe({ email: testEmail, source: 'web_footer' });
+    assert.strictEqual(sub.success, true);
+    assert.strictEqual(sub.email, testEmail);
+
+    // Duplicate check
+    const dup = await publicCaller.newsletter.subscribe({ email: testEmail });
+    assert.strictEqual(dup.alreadySubscribed, true);
+
+    // Admin fetch
+    const list = await adminCaller.newsletter.getSubscribers({ page: 1, limit: 5 });
+    assert.ok(list);
+    assert.ok(Array.isArray(list.items));
+
+    // Unsubscribe
+    const unsub = await publicCaller.newsletter.unsubscribe({ email: testEmail });
+    assert.strictEqual(unsub.success, true);
+
+    // Admin delete
+    const del = await adminCaller.newsletter.deleteSubscriber({ idOrEmail: testEmail });
+    assert.strictEqual(del.success, true);
   });
 });
 

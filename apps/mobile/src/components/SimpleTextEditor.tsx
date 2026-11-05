@@ -31,11 +31,9 @@ import {
 import FormattedRichText from './FormattedRichText';
 import styles from './SimpleTextEditor.styles';
 import { countWords } from '../utils/text';
+import { EditorTemplate, DEFAULT_TEMPLATES } from '../constants/editorTemplates';
 
-export interface EditorTemplate {
-  title: string;
-  text: string;
-}
+export type { EditorTemplate };
 
 export interface SimpleTextEditorProps {
   label: string;
@@ -46,80 +44,9 @@ export interface SimpleTextEditorProps {
   multiline?: boolean;
   numberOfLines?: number;
   minWords?: number;
-  sectionType?: 'hero' | 'adBanner' | 'sale' | 'faq' | 'contact' | 'product' | 'promo';
+  sectionType?: 'hero' | 'adBanner' | 'sale' | 'faq' | 'contact' | 'product' | 'promo' | 'fabric' | 'fit' | 'care' | 'tags';
   customTemplates?: EditorTemplate[];
 }
-
-const DEFAULT_TEMPLATES: Record<string, EditorTemplate[]> = {
-  hero: [
-    {
-      title: 'Artisanal Silk Splendor',
-      text: 'Handcrafted with pure chanderi silk and bespoke embroidery, celebrating royal silhouettes designed for effortless modern ease.',
-    },
-    {
-      title: 'Timeless Festive Grace',
-      text: 'Exquisite heirloom weaves with delicate zari borders, tailored to flow with supreme sophistication across celebratory evenings.',
-    },
-    {
-      title: 'Royal Bespoke Tailoring',
-      text: 'Mastercrafted ensembles tailored to your exact measurements by master artisans, complemented by private concierge service.',
-    },
-  ],
-  adBanner: [
-    {
-      title: 'The Art of Custom Drape',
-      text: 'Experience the pinnacle of bespoke couture. Our master craftsmen tailor each ensemble to your exact measurements, ensuring a silhouette that flows with effortless grace and timeless sophistication.',
-    },
-    {
-      title: 'Private Atelier Heritage',
-      text: 'From hand-picked silk weaves to tailored precision, our atelier creates one-of-a-kind heirlooms designed to be treasured for generations.',
-    },
-    {
-      title: 'Bespoke Concierge Fittings',
-      text: 'Enjoy an exclusive bespoke fitting session with our couture specialists, meticulously crafted to celebrate your individual poise.',
-    },
-  ],
-  sale: [
-    {
-      title: 'Limited Festive Edit',
-      text: 'Enjoy up to 70% off on curated traditional designs and ready-to-wear silk co-ords. Handcrafted pieces in limited quantities.',
-    },
-    {
-      title: 'Seasonal Archive Privilege',
-      text: 'A rare archival collection offered with complimentary bespoke fitting adjustments for a limited duration.',
-    },
-  ],
-  faq: [
-    {
-      title: 'WhatsApp Concierge Confirmation',
-      text: 'Our concierge team actively connects with each bespoke customer via WhatsApp or email to verify all measurements before cutting.',
-    },
-    {
-      title: 'Custom Stitching Options',
-      text: 'Select your desired garment and size. You can input custom proportions during standard checkout or request tailored fitting.',
-    },
-    {
-      title: 'Pure Silk Care Instructions',
-      text: 'Dry clean only. We recommend storing pure silk ensembles wrapped in breathable muslin bags in a cool, dry closet.',
-    },
-  ],
-  contact: [
-    {
-      title: 'Flagship Atelier Address',
-      text: 'JB51 Store, Model Town, Ludhiana, Punjab 141002, India. Private styling appointments and bespoke bridal consultations available.',
-    },
-  ],
-  product: [
-    {
-      title: 'Heirloom Craftsmanship',
-      text: 'Crafted from pure hand-spun silk with authentic zardozi embroidery, lined with ultra-soft breathable fabric for day-to-night luxury.',
-    },
-    {
-      title: 'Contemporary Royal Fusion',
-      text: 'A contemporary fusion of royal Punjabi aesthetics with clean minimalist lines, personalized drape, and refined artisan detailing.',
-    },
-  ],
-};
 
 /**
  * Supercharged Rich Text & Description Editor
@@ -336,12 +263,28 @@ export default function SimpleTextEditor({
   };
 
   const handleInsertTemplateInline = (tplText: string) => {
-    onChangeText(value ? `${value.trim()}\n\n${tplText}` : tplText);
+    if (sectionType === 'tags') {
+      if (!value.trim()) {
+        onChangeText(tplText);
+      } else {
+        onChangeText(`${value.trim()}, ${tplText}`);
+      }
+    } else if (sectionType === 'fabric' || sectionType === 'fit' || sectionType === 'care') {
+      onChangeText(tplText);
+    } else {
+      onChangeText(value ? `${value.trim()}\n\n${tplText}` : tplText);
+    }
     setShowInlineTemplates(false);
   };
 
   const handleInsertTemplateModal = (tplText: string) => {
-    setModalDraft((prev) => (prev ? `${prev.trim()}\n\n${tplText}` : tplText));
+    if (sectionType === 'tags') {
+      setModalDraft((prev) => (prev.trim() ? `${prev.trim()}, ${tplText}` : tplText));
+    } else if (sectionType === 'fabric' || sectionType === 'fit' || sectionType === 'care') {
+      setModalDraft(tplText);
+    } else {
+      setModalDraft((prev) => (prev ? `${prev.trim()}\n\n${tplText}` : tplText));
+    }
     setShowTemplates(false);
   };
 
@@ -435,7 +378,17 @@ export default function SimpleTextEditor({
             activeOpacity={0.7}
           >
             <Sparkles size={11} color="#FF5E36" />
-            <Text style={styles.templateChipText}>Write Better ✨</Text>
+            <Text style={styles.templateChipText}>
+              {sectionType === 'fabric'
+                ? 'Fabric Prewrites ✨'
+                : sectionType === 'fit'
+                ? 'Fit Prewrites ✨'
+                : sectionType === 'care'
+                ? 'Care Prewrites ✨'
+                : sectionType === 'tags'
+                ? 'Tag Prewrites ✨'
+                : 'Prewrite Options ✨'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -444,7 +397,17 @@ export default function SimpleTextEditor({
       {showInlineTemplates && activeTemplates.length > 0 && (
         <View style={styles.templateDrawer}>
           <View style={styles.templateDrawerHeader}>
-            <Text style={styles.templateDrawerTitle}>Curated Luxury Suggestions</Text>
+            <Text style={styles.templateDrawerTitle}>
+              {sectionType === 'fabric'
+                ? 'Curated Fabric Prewrites & Specs'
+                : sectionType === 'fit'
+                ? 'Curated Silhouettes & Cuts'
+                : sectionType === 'care'
+                ? 'Standard Luxury Care Protocols'
+                : sectionType === 'tags'
+                ? 'High-Converting Tag Presets'
+                : 'Curated Luxury Suggestions'}
+            </Text>
             <TouchableOpacity onPress={() => setShowInlineTemplates(false)}>
               <X size={14} color="#71717a" />
             </TouchableOpacity>
@@ -676,7 +639,15 @@ export default function SimpleTextEditor({
                         >
                           <Sparkles size={12} color="#FF5E36" />
                           <Text style={[styles.formatToolBtnText, { color: '#FF5E36' }]}>
-                            Templates ✨
+                            {sectionType === 'fabric'
+                              ? 'Fabric Prewrites ✨'
+                              : sectionType === 'fit'
+                              ? 'Fit Prewrites ✨'
+                              : sectionType === 'care'
+                              ? 'Care Prewrites ✨'
+                              : sectionType === 'tags'
+                              ? 'Tag Prewrites ✨'
+                              : 'Prewrites ✨'}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -697,7 +668,15 @@ export default function SimpleTextEditor({
                     <View style={styles.templateDrawer}>
                       <View style={styles.templateDrawerHeader}>
                         <Text style={styles.templateDrawerTitle}>
-                          Inspiring Luxury Phrases & Templates
+                          {sectionType === 'fabric'
+                            ? 'Curated Fabric Prewrites & Specs'
+                            : sectionType === 'fit'
+                            ? 'Curated Silhouettes & Cuts'
+                            : sectionType === 'care'
+                            ? 'Standard Luxury Care Protocols'
+                            : sectionType === 'tags'
+                            ? 'High-Converting Tag Presets'
+                            : 'Inspiring Luxury Phrases & Templates'}
                         </Text>
                         <TouchableOpacity onPress={() => setShowTemplates(false)}>
                           <X size={14} color="#71717a" />

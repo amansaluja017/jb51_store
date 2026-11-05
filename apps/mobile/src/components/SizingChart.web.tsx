@@ -48,7 +48,7 @@ export default function SizingChart({
           height={200}
           grid={{ horizontal: true }}
           slotProps={{
-            legend: { hidden: true } as any
+            legend: { hidden: true } as unknown as Record<string, unknown>,
           }}
           sx={{
             width: '100%',

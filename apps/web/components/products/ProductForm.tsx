@@ -48,21 +48,10 @@ interface ProductFormProps {
   isEdit?: boolean;
 }
 
-const CATEGORIES = [
-  'Formal Suits',
-  'Anarkali Suits',
-  'Silk Co-ords',
-  'Velvet Edit',
-  'Occasion Wear'
-];
-
-
-
-
 export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const router = useRouter();
 
-  // Fetch real categories directly from API endpoint
+  // Fetch real categories directly from API endpoint (no mock/fallback categories)
   const { data: apiCategories = [] } = api.products.getCategories.useQuery();
 
   // Custom categories state (in-memory for active session)
@@ -78,7 +67,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   }, []);
 
   const allCategories = useMemo(() => {
-    const list = Array.from(new Set([...CATEGORIES, ...(apiCategories || []), ...customCategories]));
+    const list = Array.from(new Set([...(apiCategories || []), ...customCategories]));
     if (initialData?.category && !list.includes(initialData.category)) {
       list.push(initialData.category);
     }
@@ -115,8 +104,8 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   };
 
   const handleDeleteCategory = (catToDelete: string) => {
-    if (CATEGORIES.includes(catToDelete)) {
-      toast.error('Default boutique categories cannot be deleted.');
+    if (apiCategories.includes(catToDelete)) {
+      toast.error('Database categories linked to products cannot be deleted here.');
       return;
     }
     
@@ -125,7 +114,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
       setCustomCategories(updated);
       
       if (category === catToDelete) {
-        setCategory(CATEGORIES[0]);
+        setCategory(allCategories.find(c => c !== catToDelete) || '');
       }
       toast.success(`Category "${catToDelete}" deleted successfully.`);
     }
@@ -138,7 +127,14 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
   const [description, setDescription] = useState(initialData?.description || '');
   const [mrp, setMrp] = useState<number | string>(initialData?.mrp ?? (initialData?.price ?? ''));
   const [sellingPrice, setSellingPrice] = useState<number | string>(initialData?.sellingPrice ?? (initialData?.discountPrice ?? (initialData?.price ?? '')));
-  const [category, setCategory] = useState(initialData?.category || CATEGORIES[0]);
+  const [category, setCategory] = useState(initialData?.category || '');
+
+  // Select first available category if category is unselected and categories exist
+  useEffect(() => {
+    if (!category && allCategories.length > 0) {
+      setCategory(allCategories[0]);
+    }
+  }, [category, allCategories]);
   const [fabric, setFabric] = useState(initialData?.fabric || '');
   const [fit, setFit] = useState(initialData?.fit || '');
   const [careInstructions, setCareInstructions] = useState(initialData?.careInstructions || '');
@@ -173,7 +169,7 @@ export function ProductForm({ initialData, isEdit = false }: ProductFormProps) {
       setDescription(initialData.description || '');
       setMrp(initialData.mrp ?? (initialData.price ?? ''));
       setSellingPrice(initialData.sellingPrice ?? (initialData.discountPrice ?? (initialData.price ?? '')));
-      setCategory(initialData.category || CATEGORIES[0]);
+      setCategory(initialData.category || '');
       setFabric(initialData.fabric || '');
       setFit(initialData.fit || '');
       setCareInstructions(initialData.careInstructions || '');

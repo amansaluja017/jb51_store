@@ -14,3 +14,4 @@ import './customers.test.js';
 import './orders.test.js';
 import './invoices.test.js';
 import './credits.test.js';
+import './newsletter.test.js';

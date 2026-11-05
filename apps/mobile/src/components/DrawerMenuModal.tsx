@@ -5,8 +5,10 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  Platform,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { useRouter, usePathname, type Href } from 'expo-router';
 import drawerStyles from './DrawerMenuModal.styles';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -20,6 +22,11 @@ import {
   Crown,
   CreditCard,
   Code,
+  LayoutDashboard,
+  Shirt,
+  Layers,
+  FileText,
+  Star,
 } from 'lucide-react-native';
 import { TabType } from './NavigationTabBar';
 import { colors } from '../theme/colors';
@@ -44,12 +51,14 @@ export interface DrawerMenuModalProps {
 
 export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
   visible,
+  activeTab,
   onClose,
   onOpenCustomers,
   onOpenCredits,
   onOpenCategories,
   onOpenInquiries,
   onOpenAccount,
+  onSelectTab,
   onLogout,
   customersCount,
   creditsDueCount,
@@ -57,6 +66,102 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
   currentUser,
   onOpenDeveloperSection,
 }) => {
+  const router = useRouter();
+  const currentPathname = usePathname();
+
+  const ROUTE_TAB_MAP: Record<string, TabType> = {
+    '/': 'dashboard',
+    '/products-catalog': 'catalogue',
+    '/stock': 'inventory',
+    '/invoices': 'invoices',
+    '/reviews': 'reviews',
+  };
+
+  const resolvedActiveTab: TabType = (
+    ROUTE_TAB_MAP[currentPathname] ||
+    activeTab ||
+    'dashboard'
+  );
+
+  interface NavSectionItem {
+    key: TabType;
+    label: string;
+    subtitle: string;
+    route: Href;
+    icon: React.ComponentType<{ size?: number; color?: string }>;
+    isActive: boolean;
+  }
+
+  const sections: NavSectionItem[] = [
+    {
+      key: 'dashboard',
+      label: 'Overview',
+      subtitle: 'Real-time metrics, pulse & telemetry',
+      route: '/',
+      icon: LayoutDashboard,
+      isActive: resolvedActiveTab === 'dashboard' || resolvedActiveTab === 'analytics',
+    },
+    {
+      key: 'catalogue',
+      label: 'Products Catalog',
+      subtitle: 'Browse, create, edit & manage outfits',
+      route: '/products-catalog',
+      icon: Shirt,
+      isActive: resolvedActiveTab === 'catalogue',
+    },
+    {
+      key: 'inventory',
+      label: 'Stock & Inventory',
+      subtitle: 'Unit counts, low stock alerts & log',
+      route: '/stock',
+      icon: Layers,
+      isActive: resolvedActiveTab === 'inventory',
+    },
+    {
+      key: 'invoices',
+      label: 'Invoices & Orders',
+      subtitle: 'Invoice creator, GST billing & ledger',
+      route: '/invoices',
+      icon: FileText,
+      isActive: resolvedActiveTab === 'invoices',
+    },
+    {
+      key: 'reviews',
+      label: 'Customer Reviews',
+      subtitle: 'Ratings, testimonial feed & approvals',
+      route: '/reviews',
+      icon: Star,
+      isActive: resolvedActiveTab === 'reviews',
+    },
+  ];
+
+  const getActiveSectionName = () => {
+    switch (resolvedActiveTab) {
+      case 'dashboard':
+      case 'analytics':
+        return 'Overview';
+      case 'catalogue':
+        return 'Products Catalog';
+      case 'inventory':
+        return 'Stock & Inventory';
+      case 'invoices':
+        return 'Invoices & Orders';
+      case 'reviews':
+        return 'Customer Reviews';
+      default:
+        return 'Overview';
+    }
+  };
+
+  const handleNavigateToTab = (sec: NavSectionItem) => {
+    onClose();
+    if (onSelectTab) {
+      onSelectTab(sec.key);
+    } else {
+      router.replace(sec.route);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -95,12 +200,92 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Current Section Active Status Pill */}
+          <View style={drawerStyles.currentStatusBanner}>
+            <Text style={drawerStyles.currentStatusLabel}>CURRENT SECTION</Text>
+            <View style={drawerStyles.currentStatusPill}>
+              <View style={drawerStyles.activeDot} />
+              <Text style={drawerStyles.currentStatusText}>{getActiveSectionName()}</Text>
+            </View>
+          </View>
+
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={drawerStyles.scrollContent}
           >
-            {/* Primary Admin Actions */}
-            <Text style={drawerStyles.sectionHeading}>MANAGEMENT</Text>
+            {/* Primary Store Navigation with Separate Routes */}
+            <Text style={drawerStyles.sectionHeading}>STORE PAGES & ROUTES</Text>
+
+            <View style={[drawerStyles.navSectionsList, { marginBottom: 22 }]}>
+              {sections.map((sec) => (
+                <TouchableOpacity
+                  key={sec.key}
+                  style={[
+                    drawerStyles.navCard,
+                    sec.isActive && drawerStyles.navCardActive,
+                  ]}
+                  onPress={() => handleNavigateToTab(sec)}
+                  activeOpacity={0.7}
+                  accessibilityLabel={`Navigate to ${sec.label}`}
+                  accessibilityRole="button"
+                >
+                  <View
+                    style={[
+                      drawerStyles.navIconBox,
+                      sec.isActive && drawerStyles.navIconBoxActive,
+                    ]}
+                  >
+                    <sec.icon
+                      size={18}
+                      color={sec.isActive ? '#FF5E36' : '#09090b'}
+                    />
+                  </View>
+                  <View style={drawerStyles.navContent}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text
+                        style={[
+                          drawerStyles.navTitle,
+                          sec.isActive && drawerStyles.navTitleActive,
+                        ]}
+                      >
+                        {sec.label}
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: sec.isActive ? '#FFE0D1' : '#f4f4f5',
+                          paddingHorizontal: 5,
+                          paddingVertical: 1.5,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 9,
+                            fontWeight: '600',
+                            color: sec.isActive ? '#FF5E36' : '#71717a',
+                            fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                          }}
+                        >
+                          {sec.route as string}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={drawerStyles.navSubtitle}>{sec.subtitle}</Text>
+                  </View>
+                  {sec.isActive ? (
+                    <View style={drawerStyles.activeBadge}>
+                      <View style={drawerStyles.activeDot} />
+                      <Text style={drawerStyles.activeBadgeText}>ACTIVE</Text>
+                    </View>
+                  ) : (
+                    <ChevronRight size={16} color="#d4d4d8" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Management Actions */}
+            <Text style={drawerStyles.sectionHeading}>MANAGEMENT & TOOLS</Text>
 
             {/* Manage Customers */}
             <TouchableOpacity

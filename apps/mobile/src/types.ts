@@ -1,3 +1,11 @@
+export interface AuthUser {
+  id?: string;
+  email?: string;
+  userName?: string;
+  name?: string;
+  role?: string;
+}
+
 export interface Variant {
   id?: string;
   productVariantId?: string;
@@ -34,6 +42,59 @@ export interface Product {
   createdAt?: string;
   isDiscontinued?: boolean;
   features?: Record<string, unknown>;
+}
+
+export interface PaginatedProductsResponse {
+  items: Product[];
+  total: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedInvoicesResponse {
+  items?: Invoice[];
+  total?: number;
+  totalCount?: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedOrdersResponse {
+  items?: Order[];
+  total?: number;
+  totalCount?: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedCustomersResponse {
+  items: Customer[];
+  customers?: Customer[];
+  total: number;
+  totalCount?: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedStockResponse {
+  items: Product[];
+  total: number;
+  totalPages?: number;
+  page?: number;
+  metrics?: InventoryMetrics;
+}
+
+export interface PaginatedReviewsResponse {
+  items: Review[];
+  total?: number;
+  totalPages?: number;
+  page?: number;
+  limit?: number;
+  counts?: { all: number; approved: number; pending: number };
 }
 
 export const isProductInStock = (product: Product): boolean => {
@@ -77,6 +138,7 @@ export interface Review {
   instagramId?: string | null;
   phone?: string | null;
   location?: string | null;
+  email?: string | null;
   createdAt: string;
   approved?: boolean;
 }
@@ -104,6 +166,22 @@ export interface InventoryTransaction {
   sellerEmail?: string | null;
 }
 
+export interface InventoryMetrics {
+  totalProducts: number;
+  inStockProducts: number;
+  outOfStockProducts: number;
+  lowStockProducts: number;
+  hasReservedProducts: number;
+  totalStockUnits: number;
+  totalReservedUnits: number;
+  totalItems?: number;
+  inStockCount?: number;
+  lowStockCount?: number;
+  outOfStockCount?: number;
+  reservedCount?: number;
+  totalInventoryUnits?: number;
+}
+
 export interface Customer {
   id: string;
   userId?: string | null;
@@ -129,6 +207,9 @@ export interface Invoice {
   userId?: string | null;
   quantity?: number;
   mode?: 'cash' | 'online' | 'credit';
+  paymentMethod?: string | null;
+  custName?: string | null;
+  custPhone?: string | null;
   subtotal?: string | number | null;
   gst?: string | number | null;
   taxRate?: string | number | null;
@@ -146,17 +227,26 @@ export interface Invoice {
   paymentDate?: string | null;
   advancePaymentMode?: string | null;
   creditTransactions?: CreditTransaction[];
+  date?: string;
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
+  creditAdvancePaymentMode?: string | null;
+  transactions?: CreditTransaction[];
 }
 
 export interface OrderItem {
   id: string;
-  orderId: string;
+  orderId?: string;
   productId?: string | null;
   productVariantId?: string | null;
   productName: string;
+  name?: string;
   variantColor?: string | null;
   quantity: number;
   unitPrice: number;
+  price?: number;
   total: number;
   createdAt?: string;
 }
@@ -288,11 +378,13 @@ export interface AnalyticsOverviewData {
 }
 
 export interface ProductAnalyticsItem {
+  id?: string;
   productId: string;
   slug: string;
   name: string;
   category: string;
   price: number;
+  image?: string | null;
   views: number;
   whatsappClicks: number;
   instagramClicks: number;
@@ -308,6 +400,23 @@ export interface ProductAnalyticsItem {
   cashRevenue?: number;
   creditRevenue?: number;
   totalRevenue?: number;
+}
+
+export interface PaginatedCatalogueTelemetryResult {
+  items: ProductAnalyticsItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  summary: {
+    totalViews: number;
+    totalInquiries: number;
+    totalOrders: number;
+    totalRevenue: number;
+    overallConv: string;
+  };
 }
 
 export interface ViewsAnalytics {

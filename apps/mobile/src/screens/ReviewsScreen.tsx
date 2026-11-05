@@ -5,51 +5,57 @@ import {
   ScrollView, 
   TextInput, 
   TouchableOpacity, 
-  Modal, 
   Platform, 
   RefreshControl,
-  Image,
-  Keyboard,
-  Dimensions,
   KeyboardAvoidingView,
 } from 'react-native';
-import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-import { Star, Trash2, Check, X, Plus, MapPin, MessageSquare, Video, Image as ImageIcon, Phone, Clock, Sparkles } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { useForm, Controller } from 'react-hook-form';
+import { Plus, Sparkles } from 'lucide-react-native';
 import { ReviewsSkeleton } from '../components/SkeletonLoader';
-import { Review } from '../types';
+import { Pagination } from '../components/ui';
+import { Review, PaginatedReviewsResponse } from '../types';
 import { uploadProductImage } from '../services/api';
+import { tokenStorage } from '../services/tokenStorage';
 import { useDebounce } from '../hooks/useDebounce';
+import {
+  ReviewCard,
+  ReviewFormModal,
+  ReviewFormValues,
+  ReviewsSuperAdminBanner,
+} from '../components/reviews';
 import styles from './ReviewsScreen.styles';
 
-export interface ReviewFormValues {
+const PAGE_SIZE = 10;
+
+export type { ReviewFormValues };
+
+export interface ReviewSuggestionItem {
+  id: string;
   name: string;
-  message: string;
-  stars: number;
-  location: string;
-  instagramId: string;
-  phone: string;
-  email: string;
-  image: string;
-  video: string;
+  messageSnippet: string;
+  customerName?: string;
+  review?: string;
+  rating?: number;
+  location?: string | null;
 }
 
-interface ReviewsScreenProps {
+export interface ReviewsScreenProps {
+  currentUser?: { id?: string; email?: string; userName?: string; role?: string } | null;
+  isSuperAdmin?: boolean;
   reviews: Review[];
+  reviewCounts?: { all: number; approved: number; pending: number };
   isLoading: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
-  onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'> & { email?: string | null; approved?: boolean }) => void;
+  onAddReview: (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'> & { email?: string | null; approved?: boolean }) => Promise<unknown> | void;
+  onUpdateReview?: (reviewData: { id: string; name?: string; message?: string; stars?: number; image?: string | null; video?: string | null; instagramId?: string | null; phone?: string | null; location?: string | null; email?: string | null; approved?: boolean }) => Promise<unknown> | void;
   onDeleteReview: (review: Review) => void;
-  onToggleApproval: (review: Review) => void;
+  onToggleApproval: (review: Review) => Promise<unknown> | void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
   token?: string | null;
   apiHost?: string;
-  onSearchReviews?: (query: string) => Promise<any>;
-  onGetReviewSuggestions?: (query: string) => Promise<any>;
+  onSearchReviews?: (query: string) => Promise<Review[]>;
+  onGetReviewSuggestions?: (query: string) => Promise<ReviewSuggestionItem[]>;
+  onFetchPaginatedReviews?: (params?: { search?: string; approved?: boolean; page?: number; limit?: number }) => Promise<PaginatedReviewsResponse>;
 }
 
 const uploadMediaAsset = async (localUri: string, options?: { token?: string | null; apiHost?: string }): Promise<string> => {
@@ -66,11 +72,15 @@ const uploadMediaAsset = async (localUri: string, options?: { token?: string | n
 };
 
 export default function ReviewsScreen({
+  currentUser,
+  isSuperAdmin: propIsSuperAdmin,
   reviews,
+  reviewCounts: propReviewCounts,
   isLoading,
   refreshing,
   onRefresh,
   onAddReview,
+  onUpdateReview,
   onDeleteReview,
   onToggleApproval,
   showAlert,
@@ -78,19 +88,55 @@ export default function ReviewsScreen({
   apiHost,
   onSearchReviews,
   onGetReviewSuggestions,
+  onFetchPaginatedReviews,
 }: ReviewsScreenProps) {
-  const [formVisible, setFormVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
-  const [remoteReviews, setRemoteReviews] = useState<Review[] | null>(null);
-  const [suggestions, setSuggestions] = useState<any[] | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'approved' | 'pending'>('all');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const reviewScrollRef = useRef<ScrollView>(null);
-  const fieldOffsets = useRef<{ [key: string]: number }>({});
+  const isSuperAdmin = Boolean(
+    propIsSuperAdmin ||
+    currentUser?.role === 'superadmin'
+  );
 
-  // Backend suggestions via pg_trgm
+  const [mediaUploadsEnabled, setMediaUploadsEnabled] = useState(false);
+  const [formVisible, setFormVisible] = useState(false);
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  // Debounce search query (500ms) - waits until typing stops before querying backend
+  const debouncedSearch = useDebounce(searchQuery.trim(), 500);
+  const isSearchTyping = searchQuery.trim() !== debouncedSearch;
+  const [remoteReviews, setRemoteReviews] = useState<Review[] | null>(null);
+  const [suggestions, setSuggestions] = useState<ReviewSuggestionItem[] | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'approved' | 'pending'>('all');
+  const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [reviewCounts, setReviewCounts] = useState<{ all: number; approved: number; pending: number } | null>(null);
+  const [remoteData, setRemoteData] = useState<PaginatedReviewsResponse | null>(null);
+  const [isFetchingRemote, setIsFetchingRemote] = useState(false);
+  const reviewScrollRef = useRef<ScrollView>(null);
+
+  // Restore persisted media upload toggle preference
   useEffect(() => {
+    tokenStorage.getReviewsMediaEnabled().then((enabled) => {
+      setMediaUploadsEnabled(enabled);
+    });
+  }, []);
+
+  const handleToggleMediaUploads = async (val: boolean) => {
+    if (!isSuperAdmin) {
+      showAlert('Permission Denied', 'Only Super Administrators can configure review media attachment settings.', 'error');
+      return;
+    }
+    setMediaUploadsEnabled(val);
+    await tokenStorage.setReviewsMediaEnabled(val);
+  };
+
+  // Reset to page 1 whenever search query or status filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, activeFilter]);
+
+  // Backend suggestions via pg_trgm (only after typing stops)
+  useEffect(() => {
+    if (isSearchTyping) return;
+
     let isCancelled = false;
     if (debouncedSearch && onGetReviewSuggestions) {
       onGetReviewSuggestions(debouncedSearch)
@@ -103,156 +149,268 @@ export default function ReviewsScreen({
     } else {
       setSuggestions(null);
     }
-    return () => {
-      isCancelled = true;
-    };
-  }, [debouncedSearch, onGetReviewSuggestions]);
+    return () => { isCancelled = true; };
+  }, [debouncedSearch, isSearchTyping, onGetReviewSuggestions]);
 
-  // Backend search via ILIKE (no local in-memory filtering)
+  // Fetch paginated reviews from backend (only after typing stops)
   useEffect(() => {
+    if (isSearchTyping) return;
+
     let isCancelled = false;
-    if (debouncedSearch && onSearchReviews) {
-      onSearchReviews(debouncedSearch)
+    if (onFetchPaginatedReviews) {
+      setIsFetchingRemote(true);
+      const approvedParam =
+        activeFilter === 'approved' ? true : activeFilter === 'pending' ? false : undefined;
+
+      onFetchPaginatedReviews({
+        search: debouncedSearch || undefined,
+        approved: approvedParam,
+        page,
+        limit: PAGE_SIZE,
+      })
         .then((res) => {
-          if (!isCancelled && Array.isArray(res)) setRemoteReviews(res);
+          if (!isCancelled && res) {
+            setRemoteData(res);
+            if (res.counts) {
+              setReviewCounts(res.counts);
+            }
+          }
         })
-        .catch(() => {
-          if (!isCancelled) setRemoteReviews([]);
+        .catch((err) => {
+          if (!isCancelled) {
+            console.warn('[ReviewsScreen pagination fetch error]:', err);
+          }
+        })
+        .finally(() => {
+          if (!isCancelled) setIsFetchingRemote(false);
         });
+    } else if (debouncedSearch && onSearchReviews) {
+      onSearchReviews(debouncedSearch).then((results) => {
+        if (!isCancelled && Array.isArray(results)) {
+          setRemoteReviews(results);
+        }
+      }).catch(() => {});
     } else {
       setRemoteReviews(null);
     }
-    return () => {
-      isCancelled = true;
-    };
-  }, [debouncedSearch, onSearchReviews]);
+    return () => { isCancelled = true; };
+  }, [debouncedSearch, isSearchTyping, activeFilter, page, refreshKey, onFetchPaginatedReviews, onSearchReviews]);
 
-  const handleFieldFocus = (key: string) => {
-    setTimeout(() => {
-      const y = fieldOffsets.current[key] || 0;
-      reviewScrollRef.current?.scrollTo({ y: Math.max(0, y - 10), animated: true });
-    }, 120);
-  };
+  // Calculate counts for Filter Tabs
+  const allCount = useMemo(() => {
+    if (reviewCounts) return reviewCounts.all;
+    if (propReviewCounts && propReviewCounts.all > 0) return propReviewCounts.all;
+    if (remoteData?.counts) return remoteData.counts.all;
+    return reviews.length;
+  }, [reviewCounts, propReviewCounts, remoteData, reviews]);
 
-  const modalHeight = useMemo(() => {
-    if (keyboardHeight > 0) {
-      const topOffset = Platform.OS === 'ios' ? 60 : 35;
-      return Math.max(260, SCREEN_HEIGHT - keyboardHeight - topOffset);
-    }
-    return Math.round(SCREEN_HEIGHT * 0.85);
-  }, [keyboardHeight]);
+  const approvedCount = useMemo(() => {
+    if (reviewCounts) return reviewCounts.approved;
+    if (propReviewCounts && (propReviewCounts.all > 0 || propReviewCounts.approved > 0)) return propReviewCounts.approved;
+    if (remoteData?.counts) return remoteData.counts.approved;
+    return reviews.filter(r => r.approved).length;
+  }, [reviewCounts, propReviewCounts, remoteData, reviews]);
 
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const pendingCount = useMemo(() => {
+    if (reviewCounts) return reviewCounts.pending;
+    if (propReviewCounts && (propReviewCounts.all > 0 || propReviewCounts.pending > 0)) return propReviewCounts.pending;
+    if (remoteData?.counts) return remoteData.counts.pending;
+    return reviews.filter(r => !r.approved).length;
+  }, [reviewCounts, propReviewCounts, remoteData, reviews]);
 
-  const { control, handleSubmit, reset, setValue, watch } = useForm<ReviewFormValues>({
-    defaultValues: {
-      name: '',
-      message: '',
-      stars: 5,
-      location: '',
-      instagramId: '',
-      phone: '',
-      email: '',
-      image: '',
-      video: '',
-    },
-  });
-
-  const selectedStars = watch('stars');
-  const selectedImage = watch('image');
-  const selectedVideo = watch('video');
-
-  const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setValue('image', result.assets[0].uri, { shouldDirty: true, shouldValidate: true });
-      }
-    } catch (error) {
-      showAlert('Error', 'Failed to pick image from device.', 'error');
-    }
-  };
-
-  const pickVideo = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['videos'],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setValue('video', result.assets[0].uri, { shouldDirty: true, shouldValidate: true });
-      }
-    } catch (error) {
-      showAlert('Error', 'Failed to pick video from device.', 'error');
-    }
-  };
-
-  const approvedCount = useMemo(() => reviews.filter(r => r.approved).length, [reviews]);
-  const pendingCount = useMemo(() => reviews.filter(r => !r.approved).length, [reviews]);
-
-  // Filter reviews by activeFilter, using remote backend search if debouncedSearch is active
-  const filteredReviews = useMemo(() => {
-    const baseList = remoteReviews !== null ? remoteReviews : reviews;
-    return baseList.filter(rev => {
+  // Local filtered reviews (for fallback or counting)
+  const localFilteredReviews = useMemo(() => {
+    return reviews.filter(rev => {
       const matchesFilter =
         activeFilter === 'all' ||
         (activeFilter === 'approved' && rev.approved) ||
         (activeFilter === 'pending' && !rev.approved);
-      return matchesFilter;
+      if (!matchesFilter) return false;
+      if (!debouncedSearch) return true;
+      const q = debouncedSearch.toLowerCase();
+      const n = (rev.name || '').toLowerCase();
+      const m = (rev.message || '').toLowerCase();
+      const l = (rev.location || '').toLowerCase();
+      return n.includes(q) || m.includes(q) || l.includes(q);
     });
-  }, [reviews, remoteReviews, activeFilter]);
+  }, [reviews, activeFilter, debouncedSearch]);
+
+  const displayedReviews = useMemo(() => {
+    if (remoteData) {
+      return remoteData.items;
+    }
+    if (remoteReviews !== null) {
+      return remoteReviews.filter(rev => {
+        return (
+          activeFilter === 'all' ||
+          (activeFilter === 'approved' && rev.approved) ||
+          (activeFilter === 'pending' && !rev.approved)
+        );
+      });
+    }
+    return localFilteredReviews.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  }, [remoteData, remoteReviews, localFilteredReviews, activeFilter, page]);
+
+  const totalCount = remoteData
+    ? (remoteData.total ?? remoteData.items.length)
+    : remoteReviews !== null
+    ? remoteReviews.length
+    : localFilteredReviews.length;
+
+  const totalPages = remoteData
+    ? (remoteData.totalPages || Math.max(1, Math.ceil(totalCount / PAGE_SIZE)))
+    : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const safePage = Math.min(page, totalPages);
+  const startRecord = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
+
+  const handleToggleApprovalInternal = async (rev: Review) => {
+    try {
+      await onToggleApproval(rev);
+      const willBeApproved = !rev.approved;
+
+      setReviewCounts(prev => {
+        const currentAll = prev ? prev.all : allCount;
+        const currentApproved = prev ? prev.approved : approvedCount;
+        const currentPending = prev ? prev.pending : pendingCount;
+        return {
+          all: currentAll,
+          approved: willBeApproved ? currentApproved + 1 : Math.max(0, currentApproved - 1),
+          pending: willBeApproved ? Math.max(0, currentPending - 1) : currentPending + 1,
+        };
+      });
+
+      if (remoteData) {
+        setRemoteData(prev => prev ? {
+          ...prev,
+          items: prev.items.map(r => r.id === rev.id ? { ...r, approved: willBeApproved } : r),
+        } : null);
+      }
+      if (remoteReviews) {
+        setRemoteReviews(prev => prev ? prev.map(r => r.id === rev.id ? { ...r, approved: willBeApproved } : r) : null);
+      }
+    } catch {
+      // alert handled by caller
+    }
+  };
+
+  const handleDeleteReviewInternal = (rev: Review) => {
+    onDeleteReview(rev);
+    const wasApproved = !!rev.approved;
+
+    setReviewCounts(prev => {
+      const currentAll = prev ? prev.all : allCount;
+      const currentApproved = prev ? prev.approved : approvedCount;
+      const currentPending = prev ? prev.pending : pendingCount;
+      return {
+        all: Math.max(0, currentAll - 1),
+        approved: wasApproved ? Math.max(0, currentApproved - 1) : currentApproved,
+        pending: !wasApproved ? Math.max(0, currentPending - 1) : currentPending,
+      };
+    });
+
+    if (remoteData) {
+      setRemoteData(prev => prev ? {
+        ...prev,
+        total: Math.max(0, (prev.total ?? prev.items.length) - 1),
+        items: prev.items.filter(r => r.id !== rev.id),
+      } : null);
+    }
+    if (remoteReviews) {
+      setRemoteReviews(prev => prev ? prev.filter(r => r.id !== rev.id) : null);
+    }
+  };
+
+  const handleOpenAddModal = () => {
+    setEditingReview(null);
+    setFormVisible(true);
+  };
+
+  const handleOpenEditModal = (review: Review) => {
+    setEditingReview(review);
+    setFormVisible(true);
+  };
 
   const onFormSubmit = async (data: ReviewFormValues) => {
-    let uploadedImageUrl: string | null = null;
-    let uploadedVideoUrl: string | null = null;
+    let uploadedImageUrl: string | null = editingReview?.image || null;
+    let uploadedVideoUrl: string | null = editingReview?.video || null;
 
-    try {
-      if (data.image) {
-        uploadedImageUrl = await uploadMediaAsset(data.image, { token, apiHost });
+    if (mediaUploadsEnabled) {
+      try {
+        if (data.image && data.image !== editingReview?.image) {
+          uploadedImageUrl = await uploadMediaAsset(data.image, { token, apiHost });
+        } else if (!data.image) {
+          uploadedImageUrl = null;
+        }
+        if (data.video && data.video !== editingReview?.video) {
+          uploadedVideoUrl = await uploadMediaAsset(data.video, { token, apiHost });
+        } else if (!data.video) {
+          uploadedVideoUrl = null;
+        }
+      } catch {
+        showAlert('Upload Error', 'Failed to upload review media assets. Please try again.', 'error');
+        return;
       }
-      if (data.video) {
-        uploadedVideoUrl = await uploadMediaAsset(data.video, { token, apiHost });
-      }
-    } catch (error) {
-      showAlert('Upload Error', 'Failed to upload review media assets. Please try again.', 'error');
-      return;
     }
 
-    onAddReview({
-      name: data.name.trim(),
-      message: data.message.trim(),
-      stars: data.stars,
-      location: data.location.trim() || null,
-      instagramId: data.instagramId.trim() || null,
-      phone: data.phone.trim() || null,
-      email: data.email.trim() || null,
-      image: uploadedImageUrl,
-      video: uploadedVideoUrl,
-      approved: true,
-    });
+    const parsedStars = Math.min(5, Math.max(0.5, parseFloat(String(data.stars)) || 5));
 
-    reset();
-    setFormVisible(false);
+    try {
+      if (editingReview) {
+        if (onUpdateReview) {
+          await onUpdateReview({
+            id: editingReview.id,
+            name: data.name.trim(),
+            message: data.message.trim(),
+            stars: parsedStars,
+            location: data.location.trim() || null,
+            instagramId: data.instagramId.trim() || null,
+            phone: data.phone.trim() || null,
+            email: data.email.trim() || null,
+            image: uploadedImageUrl,
+            video: uploadedVideoUrl,
+            approved: editingReview.approved,
+          });
+
+          const updatedFields = {
+            name: data.name.trim(),
+            message: data.message.trim(),
+            stars: parsedStars,
+            location: data.location.trim() || null,
+            instagramId: data.instagramId.trim() || null,
+            phone: data.phone.trim() || null,
+            email: data.email.trim() || null,
+            image: uploadedImageUrl,
+            video: uploadedVideoUrl,
+          };
+          setRemoteData(prev => prev ? {
+            ...prev,
+            items: prev.items.map(r => r.id === editingReview.id ? { ...r, ...updatedFields } : r),
+          } : null);
+          setRemoteReviews(prev => prev ? prev.map(r => r.id === editingReview.id ? { ...r, ...updatedFields } : r) : null);
+        }
+      } else {
+        await onAddReview({
+          name: data.name.trim(),
+          message: data.message.trim(),
+          stars: parsedStars,
+          location: data.location.trim() || null,
+          instagramId: data.instagramId.trim() || null,
+          phone: data.phone.trim() || null,
+          email: data.email.trim() || null,
+          image: uploadedImageUrl,
+          video: uploadedVideoUrl,
+          approved: true,
+        });
+      }
+
+      setEditingReview(null);
+      setFormVisible(false);
+      setRefreshKey(k => k + 1);
+    } catch {
+      // Error is alerted by caller
+    }
   };
 
   return (
@@ -273,7 +431,7 @@ export default function ReviewsScreen({
           />
         </View>
         <TouchableOpacity 
-          onPress={() => setFormVisible(true)} 
+          onPress={handleOpenAddModal} 
           style={styles.addButton}
           accessibilityLabel="Add Review"
           accessibilityRole="button"
@@ -288,18 +446,23 @@ export default function ReviewsScreen({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: 16, marginTop: -4, marginBottom: 8, maxHeight: 30 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Sparkles size={11} color="#FF5E36" />
-            {suggestions.slice(0, 5).map((item, idx) => (
-              <TouchableOpacity
-                key={`rev-sug-${item.id || idx}`}
-                onPress={() => setSearchQuery(item.customerName || item.review || '')}
-                style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
-              >
-                <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
-                  {item.customerName ? `${item.customerName}: ` : ''}
-                  {item.review ? (item.review.length > 25 ? `${item.review.slice(0, 25)}...` : item.review) : ''}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {suggestions.slice(0, 5).map((item, idx) => {
+              const labelName = item.name || item.customerName || '';
+              const labelReview = item.messageSnippet || item.review || '';
+              const queryText = labelName || labelReview;
+              return (
+                <TouchableOpacity
+                  key={`rev-sug-${item.id || idx}`}
+                  onPress={() => setSearchQuery(queryText)}
+                  style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                >
+                  <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '500' }}>
+                    {labelName ? `${labelName}: ` : ''}
+                    {labelReview ? (labelReview.length > 25 ? `${labelReview.slice(0, 25)}...` : labelReview) : ''}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </ScrollView>
       )}
@@ -309,14 +472,18 @@ export default function ReviewsScreen({
         <TouchableOpacity
           onPress={() => setActiveFilter('all')}
           style={[styles.filterChip, activeFilter === 'all' && styles.filterChipActive]}
+          accessibilityLabel={`All reviews (${allCount})`}
+          accessibilityRole="button"
         >
           <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>
-            All ({reviews.length})
+            All ({allCount})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveFilter('approved')}
           style={[styles.filterChip, activeFilter === 'approved' && styles.filterChipActive]}
+          accessibilityLabel={`Approved reviews (${approvedCount})`}
+          accessibilityRole="button"
         >
           <Text style={[styles.filterChipText, activeFilter === 'approved' && styles.filterChipTextActive]}>
             Approved ({approvedCount})
@@ -325,6 +492,8 @@ export default function ReviewsScreen({
         <TouchableOpacity
           onPress={() => setActiveFilter('pending')}
           style={[styles.filterChip, activeFilter === 'pending' && styles.filterChipActive]}
+          accessibilityLabel={`Pending reviews (${pendingCount})`}
+          accessibilityRole="button"
         >
           <Text style={[styles.filterChipText, activeFilter === 'pending' && styles.filterChipTextActive]}>
             Pending ({pendingCount})
@@ -332,12 +501,17 @@ export default function ReviewsScreen({
         </TouchableOpacity>
       </View>
 
+      {/* Superadmin Media Uploads Toggle Banner */}
+      <ReviewsSuperAdminBanner
+        isSuperAdmin={isSuperAdmin}
+        mediaUploadsEnabled={mediaUploadsEnabled}
+        onToggleMediaUploads={handleToggleMediaUploads}
+      />
+
       {/* Reviews List */}
       <ScrollView 
-        contentContainerStyle={[
-          styles.scrollPadding,
-          keyboardHeight > 0 && { paddingBottom: keyboardHeight + 80 }
-        ]}
+        ref={reviewScrollRef}
+        contentContainerStyle={styles.scrollPadding}
         alwaysBounceVertical={true}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -345,7 +519,7 @@ export default function ReviewsScreen({
         refreshControl={
           onRefresh ? (
             <RefreshControl
-              refreshing={!!refreshing}
+              refreshing={refreshing || false}
               onRefresh={onRefresh}
               tintColor="#FF5E36"
               colors={['#FF5E36']}
@@ -354,9 +528,9 @@ export default function ReviewsScreen({
           ) : undefined
         }
       >
-        {isLoading ? (
+        {isLoading || (isFetchingRemote && displayedReviews.length === 0) ? (
           <ReviewsSkeleton />
-        ) : filteredReviews.length === 0 ? (
+        ) : displayedReviews.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>No Reviews Found</Text>
             <Text style={styles.emptySubtitle}>
@@ -365,7 +539,7 @@ export default function ReviewsScreen({
                 : "No reviews match your filter or search query."}
             </Text>
             <TouchableOpacity 
-              onPress={() => setFormVisible(true)} 
+              onPress={handleOpenAddModal} 
               style={[styles.addButton, { marginTop: 14 }]}
               accessibilityRole="button"
               accessibilityLabel="Add review from empty state"
@@ -375,415 +549,53 @@ export default function ReviewsScreen({
             </TouchableOpacity>
           </View>
         ) : (
-          filteredReviews.map(rev => (
-            <View key={rev.id} style={styles.reviewCard}>
-              {/* Header: Name & Stars */}
-              <View style={styles.cardHeader}>
-                <View style={styles.headerLeft}>
-                  <Text style={styles.reviewerName}>{rev.name}</Text>
-                  <View style={styles.metaRow}>
-                    {rev.location ? (
-                      <View style={styles.metaItem}>
-                        <MapPin size={10} color="#71717a" style={styles.metaIcon} />
-                        <Text style={styles.metaText}>{rev.location}</Text>
-                      </View>
-                    ) : null}
-                    {rev.createdAt ? (
-                      <View style={[styles.metaItem, { marginLeft: rev.location ? 8 : 0 }]}>
-                        <Clock size={10} color="#a1a1aa" style={styles.metaIcon} />
-                        <Text style={styles.dateText}>
-                          {new Date(rev.createdAt).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-                <View style={styles.starRow}>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star 
-                      key={s} 
-                      size={12} 
-                      color={s <= rev.stars ? '#eab308' : '#e4e4e7'} 
-                      fill={s <= rev.stars ? '#eab308' : 'none'} 
-                      style={styles.starIcon}
-                    />
-                  ))}
-                </View>
+          <>
+            {totalPages > 1 && (
+              <View style={styles.countSummaryRow}>
+                <Text style={styles.countSummaryText}>
+                  Showing {startRecord}–{endRecord} of {totalCount} {totalCount === 1 ? 'review' : 'reviews'}
+                  {activeFilter !== 'all' ? ` (${activeFilter})` : ''}
+                </Text>
               </View>
+            )}
 
-              {/* Message */}
-              <Text style={styles.reviewMessage}>"{rev.message}"</Text>
+            {displayedReviews.map(rev => (
+              <ReviewCard
+                key={rev.id}
+                review={rev}
+                onEdit={handleOpenEditModal}
+                onDelete={handleDeleteReviewInternal}
+                onToggleApproval={handleToggleApprovalInternal}
+              />
+            ))}
 
-              {/* Image Preview if available */}
-              {rev.image ? (
-                <View style={styles.imageThumbnailContainer}>
-                  <Image source={{ uri: rev.image }} style={styles.imageThumbnail} resizeMode="cover" />
-                </View>
-              ) : null}
-
-              {/* Optional Badges / Attachments Indicators */}
-              <View style={styles.attachmentsRow}>
-                {rev.phone ? (
-                  <View style={styles.badge}>
-                    <Phone size={9} color="#71717a" style={styles.badgeIcon} />
-                    <Text style={styles.badgeText}>{rev.phone}</Text>
-                  </View>
-                ) : null}
-                {rev.instagramId ? (
-                  <View style={styles.badge}>
-                    <MessageSquare size={9} color="#71717a" style={styles.badgeIcon} />
-                    <Text style={styles.badgeText}>@{rev.instagramId}</Text>
-                  </View>
-                ) : null}
-                {rev.video ? (
-                  <View style={[styles.badge, styles.successBadge]}>
-                    <Video size={9} color="#059669" style={styles.badgeIcon} />
-                    <Text style={[styles.badgeText, styles.successBadgeText]}>Video Attached</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Footer Divider */}
-              <View style={styles.cardDivider} />
-
-              {/* Card Actions: Toggle Approval & Delete */}
-              <View style={styles.cardActions}>
-                <TouchableOpacity
-                  onPress={() => onToggleApproval(rev)}
-                  style={[
-                    styles.statusBtn,
-                    rev.approved ? styles.approvedBtn : styles.unapprovedBtn,
-                  ]}
-                  accessibilityLabel={`Toggle approval status: currently ${rev.approved ? 'Approved' : 'Pending'}`}
-                  accessibilityRole="button"
-                >
-                  {rev.approved ? (
-                    <Check size={11} color="#ffffff" style={styles.btnIcon} />
-                  ) : (
-                    <Clock size={11} color="#71717a" style={styles.btnIcon} />
-                  )}
-                  <Text
-                    style={[
-                      styles.statusBtnText,
-                      rev.approved ? styles.approvedBtnText : styles.unapprovedBtnText,
-                    ]}
-                  >
-                    {rev.approved ? 'Approved' : 'Pending'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => onDeleteReview(rev)} 
-                  style={styles.deleteBtn}
-                  accessibilityLabel={`Delete review by ${rev.name}`}
-                  accessibilityRole="button"
-                >
-                  <Trash2 size={12} color="#dc2626" />
-                  <Text style={styles.deleteBtnText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <Pagination 
+                currentPage={safePage}
+                totalPages={totalPages}
+                onPageChange={(p) => {
+                  setPage(p);
+                  reviewScrollRef.current?.scrollTo({ y: 0, animated: true });
+                }}
+              />
+            )}
+          </>
         )}
       </ScrollView>
 
-      {/* Add Review Modal Form */}
-      <Modal
+      {/* Add / Edit Review Modal Form */}
+      <ReviewFormModal
         visible={formVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setFormVisible(false)}
-        statusBarTranslucent={true}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setFormVisible(false)} 
-            accessibilityLabel="Dismiss review modal"
-            accessibilityRole="button"
-          />
-          <View 
-            style={[
-              styles.keyboardContainer,
-              keyboardHeight > 0 && { paddingBottom: keyboardHeight }
-            ]}
-          >
-            <View style={[styles.modalContent, { height: modalHeight, maxHeight: modalHeight }]}>
-              {/* Modal Header */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Customer Review</Text>
-                <TouchableOpacity 
-                  onPress={() => setFormVisible(false)} 
-                  style={styles.closeBtn}
-                  accessibilityLabel="Close modal"
-                  accessibilityRole="button"
-                >
-                  <X size={16} color="#09090b" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                ref={reviewScrollRef}
-                style={{ flex: 1 }}
-                contentContainerStyle={[
-                  styles.formContainer,
-                  { paddingBottom: 40 }
-                ]}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                showsVerticalScrollIndicator={false}
-                automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-              >
-              {/* Star Rating Select */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Rating (Stars) <Text style={styles.requiredAsterisk}>*</Text></Text>
-                <View style={styles.ratingSelectRow}>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <TouchableOpacity 
-                      key={s} 
-                      onPress={() => setValue('stars', s, { shouldDirty: true })}
-                      style={styles.starSelectBtn}
-                      accessibilityLabel={`${s} Star${s > 1 ? 's' : ''}`}
-                      accessibilityRole="button"
-                    >
-                      <Star 
-                        size={24} 
-                        color={s <= selectedStars ? '#eab308' : '#e4e4e7'} 
-                        fill={s <= selectedStars ? '#eab308' : 'none'} 
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Name input */}
-              <View 
-                style={styles.formGroup}
-                onLayout={(e) => { fieldOffsets.current['name'] = e.nativeEvent.layout.y; }}
-              >
-                <Text style={styles.fieldLabel}>Customer Name <Text style={styles.requiredAsterisk}>*</Text></Text>
-                <Controller
-                  control={control}
-                  name="name"
-                  rules={{ required: 'Customer name is required' }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. Priya Sharma"
-                      placeholderTextColor="#a1a1aa"
-                      value={value}
-                      onBlur={onBlur}
-                      onFocus={() => handleFieldFocus('name')}
-                      onChangeText={onChange}
-                      style={styles.formInput}
-                    />
-                  )}
-                />
-              </View>
-
-              {/* Message input */}
-              <View 
-                style={styles.formGroup}
-                onLayout={(e) => { fieldOffsets.current['message'] = e.nativeEvent.layout.y; }}
-              >
-                <Text style={styles.fieldLabel}>Review Message <Text style={styles.requiredAsterisk}>*</Text></Text>
-                <Controller
-                  control={control}
-                  name="message"
-                  rules={{ required: 'Review message is required' }}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="Review message detailing product quality, custom fits, and tailoring experience."
-                      placeholderTextColor="#a1a1aa"
-                      value={value}
-                      onBlur={onBlur}
-                      onFocus={() => handleFieldFocus('message')}
-                      onChangeText={onChange}
-                      multiline
-                      numberOfLines={4}
-                      style={[styles.formInput, styles.textArea]}
-                    />
-                  )}
-                />
-              </View>
-
-              <Text style={styles.optionalSectionHeader}>Optional Fields</Text>
-
-              {/* Location */}
-              <View 
-                style={styles.formGroup}
-                onLayout={(e) => { fieldOffsets.current['location'] = e.nativeEvent.layout.y; }}
-              >
-                <Text style={styles.fieldLabel}>Location</Text>
-                <Controller
-                  control={control}
-                  name="location"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. Mumbai"
-                      placeholderTextColor="#a1a1aa"
-                      value={value}
-                      onBlur={onBlur}
-                      onFocus={() => handleFieldFocus('location')}
-                      onChangeText={onChange}
-                      style={styles.formInput}
-                    />
-                  )}
-                />
-              </View>
-
-              {/* Instagram ID */}
-              <View 
-                style={styles.formGroup}
-                onLayout={(e) => { fieldOffsets.current['instagramId'] = e.nativeEvent.layout.y; }}
-              >
-                <Text style={styles.fieldLabel}>Instagram ID</Text>
-                <Controller
-                  control={control}
-                  name="instagramId"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. priya_sharma"
-                      placeholderTextColor="#a1a1aa"
-                      value={value}
-                      onBlur={onBlur}
-                      onFocus={() => handleFieldFocus('instagramId')}
-                      onChangeText={onChange}
-                      style={styles.formInput}
-                      autoCapitalize="none"
-                    />
-                  )}
-                />
-              </View>
-
-              {/* Phone */}
-              <View 
-                style={styles.formGroup}
-                onLayout={(e) => { fieldOffsets.current['phone'] = e.nativeEvent.layout.y; }}
-              >
-                <Text style={styles.fieldLabel}>Phone Number</Text>
-                <Controller
-                  control={control}
-                  name="phone"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. +91 98765 43210"
-                      placeholderTextColor="#a1a1aa"
-                      value={value}
-                      onBlur={onBlur}
-                      onFocus={() => handleFieldFocus('phone')}
-                      onChangeText={onChange}
-                      keyboardType="phone-pad"
-                      style={styles.formInput}
-                    />
-                  )}
-                />
-              </View>
-
-              {/* Email */}
-              <View 
-                style={styles.formGroup}
-                onLayout={(e) => { fieldOffsets.current['email'] = e.nativeEvent.layout.y; }}
-              >
-                <Text style={styles.fieldLabel}>Email Address</Text>
-                <Controller
-                  control={control}
-                  name="email"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      placeholder="e.g. customer@example.com"
-                      placeholderTextColor="#a1a1aa"
-                      value={value}
-                      onBlur={onBlur}
-                      onFocus={() => handleFieldFocus('email')}
-                      onChangeText={onChange}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      style={styles.formInput}
-                    />
-                  )}
-                />
-              </View>
-
-              {/* Image Picker */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Review Image</Text>
-                {selectedImage ? (
-                  <View style={styles.mediaPreviewContainer}>
-                    <Text style={styles.mediaSelectedText} numberOfLines={1}>
-                      {selectedImage.split('/').pop()}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setValue('image', '', { shouldDirty: true })}
-                      style={styles.removeMediaBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel="Remove selected image"
-                    >
-                      <X size={14} color="#dc2626" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={pickImage} style={styles.mediaPickBtn}>
-                    <ImageIcon size={16} color="#FF5E36" />
-                    <Text style={styles.mediaPickBtnText}>Select Image from Device</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Video Picker */}
-              <View style={styles.formGroup}>
-                <Text style={styles.fieldLabel}>Review Video</Text>
-                {selectedVideo ? (
-                  <View style={styles.mediaPreviewContainer}>
-                    <Text style={styles.mediaSelectedText} numberOfLines={1}>
-                      {selectedVideo.split('/').pop()}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setValue('video', '', { shouldDirty: true })}
-                      style={styles.removeMediaBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel="Remove selected video"
-                    >
-                      <X size={14} color="#dc2626" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={pickVideo} style={styles.mediaPickBtn}>
-                    <Video size={16} color="#FF5E36" />
-                    <Text style={styles.mediaPickBtnText}>Select Video from Device</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </ScrollView>
-
-            {/* Modal Actions */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                onPress={() => { reset(); setFormVisible(false); }} 
-                style={styles.cancelBtn}
-                accessibilityLabel="Cancel submission"
-                accessibilityRole="button"
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleSubmit(onFormSubmit)} 
-                style={styles.saveBtn}
-                accessibilityLabel="Submit review"
-                accessibilityRole="button"
-              >
-                <Text style={styles.saveBtnText}>Submit Review</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-        </View>
-      </Modal>
+        editingReview={editingReview}
+        mediaUploadsEnabled={mediaUploadsEnabled}
+        onClose={() => {
+          setEditingReview(null);
+          setFormVisible(false);
+        }}
+        onSubmit={onFormSubmit}
+        showAlert={showAlert}
+      />
     </KeyboardAvoidingView>
   );
 }
-

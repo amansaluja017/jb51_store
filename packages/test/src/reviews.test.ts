@@ -84,6 +84,54 @@ describe('Reviews Router and Controller Suite', () => {
     assert.strictEqual(updated?.approved, true);
   });
 
+  it('update: should allow editing review content, rating, and details', async () => {
+    const adminCaller = reviewsRouter.createCaller(adminContext);
+    const reviewId = createdReviewIds[0];
+
+    const updated = await adminCaller.update({
+      id: reviewId,
+      name: 'Edited Reviewer Name',
+      message: 'Updated review message with high praise for custom tailoring.',
+      stars: 4,
+      location: 'Bangalore',
+      phone: '+91 99999 88888',
+      email: 'edited@example.com',
+    });
+
+    assert.ok(updated);
+    assert.strictEqual(updated?.name, 'Edited Reviewer Name');
+    assert.strictEqual(updated?.message, 'Updated review message with high praise for custom tailoring.');
+    assert.strictEqual(updated?.stars, 4);
+    assert.strictEqual(updated?.location, 'Bangalore');
+    assert.strictEqual(updated?.phone, '+91 99999 88888');
+    assert.strictEqual(updated?.email, 'edited@example.com');
+  });
+
+  it('decimal ratings: should support creating and updating reviews with decimal stars like 2.5 and 3.5', async () => {
+    const adminCaller = reviewsRouter.createCaller(adminContext);
+    const review = await adminCaller.create({
+      name: 'Decimal Rating Reviewer',
+      message: 'Good overall, fitting was slightly snug.',
+      stars: 2.5,
+      location: 'Pune',
+      approved: true,
+    });
+
+    assert.ok(review);
+    assert.ok(review.id);
+    createdReviewIds.push(review.id);
+    assert.strictEqual(review.stars, 2.5, 'Created review must preserve 2.5 rating');
+
+    const updated = await adminCaller.update({
+      id: review.id,
+      stars: 3.5,
+      message: 'After alterations, fit is much better now!',
+    });
+
+    assert.ok(updated);
+    assert.strictEqual(updated?.stars, 3.5, 'Updated review must preserve 3.5 rating');
+  });
+
   it('update: non-existent review returns null', async () => {
     const adminCaller = reviewsRouter.createCaller(adminContext);
     const result = await adminCaller.update({
@@ -91,6 +139,45 @@ describe('Reviews Router and Controller Suite', () => {
       approved: true,
     });
     assert.strictEqual(result, null);
+  });
+
+  it('getPaginated: should retrieve paginated reviews with breakdown counts', async () => {
+    const caller = reviewsRouter.createCaller(unauthContext);
+    const result = await caller.getPaginated({ page: 1, limit: 5 });
+    assert.ok(result);
+    assert.strictEqual(Array.isArray(result.items), true);
+    assert.strictEqual(typeof result.total, 'number');
+    assert.strictEqual(typeof result.page, 'number');
+    assert.ok(result.counts);
+    assert.strictEqual(typeof result.counts.all, 'number');
+    assert.strictEqual(typeof result.counts.approved, 'number');
+    assert.strictEqual(typeof result.counts.pending, 'number');
+    assert.strictEqual(result.counts.all, result.counts.approved + result.counts.pending);
+  });
+
+  it('getCounts: should retrieve review counts breakdown', async () => {
+    const caller = reviewsRouter.createCaller(unauthContext);
+    const counts = await caller.getCounts();
+    assert.ok(counts);
+    assert.strictEqual(typeof counts.all, 'number');
+    assert.strictEqual(typeof counts.approved, 'number');
+    assert.strictEqual(typeof counts.pending, 'number');
+    assert.strictEqual(counts.all, counts.approved + counts.pending);
+  });
+
+  it('search: should search reviews by query', async () => {
+    const caller = reviewsRouter.createCaller(unauthContext);
+    const result = await caller.search({ query: 'suit' });
+    assert.ok(result);
+    assert.strictEqual(Array.isArray(result.items), true);
+    assert.strictEqual(typeof result.total, 'number');
+  });
+
+  it('suggestions: should return autocomplete suggestions', async () => {
+    const caller = reviewsRouter.createCaller(unauthContext);
+    const result = await caller.suggestions({ query: 'suit', limit: 5 });
+    assert.ok(result);
+    assert.strictEqual(Array.isArray(result.suggestions), true);
   });
 
   it('delete: should delete a review', async () => {

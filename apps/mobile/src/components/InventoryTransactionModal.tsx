@@ -202,7 +202,7 @@ export default function InventoryTransactionModal({
     try {
       await onSubmitTransaction({
         productId: selectedProduct.id,
-        productVariantId: (currentVariant as any)?.id || null,
+        productVariantId: currentVariant?.id || currentVariant?.productVariantId || null,
         type: txType,
         quantity: qty,
         name: partyName,
@@ -214,8 +214,9 @@ export default function InventoryTransactionModal({
       });
 
       onClose();
-    } catch (err: any) {
-      showAlert('Transaction Failed', err.message || 'Could not complete inventory transaction.', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not complete inventory transaction.';
+      showAlert('Transaction Failed', message, 'error');
     } finally {
       setIsSubmitting(false);
     }

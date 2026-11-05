@@ -1,1835 +1,374 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Animated } from 'react-native';
+import { useEffect } from 'react';
 import {
-  Product,
-  Variant,
-  Inquiry,
-  Review,
-  InventoryTransaction,
-  Customer,
-  Invoice,
-  Order,
-  Credit,
-  CreditMetrics,
-  AnalyticsOverviewData,
-  ProductAnalyticsItem,
-  ViewsAnalytics,
-  ClicksAnalytics,
-  ConversionAnalytics,
-  ConversionFunnelAnalytics,
-  ChannelRatioAnalytics,
-  GrowthPulseAnalytics,
-  PaymentModesAnalytics,
-  DemandHighlightsAnalytics,
-  InventorySummaryAnalytics,
-  isProductInStock,
-} from '../types';
-import { CustomAlertConfig } from '../components/CustomAlert';
-import { TabType } from '../components/NavigationTabBar';
-import {
-  getInitialApiHost,
-  trpcRequest as trpcRequestService,
-  onAuthTokenChange,
-} from '../services/api';
-import { tokenStorage } from '../services/tokenStorage';
-import {
-  searchProducts as searchProductsService,
-  getProductSuggestions as getProductSuggestionsService,
-  searchInventory as searchInventoryService,
-  getInventorySuggestions as getInventorySuggestionsService,
-  searchCustomers as searchCustomersService,
-  getCustomerSuggestions as getCustomerSuggestionsService,
-  searchOrders as searchOrdersService,
-  searchInvoices as searchInvoicesService,
-  searchCredits as searchCreditsService,
-  searchReviews as searchReviewsService,
-  getReviewSuggestions as getReviewSuggestionsService,
-  searchInquiries as searchInquiriesService,
-  getInquirySuggestions as getInquirySuggestionsService,
-} from '../services/searchService';
+  useAuthData,
+  useUiData,
+  useProductsData,
+  useInventoryData,
+  useCustomersData,
+  useInvoicesOrdersData,
+  useReviewsData,
+  useCreditsData,
+  useInquiriesData,
+  useAnalyticsData,
+  useSearchData,
+} from './appData';
 
+/**
+ * Unified application state orchestrator.
+ * Delegates domain-specific responsibilities to modular sub-hooks:
+ * - useAuthData: session hydration, authentication, credentials
+ * - useUiData: tab navigation animations, alerts, manual sync, global modals
+ * - useProductsData: catalogue, categories, stock toggle, product save/delete
+ * - useInventoryData: stock transactions, variant stock updates
+ * - useCustomersData: customer management and order history
+ * - useInvoicesOrdersData: invoice generation, order lifecycle
+ * - useReviewsData: review moderation and paginated fetching
+ * - useCreditsData: khata management, credit recording & settlement
+ * - useInquiriesData: customer inquiries lifecycle & resolution
+ * - useAnalyticsData: consolidated overview & telemetry
+ * - useSearchData: backend pg_trgm and ILIKE search & suggestion handlers
+ */
 export function useAppData() {
-  // Navigation & Authentication
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
-  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
-
-  const tabValues = useRef<Record<TabType, Animated.Value>>({
-    dashboard: new Animated.Value(activeTab === 'dashboard' ? 1 : 0),
-    catalogue: new Animated.Value(activeTab === 'catalogue' ? 1 : 0),
-    inventory: new Animated.Value(activeTab === 'inventory' ? 1 : 0),
-    analytics: new Animated.Value(activeTab === 'analytics' ? 1 : 0),
-    invoices: new Animated.Value(activeTab === 'invoices' ? 1 : 0),
-    reviews: new Animated.Value(activeTab === 'reviews' ? 1 : 0),
-  }).current;
-
-  useEffect(() => {
-    const tabs: TabType[] = ['dashboard', 'catalogue', 'inventory', 'analytics', 'invoices', 'reviews'];
-    Animated.parallel(
-      tabs.map(tab =>
-        Animated.spring(tabValues[tab], {
-          toValue: activeTab === tab ? 1 : 0,
-          damping: 20,
-          stiffness: 150,
-          useNativeDriver: true,
-        })
-      )
-    ).start();
-  }, [activeTab]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const hydrateAuth = async () => {
-      try {
-        const storedToken = await tokenStorage.getAccessToken();
-        const storedUser = await tokenStorage.getUser();
-        if (storedToken && isMounted) {
-          setToken(storedToken);
-          if (storedUser) {
-            setCurrentUser(storedUser);
-            if (storedUser.email) setEmail(storedUser.email);
-            if (storedUser.userName) setUsername(storedUser.userName);
-          }
-          setIsAuthenticated(true);
-        }
-      } catch (err) {
-        console.warn('[useAppData] Error hydrating auth token from secure storage:', err);
-      }
-    };
-
-    hydrateAuth();
-
-    const unsubscribe = onAuthTokenChange((newToken) => {
-      if (!isMounted) return;
-      setToken(newToken);
-      if (!newToken) {
-        setIsAuthenticated(false);
-        setCurrentUser(null);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  const [apiHost, setApiHost] = useState(getInitialApiHost);
-  const [showConfig, setShowConfig] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('Standby');
-
-  // Data States
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerTotalCount, setCustomerTotalCount] = useState<number>(0);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [isLoadingInquiries, setIsLoadingInquiries] = useState(false);
-  const [inquiriesPagination, setInquiriesPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 1,
-    hasMore: false,
-    pendingCount: 0,
-    resolvedCount: 0,
-  });
-  const [inquiriesSortBy, setInquiriesSortBy] = useState<'recent' | 'oldest' | 'name-asc' | 'name-desc'>('recent');
-  const [inquiriesStatusFilter, setInquiriesStatusFilter] = useState<'all' | 'pending' | 'resolved'>('pending');
-  const [inquiriesSearchQuery, setInquiriesSearchQuery] = useState('');
-  const hasFetchedInquiries = useRef(false);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
-  const [credits, setCredits] = useState<Credit[]>([]);
-  const [creditMetrics, setCreditMetrics] = useState<CreditMetrics | null>(null);
-  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
-  const [creditModalOpen, setCreditModalOpen] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Flags to avoid redundant fetching on rapid tab switching
-  const hasFetchedProducts = useRef(false);
-  const hasFetchedTransactions = useRef(false);
-  const hasFetchedInvoices = useRef(false);
-  const hasFetchedReviews = useRef(false);
-  const hasFetchedOrders = useRef(false);
-  const hasFetchedCustomers = useRef(false);
-  const isFetchingOrders = useRef(false);
-
-  // Search & Modals
-  const [searchQuery, setSearchQuery] = useState('');
-  const [formModalOpen, setFormModalOpen] = useState(false);
-  const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [inquiriesModalOpen, setInquiriesModalOpen] = useState(false);
-  const [drawerMenuOpen, setDrawerMenuOpen] = useState(false);
-  const [customerModalOpen, setCustomerModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ id?: string; email?: string; userName?: string; role?: string } | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingSlug, setEditingSlug] = useState<string | null>(null);
-
-  const pendingInquiriesCount = useMemo(
-    () => (inquiriesPagination.pendingCount > 0 ? inquiriesPagination.pendingCount : inquiries.filter(i => i.status !== 'Resolved').length),
-    [inquiries, inquiriesPagination.pendingCount]
-  );
-
-  const activeDetailsProduct = useMemo(() => {
-    if (!selectedProductDetails) return null;
-    return products.find(p => p.slug === selectedProductDetails.slug) || selectedProductDetails;
-  }, [products, selectedProductDetails]);
-
-  // Analytics selections
-  const [selectedAnalyticsSlug, setSelectedAnalyticsSlug] = useState<string>('all');
-  const [showAnalyticsSelector, setShowAnalyticsSelector] = useState(false);
-
-  // Custom alert state
-  const [alertConfig, setAlertConfig] = useState<CustomAlertConfig>({
-    visible: false,
-    title: '',
-    message: '',
-    type: 'info'
+  // 1. UI & Alert state
+  const uiData = useUiData({
+    trpcRequest: (path, options) => authData.trpcRequest(path, options),
   });
 
-  const showAlert = (
-    title: string,
-    message: string,
-    type: 'info' | 'success' | 'error' | 'confirm' = 'info',
-    onConfirm?: () => void
-  ) => {
-    setAlertConfig({ visible: true, title, message, type, onConfirm });
-  };
+  // 2. Auth state & methods
+  const authData = useAuthData({
+    showAlert: uiData.showAlert,
+    onLogoutCleanup: () => {
+      uiData.setActiveTab('dashboard');
+      productsData.setProducts([]);
+      productsData.setCategories([]);
+      inventoryData.setTransactions([]);
+      customersData.setCustomers([]);
+      invoicesOrdersData.setInvoices([]);
+      invoicesOrdersData.setOrders([]);
+      reviewsData.setReviews([]);
+      productsData.hasFetchedProducts.current = false;
+      inventoryData.hasFetchedTransactions.current = false;
+      invoicesOrdersData.hasFetchedInvoices.current = false;
+      reviewsData.hasFetchedReviews.current = false;
+      invoicesOrdersData.hasFetchedOrders.current = false;
+      customersData.hasFetchedCustomers.current = false;
+    },
+  });
 
-  // Helper function to invoke backend tRPC endpoints
-  const trpcRequest = (
-    path: string,
-    options: { method?: 'GET' | 'POST'; body?: any; input?: any } = {}
-  ) => {
-    return trpcRequestService(path, { ...options, token, apiHost });
-  };
+  // 3. Products & Catalogue state
+  const productsData = useProductsData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+    setSyncMessage: uiData.setSyncMessage,
+  });
 
-  // Modular fetch: Products (categories derived directly from catalogue)
-  const handleFetchProducts = async (isRefresh = false) => {
-    if (!isRefresh) {
-      setIsLoading(true);
-    }
-    try {
-      const decodedProducts = await trpcRequest('products.getAll');
+  // 4. Inventory state
+  const inventoryData = useInventoryData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+    setProducts: productsData.setProducts,
+    handleFetchProducts: productsData.handleFetchProducts,
+  });
 
-      if (Array.isArray(decodedProducts)) {
-        setProducts(decodedProducts as Product[]);
+  // 5. Customers state
+  const customersData = useCustomersData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+  });
 
-        const productCategories = Array.from(
-          new Set(
-            decodedProducts
-              .map((p: any) => p.category?.trim())
-              .filter(Boolean)
-          )
-        ) as string[];
+  // 6. Invoices & Orders state
+  const invoicesOrdersData = useInvoicesOrdersData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+  });
 
-        if (productCategories.length > 0) {
-          setCategories(prev => Array.from(new Set([...prev, ...productCategories])));
-        }
-      }
-      hasFetchedProducts.current = true;
-      setSyncMessage('Products synced with server');
-    } catch (err: any) {
-      console.error('[handleFetchProducts Error]:', err);
-      setSyncMessage('Server offline - Sandbox active');
-    } finally {
-      if (!isRefresh) {
-        setIsLoading(false);
-      }
-    }
-  };
+  // 7. Reviews state
+  const reviewsData = useReviewsData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+  });
 
-  // Tab-based lazy data fetching: hit routes only in their particular section.
-  // Neither Login nor Home (dashboard/analytics) trigger these calls.
+  // 8. Credits state
+  const creditsData = useCreditsData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+    handleFetchInvoices: invoicesOrdersData.handleFetchInvoices,
+  });
+
+  // 9. Inquiries state
+  const inquiriesData = useInquiriesData({
+    trpcRequest: authData.trpcRequest,
+    showAlert: uiData.showAlert,
+  });
+
+  // 10. Analytics state
+  const analyticsData = useAnalyticsData({
+    trpcRequest: authData.trpcRequest,
+    products: productsData.products,
+    isAuthenticated: authData.isAuthenticated,
+    activeTab: uiData.activeTab,
+  });
+
+  // 11. Search & Suggestions handlers
+  const searchData = useSearchData({
+    token: authData.token,
+    apiHost: authData.apiHost,
+  });
+
+  // Tab-based lazy data fetching: hit routes only in their particular section
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!authData.isAuthenticated) return;
 
-    if (activeTab === 'dashboard' || activeTab === 'analytics' || activeTab === 'catalogue') {
-      if (!hasFetchedProducts.current) {
-        handleFetchProducts();
+    if (uiData.activeTab === 'dashboard' || uiData.activeTab === 'analytics' || uiData.activeTab === 'catalogue') {
+      if (!productsData.hasFetchedProducts.current) {
+        productsData.handleFetchProducts();
       }
-      if (activeTab === 'dashboard' || activeTab === 'analytics') {
-        handleFetchAnalytics(selectedAnalyticsSlug);
+      if (uiData.activeTab === 'dashboard' || uiData.activeTab === 'analytics') {
+        analyticsData.handleFetchAnalytics(analyticsData.selectedAnalyticsSlug);
       }
-    } else if (activeTab === 'inventory') {
-      if (!hasFetchedProducts.current) {
-        handleFetchProducts();
+    } else if (uiData.activeTab === 'inventory') {
+      if (!productsData.hasFetchedProducts.current) {
+        productsData.handleFetchProducts();
       }
-      if (!hasFetchedTransactions.current) {
-        hasFetchedTransactions.current = true;
-        handleFetchTransactions();
+      if (!inventoryData.hasFetchedTransactions.current) {
+        inventoryData.hasFetchedTransactions.current = true;
+        inventoryData.handleFetchTransactions();
       }
-      // Hit order history in stock section as requested
-      if (!hasFetchedOrders.current) {
-        handleFetchOrders();
+      if (!invoicesOrdersData.hasFetchedOrders.current) {
+        invoicesOrdersData.handleFetchOrders();
       }
-    } else if (activeTab === 'invoices') {
-      // Hit order history route directly in invoices section, not waiting until opening order history
-      if (!hasFetchedOrders.current) {
-        handleFetchOrders();
+    } else if (uiData.activeTab === 'invoices') {
+      if (!invoicesOrdersData.hasFetchedOrders.current) {
+        invoicesOrdersData.handleFetchOrders();
       }
-    } else if (activeTab === 'reviews') {
-      if (!hasFetchedReviews.current) {
-        hasFetchedReviews.current = true;
-        handleFetchReviews();
+    } else if (uiData.activeTab === 'reviews') {
+      if (!reviewsData.hasFetchedReviews.current) {
+        reviewsData.hasFetchedReviews.current = true;
+        reviewsData.handleFetchReviews();
       }
     }
-  }, [isAuthenticated, activeTab]);
-
-  // Ping server connectivity without hitting unnecessary domain routes
-  const handleManualSync = async () => {
-    setIsSyncing(true);
-    setSyncMessage('Pinging server...');
-    try {
-      await trpcRequest('health');
-      setSyncMessage('Server online');
-    } catch {
-      setSyncMessage('Server offline - Sandbox active');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  }, [authData.isAuthenticated, uiData.activeTab]);
 
   // Section-aware refresh handler: only re-fetches the current section's data
   const handleRefresh = async () => {
-    setRefreshing(true);
+    productsData.setRefreshing(true);
     try {
-      if (activeTab === 'dashboard' || activeTab === 'analytics' || activeTab === 'catalogue') {
+      if (uiData.activeTab === 'dashboard' || uiData.activeTab === 'analytics' || uiData.activeTab === 'catalogue') {
         await Promise.all([
-          handleFetchProducts(true),
-          (activeTab === 'dashboard' || activeTab === 'analytics')
-            ? handleFetchAnalytics(selectedAnalyticsSlug)
+          productsData.handleFetchProducts(true),
+          (uiData.activeTab === 'dashboard' || uiData.activeTab === 'analytics')
+            ? analyticsData.handleFetchAnalytics(analyticsData.selectedAnalyticsSlug)
             : Promise.resolve(),
         ]);
-      } else if (activeTab === 'inventory') {
+      } else if (uiData.activeTab === 'inventory') {
         await Promise.all([
-          handleFetchProducts(true),
-          handleFetchTransactions(),
-          handleFetchOrders(true),
+          productsData.handleFetchProducts(true),
+          inventoryData.handleFetchTransactions(true),
+          invoicesOrdersData.handleFetchOrders(true),
         ]);
-      } else if (activeTab === 'invoices') {
+      } else if (uiData.activeTab === 'invoices') {
         await Promise.all([
-          handleFetchInvoices(),
-          handleFetchOrders(true),
-          handleFetchCustomers(),
-          handleFetchCredits(true),
+          invoicesOrdersData.handleFetchInvoices(true),
+          invoicesOrdersData.handleFetchOrders(true),
+          customersData.handleFetchCustomers(true),
+          creditsData.handleFetchCredits(true),
         ]);
-      } else if (activeTab === 'reviews') {
-        await handleFetchReviews();
+      } else if (uiData.activeTab === 'reviews') {
+        await reviewsData.handleFetchReviews(true);
       }
     } finally {
-      setRefreshing(false);
+      productsData.setRefreshing(false);
     }
   };
-
-  const handleLogin = async (formData?: { email?: string; username?: string; password?: string }) => {
-    const inputIdentifier = formData?.email ?? formData?.username ?? email ?? username;
-    const inputPassword = formData?.password ?? password;
-    const identifier = inputIdentifier.trim();
-
-    if (!identifier || !inputPassword) {
-      showAlert('Validation Required', 'Please enter both email and password.', 'error');
-      return;
-    }
-
-    setIsLoggingIn(true);
-    try {
-      const authResult: any = await trpcRequest('auth.login', {
-        method: 'POST',
-        body: { identifier, password: inputPassword },
-      });
-
-      const tokenValue = authResult?.accessToken || authResult?.token;
-      const refreshTokenValue = authResult?.refreshToken;
-      if (tokenValue) {
-        if (authResult?.user?.role && authResult.user.role !== 'admin' && authResult.user.role !== 'superadmin') {
-          throw new Error('Access denied: Admin or Superadmin privileges required.');
-        }
-        const userObj = authResult?.user || { userName: identifier, role: 'admin' };
-        await tokenStorage.saveAuthData({
-          accessToken: tokenValue,
-          refreshToken: refreshTokenValue,
-          user: userObj,
-        });
-        setToken(tokenValue);
-        setCurrentUser(userObj);
-        setIsAuthenticated(true);
-        showAlert('Authentication Successful', `Welcome back ${authResult?.user?.name || authResult?.user?.userName || identifier}!`, 'success');
-      } else {
-        throw new Error('Invalid credentials or missing auth token');
-      }
-    } catch (err: any) {
-      console.error('[handleLogin Error]:', err);
-      showAlert('Authentication Error', err.message || 'Invalid admin credentials.', 'error');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const refreshToken = await tokenStorage.getRefreshToken();
-      if (token || refreshToken) {
-        await trpcRequest('auth.logout', {
-          method: 'POST',
-          body: { refreshToken: refreshToken || undefined },
-        });
-      }
-    } catch (err: any) {
-      console.log('[handleLogout] Logout API notice:', err.message);
-    } finally {
-      await tokenStorage.clearAuthData();
-      setToken(null);
-      setCurrentUser(null);
-      setIsAuthenticated(false);
-      setActiveTab('dashboard');
-      setProducts([]);
-      setCategories([]);
-      setTransactions([]);
-      setCustomers([]);
-      setInvoices([]);
-      setOrders([]);
-      setReviews([]);
-      hasFetchedProducts.current = false;
-      hasFetchedTransactions.current = false;
-      hasFetchedInvoices.current = false;
-      hasFetchedReviews.current = false;
-      hasFetchedOrders.current = false;
-      hasFetchedCustomers.current = false;
-      showAlert('Logged Out', 'Your admin session has ended.', 'info');
-    }
-  };
-
-  const handleChangeUsername = async (newUserName: string) => {
-    await trpcRequest('auth.changeUsername', {
-      method: 'POST',
-      body: { newUserName },
-    });
-    setCurrentUser((prev: any) => {
-      const updated = prev ? { ...prev, userName: newUserName } : { userName: newUserName };
-      tokenStorage.setUser(updated);
-      return updated;
-    });
-    setUsername(newUserName);
-  };
-
-  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
-    await trpcRequest('auth.changePassword', {
-      method: 'POST',
-      body: { currentPassword, newPassword },
-    });
-  };
-
-  const handleChangeEmail = async (newEmail: string) => {
-    await trpcRequest('auth.changeEmail', {
-      method: 'POST',
-      body: { newEmail },
-    });
-    setCurrentUser((prev: any) => {
-      const updated = prev ? { ...prev, email: newEmail } : { email: newEmail };
-      tokenStorage.setUser(updated);
-      return updated;
-    });
-    setEmail(newEmail);
-  };
-
-  const handleUpdateUser = async (data: {
-    email?: string;
-    userName?: string;
-    password?: string;
-    currentPassword?: string;
-  }) => {
-    const res: any = await trpcRequest('auth.update', {
-      method: 'POST',
-      body: data,
-    });
-    if (res?.accessToken) {
-      await tokenStorage.saveAuthData({
-        accessToken: res.accessToken,
-        refreshToken: res.refreshToken,
-        user: res.user,
-      });
-      setToken(res.accessToken);
-    }
-    if (res?.user) {
-      setCurrentUser(res.user);
-      if (res.user.email) setEmail(res.user.email);
-      if (res.user.userName) setUsername(res.user.userName);
-      await tokenStorage.setUser(res.user);
-    }
-    return res;
-  };
-
-  const handleDeleteAccount = async (passwordInput?: string) => {
-    await trpcRequest('auth.delete', {
-      method: 'POST',
-      body: { password: passwordInput },
-    });
-    await handleLogout();
-  };
-
-  // Product Mutators
-  const handleToggleStock = async (product: Product) => {
-    const isCurrentlyInStock = isProductInStock(product);
-    const newInStock = !isCurrentlyInStock;
-
-    try {
-      const res: any = await trpcRequest('inventory.update', {
-        method: 'POST',
-        body: {
-          slug: product.slug,
-          productId: product.id,
-          forceInStock: newInStock,
-        }
-      });
-
-      const finalInStock = typeof res?.inStock === 'boolean' ? res.inStock : newInStock;
-
-      setProducts(prev =>
-        prev.map(p => p.slug === product.slug ? { ...p, inStock: finalInStock } : p)
-      );
-      showAlert('Stock Status Updated', `${product.name} is now ${finalInStock ? 'In Stock' : 'Out of Stock'}.`, 'success');
-    } catch (err: any) {
-      await handleFetchProducts(true);
-      showAlert('Error', err.message || 'Failed to update stock status', 'error');
-    }
-  };
-
-  const handleUpdateInventory = async (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => {
-    const totalVariantStock = updatedVariants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
-    const newInStock = forceInStock !== undefined ? forceInStock : totalVariantStock > 0;
-
-    try {
-      const res: any = await trpcRequest('inventory.update', {
-        method: 'POST',
-        body: {
-          productId: product.id,
-          slug: product.slug,
-          variants: updatedVariants.map(v => ({
-            id: v.id,
-            productVariantId: v.productVariantId || v.id,
-            color: v.color,
-            size: v.size,
-            stock: Math.max(0, Math.floor(Number(v.stock) || 0)),
-            reservedStock: Math.max(0, Math.floor(Number(v.reservedStock) || 0)),
-          })),
-          forceInStock: newInStock,
-        }
-      });
-
-      const finalInStock = typeof res?.inStock === 'boolean' ? res.inStock : newInStock;
-      const finalStatus = res?.status || product.status;
-
-      setProducts(prev =>
-        prev.map(p =>
-          p.slug === product.slug
-            ? {
-                ...p,
-                variants: updatedVariants,
-                inStock: finalInStock,
-                ...(finalStatus ? { status: finalStatus, isListed: finalStatus === 'listed' } : {}),
-              }
-            : p
-        )
-      );
-      showAlert('Inventory Updated', `Stock updated for ${product.name}.`, 'success');
-    } catch (err: any) {
-      console.error('[handleUpdateInventory Error]:', err);
-      showAlert('Error', err.message || 'Failed to update inventory', 'error');
-      throw err;
-    }
-  };
-
-  const handleFetchTransactions = useCallback(async (force = false) => {
-    if (hasFetchedTransactions.current && !force) return;
-    try {
-      setIsLoadingTransactions(true);
-      const res = await trpcRequest('inventory.getTransactions');
-      if (Array.isArray(res)) {
-        setTransactions(res as InventoryTransaction[]);
-      }
-      hasFetchedTransactions.current = true;
-    } catch (err: any) {
-      console.error('[handleFetchTransactions Error]:', err);
-    } finally {
-      setIsLoadingTransactions(false);
-    }
-  }, [token, apiHost]);
-
-  const handleRecordTransaction = async (data: {
-    productId: string;
-    productVariantId?: string | null;
-    type: 'sale' | 'purchase';
-    quantity: number;
-    name: string;
-    phoneNumber?: string;
-    email?: string;
-    notes?: string;
-    unitPrice?: number;
-    totalAmount?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('inventory.recordTransaction', {
-        method: 'POST',
-        body: data,
-      });
-
-      showAlert(
-        data.type === 'sale' ? 'Sale Recorded' : 'Purchase Recorded',
-        `${data.type === 'sale' ? 'Sold' : 'Purchased'} ${data.quantity} unit${data.quantity > 1 ? 's' : ''} of ${res?.productName || 'product'} for ${data.name}. Stock updated!`,
-        'success'
-      );
-
-      await handleFetchProducts(true);
-      await handleFetchTransactions(true);
-    } catch (err: any) {
-      console.error('[handleRecordTransaction Error]:', err);
-      showAlert('Transaction Error', err.message || 'Failed to record inventory transaction', 'error');
-      throw err;
-    }
-  };
-
-  const handleFetchCustomers = useCallback(async (force = false) => {
-    if (hasFetchedCustomers.current && !force) return;
-    setIsLoadingCustomers(true);
-    try {
-      const res = await trpcRequest('customers.getAll');
-      if (Array.isArray(res)) {
-        setCustomers(res as Customer[]);
-      }
-      hasFetchedCustomers.current = true;
-    } catch (err: any) {
-      console.error('[handleFetchCustomers Error]:', err);
-    } finally {
-      setIsLoadingCustomers(false);
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedCustomers = useCallback(async (params?: {
-    search?: string;
-    sortBy?: 'name-asc' | 'name-desc' | 'createdAt-desc' | 'createdAt-asc';
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('customers.getPaginated', {
-        input: params,
-      });
-      if (res && typeof res.total === 'number') {
-        setCustomerTotalCount(res.total);
-      }
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedCustomers Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedProducts = useCallback(async (params?: {
-    search?: string;
-    category?: string;
-    inStockOnly?: boolean;
-    sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('products.getPaginated', {
-        input: params,
-      });
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedProducts Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedStock = useCallback(async (params?: {
-    search?: string;
-    category?: string;
-    stockFilter?: 'all' | 'inStock' | 'outOfStock' | 'lowStock' | 'reserved';
-    sortBy?: 'default' | 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc';
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('inventory.getPaginated', {
-        input: params,
-      });
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedStock Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedInvoices = useCallback(async (params?: {
-    search?: string;
-    mode?: 'all' | 'cash' | 'online' | 'credit';
-    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'amount-desc' | 'amount-asc';
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('invoices.getPaginated', {
-        input: params,
-      });
-      if ((!params?.page || params.page === 1) && !params?.search && res?.items && Array.isArray(res.items)) {
-        setInvoices(res.items as Invoice[]);
-        hasFetchedInvoices.current = true;
-      }
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedInvoices Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedOrders = useCallback(async (params?: {
-    search?: string;
-    status?: string;
-    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'totalAmount-desc' | 'totalAmount-asc';
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('orders.getPaginated', {
-        input: params,
-      });
-      if ((!params?.page || params.page === 1) && !params?.search && res?.items && Array.isArray(res.items)) {
-        setOrders(res.items as Order[]);
-        hasFetchedOrders.current = true;
-      }
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedOrders Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedCredits = useCallback(async (params?: {
-    search?: string;
-    filterTab?: 'all' | 'pending' | 'overdue' | 'settled';
-    sortBy?: 'createdAt-desc' | 'createdAt-asc' | 'dueAmount-desc' | 'dueDate-asc';
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('credits.getPaginated', {
-        input: params,
-      });
-      if (res?.metrics) {
-        setCreditMetrics(res.metrics as CreditMetrics);
-      }
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedCredits Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleFetchPaginatedReviews = useCallback(async (params?: {
-    search?: string;
-    approved?: boolean;
-    page?: number;
-    limit?: number;
-  }) => {
-    try {
-      const res: any = await trpcRequest('reviews.getPaginated', {
-        input: params,
-      });
-      return res;
-    } catch (err: any) {
-      console.error('[handleFetchPaginatedReviews Error]:', err);
-      throw err;
-    }
-  }, [token, apiHost]);
-
-  const handleCreateCustomer = async (data: {
-    name: string;
-    phoneNumber: string;
-    email?: string;
-    address?: string;
-  }) => {
-    try {
-      const res: any = await trpcRequest('customers.create', {
-        method: 'POST',
-        body: data,
-      });
-      const newCust = res as Customer;
-      setCustomers(prev => [newCust, ...prev]);
-      showAlert('Customer Added', `Customer "${data.name}" added successfully.`, 'success');
-      return newCust;
-    } catch (err: any) {
-      console.error('[handleCreateCustomer Error]:', err);
-      showAlert('Error Adding Customer', err.message || 'Failed to create customer', 'error');
-      throw err;
-    }
-  };
-
-  const handleUpdateCustomer = async (data: {
-    id: string;
-    name?: string;
-    phoneNumber?: string;
-    email?: string | null;
-    address?: string | null;
-  }) => {
-    try {
-      const res: any = await trpcRequest('customers.update', {
-        method: 'POST',
-        body: data,
-      });
-      const updatedCust = res as Customer;
-      setCustomers(prev =>
-        prev.map(c => (c.id === updatedCust.id ? { ...c, ...updatedCust } : c))
-      );
-      showAlert('Customer Updated', `Customer "${updatedCust.name}" updated successfully.`, 'success');
-      return updatedCust;
-    } catch (err: any) {
-      console.error('[handleUpdateCustomer Error]:', err);
-      showAlert('Error Updating Customer', err.message || 'Failed to update customer', 'error');
-      throw err;
-    }
-  };
-
-  const handleDeleteCustomer = async (id: string, name?: string, onSuccess?: () => void) => {
-    showAlert(
-      'Delete Customer',
-      `Are you sure you want to delete customer "${name || 'this customer'}"? This action cannot be undone.`,
-      'confirm',
-      async () => {
-        try {
-          await trpcRequest('customers.delete', {
-            method: 'POST',
-            body: { id },
-          });
-          setCustomers(prev => prev.filter(c => c.id !== id));
-          setCustomerTotalCount(prev => Math.max(0, prev - 1));
-          showAlert('Customer Deleted', 'Customer has been removed successfully.', 'success');
-          onSuccess?.();
-        } catch (err: any) {
-          console.error('[handleDeleteCustomer Error]:', err);
-          showAlert('Error Deleting Customer', err.message || 'Failed to delete customer', 'error');
-        }
-      }
-    );
-  };
-
-  const handleFetchCustomerOrderHistory = async (customerId: string) => {
-    try {
-      const res: any = await trpcRequest('customers.getOrderHistory', {
-        input: { customerId },
-      });
-      return res as {
-        customer: Customer;
-        totalOrders: number;
-        totalSpend: number;
-        avgOrderValue: number;
-        orders: Order[];
-      };
-    } catch (err: any) {
-      console.error('[handleFetchCustomerOrderHistory Error]:', err);
-      showAlert(
-        'Error Loading History',
-        err.message || 'Failed to fetch customer order history',
-        'error'
-      );
-      throw err;
-    }
-  };
-
-  const handleFetchReviews = useCallback(async (force = false) => {
-    if (hasFetchedReviews.current && !force) return;
-    setIsLoadingReviews(true);
-    try {
-      const res: any = await trpcRequest('reviews.getPaginated', {
-        input: { page: 1, limit: 20 },
-      });
-      if (res?.items && Array.isArray(res.items)) {
-        setReviews(res.items as Review[]);
-      } else if (Array.isArray(res)) {
-        setReviews(res as Review[]);
-      }
-      hasFetchedReviews.current = true;
-    } catch (err: any) {
-      console.error('[handleFetchReviews Error]:', err);
-    } finally {
-      setIsLoadingReviews(false);
-    }
-  }, [token, apiHost]);
-
-  const handleFetchInvoices = useCallback(async (force = false) => {
-    if (hasFetchedInvoices.current && !force) return;
-    setIsLoadingInvoices(true);
-    try {
-      const res: any = await trpcRequest('invoices.getPaginated', {
-        input: { page: 1, limit: 15 },
-      });
-      if (res?.items && Array.isArray(res.items)) {
-        setInvoices(res.items as Invoice[]);
-      } else if (Array.isArray(res)) {
-        setInvoices(res as Invoice[]);
-      }
-      hasFetchedInvoices.current = true;
-    } catch (err: any) {
-      console.error('[handleFetchInvoices Error]:', err);
-    } finally {
-      setIsLoadingInvoices(false);
-    }
-  }, [token, apiHost]);
-
-  const handleCreateOrder = async (orderData: any) => {
-    try {
-      const res: any = await trpcRequest('orders.create', {
-        method: 'POST',
-        body: orderData,
-      });
-      if (res?.invoice) {
-        setInvoices(prev => [res.invoice as Invoice, ...prev]);
-      }
-      if (res?.id) {
-        setOrders(prev => [res as Order, ...prev]);
-      }
-      return res;
-    } catch (err: any) {
-      console.error('[handleCreateOrder Error]:', err);
-      showAlert('Order Error', err.message || 'Failed to create order', 'error');
-      throw err;
-    }
-  };
-
-  const handleFetchOrders = useCallback(async (force = false) => {
-    if ((hasFetchedOrders.current || isFetchingOrders.current) && !force) {
-      return;
-    }
-    isFetchingOrders.current = true;
-    if (!hasFetchedOrders.current || force) {
-      setIsLoadingOrders(true);
-    }
-    try {
-      const res: any = await trpcRequest('orders.getPaginated', {
-        input: { page: 1, limit: 20 },
-      });
-      if (res?.items && Array.isArray(res.items)) {
-        setOrders(res.items as Order[]);
-      } else if (Array.isArray(res)) {
-        setOrders(res as Order[]);
-      }
-      hasFetchedOrders.current = true;
-    } catch (err: any) {
-      console.error('[handleFetchOrders Error]:', err);
-    } finally {
-      isFetchingOrders.current = false;
-      setIsLoadingOrders(false);
-    }
-  }, [token, apiHost]);
-
-  const handleUpdateInvoice = async (invoiceData: any) => {
-    try {
-      const res: any = await trpcRequest('invoices.update', {
-        method: 'POST',
-        body: invoiceData,
-      });
-      if (res?.id) {
-        setInvoices(prev => prev.map(inv => (inv.id === res.id ? { ...inv, ...res } : inv)));
-      }
-      return res;
-    } catch (err: any) {
-      console.error('[handleUpdateInvoice Error]:', err);
-      showAlert('Update Invoice Error', err.message || 'Failed to update invoice', 'error');
-      throw err;
-    }
-  };
-
-  const handleDeleteOrder = async (id: string, label: string) => {
-    showAlert(
-      'Delete Order',
-      `Are you sure you want to delete order "${label}"? This action cannot be undone and will also delete the associated invoice, cancel credit records, and restore product stock.`,
-      'confirm',
-      async () => {
-        try {
-          const res: any = await trpcRequest('orders.delete', {
-            method: 'POST',
-            body: { id },
-          });
-          setOrders(prev => prev.filter(ord => ord.id !== id));
-          if (res?.deletedInvoiceIds && Array.isArray(res.deletedInvoiceIds)) {
-            setInvoices(prev => prev.filter(inv => !res.deletedInvoiceIds.includes(inv.id)));
-          } else {
-            setInvoices(prev => prev.filter(inv => inv.orderId !== id));
-          }
-          showAlert('Order Deleted', `Order "${label}" and associated invoice were deleted successfully.`, 'success');
-        } catch (err: any) {
-          console.error('[handleDeleteOrder Error]:', err);
-          showAlert('Error Deleting Order', err.message || 'Failed to delete order', 'error');
-        }
-      }
-    );
-  };
-
-
-  const handleFetchCredits = async (isRefresh = false) => {
-    setIsLoadingCredits(true);
-    try {
-      const res: any = await trpcRequest('credits.getPaginated', {
-        input: { page: 1, limit: 20 },
-      });
-      if (res?.items && Array.isArray(res.items)) {
-        setCredits(res.items as Credit[]);
-        setCreditMetrics(res.metrics as CreditMetrics);
-      } else if (res?.credits && Array.isArray(res.credits)) {
-        setCredits(res.credits as Credit[]);
-        setCreditMetrics(res.metrics as CreditMetrics);
-      }
-    } catch (err: any) {
-      console.error('[handleFetchCredits Error]:', err);
-    } finally {
-      setIsLoadingCredits(false);
-    }
-  };
-
-  const handleCreateCredit = async (data: {
-    orderId?: string | null;
-    invoiceId?: string | null;
-    paidAmount: number;
-    dueAmount: number;
-    dueDate?: string | null;
-    advancePaymentMode?: string | null;
-    notes?: string | null;
-  }) => {
-    try {
-      const res: any = await trpcRequest('credits.create', {
-        method: 'POST',
-        body: data,
-      });
-      showAlert('Credit Recorded', 'Credit balance recorded successfully.', 'success');
-      await Promise.all([
-        handleFetchCredits(true),
-        handleFetchInvoices(),
-      ]);
-      return res;
-    } catch (err: any) {
-      console.error('[handleCreateCredit Error]:', err);
-      showAlert('Error Creating Credit', err.message || 'Failed to create credit record', 'error');
-      throw err;
-    }
-  };
-
-  const handleUpdateCredit = async (data: {
-    id: string;
-    paidAmount?: number;
-    dueAmount?: number;
-    dueDate?: string | null;
-    advancePaymentMode?: string | null;
-  }) => {
-    try {
-      const res: any = await trpcRequest('credits.update', {
-        method: 'POST',
-        body: data,
-      });
-      showAlert('Credit Updated', 'Credit record updated successfully.', 'success');
-      await Promise.all([
-        handleFetchCredits(true),
-        handleFetchInvoices(),
-      ]);
-      return res;
-    } catch (err: any) {
-      console.error('[handleUpdateCredit Error]:', err);
-      showAlert('Error Updating Credit', err.message || 'Failed to update credit record', 'error');
-      throw err;
-    }
-  };
-
-  const handleRecordCreditPayment = async (
-    id: string,
-    amount: number,
-    paymentMode = 'cash',
-    notes?: string
-  ) => {
-    try {
-      const res: any = await trpcRequest('credits.recordPayment', {
-        method: 'POST',
-        body: { id, amount, paymentMode, notes },
-      });
-      showAlert('Payment Recorded', `Payment of ₹${amount.toLocaleString('en-IN')} received (${paymentMode.toUpperCase()}).`, 'success');
-      await Promise.all([
-        handleFetchCredits(true),
-        handleFetchInvoices(),
-      ]);
-      return res;
-    } catch (err: any) {
-      console.error('[handleRecordCreditPayment Error]:', err);
-      showAlert('Error Recording Payment', err.message || 'Failed to record credit payment', 'error');
-      throw err;
-    }
-  };
-
-  const handleDeleteCredit = async (id: string, skipConfirm = false) => {
-    const doDelete = async () => {
-      try {
-        await trpcRequest('credits.delete', {
-          method: 'POST',
-          body: { id },
-        });
-        setCredits(prev => prev.filter(c => c.id !== id));
-        showAlert('Credit Deleted', 'Credit record has been removed.', 'success');
-        handleFetchCredits(true);
-      } catch (err: any) {
-        console.error('[handleDeleteCredit Error]:', err);
-        showAlert('Error Deleting Credit', err.message || 'Failed to delete credit', 'error');
-      }
-    };
-
-    if (skipConfirm) {
-      await doDelete();
-    } else {
-      showAlert(
-        'Delete Credit',
-        'Are you sure you want to delete this credit record? This cannot be undone.',
-        'confirm',
-        doDelete
-      );
-    }
-  };
-
-  const handleUpdateVisibility = async (product: Product, status: 'listed' | 'unListed') => {
-    try {
-      await trpcRequest('products.updateStatus', {
-        method: 'POST',
-        body: { slug: product.slug, status }
-      });
-      setProducts(prev =>
-        prev.map(p =>
-          p.slug === product.slug
-            ? { ...p, status, isListed: status === 'listed' }
-            : p
-        )
-      );
-      showAlert('Status Updated', `${product.name} is now ${status === 'listed' ? 'Listed' : 'Unlisted'}.`, 'success');
-    } catch (err: any) {
-      await handleFetchProducts(true);
-      showAlert('Error', err.message || 'Failed to update status', 'error');
-    }
-  };
-
-  const handleDeleteProduct = (slug: string, name: string) => {
-    showAlert(
-      'Delete Outfit',
-      `Are you sure you want to delete "${name}"?`,
-      'confirm',
-      async () => {
-        try {
-          await trpcRequest('products.delete', {
-            method: 'POST',
-            body: { slug }
-          });
-          setProducts(prev => prev.filter(p => p.slug !== slug));
-          showAlert('Success', 'Outfit deleted.', 'success');
-        } catch (e: any) {
-          showAlert('Error', e.message || 'Failed to delete outfit', 'error');
-        }
-      }
-    );
-  };
-
-  const handleAddReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => {
-    try {
-      const decoded: any = await trpcRequest('reviews.create', {
-        method: 'POST',
-        body: reviewData
-      });
-      if (decoded && decoded.id && decoded.name) {
-        setReviews(prev => [decoded, ...prev]);
-        showAlert('Review Submitted', 'Customer review added successfully.', 'success');
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to submit review', 'error');
-    }
-  };
-
-  const handleToggleReviewApproval = async (review: Review) => {
-    const newApproved = !review.approved;
-
-    try {
-      const decoded: any = await trpcRequest('reviews.update', {
-        method: 'POST',
-        body: { id: review.id, approved: newApproved }
-      });
-      if (decoded && decoded.id) {
-        setReviews(prev =>
-          prev.map(r => r.id === review.id ? { ...r, approved: newApproved } : r)
-        );
-        showAlert('Approval Updated', `Review by ${review.name} is now ${newApproved ? 'Approved' : 'Disapproved'}.`, 'success');
-      } else {
-        throw new Error('Unknown review ID or invalid update');
-      }
-    } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to update review approval', 'error');
-    }
-  };
-
-  const handleDeleteReview = (review: Review) => {
-    showAlert(
-      'Delete Review',
-      `Are you sure you want to delete review by "${review.name}"?`,
-      'confirm',
-      async () => {
-        try {
-          await trpcRequest('reviews.delete', {
-            method: 'POST',
-            body: { id: review.id }
-          });
-          setReviews(prev => prev.filter(r => r.id !== review.id));
-          showAlert('Review Deleted', 'Review removed successfully.', 'success');
-        } catch (err: any) {
-          showAlert('Error', err.message || 'Failed to delete review', 'error');
-        }
-      }
-    );
-  };
-
-  // Category Mutators
-  const handleAddCategory = (newCat: string) => {
-    if (!categories.includes(newCat)) {
-      setCategories(prev => [...prev, newCat]);
-    }
-  };
-
-  const handleDeleteCategory = async (catToDelete: string, targetCategory?: string) => {
-    const target = targetCategory || 'Uncategorized';
-    if (!target || target === catToDelete) {
-      showAlert('Error', 'Target category for reassignment is required.', 'error');
-      return;
-    }
-    try {
-      const affectedProducts = products.filter(p => p.category === catToDelete);
-      for (const p of affectedProducts) {
-        await trpcRequest('products.update', {
-          method: 'POST',
-          body: {
-            slug: p.slug,
-            data: { category: target }
-          }
-        });
-      }
-
-      setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: target } : p));
-      setCategories(prev => {
-        const filtered = prev.filter(c => c !== catToDelete);
-        if (target === 'Uncategorized' && !filtered.includes('Uncategorized')) {
-          return [...filtered, 'Uncategorized'];
-        }
-        return filtered;
-      });
-      showAlert('Category Deleted', `Products reassigned to ${target}.`, 'success');
-    } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to reassign product categories', 'error');
-    }
-  };
-
-  // Inquiry Fetchers & Mutators
-  const handleFetchPaginatedInquiries = useCallback(
-    async (params?: {
-      page?: number;
-      limit?: number;
-      search?: string;
-      status?: 'all' | 'pending' | 'resolved';
-      sortBy?: 'recent' | 'oldest' | 'name-asc' | 'name-desc';
-      append?: boolean;
-    }) => {
-      setIsLoadingInquiries(true);
-      try {
-        const page = params?.page ?? 1;
-        const limit = params?.limit ?? 10;
-        const search = params?.search !== undefined ? params.search : inquiriesSearchQuery;
-        const status = params?.status !== undefined ? params.status : inquiriesStatusFilter;
-        const sortBy = params?.sortBy !== undefined ? params.sortBy : inquiriesSortBy;
-        const append = params?.append ?? false;
-
-        const res: any = await trpcRequest('inqueries.getPaginated', {
-          input: {
-            page,
-            limit,
-            search: search && search.trim() ? search.trim() : null,
-            status: status || 'all',
-            sortBy: sortBy || 'recent',
-          },
-        });
-
-        const items = Array.isArray(res?.items) ? (res.items as Inquiry[]) : [];
-        const total = typeof res?.total === 'number' ? res.total : items.length;
-        const totalPages = typeof res?.totalPages === 'number' ? res.totalPages : 1;
-        const pendingCount = typeof res?.pendingCount === 'number' ? res.pendingCount : 0;
-        const resolvedCount = typeof res?.resolvedCount === 'number' ? res.resolvedCount : 0;
-
-        if (append) {
-          setInquiries(prev => {
-            const existingIds = new Set(prev.map(i => i.id));
-            const newItems = items.filter(i => !existingIds.has(i.id));
-            return [...prev, ...newItems];
-          });
-        } else {
-          setInquiries(items);
-        }
-
-        setInquiriesPagination({
-          page,
-          limit,
-          total,
-          totalPages,
-          hasMore: page < totalPages,
-          pendingCount,
-          resolvedCount,
-        });
-
-        hasFetchedInquiries.current = true;
-        return res;
-      } catch (err: any) {
-        console.error('[handleFetchPaginatedInquiries Error]:', err);
-      } finally {
-        setIsLoadingInquiries(false);
-      }
-    },
-    [token, apiHost, inquiriesSearchQuery, inquiriesStatusFilter, inquiriesSortBy]
-  );
-
-  const handleResolveInquiry = async (id: string, name?: string) => {
-    try {
-      await trpcRequest('inqueries.updateStatus', {
-        method: 'POST',
-        body: { id, status: 'resolved' },
-      });
-      setInquiries(prev => {
-        if (inquiriesStatusFilter === 'pending') {
-          return prev.filter(inq => inq.id !== id);
-        }
-        return prev.map(inq => (inq.id === id ? { ...inq, status: 'Resolved' as const } : inq));
-      });
-      setInquiriesPagination(prev => {
-        const nextPending = Math.max(0, prev.pendingCount - 1);
-        const nextResolved = prev.resolvedCount + 1;
-        const nextTotal = inquiriesStatusFilter === 'pending' ? Math.max(0, prev.total - 1) : prev.total;
-        const nextTotalPages =
-          inquiriesStatusFilter === 'pending'
-            ? Math.max(1, Math.ceil(nextTotal / (prev.limit || 10)))
-            : prev.totalPages;
-        return {
-          ...prev,
-          total: nextTotal,
-          totalPages: nextTotalPages,
-          pendingCount: nextPending,
-          resolvedCount: nextResolved,
-        };
-      });
-      showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Resolved.`, 'success');
-      // Silently refresh current page from backend so pagination boundaries and limits stay exact
-      handleFetchPaginatedInquiries({
-        page: inquiriesPagination.page,
-        status: inquiriesStatusFilter,
-        append: false,
-      });
-    } catch (err: any) {
-      console.error('[handleResolveInquiry Error]:', err);
-      showAlert('Error', err?.message || 'Failed to update inquiry status', 'error');
-    }
-  };
-
-  useEffect(() => {
-    if (inquiriesModalOpen) {
-      handleFetchPaginatedInquiries({ page: 1, append: false });
-    }
-  }, [inquiriesModalOpen]);
-
-  const handleReorderProductImages = async (newImages: string[]): Promise<string[]> => {
-    if (!editingSlug) return newImages;
-    try {
-      const res: any = await trpcRequest('products.reorderImages', {
-        method: 'POST',
-        body: { slug: editingSlug, images: newImages },
-      });
-      const confirmedImages = Array.isArray(res?.images) && res.images.length > 0 ? res.images : newImages;
-      setProducts(prev => prev.map(p => {
-        if (p.slug !== editingSlug) return p;
-        const updatedVariants = (p.variants || []).map(v => ({
-          ...v,
-          images: confirmedImages,
-        }));
-        return { ...p, images: confirmedImages, variants: updatedVariants.length > 0 ? updatedVariants : p.variants };
-      }));
-      return confirmedImages;
-    } catch (err: any) {
-      console.error('[handleReorderProductImages failed]:', err);
-      showAlert('Reorder Failed', err?.message || 'Could not update image order.', 'error');
-      return newImages;
-    }
-  };
-
-  // Save edits/addings
-  const handleSaveProduct = async (payload: Product) => {
-    if (isEditing && editingSlug) {
-      try {
-        const updated: any = await trpcRequest('products.update', {
-          method: 'POST',
-          body: { slug: editingSlug, data: payload }
-        });
-        const finalProd = updated && updated.slug ? updated : payload;
-        setProducts(prev => prev.map(p => p.slug === editingSlug ? finalProd : p));
-        showAlert('Outfit Saved', 'Persistence complete.', 'success');
-      } catch (err: any) {
-        console.error('[handleSaveProduct Error]:', err);
-        showAlert('Save Failed', err.message || 'Failed to update outfit on server.', 'error');
-        return;
-      }
-    } else {
-      if (products.some(p => p.slug === payload.slug)) {
-        showAlert('Unique Slug Required', 'An outfit with this slug already exists.', 'error');
-        return;
-      }
-      try {
-        const created: any = await trpcRequest('products.create', {
-          method: 'POST',
-          body: payload
-        });
-        const finalProd = created && created.slug ? created : payload;
-
-        setProducts(prev => [finalProd, ...prev.filter(p => p.slug !== finalProd.slug)]);
-        showAlert('Outfit Created', 'New item added to catalogue.', 'success');
-      } catch (err: any) {
-        console.error('[handleSaveProduct Error]:', err);
-        showAlert('Creation Failed', err.message || 'Failed to create outfit on server.', 'error');
-        return;
-      }
-    }
-
-    setFormModalOpen(false);
-  };
-
-  // Calculations & Analytics
-  const stats = useMemo(() => {
-    const total = products.length;
-    const oos = products.filter(p => !isProductInStock(p)).length;
-    const active = total - oos;
-    const listed = products.filter(p => p.isListed !== false).length;
-
-    return {
-      total,
-      listed,
-      oos,
-      active,
-    };
-  }, [products]);
-
-  const activeAnalyticsProduct = useMemo(() => {
-    if (selectedAnalyticsSlug === 'all') return null;
-    return products.find(p => p.slug === selectedAnalyticsSlug) || null;
-  }, [products, selectedAnalyticsSlug]);
-
-  const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverviewData | null>(null);
-  const [allProductsAnalytics, setAllProductsAnalytics] = useState<ProductAnalyticsItem[]>([]);
-  const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null);
-  const [clicksAnalytics, setClicksAnalytics] = useState<ClicksAnalytics | null>(null);
-  const [conversionAnalytics, setConversionAnalytics] = useState<ConversionAnalytics | null>(null);
-  const [funnelAnalytics, setFunnelAnalytics] = useState<ConversionFunnelAnalytics | null>(null);
-  const [channelRatioAnalytics, setChannelRatioAnalytics] = useState<ChannelRatioAnalytics | null>(null);
-  const [growthPulseAnalytics, setGrowthPulseAnalytics] = useState<GrowthPulseAnalytics | null>(null);
-  const [paymentModesAnalytics, setPaymentModesAnalytics] = useState<PaymentModesAnalytics | null>(null);
-  const [demandHighlightsAnalytics, setDemandHighlightsAnalytics] = useState<DemandHighlightsAnalytics | null>(null);
-  const [catalogueTelemetryAnalytics, setCatalogueTelemetryAnalytics] = useState<ProductAnalyticsItem[]>([]);
-  const [inventorySummaryAnalytics, setInventorySummaryAnalytics] = useState<InventorySummaryAnalytics | null>(null);
-  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
-
-  const handleFetchAnalytics = async (slug?: string) => {
-    try {
-      setIsLoadingAnalytics(true);
-      const targetSlug = slug !== undefined ? slug : selectedAnalyticsSlug;
-      const inputPayload = targetSlug && targetSlug !== 'all' ? { slug: targetSlug } : undefined;
-
-      // Hit routes independently with Promise.allSettled so if one fails, none crash
-      const results = await Promise.allSettled([
-        trpcRequest('analytics.getViews', { input: inputPayload }),
-        trpcRequest('analytics.getClicks', { input: inputPayload }),
-        trpcRequest('analytics.getConversion', { input: inputPayload }),
-        trpcRequest('analytics.getFunnel', { input: inputPayload }),
-        trpcRequest('analytics.getChannelRatio', { input: inputPayload }),
-        trpcRequest('analytics.getGrowthPulse', { input: inputPayload }),
-        trpcRequest('analytics.getPaymentModes', { input: inputPayload }),
-        trpcRequest('analytics.getDemandHighlights'),
-        trpcRequest('analytics.getCatalogueTelemetry'),
-        trpcRequest('analytics.getInventorySummary'),
-      ]);
-
-      const [
-        viewsResult,
-        clicksResult,
-        convResult,
-        funnelResult,
-        ratioResult,
-        growthResult,
-        paymentsResult,
-        highlightsResult,
-        catalogueResult,
-        inventoryResult,
-      ] = results;
-
-      if (viewsResult.status === 'fulfilled' && viewsResult.value) {
-        setViewsAnalytics(viewsResult.value);
-      }
-      if (clicksResult.status === 'fulfilled' && clicksResult.value) {
-        setClicksAnalytics(clicksResult.value);
-      }
-      if (convResult.status === 'fulfilled' && convResult.value) {
-        setConversionAnalytics(convResult.value);
-      }
-      if (funnelResult.status === 'fulfilled' && funnelResult.value) {
-        setFunnelAnalytics(funnelResult.value);
-      }
-      if (ratioResult.status === 'fulfilled' && ratioResult.value) {
-        setChannelRatioAnalytics(ratioResult.value);
-      }
-      if (growthResult.status === 'fulfilled' && growthResult.value) {
-        setGrowthPulseAnalytics(growthResult.value);
-      }
-      if (paymentsResult.status === 'fulfilled' && paymentsResult.value) {
-        setPaymentModesAnalytics(paymentsResult.value);
-      }
-      if (highlightsResult.status === 'fulfilled' && highlightsResult.value) {
-        setDemandHighlightsAnalytics(highlightsResult.value);
-      }
-      if (catalogueResult.status === 'fulfilled' && Array.isArray(catalogueResult.value)) {
-        setCatalogueTelemetryAnalytics(catalogueResult.value);
-        setAllProductsAnalytics(catalogueResult.value);
-      }
-      if (inventoryResult.status === 'fulfilled' && inventoryResult.value) {
-        setInventorySummaryAnalytics(inventoryResult.value);
-      }
-
-      // Backward compatible composed overview:
-      const v = viewsResult.status === 'fulfilled' ? viewsResult.value?.views : 0;
-      const wa = clicksResult.status === 'fulfilled' ? clicksResult.value?.whatsappClicks : 0;
-      const ig = clicksResult.status === 'fulfilled' ? clicksResult.value?.instagramClicks : 0;
-      const totClicks = (wa || 0) + (ig || 0);
-      const conv = convResult.status === 'fulfilled' ? convResult.value?.conversionRate : 0;
-      const waConv = convResult.status === 'fulfilled' ? convResult.value?.whatsappConversionRate : 0;
-      const igConv = convResult.status === 'fulfilled' ? convResult.value?.instagramConversionRate : 0;
-      const ordConv = convResult.status === 'fulfilled' ? convResult.value?.orderConversionRate : 0;
-      const onlineOrdConv = convResult.status === 'fulfilled' ? convResult.value?.onlineOrderConversionRate : 0;
-      const ordCount = ratioResult.status === 'fulfilled' ? ratioResult.value?.totalOrderCount : 0;
-      const onlineCount = ratioResult.status === 'fulfilled' ? ratioResult.value?.onlineOrderCount : 0;
-      const offlineCount = ratioResult.status === 'fulfilled' ? ratioResult.value?.offlineOrderCount : 0;
-
-      setAnalyticsOverview({
-        scope: targetSlug && targetSlug !== 'all' ? 'product' : 'overall',
-        product: activeAnalyticsProduct ? {
-          id: activeAnalyticsProduct.id,
-          slug: activeAnalyticsProduct.slug,
-          name: activeAnalyticsProduct.name,
-          category: activeAnalyticsProduct.category,
-          price: activeAnalyticsProduct.price ? Number(activeAnalyticsProduct.price) : 0,
-        } : null,
-        views: v || 0,
-        whatsappClicks: wa || 0,
-        instagramClicks: ig || 0,
-        totalClicks: totClicks || 0,
-        conversionRate: conv || 0,
-        whatsappConversionRate: waConv || 0,
-        instagramConversionRate: igConv || 0,
-        orderCount: ordCount || 0,
-        onlineOrderCount: onlineCount || 0,
-        offlineOrderCount: offlineCount || 0,
-        orderConversionRate: ordConv || 0,
-        onlineOrderConversionRate: onlineOrdConv || 0,
-        channelRatio: ratioResult.status === 'fulfilled' && ratioResult.value ? {
-          onlineRatio: ratioResult.value.onlineRatio,
-          offlineRatio: ratioResult.value.offlineRatio,
-        } : undefined,
-        growth: growthResult.status === 'fulfilled' ? growthResult.value : undefined,
-        payments: paymentsResult.status === 'fulfilled' ? paymentsResult.value : undefined,
-      });
-    } catch (err: any) {
-      console.warn('[handleFetchAnalytics Error]:', err?.message || err);
-    } finally {
-      setIsLoadingAnalytics(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    if (activeTab === 'dashboard' || activeTab === 'analytics') {
-      handleFetchAnalytics(selectedAnalyticsSlug);
-    }
-  }, [selectedAnalyticsSlug]);
-
-  const analyticsMetrics = useMemo(() => {
-    const views = viewsAnalytics?.views ?? analyticsOverview?.views ?? 0;
-    const waHits = clicksAnalytics?.whatsappClicks ?? analyticsOverview?.whatsappClicks ?? 0;
-    const igHits = clicksAnalytics?.instagramClicks ?? analyticsOverview?.instagramClicks ?? 0;
-    const conv = conversionAnalytics?.conversionRate ?? analyticsOverview?.conversionRate ?? 0;
-    return {
-      isUnavailable: false,
-      views,
-      waHits,
-      igHits,
-      wlHits: 0,
-      conversion: conv,
-      pipeline: waHits + igHits,
-    };
-  }, [viewsAnalytics, clicksAnalytics, conversionAnalytics, analyticsOverview]);
-
-  // Open forms triggers
-  const triggerAddProduct = () => {
-    setIsEditing(false);
-    setEditingSlug(null);
-    setFormModalOpen(true);
-  };
-
-  const triggerEditProduct = (product: Product) => {
-    setIsEditing(true);
-    setEditingSlug(product.slug);
-    setFormModalOpen(true);
-  };
-
-  // Search & Suggestions Backend Handlers (ILIKE for search, pg_trgm for suggestions)
-  const handleSearchProducts = useCallback(async (params: { query?: string; category?: string; inStockOnly?: boolean; sortBy?: any; limit?: number }) => {
-    return await searchProductsService(params, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleGetProductSuggestions = useCallback(async (query: string) => {
-    return await getProductSuggestionsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchInventory = useCallback(async (params: { query?: string; category?: string; stockFilter?: any; sortBy?: any; limit?: number }) => {
-    return await searchInventoryService(params, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleGetInventorySuggestions = useCallback(async (query: string) => {
-    return await getInventorySuggestionsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchCustomers = useCallback(async (query: string) => {
-    return await searchCustomersService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleGetCustomerSuggestions = useCallback(async (query: string) => {
-    return await getCustomerSuggestionsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchOrders = useCallback(async (query: string) => {
-    return await searchOrdersService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchInvoices = useCallback(async (query: string) => {
-    return await searchInvoicesService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchCredits = useCallback(async (query: string) => {
-    return await searchCreditsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchReviews = useCallback(async (query: string) => {
-    return await searchReviewsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleGetReviewSuggestions = useCallback(async (query: string) => {
-    return await getReviewSuggestionsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleSearchInquiries = useCallback(async (query: string) => {
-    return await searchInquiriesService(query, { token, apiHost });
-  }, [token, apiHost]);
-
-  const handleGetInquirySuggestions = useCallback(async (query: string) => {
-    return await getInquirySuggestionsService(query, { token, apiHost });
-  }, [token, apiHost]);
-
 
   return {
     // Auth & Nav
-    isAuthenticated,
-    email,
-    setEmail,
-    username,
-    setUsername,
-    password,
-    setPassword,
-    token,
-    currentUser,
-    isLoggingIn,
-    handleLogin,
-    handleLogout,
-    handleChangeUsername,
-    handleChangeEmail,
-    handleChangePassword,
-    handleUpdateUser,
-    handleDeleteAccount,
-    activeTab,
-    setActiveTab,
-    tabValues,
+    isAuthenticated: authData.isAuthenticated,
+    isCheckingAuth: authData.isCheckingAuth,
+    authLoadingMessage: authData.authLoadingMessage,
+    email: authData.email,
+    setEmail: authData.setEmail,
+    username: authData.username,
+    setUsername: authData.setUsername,
+    password: authData.password,
+    setPassword: authData.setPassword,
+    token: authData.token,
+    currentUser: authData.currentUser,
+    isLoggingIn: authData.isLoggingIn,
+    handleLogin: authData.handleLogin,
+    handleLogout: authData.handleLogout,
+    handleChangeUsername: authData.handleChangeUsername,
+    handleChangeEmail: authData.handleChangeEmail,
+    handleChangePassword: authData.handleChangePassword,
+    handleUpdateUser: authData.handleUpdateUser,
+    handleDeleteAccount: authData.handleDeleteAccount,
+    activeTab: uiData.activeTab,
+    setActiveTab: uiData.setActiveTab,
+    tabValues: uiData.tabValues,
+
     // Sync
-    apiHost,
-    setApiHost,
-    showConfig,
-    setShowConfig,
-    isSyncing,
-    syncMessage,
-    handleManualSync,
+    apiHost: authData.apiHost,
+    setApiHost: authData.setApiHost,
+    showConfig: authData.showConfig,
+    setShowConfig: authData.setShowConfig,
+    isSyncing: uiData.isSyncing,
+    syncMessage: uiData.syncMessage,
+    handleManualSync: uiData.handleManualSync,
+
     // Products & Categories
-    products,
-    categories,
-    isLoading,
-    refreshing,
+    products: productsData.products,
+    categories: productsData.categories,
+    isLoading: productsData.isLoading,
+    refreshing: productsData.refreshing,
     handleRefresh,
-    handleFetchProducts,
-    handleToggleStock,
-    handleUpdateVisibility,
-    handleSaveProduct,
-    handleDeleteProduct,
-    handleReorderProductImages,
-    handleAddCategory,
-    handleDeleteCategory,
-    searchQuery,
-    setSearchQuery,
+    handleFetchProducts: productsData.handleFetchProducts,
+    handleToggleStock: productsData.handleToggleStock,
+    handleUpdateVisibility: productsData.handleUpdateVisibility,
+    handleSaveProduct: productsData.handleSaveProduct,
+    handleDeleteProduct: productsData.handleDeleteProduct,
+    handleReorderProductImages: productsData.handleReorderProductImages,
+    handleAddCategory: productsData.handleAddCategory,
+    handleDeleteCategory: productsData.handleDeleteCategory,
+    searchQuery: productsData.searchQuery,
+    setSearchQuery: productsData.setSearchQuery,
+
     // Inventory
-    transactions,
-    isLoadingTransactions,
-    handleFetchTransactions,
-    handleUpdateInventory,
-    handleRecordTransaction,
-    handleFetchPaginatedStock,
+    transactions: inventoryData.transactions,
+    isLoadingTransactions: inventoryData.isLoadingTransactions,
+    handleFetchTransactions: inventoryData.handleFetchTransactions,
+    handleUpdateInventory: inventoryData.handleUpdateInventory,
+    handleRecordTransaction: inventoryData.handleRecordTransaction,
+    handleFetchPaginatedStock: inventoryData.handleFetchPaginatedStock,
+
     // Customers
-    customers,
-    customerTotalCount,
-    isLoadingCustomers,
-    handleFetchCustomers,
-    handleFetchPaginatedCustomers,
-    handleCreateCustomer,
-    handleUpdateCustomer,
-    handleDeleteCustomer,
-    handleFetchCustomerOrderHistory,
-    handleFetchPaginatedProducts,
+    customers: customersData.customers,
+    customerTotalCount: customersData.customerTotalCount,
+    isLoadingCustomers: customersData.isLoadingCustomers,
+    handleFetchCustomers: customersData.handleFetchCustomers,
+    handleFetchPaginatedCustomers: customersData.handleFetchPaginatedCustomers,
+    handleCreateCustomer: customersData.handleCreateCustomer,
+    handleUpdateCustomer: customersData.handleUpdateCustomer,
+    handleDeleteCustomer: customersData.handleDeleteCustomer,
+    handleFetchCustomerOrderHistory: customersData.handleFetchCustomerOrderHistory,
+    handleFetchPaginatedProducts: productsData.handleFetchPaginatedProducts,
+
     // Invoices & Orders
-    invoices,
-    isLoadingInvoices,
-    orders,
-    isLoadingOrders,
-    handleFetchInvoices,
-    handleFetchPaginatedInvoices,
-    handleFetchOrders,
-    handleFetchPaginatedOrders,
-    handleCreateOrder,
-    handleUpdateInvoice,
-    handleDeleteOrder,
+    invoices: invoicesOrdersData.invoices,
+    isLoadingInvoices: invoicesOrdersData.isLoadingInvoices,
+    orders: invoicesOrdersData.orders,
+    isLoadingOrders: invoicesOrdersData.isLoadingOrders,
+    handleFetchInvoices: invoicesOrdersData.handleFetchInvoices,
+    handleFetchPaginatedInvoices: invoicesOrdersData.handleFetchPaginatedInvoices,
+    handleFetchOrders: invoicesOrdersData.handleFetchOrders,
+    handleFetchPaginatedOrders: invoicesOrdersData.handleFetchPaginatedOrders,
+    handleCreateOrder: invoicesOrdersData.handleCreateOrder,
+    handleUpdateInvoice: invoicesOrdersData.handleUpdateInvoice,
+    handleDeleteOrder: invoicesOrdersData.handleDeleteOrder,
+
     // Reviews
-    reviews,
-    isLoadingReviews,
-    handleFetchReviews,
-    handleFetchPaginatedReviews,
-    handleAddReview,
-    handleDeleteReview,
-    handleToggleReviewApproval,
+    reviews: reviewsData.reviews,
+    reviewCounts: reviewsData.reviewCounts,
+    isLoadingReviews: reviewsData.isLoadingReviews,
+    handleFetchReviews: reviewsData.handleFetchReviews,
+    handleFetchPaginatedReviews: reviewsData.handleFetchPaginatedReviews,
+    handleAddReview: reviewsData.handleAddReview,
+    handleUpdateReview: reviewsData.handleUpdateReview,
+    handleDeleteReview: reviewsData.handleDeleteReview,
+    handleToggleReviewApproval: reviewsData.handleToggleReviewApproval,
+
     // Credits pagination
-    handleFetchPaginatedCredits,
+    handleFetchPaginatedCredits: creditsData.handleFetchPaginatedCredits,
+
     // Inquiries
-    inquiries,
-    pendingInquiriesCount,
-    isLoadingInquiries,
-    inquiriesPagination,
-    inquiriesSortBy,
-    setInquiriesSortBy,
-    inquiriesStatusFilter,
-    setInquiriesStatusFilter,
-    inquiriesSearchQuery,
-    setInquiriesSearchQuery,
-    handleFetchPaginatedInquiries,
-    handleResolveInquiry,
+    inquiries: inquiriesData.inquiries,
+    pendingInquiriesCount: inquiriesData.pendingInquiriesCount,
+    isLoadingInquiries: inquiriesData.isLoadingInquiries,
+    inquiriesPagination: inquiriesData.inquiriesPagination,
+    inquiriesSortBy: inquiriesData.inquiriesSortBy,
+    setInquiriesSortBy: inquiriesData.setInquiriesSortBy,
+    inquiriesStatusFilter: inquiriesData.inquiriesStatusFilter,
+    setInquiriesStatusFilter: inquiriesData.setInquiriesStatusFilter,
+    inquiriesSearchQuery: inquiriesData.inquiriesSearchQuery,
+    setInquiriesSearchQuery: inquiriesData.setInquiriesSearchQuery,
+    handleFetchPaginatedInquiries: inquiriesData.handleFetchPaginatedInquiries,
+    handleResolveInquiry: inquiriesData.handleResolveInquiry,
+
     // Analytics
-    stats,
-    analyticsMetrics,
-    analyticsOverview,
-    allProductsAnalytics,
-    viewsAnalytics,
-    clicksAnalytics,
-    conversionAnalytics,
-    funnelAnalytics,
-    channelRatioAnalytics,
-    growthPulseAnalytics,
-    paymentModesAnalytics,
-    demandHighlightsAnalytics,
-    catalogueTelemetryAnalytics,
-    inventorySummaryAnalytics,
-    isLoadingAnalytics,
-    handleFetchAnalytics,
-    activeAnalyticsProduct,
-    selectedAnalyticsSlug,
-    setSelectedAnalyticsSlug,
-    showAnalyticsSelector,
-    setShowAnalyticsSelector,
+    stats: analyticsData.stats,
+    analyticsMetrics: analyticsData.analyticsMetrics,
+    analyticsOverview: analyticsData.analyticsOverview,
+    allProductsAnalytics: analyticsData.allProductsAnalytics,
+    viewsAnalytics: analyticsData.viewsAnalytics,
+    clicksAnalytics: analyticsData.clicksAnalytics,
+    conversionAnalytics: analyticsData.conversionAnalytics,
+    funnelAnalytics: analyticsData.funnelAnalytics,
+    channelRatioAnalytics: analyticsData.channelRatioAnalytics,
+    growthPulseAnalytics: analyticsData.growthPulseAnalytics,
+    paymentModesAnalytics: analyticsData.paymentModesAnalytics,
+    demandHighlightsAnalytics: analyticsData.demandHighlightsAnalytics,
+    catalogueTelemetryAnalytics: analyticsData.catalogueTelemetryAnalytics,
+    inventorySummaryAnalytics: analyticsData.inventorySummaryAnalytics,
+    isLoadingAnalytics: analyticsData.isLoadingAnalytics,
+    handleFetchAnalytics: analyticsData.handleFetchAnalytics,
+    fetchPaginatedCatalogueTelemetry: analyticsData.fetchPaginatedCatalogueTelemetry,
+    activeAnalyticsProduct: analyticsData.activeAnalyticsProduct,
+    selectedAnalyticsSlug: analyticsData.selectedAnalyticsSlug,
+    setSelectedAnalyticsSlug: analyticsData.setSelectedAnalyticsSlug,
+    showAnalyticsSelector: analyticsData.showAnalyticsSelector,
+    setShowAnalyticsSelector: analyticsData.setShowAnalyticsSelector,
+
     // Modals
-    formModalOpen,
-    setFormModalOpen,
-    selectedProductDetails,
-    setSelectedProductDetails,
-    activeDetailsProduct,
-    categoryModalOpen,
-    setCategoryModalOpen,
-    accountModalOpen,
-    setAccountModalOpen,
-    inquiriesModalOpen,
-    setInquiriesModalOpen,
-    drawerMenuOpen,
-    setDrawerMenuOpen,
-    customerModalOpen,
-    setCustomerModalOpen,
+    formModalOpen: productsData.formModalOpen,
+    setFormModalOpen: productsData.setFormModalOpen,
+    selectedProductDetails: productsData.selectedProductDetails,
+    setSelectedProductDetails: productsData.setSelectedProductDetails,
+    activeDetailsProduct: productsData.activeDetailsProduct,
+    categoryModalOpen: productsData.categoryModalOpen,
+    setCategoryModalOpen: productsData.setCategoryModalOpen,
+    accountModalOpen: uiData.accountModalOpen,
+    setAccountModalOpen: uiData.setAccountModalOpen,
+    inquiriesModalOpen: inquiriesData.inquiriesModalOpen,
+    setInquiriesModalOpen: inquiriesData.setInquiriesModalOpen,
+    drawerMenuOpen: uiData.drawerMenuOpen,
+    setDrawerMenuOpen: uiData.setDrawerMenuOpen,
+    customerModalOpen: customersData.customerModalOpen,
+    setCustomerModalOpen: customersData.setCustomerModalOpen,
+
     // Credits
-    credits,
-    creditMetrics,
-    isLoadingCredits,
-    creditModalOpen,
-    setCreditModalOpen,
-    handleFetchCredits,
-    handleCreateCredit,
-    handleUpdateCredit,
-    handleRecordCreditPayment,
-    handleDeleteCredit,
-    isEditing,
-    editingSlug,
-    triggerAddProduct,
-    triggerEditProduct,
+    credits: creditsData.credits,
+    creditMetrics: creditsData.creditMetrics,
+    isLoadingCredits: creditsData.isLoadingCredits,
+    creditModalOpen: creditsData.creditModalOpen,
+    setCreditModalOpen: creditsData.setCreditModalOpen,
+    handleFetchCredits: creditsData.handleFetchCredits,
+    handleCreateCredit: creditsData.handleCreateCredit,
+    handleUpdateCredit: creditsData.handleUpdateCredit,
+    handleRecordCreditPayment: creditsData.handleRecordCreditPayment,
+    handleDeleteCredit: creditsData.handleDeleteCredit,
+    isEditing: productsData.isEditing,
+    editingSlug: productsData.editingSlug,
+    triggerAddProduct: productsData.triggerAddProduct,
+    triggerEditProduct: productsData.triggerEditProduct,
+
     // Search & Suggestions Backend Routes
-    handleSearchProducts,
-    handleGetProductSuggestions,
-    handleSearchInventory,
-    handleGetInventorySuggestions,
-    handleSearchCustomers,
-    handleGetCustomerSuggestions,
-    handleSearchOrders,
-    handleSearchInvoices,
-    handleSearchCredits,
-    handleSearchReviews,
-    handleGetReviewSuggestions,
-    handleSearchInquiries,
-    handleGetInquirySuggestions,
+    handleSearchProducts: searchData.handleSearchProducts,
+    handleGetProductSuggestions: searchData.handleGetProductSuggestions,
+    handleSearchInventory: searchData.handleSearchInventory,
+    handleGetInventorySuggestions: searchData.handleGetInventorySuggestions,
+    handleSearchCustomers: searchData.handleSearchCustomers,
+    handleGetCustomerSuggestions: searchData.handleGetCustomerSuggestions,
+    handleSearchOrders: searchData.handleSearchOrders,
+    handleSearchInvoices: searchData.handleSearchInvoices,
+    handleSearchCredits: searchData.handleSearchCredits,
+    handleSearchReviews: searchData.handleSearchReviews,
+    handleGetReviewSuggestions: searchData.handleGetReviewSuggestions,
+    handleSearchInquiries: searchData.handleSearchInquiries,
+    handleGetInquirySuggestions: searchData.handleGetInquirySuggestions,
+
     // Alert
-    alertConfig,
-    setAlertConfig,
-    showAlert,
+    alertConfig: uiData.alertConfig,
+    setAlertConfig: uiData.setAlertConfig,
+    showAlert: uiData.showAlert,
   };
 }
 

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { router, publicProcedure } from './base.js';
 import {
   getReviews,
+  getReviewCounts,
   getPaginatedReviews,
   searchReviews,
   getReviewSuggestions,
@@ -30,6 +31,12 @@ export const reviewsRouter = router({
     .meta({ description: 'Fetch all reviews for moderation (including unapproved)' })
     .query(async () => {
       return await getReviews();
+    }),
+
+  getCounts: publicProcedure
+    .meta({ description: 'Fetch review counts breakdown (all, approved, pending)' })
+    .query(async () => {
+      return await getReviewCounts();
     }),
 
   getPaginated: publicProcedure
@@ -90,7 +97,8 @@ export const reviewsRouter = router({
     .meta({ description: 'Update an existing review' })
     .input(UpdateReviewInputSchema)
     .mutation(async ({ input }) => {
-      return await updateReview(input.id, { approved: input.approved });
+      const { id, ...data } = input;
+      return await updateReview(id, data);
     }),
 
   delete: publicProcedure

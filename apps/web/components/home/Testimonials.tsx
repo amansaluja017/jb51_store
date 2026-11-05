@@ -13,101 +13,26 @@ interface TestimonialItem {
   quote: string;
   stars: number;
   rating: string;
-  avatar: string;
+  avatar?: string | null;
 }
-
-const DEFAULT_TESTIMONIALS: TestimonialItem[] = [
-  {
-    id: '1',
-    author: 'Rina P.',
-    role: 'Business Owner',
-    subtitle: 'Recent graduate, Marketing at Sweatpals',
-    stars: 5,
-    rating: '5.0',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&h=240&q=80',
-    quote:
-      'QFR Has Helped Me Manage My Business Finances More Efficiently. The Detailed And Accurate Reports Make Financial Planning Much Easier. Highly Recommended For Entrepreneurs!',
-  },
-  {
-    id: '2',
-    author: 'Indra M.',
-    role: 'Private Employee',
-    subtitle: 'Recent graduate, Marketing at Sweatpals',
-    stars: 5,
-    rating: '5.0',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&h=240&q=80',
-    quote:
-      'QFR Is The Best Solution For Anyone Looking To Take Control Of Their Finances. Its Analysis Is Detailed, Features Are Comprehensive, And The Interface Is Incredibly User-Friendly!',
-  },
-  {
-    id: '3',
-    author: 'Maya L.',
-    role: 'Freelancer',
-    subtitle: 'Recent graduate, Marketing at Sweatpals',
-    stars: 5,
-    rating: '5.0',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=240&h=240&q=80',
-    quote:
-      'Data Security And Ease Of Access Are My Top Priorities, And QFR Delivers Both. Now I Can Manage My Personal Finances With Peace Of Mind.',
-  },
-  {
-    id: '4',
-    author: 'Aaradhya M.',
-    role: 'Creative Director',
-    subtitle: 'Bespoke Client • Mumbai',
-    stars: 5,
-    rating: '5.0',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=240&h=240&q=80',
-    quote:
-      'The Banarasi silk drape is pure poetry. The tailoring is absolutely perfect, fits like a dream. Every single thread speaks of generational artistry and heritage craftsmanship.',
-  },
-  {
-    id: '5',
-    author: 'Priya S.',
-    role: 'Architect',
-    subtitle: 'Regular Patron • London',
-    stars: 5,
-    rating: '5.0',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=240&h=240&q=80',
-    quote:
-      'Outstanding customer service on WhatsApp. They adjusted the neckline and silhouette exactly as I requested, and my bespoke order arrived safely ahead of schedule.',
-  },
-  {
-    id: '6',
-    author: 'Rohan D.',
-    role: 'Tech Lead',
-    subtitle: 'Verified Patron • San Francisco',
-    stars: 5,
-    rating: '5.0',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&h=240&q=80',
-    quote:
-      'The fabric quality is breathtaking. Breathable pure handloom silks and royal velvet textures. Generational craftsmanship is evident in every single stitch.',
-  },
-];
 
 export function Testimonials() {
   const { data: dbReviews = [] } = api.reviews.getAll.useQuery();
 
-  // Combine database reviews if available
-  const allTestimonials: TestimonialItem[] = (
-    dbReviews && dbReviews.length > 0
-      ? [
-          ...dbReviews.map((r, i) => ({
-            id: `db-${r.id || i}`,
-            author: r.name || 'Verified Patron',
-            role: 'Patron',
-            subtitle: r.location ? `Verified Patron • ${r.location}` : 'Verified Customer',
-            quote: r.message,
-            stars: Number(r.stars) || 5,
-            rating: '5.0',
-            avatar:
-              DEFAULT_TESTIMONIALS[i % DEFAULT_TESTIMONIALS.length]?.avatar ||
-              DEFAULT_TESTIMONIALS[0]!.avatar,
-          })),
-          ...DEFAULT_TESTIMONIALS,
-        ]
-      : DEFAULT_TESTIMONIALS
-  );
+  // Map real database reviews exclusively (no mock/fallback testimonials)
+  const allTestimonials: TestimonialItem[] = (dbReviews || []).map((r, i) => {
+    const starCount = Math.min(5, Math.max(1, Number(r.stars) || 5));
+    return {
+      id: r.id || `db-${i}`,
+      author: r.name || 'Verified Patron',
+      role: 'Patron',
+      subtitle: r.location ? `Verified Patron • ${r.location}` : 'Verified Customer',
+      quote: r.message,
+      stars: starCount,
+      rating: `${starCount}.0`,
+      avatar: r.image || null,
+    };
+  });
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -116,10 +41,12 @@ export function Testimonials() {
   const total = allTestimonials.length;
 
   const handleNext = useCallback(() => {
+    if (total <= 1) return;
     setCurrentIndex((prev) => (prev + 1) % total);
   }, [total]);
 
   const handlePrev = useCallback(() => {
+    if (total <= 1) return;
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
 
@@ -165,6 +92,11 @@ export function Testimonials() {
     setTouchStartX(null);
     setTouchDeltaX(0);
   };
+
+  // Do not render mock/fallback data if there are no database testimonials
+  if (total === 0) {
+    return null;
+  }
 
   return (
     <section
@@ -276,14 +208,20 @@ export function Testimonials() {
                 {/* Top Section: Avatar & Author Info */}
                 <div className="w-full flex flex-col items-center">
                   {/* Round Avatar */}
-                  <div className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full overflow-hidden mb-4 ring-2 ring-white shadow-sm shrink-0 bg-zinc-100">
-                    <Image
-                      src={item.avatar}
-                      alt={item.author}
-                      fill
-                      sizes="(max-width: 640px) 52px, 56px"
-                      className="object-cover"
-                    />
+                  <div className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full overflow-hidden mb-4 ring-2 ring-white shadow-sm shrink-0 bg-zinc-900 text-white flex items-center justify-center">
+                    {item.avatar ? (
+                      <Image
+                        src={item.avatar}
+                        alt={item.author}
+                        fill
+                        sizes="(max-width: 640px) 52px, 56px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="font-serif font-bold text-base sm:text-lg text-white select-none">
+                        {item.author.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
 
                   {/* Name with em-dash and role */}
@@ -324,52 +262,54 @@ export function Testimonials() {
         </div>
 
         {/* Controls Section: Pagination Indicator & Circular Navigation Buttons */}
-        <div className="mt-8 sm:mt-10 flex flex-col items-center gap-5">
-          {/* Pagination Indicators (Active Orange Pill & Inactive Grey Dots) */}
-          <div className="flex items-center gap-2" role="tablist" aria-label="Slides">
-            {allTestimonials.map((_, idx) => {
-              const isActive = idx === currentIndex;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-label={`Go to slide ${idx + 1}`}
-                  onClick={() => handleDotClick(idx)}
-                  className={`transition-all duration-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF5E36]/40 ${
-                    isActive
-                      ? 'w-6 h-1.5 bg-[#FF5E36]'
-                      : 'w-1.5 h-1.5 bg-zinc-300 hover:bg-zinc-400'
-                  }`}
-                />
-              );
-            })}
-          </div>
+        {total > 1 && (
+          <div className="mt-8 sm:mt-10 flex flex-col items-center gap-5">
+            {/* Pagination Indicators (Active Orange Pill & Inactive Grey Dots) */}
+            <div className="flex items-center gap-2" role="tablist" aria-label="Slides">
+              {allTestimonials.map((_, idx) => {
+                const isActive = idx === currentIndex;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-label={`Go to slide ${idx + 1}`}
+                    onClick={() => handleDotClick(idx)}
+                    className={`transition-all duration-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF5E36]/40 ${
+                      isActive
+                        ? 'w-6 h-1.5 bg-[#FF5E36]'
+                        : 'w-1.5 h-1.5 bg-zinc-300 hover:bg-zinc-400'
+                    }`}
+                  />
+                );
+              })}
+            </div>
 
-          {/* Navigation Buttons: Light Left Arrow & Dark Solid Right Arrow */}
-          <div className="flex items-center justify-center gap-3">
-            {/* Prev Button (Light White/Grey) */}
-            <button
-              type="button"
-              onClick={handlePrev}
-              aria-label="Previous testimonial"
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white border border-zinc-200/90 text-zinc-900 shadow-sm hover:bg-zinc-100 hover:border-zinc-300 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-zinc-400"
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-            </button>
+            {/* Navigation Buttons: Light Left Arrow & Dark Solid Right Arrow */}
+            <div className="flex items-center justify-center gap-3">
+              {/* Prev Button (Light White/Grey) */}
+              <button
+                type="button"
+                onClick={handlePrev}
+                aria-label="Previous testimonial"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white border border-zinc-200/90 text-zinc-900 shadow-sm hover:bg-zinc-100 hover:border-zinc-300 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              >
+                <ArrowLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              </button>
 
-            {/* Next Button (Solid Dark Black) */}
-            <button
-              type="button"
-              onClick={handleNext}
-              aria-label="Next testimonial"
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-zinc-950 text-white shadow-md hover:bg-zinc-800 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-zinc-950/40"
-            >
-              <ArrowRight className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-            </button>
+              {/* Next Button (Solid Dark Black) */}
+              <button
+                type="button"
+                onClick={handleNext}
+                aria-label="Next testimonial"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-zinc-950 text-white shadow-md hover:bg-zinc-800 active:scale-95 transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-zinc-950/40"
+              >
+                <ArrowRight className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );

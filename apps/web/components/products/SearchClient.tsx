@@ -46,22 +46,29 @@ const LotusIcon = ({ className = "w-6 h-6 text-[#FF5E36]" }) => (
 
 export function SearchClient({ query }: Props) {
   const [inputQuery, setInputQuery] = useState(() => parseSearchTerm(query));
-  const debouncedQuery = useDebounce(inputQuery.trim(), 250);
+  // Debounce input (500ms) - waits until typing stops before querying backend
+  const debouncedQuery = useDebounce(inputQuery.trim(), 500);
+  const isSearchTyping = inputQuery.trim() !== debouncedQuery;
 
   useEffect(() => {
     setInputQuery(parseSearchTerm(query));
   }, [query]);
 
-  // Dedicated backend ILIKE search route for products matching name, description, tags
-  const { data: searchData, isLoading: loading } = api.products.search.useQuery({
-    query: debouncedQuery,
-    limit: 48,
-  });
+  // Dedicated backend ILIKE search route for products matching name, description, tags (only after typing stops)
+  const { data: searchData, isLoading: loading } = api.products.search.useQuery(
+    {
+      query: debouncedQuery,
+      limit: 48,
+    },
+    {
+      enabled: !isSearchTyping,
+    }
+  );
 
-  // Dedicated backend pg_trgm suggestions route for related tags and categories
+  // Dedicated backend pg_trgm suggestions route for related tags and categories (only after typing stops)
   const { data: suggestionsData } = api.products.suggestions.useQuery(
     { query: debouncedQuery },
-    { enabled: debouncedQuery.length > 0 }
+    { enabled: debouncedQuery.length > 0 && !isSearchTyping }
   );
 
   const matchedProducts = searchData?.items || [];

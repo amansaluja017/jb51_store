@@ -26,7 +26,7 @@ export const requestNotificationPermissions = async () => {
   }
 };
 
-export const triggerLocalNotification = async (title: string, body: string, data?: Record<string, any>) => {
+export const triggerLocalNotification = async (title: string, body: string, data?: Record<string, unknown>) => {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {

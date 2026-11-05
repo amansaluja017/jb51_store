@@ -119,8 +119,9 @@ export default function AccountSettingsModal({
       await onChangeUsername(trimmed);
       showAlert('Username Updated', 'Your username has been successfully updated.', 'success');
       setCurrentView('main');
-    } catch (err: any) {
-      showAlert('Update Failed', err.message || 'Failed to update username.', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update username.';
+      showAlert('Update Failed', message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -137,8 +138,9 @@ export default function AccountSettingsModal({
       await onChangeEmail(trimmed);
       showAlert('Email Updated', 'Your email address has been successfully updated.', 'success');
       setCurrentView('main');
-    } catch (err: any) {
-      showAlert('Update Failed', err.message || 'Failed to update email address.', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update email address.';
+      showAlert('Update Failed', message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -155,8 +157,9 @@ export default function AccountSettingsModal({
       showAlert('Password Updated', 'Your password has been successfully updated.', 'success');
       passwordForm.reset({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setCurrentView('main');
-    } catch (err: any) {
-      showAlert('Update Failed', err.message || 'Failed to update password.', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update password.';
+      showAlert('Update Failed', message, 'error');
     } finally {
       setIsSubmitting(false);
     }

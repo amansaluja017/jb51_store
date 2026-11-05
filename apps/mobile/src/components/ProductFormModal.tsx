@@ -6,45 +6,31 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Switch,
   Platform,
   KeyboardAvoidingView,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   X,
-  Trash2,
-  ChevronDown,
-  Camera,
-  Image as ImageIcon,
-  Plus,
   ArrowRight,
   Check,
   FileText,
   Layers,
-  Link as LinkIcon,
-  FolderOpen,
-  ChevronRight,
   Eye,
-  RefreshCw,
-  Pipette,
-  Palette,
   AlertTriangle,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Product, Variant } from '../types';
-import DraggableImageList from './DraggableImageList';
 import ColorPickerModal from './ColorPickerModal';
 import MediaSelectionModal from './products/MediaSelectionModal';
 import UrlInputModal from './products/UrlInputModal';
 import ProductDetailsTab from './products/ProductDetailsTab';
 import ProductVariantsTab from './products/ProductVariantsTab';
 import ProductVisibilityTab from './products/ProductVisibilityTab';
-
-
-import SimpleTextEditor from './SimpleTextEditor';
+import AiImagePromptsModal from './products/AiImagePromptsModal';
+import AiDescriptionModal from './products/AiDescriptionModal';
 import styles from './ProductFormModal.styles';
 import {
   extractColorsFromCoverImage,
@@ -134,7 +120,7 @@ export default function ProductFormModal({
             reservedStock: reservedStock || 0,
             images: (images && images.length > 0) ? images : cleanedImgs
           }))
-          : [{ color: '', hexCode: '', stock: '' as any, reservedStock: 0, images: cleanedImgs }]
+          : [{ color: '', hexCode: '', stock: 0, reservedStock: 0, images: cleanedImgs }]
       };
     }
     return {
@@ -153,7 +139,7 @@ export default function ProductFormModal({
       bestseller: false,
       isListed: true,
       images: [],
-      variants: [{ color: '', hexCode: '', stock: '' as any, reservedStock: 0, images: [] }],
+      variants: [{ color: '', hexCode: '', stock: 0, reservedStock: 0, images: [] }],
     };
   };
 
@@ -262,6 +248,11 @@ export default function ProductFormModal({
   const [newCatInput, setNewCatInput] = useState('');
   const [showNewCatInput, setShowNewCatInput] = useState(false);
 
+  // AI Studio states
+  const [showAiImagePromptsModal, setShowAiImagePromptsModal] = useState(false);
+  const [showAiDescriptionModal, setShowAiDescriptionModal] = useState(false);
+  const [activeAiVariantIdx, setActiveAiVariantIdx] = useState<number | null>(null);
+
   // Discard alert state
   const [showDiscardAlert, setShowDiscardAlert] = useState(false);
 
@@ -271,6 +262,9 @@ export default function ProductFormModal({
     setShowCategorySelector(false);
     setShowNewCatInput(false);
     setNewCatInput('');
+    setShowAiImagePromptsModal(false);
+    setShowAiDescriptionModal(false);
+    setActiveAiVariantIdx(null);
     setActiveVariantIdxForMedia(null);
     setIsUploadingImage(false);
     setUploadingUris([]);
@@ -559,9 +553,10 @@ export default function ProductFormModal({
           } else {
             setFormImages(prev => prev.map(img => img === localUri ? cloudUrl : img));
           }
-        } catch (uploadErr: any) {
+        } catch (uploadErr: unknown) {
           console.error('[Cloudinary Upload Failed]:', uploadErr);
-          showAlert('Upload Notice', `Could not upload photo to Cloudinary: ${uploadErr.message || 'Server error'}.`, 'error');
+          const message = uploadErr instanceof Error ? uploadErr.message : 'Server error';
+          showAlert('Upload Notice', `Could not upload photo to Cloudinary: ${message}.`, 'error');
           // If image failed to upload, don't add to the image list
           if (variantIdx !== null && variantIdx !== undefined) {
             setFormVariants(prev => {
@@ -609,8 +604,9 @@ export default function ProductFormModal({
         console.log('[Cloudinary Delete] Deleting variant image from Cloudinary:', urlToRemove);
         await deleteProductImageByUrl(urlToRemove, { apiHost, token });
         console.log('[Cloudinary Delete Success]:', urlToRemove);
-      } catch (e: any) {
-        console.warn('[Cloudinary remote delete warning]:', e?.message || e);
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.warn('[Cloudinary remote delete warning]:', message);
       } finally {
         setDeletingUris(prev => prev.filter(u => u !== urlToRemove));
         setFormVariants(prev => {
@@ -691,9 +687,10 @@ export default function ProductFormModal({
           return updated;
         });
         setFormImages(finalImages);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[handleReorderVariantImages Error]:', err);
-        showAlert('Reorder Failed', err?.message || 'Failed to update image order on server.', 'error');
+        const message = err instanceof Error ? err.message : 'Failed to update image order on server.';
+        showAlert('Reorder Failed', message, 'error');
       } finally {
         setIsReorderingImages(false);
         setReorderingVariantIdx(null);
@@ -812,7 +809,7 @@ export default function ProductFormModal({
     );
   };
 
-  const addVariantField = () => setFormVariants(prev => [...prev, { color: '', hexCode: '', stock: '' as any, reservedStock: 0, images: [] }]);
+  const addVariantField = () => setFormVariants(prev => [...prev, { color: '', hexCode: '', stock: 0, reservedStock: 0, images: [] }]);
   const updateVariantField = (idx: number, field: keyof Variant, val: string | number) => {
     const updated = [...formVariants];
     updated[idx] = { ...updated[idx], [field]: val } as Variant;
@@ -932,7 +929,7 @@ export default function ProductFormModal({
                 images: (currentVariants[item.variantIdx].images || []).map(img => img === item.uri ? cloudUrl : img),
               };
             }
-          } catch (uploadErr: any) {
+          } catch (uploadErr: unknown) {
             console.error('[Cloudinary Auto-upload Failed]:', uploadErr);
             if (!item.isVariant) {
               currentFormImages = currentFormImages.filter(img => img !== item.uri);
@@ -1001,7 +998,7 @@ export default function ProductFormModal({
       .map(t => t.trim().toLowerCase())
       .filter(t => t !== '');
 
-    const savePayload: any = {
+    const savePayload: Product = {
       id: initialProduct?.id || Math.random().toString(36).substring(2, 9),
       name: formName.trim(),
       slug: formSlug.trim(),
@@ -1019,12 +1016,9 @@ export default function ProductFormModal({
       newArrival: formNewArrival,
       bestseller: formBestseller,
       isListed: formIsListed,
-      tags
+      tags,
+      variants: cleanedVariants,
     };
-
-    if (!isEditing) {
-      savePayload.variants = cleanedVariants;
-    }
 
     setIsSubmitting(true);
     try {
@@ -1107,6 +1101,7 @@ export default function ProductFormModal({
                 handleCreateCategory={handleCreateCategory}
                 handleDeleteCategoryClick={handleDeleteCategoryClick}
                 handleNameChange={handleNameChange}
+                onOpenAiDescription={() => setShowAiDescriptionModal(true)}
               />
             )}
 
@@ -1130,6 +1125,10 @@ export default function ProductFormModal({
                 isReorderingImages={isReorderingImages}
                 uploadingUris={uploadingUris}
                 deletingUris={deletingUris}
+                onOpenAiImagePrompts={(variantIdx) => {
+                  setActiveAiVariantIdx(variantIdx);
+                  setShowAiImagePromptsModal(true);
+                }}
               />
             )}
 
@@ -1222,6 +1221,11 @@ export default function ProductFormModal({
             setShowMediaOptions(false);
             setTimeout(() => setShowUrlInput(true), 350);
           }}
+          onOpenAiPrompt={() => {
+            setShowMediaOptions(false);
+            setActiveAiVariantIdx(activeVariantIdxForMedia);
+            setTimeout(() => setShowAiImagePromptsModal(true), 350);
+          }}
         />
 
         {/* URL Input Modal */}
@@ -1259,6 +1263,78 @@ export default function ProductFormModal({
             }}
           />
         )}
+
+        {/* AI Image Photography Prompts Modal */}
+        {(() => {
+          const currentVariant = (activeAiVariantIdx !== null && formVariants[activeAiVariantIdx]) ? formVariants[activeAiVariantIdx] : formVariants[0];
+          const variantImgs = (currentVariant?.images || []).filter(img => typeof img === 'string' && img.trim() !== '');
+          const allImgs = Array.from(new Set([...variantImgs, ...formImages])).filter(img => typeof img === 'string' && img.trim() !== '');
+          const initialRefImg = variantImgs[0] || formImages[0] || '';
+
+          return (
+            <AiImagePromptsModal
+              visible={showAiImagePromptsModal}
+              onClose={() => setShowAiImagePromptsModal(false)}
+              activeVariantIdx={activeAiVariantIdx}
+              productData={{
+                name: formName,
+                category: formCategory,
+                fabric: formFabric,
+                fit: formFit,
+                careInstructions: formCare,
+                tags: formTags,
+                description: formDescription,
+                variantColor: currentVariant?.color || '',
+                variantHex: currentVariant?.hexCode || '',
+                mrp: formMrp,
+                sellingPrice: formSellingPrice,
+                referenceImageUrl: initialRefImg,
+                referenceImages: allImgs,
+              }}
+              onUpdateProductData={(updated) => {
+                if (updated.name !== undefined) setFormName(updated.name);
+                if (updated.fabric !== undefined) setFormFabric(updated.fabric);
+                if (updated.fit !== undefined) setFormFit(updated.fit);
+                if (updated.description !== undefined) setFormDescription(updated.description);
+                if (updated.variantColor !== undefined) {
+                  const targetIdx = activeAiVariantIdx !== null ? activeAiVariantIdx : 0;
+                  if (formVariants[targetIdx]) {
+                    updateVariantField(targetIdx, 'color', updated.variantColor);
+                  }
+                }
+              }}
+            />
+          );
+        })()}
+
+        {/* AI Description Studio Modal */}
+        <AiDescriptionModal
+          visible={showAiDescriptionModal}
+          onClose={() => setShowAiDescriptionModal(false)}
+          productData={{
+            name: formName,
+            category: formCategory,
+            fabric: formFabric,
+            fit: formFit,
+            careInstructions: formCare,
+            tags: formTags,
+            description: formDescription,
+            variantColor: formVariants[0]?.color || '',
+            variantHex: formVariants[0]?.hexCode || '',
+            mrp: formMrp,
+            sellingPrice: formSellingPrice,
+          }}
+          onSelectDescription={(descText) => {
+            setFormDescription(descText);
+          }}
+          onUpdateProductData={(updated) => {
+            if (updated.name !== undefined) setFormName(updated.name);
+            if (updated.fabric !== undefined) setFormFabric(updated.fabric);
+            if (updated.fit !== undefined) setFormFit(updated.fit);
+            if (updated.careInstructions !== undefined) setFormCare(updated.careInstructions);
+            if (updated.tags !== undefined) setFormTags(updated.tags);
+          }}
+        />
 
         {/* Unsaved Changes Discard Alert */}
         {showDiscardAlert && (

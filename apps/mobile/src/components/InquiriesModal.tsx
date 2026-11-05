@@ -30,6 +30,15 @@ import { InquiryListSkeleton } from './SkeletonLoader';
 export type InquirySortOption = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
 export type InquiryStatusFilter = 'all' | 'pending' | 'resolved';
 
+export interface InquirySuggestion {
+  id: string;
+  customerName: string;
+  phoneNumber?: string | null;
+  message?: string;
+  inqueryType?: string;
+  productName?: string;
+}
+
 interface InquiriesModalProps {
   visible: boolean;
   onClose: () => void;
@@ -57,10 +66,10 @@ interface InquiriesModalProps {
     status?: InquiryStatusFilter;
     sortBy?: InquirySortOption;
     append?: boolean;
-  }) => Promise<any>;
+  }) => Promise<unknown>;
   onResolveInquiry: (id: string, name: string) => void;
-  onSearchInquiries?: (query: string) => Promise<any>;
-  onGetInquirySuggestions?: (query: string) => Promise<any>;
+  onSearchInquiries?: (query: string) => Promise<Inquiry[]>;
+  onGetInquirySuggestions?: (query: string) => Promise<InquirySuggestion[]>;
 }
 
 const SORT_OPTIONS: { id: InquirySortOption; label: string; description: string }[] = [
@@ -89,12 +98,21 @@ export default function InquiriesModal({
 }: InquiriesModalProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [localSearch, setLocalSearch] = useState(searchQuery);
-  const debouncedSearch = useDebounce(localSearch.trim(), 250);
-  const [suggestions, setSuggestions] = useState<any[] | null>(null);
+  // Debounce search query (500ms) - waits until typing stops before querying backend
+  const debouncedSearch = useDebounce(localSearch.trim(), 500);
+  const isSearchTyping = localSearch.trim() !== debouncedSearch;
+  const [suggestions, setSuggestions] = useState<InquirySuggestion[] | null>(null);
   const [activeFilter, setActiveFilter] = useState<InquiryStatusFilter>(statusFilter);
   const [activeSort, setActiveSort] = useState<InquirySortOption>(sortBy);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const onFetchPaginatedInquiriesRef = useRef(onFetchPaginatedInquiries);
+  onFetchPaginatedInquiriesRef.current = onFetchPaginatedInquiries;
+  const onGetInquirySuggestionsRef = useRef(onGetInquirySuggestions);
+  onGetInquirySuggestionsRef.current = onGetInquirySuggestions;
+  const onSearchChangeRef = useRef(onSearchChange);
+  onSearchChangeRef.current = onSearchChange;
 
   // Sync internal state if prop updates externally
   useEffect(() => {
@@ -106,12 +124,24 @@ export default function InquiriesModal({
   }, [sortBy]);
 
   useEffect(() => {
-    setLocalSearch(searchQuery);
+    if (searchQuery !== localSearch) {
+      setLocalSearch(searchQuery);
+    }
   }, [searchQuery]);
 
-  // Debounced backend search & pg_trgm suggestion trigger
+  // Sync debounced search to parent only when typing stops and modal is visible
   useEffect(() => {
-    onFetchPaginatedInquiries?.({
+    if (!visible || isSearchTyping) return;
+    if (debouncedSearch !== searchQuery) {
+      onSearchChangeRef.current?.(debouncedSearch);
+    }
+  }, [visible, debouncedSearch, isSearchTyping, searchQuery]);
+
+  // Debounced backend search & pg_trgm suggestion trigger (only when modal is visible and typing stops)
+  useEffect(() => {
+    if (!visible || isSearchTyping) return;
+
+    onFetchPaginatedInquiriesRef.current?.({
       page: 1,
       search: debouncedSearch || '',
       status: activeFilter,
@@ -119,8 +149,8 @@ export default function InquiriesModal({
       append: false,
     });
 
-    if (debouncedSearch && onGetInquirySuggestions) {
-      onGetInquirySuggestions(debouncedSearch)
+    if (debouncedSearch && onGetInquirySuggestionsRef.current) {
+      onGetInquirySuggestionsRef.current(debouncedSearch)
         .then((res) => {
           setSuggestions(res || []);
         })
@@ -130,11 +160,10 @@ export default function InquiriesModal({
     } else {
       setSuggestions(null);
     }
-  }, [debouncedSearch, activeFilter, activeSort, onFetchPaginatedInquiries, onGetInquirySuggestions]);
+  }, [visible, debouncedSearch, isSearchTyping, activeFilter, activeSort]);
 
   const handleSearchTextChange = (text: string) => {
     setLocalSearch(text);
-    onSearchChange?.(text);
   };
 
   const handleClearSearch = () => {

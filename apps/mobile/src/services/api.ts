@@ -169,16 +169,24 @@ export const refreshAccessToken = async (apiHost?: string): Promise<string | nul
       }
 
       return null;
-    } catch (refreshErr) {
-      console.warn('[refreshAccessToken] Failed to refresh token, clearing session:', refreshErr);
-      await tokenStorage.clearAuthData();
-      tokenListeners.forEach((listener) => {
-        try {
-          listener(null);
-        } catch {
-          // ignore
-        }
-      });
+    } catch (refreshErr: unknown) {
+      const errorMessage = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+      console.warn('[refreshAccessToken] Failed to refresh token:', errorMessage);
+      const isAxios = axios.isAxiosError(refreshErr);
+      const status = isAxios ? refreshErr.response?.status : undefined;
+      const isAuthRejection = status === 401 || status === 403 || status === 400;
+
+      if (isAuthRejection) {
+        console.warn('[refreshAccessToken] Refresh token was rejected by server. Clearing credentials.');
+        await tokenStorage.clearAuthData();
+        tokenListeners.forEach((listener) => {
+          try {
+            listener(null);
+          } catch {
+            // ignore
+          }
+        });
+      }
       return null;
     } finally {
       refreshTokenPromise = null;
@@ -188,7 +196,7 @@ export const refreshAccessToken = async (apiHost?: string): Promise<string | nul
   return refreshTokenPromise;
 };
 
-export const trpcRequest = async (
+export const trpcRequest = async <T = unknown>(
   path: string,
   options: {
     method?: 'GET' | 'POST';
@@ -198,7 +206,7 @@ export const trpcRequest = async (
     apiHost: string;
     _isRetry?: boolean;
   }
-): Promise<any> => {
+): Promise<T> => {
   const cleanHost = options.apiHost.trim().replace(/\/$/, '');
   const url = `${cleanHost}/trpc/${path}`;
   const headers: Record<string, string> = {
@@ -262,15 +270,21 @@ export const trpcRequest = async (
       }
       return json.result.data;
     }
-    return json?.result || json;
-  } catch (err: any) {
+    return (json?.result || json) as T;
+  } catch (err: unknown) {
     const serverError = extractErrorMessage(err);
     console.error(`[tRPC Axios Error] ${path}:`, serverError);
 
+    const isAxios = axios.isAxiosError(err);
+    const status = isAxios ? err.response?.status : undefined;
+    const responseData = isAxios
+      ? (err.response?.data as { error?: { data?: { code?: string }; json?: { data?: { code?: string } } } } | undefined)
+      : undefined;
+    const errorCode = responseData?.error?.data?.code || responseData?.error?.json?.data?.code;
+
     const isUnauthorized =
-      err?.response?.status === 401 ||
-      err?.response?.data?.error?.data?.code === 'UNAUTHORIZED' ||
-      err?.response?.data?.error?.json?.data?.code === 'UNAUTHORIZED' ||
+      status === 401 ||
+      errorCode === 'UNAUTHORIZED' ||
       serverError?.toLowerCase().includes('jwt expired') ||
       serverError?.toLowerCase().includes('authentication required') ||
       serverError?.toLowerCase().includes('invalid or expired');
@@ -285,7 +299,7 @@ export const trpcRequest = async (
       const refreshedToken = await refreshAccessToken(options.apiHost);
       if (refreshedToken) {
         console.log(`[tRPC Retrying] ${path} with newly refreshed access token...`);
-        return await trpcRequest(path, {
+        return await trpcRequest<T>(path, {
           ...options,
           token: refreshedToken,
           _isRetry: true,
@@ -304,8 +318,8 @@ export interface UploadImageResult {
   height?: number;
   aspectRatio?: number;
   format?: string;
-  image?: any;
-  rule?: any;
+  image?: unknown;
+  rule?: unknown;
 }
 
 export const uploadProductImage = async (
@@ -349,7 +363,7 @@ export const uploadProductImage = async (
         uri: fileUri,
         name: filename,
         type,
-      } as any);
+      } as unknown as Blob);
     }
   } else {
     // Native React Native mobile (iOS / Android)
@@ -357,7 +371,7 @@ export const uploadProductImage = async (
       uri: Platform.OS === 'android' ? fileUri : fileUri.replace('file://', ''),
       name: filename,
       type,
-    } as any);
+    } as unknown as Blob);
   }
 
   if (options?.productId) {
@@ -412,8 +426,8 @@ export const uploadProductImage = async (
     }
 
     return data;
-  } catch (err: any) {
-    const errorMsg = err.message || 'Failed to upload image to server.';
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to upload image to server.';
     console.error('[Image Upload Error]:', errorMsg);
     throw new Error(errorMsg);
   }
@@ -473,8 +487,9 @@ export const deleteProductImageByUrl = async (
       headers,
     });
     return response.data;
-  } catch (err: any) {
-    console.warn('[deleteProductImageByUrl Error]:', err?.message || err);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.warn('[deleteProductImageByUrl Error]:', errorMsg);
     return null;
   }
 };

@@ -141,8 +141,9 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       } else {
         throw new Error('Upload server did not return a valid URL.');
       }
-    } catch (err: any) {
-      Alert.alert('Upload Failed', err?.message || 'Could not upload image to CDN.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not upload image to CDN.';
+      Alert.alert('Upload Failed', message);
     } finally {
       setIsUploading(false);
     }
@@ -187,8 +188,9 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         validateAndProceed(result.assets[0]);
       }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to select image.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to select image.';
+      Alert.alert('Error', message);
     }
   };
 
@@ -206,8 +208,9 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         validateAndProceed(result.assets[0]);
       }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to capture photo.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to capture photo.';
+      Alert.alert('Error', message);
     }
   };
 
@@ -510,8 +513,9 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
       }
       setConfig(data);
       setInitialConfig(JSON.parse(JSON.stringify(data)));
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to load website configuration.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load website configuration.';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
@@ -681,8 +685,9 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
           `Updated [${changedKeys.join(', ')}] on web! Next.js cache has been automatically revalidated.`
         );
       }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to save configuration.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save configuration.';
+      Alert.alert('Error', message);
     } finally {
       setSaving(false);
     }
@@ -696,8 +701,9 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
         const tag = res.tag || 'site-config';
         Alert.alert('Cache Invalidation', `Tag "${tag}" revalidated on web! Next page view will serve fresh data.`);
       }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to trigger web cache revalidation.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to trigger web cache revalidation.';
+      Alert.alert('Error', message);
     } finally {
       setRevalidating(false);
     }

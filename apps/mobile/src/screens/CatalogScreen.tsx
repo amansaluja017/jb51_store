@@ -14,11 +14,26 @@ import { useDebounce } from '../hooks/useDebounce';
 import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
-import { Product } from '../types';
+import { Product, PaginatedProductsResponse } from '../types';
 import { Pagination } from '../components/ui';
 import styles from './CatalogScreen.styles';
 
-interface CatalogScreenProps {
+export interface ProductSuggestionItem {
+  id: string;
+  name: string;
+  slug?: string;
+  category?: string;
+  price?: number;
+  sellingPrice?: number;
+}
+
+export interface ProductSuggestionsData {
+  products?: ProductSuggestionItem[];
+  categories?: string[];
+  tags?: string[];
+}
+
+export interface CatalogScreenProps {
   products: Product[];
   categories?: string[];
   searchQuery: string;
@@ -37,17 +52,18 @@ interface CatalogScreenProps {
     search?: string;
     category?: string;
     inStockOnly?: boolean;
+    sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
     page?: number;
     limit?: number;
-  }) => Promise<any>;
+  }) => Promise<PaginatedProductsResponse>;
   onSearchProducts?: (params: {
     query?: string;
     category?: string;
     inStockOnly?: boolean;
     page?: number;
     limit?: number;
-  }) => Promise<any>;
-  onGetProductSuggestions?: (query: string) => Promise<any>;
+  }) => Promise<{ items: Product[]; total?: number; metrics?: unknown }>;
+  onGetProductSuggestions?: (query: string) => Promise<ProductSuggestionsData>;
 }
 
 const PAGE_SIZE = 8;
@@ -83,9 +99,10 @@ export default function CatalogScreen({
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Debounced search query (250ms) to prevent excessive backend route calls
-  const debouncedSearch = useDebounce(searchQuery.trim(), 250);
-  const [suggestions, setSuggestions] = useState<{ products?: any[]; categories?: string[]; tags?: string[] } | null>(null);
+  // Debounced search query (500ms) - waits until user stops typing before querying backend
+  const debouncedSearch = useDebounce(searchQuery.trim(), 500);
+  const isSearchTyping = searchQuery.trim() !== debouncedSearch;
+  const [suggestions, setSuggestions] = useState<ProductSuggestionsData | null>(null);
 
   // Derive unique categories from both API categories and products
   const categoryList = useMemo(() => {
@@ -106,8 +123,10 @@ export default function CatalogScreen({
     setPage(1);
   }, [debouncedSearch, selectedCategory]);
 
-  // Fetch Suggestions from backend pg_trgm route
+  // Fetch Suggestions from backend pg_trgm route (only after typing stops)
   useEffect(() => {
+    if (isSearchTyping) return;
+
     let isMounted = true;
     if (debouncedSearch && onGetProductSuggestions) {
       onGetProductSuggestions(debouncedSearch)
@@ -125,10 +144,12 @@ export default function CatalogScreen({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, onGetProductSuggestions]);
+  }, [debouncedSearch, isSearchTyping, onGetProductSuggestions]);
 
-  // Hit backend search route using ILIKE or paginated route (no client-side filtering)
+  // Hit backend search route using ILIKE or paginated route (only after typing stops)
   useEffect(() => {
+    if (isSearchTyping) return;
+
     let isMounted = true;
     const fetchBackendProducts = async () => {
       setIsFetchingRemote(true);
@@ -177,7 +198,7 @@ export default function CatalogScreen({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, selectedCategory, page, refreshKey, onSearchProducts, onFetchPaginatedProducts]);
+  }, [debouncedSearch, isSearchTyping, selectedCategory, page, refreshKey, onSearchProducts, onFetchPaginatedProducts]);
 
   const displayedProducts = remoteData
     ? remoteData.items
