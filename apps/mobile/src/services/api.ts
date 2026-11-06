@@ -204,6 +204,7 @@ export const trpcRequest = async <T = unknown>(
     input?: unknown;
     token?: string | null;
     apiHost: string;
+    signal?: AbortSignal;
     _isRetry?: boolean;
   }
 ): Promise<T> => {
@@ -254,6 +255,7 @@ export const trpcRequest = async <T = unknown>(
         ...headers,
         ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
       },
+      signal: options.signal,
       timeout: 60000,
       data: method === 'POST' ? { json: postPayload !== undefined ? postPayload : {} } : undefined,
     });
@@ -272,6 +274,10 @@ export const trpcRequest = async <T = unknown>(
     }
     return (json?.result || json) as T;
   } catch (err: unknown) {
+    if (axios.isCancel(err) || (axios.isAxiosError(err) && err.code === 'ERR_CANCELED')) {
+      throw err;
+    }
+
     const serverError = extractErrorMessage(err);
     console.error(`[tRPC Axios Error] ${path}:`, serverError);
 

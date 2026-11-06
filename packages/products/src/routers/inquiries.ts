@@ -11,14 +11,14 @@ import {
 } from '../inquiries.js';
 
 export const inquiriesRouter = router({
-  getAll: publicProcedure
-    .meta({ description: 'Fetch all customer inquiries' })
+  getAll: adminProcedure
+    .meta({ description: 'Fetch all customer inquiries (Admin only)' })
     .query(async () => {
       return await getInquiries();
     }),
 
-  getPaginated: publicProcedure
-    .meta({ description: 'Fetch paginated inquiries with sort and search options' })
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated inquiries with sort and search options (Admin only)' })
     .input(
       z
         .object({
@@ -34,8 +34,8 @@ export const inquiriesRouter = router({
       return await getPaginatedInquiries(input || undefined);
     }),
 
-  search: publicProcedure
-    .meta({ description: 'Fast search customer inquiries using ilike' })
+  search: adminProcedure
+    .meta({ description: 'Fast search customer inquiries using ilike (Admin only)' })
     .input(
       z
         .object({
@@ -49,8 +49,8 @@ export const inquiriesRouter = router({
       return await searchInquiries(input || undefined);
     }),
 
-  suggestions: publicProcedure
-    .meta({ description: 'Real-time autocomplete suggestions for inquiries using pg_trgm' })
+  suggestions: adminProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for inquiries using pg_trgm (Admin only)' })
     .input(
       z.object({
         query: z.string().nullish(),
@@ -90,8 +90,8 @@ export const inquiriesRouter = router({
       });
     }),
 
-  updateStatus: publicProcedure
-    .meta({ description: 'Update status of an inquiry' })
+  updateStatus: adminProcedure
+    .meta({ description: 'Update status of an inquiry (Admin only)' })
     .input(
       z.object({
         id: z.string(),

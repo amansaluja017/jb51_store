@@ -26,6 +26,7 @@ import { Inquiry } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
 import { Pagination } from './ui';
 import { InquiryListSkeleton } from './SkeletonLoader';
+import { isAbortError } from '../services/searchService';
 
 export type InquirySortOption = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
 export type InquiryStatusFilter = 'all' | 'pending' | 'resolved';
@@ -154,7 +155,8 @@ export default function InquiriesModal({
         .then((res) => {
           setSuggestions(res || []);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          if (isAbortError(err)) return;
           setSuggestions([]);
         });
     } else {

@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 110 : 96,
   },
   ledgerHeader: {
     flexDirection: 'row',
@@ -199,6 +199,34 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     color: '#09090b',
     backgroundColor: '#ffffff',
+  },
+  inputErrorBorder: {
+    borderColor: '#ef4444',
+    borderWidth: 1.5,
+  },
+  inlineFieldError: {
+    color: '#ef4444',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 2,
+  },
+  itemsInlineNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  itemsInlineNoticeText: {
+    color: '#b45309',
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
   },
   dropdownTrigger: {
     borderWidth: 1,

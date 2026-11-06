@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Product,
   AnalyticsOverviewData,
@@ -33,7 +33,7 @@ interface OverviewAggregatedResponse {
 
 interface UseAnalyticsDataProps {
   trpcRequest: <T = unknown>(path: string, options?: { method?: 'GET' | 'POST'; body?: unknown; input?: unknown }) => Promise<T>;
-  products: Product[];
+  products?: Product[];
   isAuthenticated: boolean;
   activeTab: string;
 }
@@ -57,15 +57,25 @@ export function useAnalyticsData({
   const [catalogueTelemetryAnalytics, setCatalogueTelemetryAnalytics] = useState<ProductAnalyticsItem[]>([]);
   const [inventorySummaryAnalytics, setInventorySummaryAnalytics] = useState<InventorySummaryAnalytics | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const isFetchingRef = useRef(false);
+  const lastFetchedSlugRef = useRef<string | null>(null);
 
   const [selectedAnalyticsSlug, setSelectedAnalyticsSlug] = useState<string>('all');
   const [showAnalyticsSelector, setShowAnalyticsSelector] = useState(false);
 
   const stats = useMemo(() => {
-    const total = products.length;
-    const oos = products.filter(p => !isProductInStock(p)).length;
+    if (inventorySummaryAnalytics) {
+      return {
+        total: inventorySummaryAnalytics.totalProducts ?? 0,
+        listed: inventorySummaryAnalytics.inStockProducts ?? 0,
+        oos: inventorySummaryAnalytics.outOfStockProducts ?? 0,
+        active: inventorySummaryAnalytics.inStockProducts ?? 0,
+      };
+    }
+    const total = products?.length ?? 0;
+    const oos = products ? products.filter(p => !isProductInStock(p)).length : 0;
     const active = total - oos;
-    const listed = products.filter(p => p.isListed !== false).length;
+    const listed = products ? products.filter(p => p.isListed !== false).length : 0;
 
     return {
       total,
@@ -73,23 +83,52 @@ export function useAnalyticsData({
       oos,
       active,
     };
-  }, [products]);
+  }, [inventorySummaryAnalytics, products]);
 
   const activeAnalyticsProduct = useMemo(() => {
     if (selectedAnalyticsSlug === 'all') return null;
-    return products.find(p => p.slug === selectedAnalyticsSlug) || null;
-  }, [products, selectedAnalyticsSlug]);
+    if (
+      analyticsOverview?.product &&
+      (analyticsOverview.product.slug === selectedAnalyticsSlug || analyticsOverview.product.id === selectedAnalyticsSlug)
+    ) {
+      return analyticsOverview.product;
+    }
+    const foundInTelemetry = catalogueTelemetryAnalytics.find(
+      p => p.slug === selectedAnalyticsSlug || p.id === selectedAnalyticsSlug || p.productId === selectedAnalyticsSlug
+    );
+    if (foundInTelemetry) {
+      return {
+        id: foundInTelemetry.id || foundInTelemetry.productId,
+        slug: foundInTelemetry.slug,
+        name: foundInTelemetry.name,
+        category: foundInTelemetry.category,
+        price: foundInTelemetry.price,
+        sellingPrice: foundInTelemetry.price,
+        image: foundInTelemetry.image,
+      };
+    }
+    return products?.find(p => p.slug === selectedAnalyticsSlug) || null;
+  }, [selectedAnalyticsSlug, analyticsOverview, catalogueTelemetryAnalytics, products]);
 
-  const handleFetchAnalytics = async (slug?: string) => {
+  const handleFetchAnalytics = useCallback(async (slug?: string, force = false) => {
+    if (!isAuthenticated) return;
+    const targetSlug = slug !== undefined ? slug : selectedAnalyticsSlug;
+
+    // Deduplication guard: ignore redundant requests while fetching or when data is already cached
+    if (isFetchingRef.current) return;
+    if (!force && lastFetchedSlugRef.current === targetSlug && analyticsOverview) return;
+
+    isFetchingRef.current = true;
+    setIsLoadingAnalytics(true);
+
     try {
-      setIsLoadingAnalytics(true);
-      const targetSlug = slug !== undefined ? slug : selectedAnalyticsSlug;
       const inputPayload = targetSlug && targetSlug !== 'all' ? { slug: targetSlug } : undefined;
 
       // Consolidated single backend request: backend executes with p-limit (concurrency: 3) & Promise.allSettled
       const res = await trpcRequest<OverviewAggregatedResponse & AnalyticsOverviewData>('analytics.getOverview', { input: inputPayload });
 
       if (res) {
+        lastFetchedSlugRef.current = targetSlug;
         if (res.viewsAnalytics) {
           setViewsAnalytics(res.viewsAnalytics);
         }
@@ -132,16 +171,18 @@ export function useAnalyticsData({
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.warn('[handleFetchAnalytics Error]:', errorMsg);
     } finally {
+      isFetchingRef.current = false;
       setIsLoadingAnalytics(false);
     }
-  };
+  }, [trpcRequest, isAuthenticated, selectedAnalyticsSlug, analyticsOverview]);
 
+  // When selectedAnalyticsSlug changes to a different product, re-fetch for that slug
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (activeTab === 'dashboard' || activeTab === 'analytics') {
+    if (selectedAnalyticsSlug !== lastFetchedSlugRef.current && lastFetchedSlugRef.current !== null) {
       handleFetchAnalytics(selectedAnalyticsSlug);
     }
-  }, [selectedAnalyticsSlug, isAuthenticated, activeTab]);
+  }, [selectedAnalyticsSlug, isAuthenticated, handleFetchAnalytics]);
 
   const analyticsMetrics = useMemo(() => {
     const views = viewsAnalytics?.views ?? analyticsOverview?.views ?? 0;

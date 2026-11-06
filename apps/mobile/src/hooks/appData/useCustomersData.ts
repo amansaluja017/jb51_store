@@ -25,9 +25,12 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const hasFetchedCustomers = useRef(false);
+  const isFetchingCustomersRef = useRef(false);
 
   const handleFetchCustomers = useCallback(async (force = false) => {
+    if (isFetchingCustomersRef.current) return;
     if (hasFetchedCustomers.current && !force) return;
+    isFetchingCustomersRef.current = true;
     setIsLoadingCustomers(true);
     try {
       const res = await trpcRequest<Customer[]>('customers.getAll');
@@ -39,6 +42,7 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
       console.error('[handleFetchCustomers Error]:', err);
     } finally {
       setIsLoadingCustomers(false);
+      isFetchingCustomersRef.current = false;
     }
   }, [trpcRequest]);
 
@@ -62,7 +66,7 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
     }
   }, [trpcRequest]);
 
-  const handleCreateCustomer = async (data: {
+  const handleCreateCustomer = useCallback(async (data: {
     name: string;
     phoneNumber: string;
     email?: string;
@@ -83,9 +87,9 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
       showAlert('Error Adding Customer', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleUpdateCustomer = async (data: {
+  const handleUpdateCustomer = useCallback(async (data: {
     id: string;
     name?: string;
     phoneNumber?: string;
@@ -109,9 +113,9 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
       showAlert('Error Updating Customer', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleDeleteCustomer = async (id: string, name?: string, onSuccess?: () => void) => {
+  const handleDeleteCustomer = useCallback(async (id: string, name?: string, onSuccess?: () => void) => {
     showAlert(
       'Delete Customer',
       `Are you sure you want to delete customer "${name || 'this customer'}"? This action cannot be undone.`,
@@ -133,9 +137,9 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
         }
       }
     );
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleFetchCustomerOrderHistory = async (customerId: string) => {
+  const handleFetchCustomerOrderHistory = useCallback(async (customerId: string) => {
     try {
       const res = await trpcRequest<CustomerOrderHistoryResponse>('customers.getOrderHistory', {
         input: { customerId },
@@ -151,7 +155,7 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
       );
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert]);
 
   return {
     customers,

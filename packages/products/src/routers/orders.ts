@@ -31,14 +31,14 @@ export const orderItemSchema = z
   }));
 
 export const ordersRouter = router({
-  getAll: publicProcedure
-    .meta({ description: 'Fetch all orders' })
+  getAll: adminProcedure
+    .meta({ description: 'Fetch all orders (Admin only)' })
     .query(async () => {
       return await getOrders();
     }),
 
-  getPaginated: publicProcedure
-    .meta({ description: 'Fetch paginated and filtered orders' })
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated and filtered orders (Admin only)' })
     .input(
       z
         .object({
@@ -54,8 +54,8 @@ export const ordersRouter = router({
       return await getPaginatedOrders(input || undefined);
     }),
 
-  search: publicProcedure
-    .meta({ description: 'Fast search customer orders' })
+  search: adminProcedure
+    .meta({ description: 'Fast search customer orders (Admin only)' })
     .input(
       z
         .object({

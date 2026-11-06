@@ -12,6 +12,8 @@ import {
   getProductStatus,
   updateProductStatus,
   getCategories,
+  createCategory,
+  deleteCategory,
   reorderProductImages,
 } from '../data.js';
 import {
@@ -160,5 +162,19 @@ export const productsRouter = router({
     .meta({ description: 'Fetch all product categories' })
     .query(async () => {
       return await getCategories();
+    }),
+
+  createCategory: adminProcedure
+    .meta({ description: 'Create a new product category (Admin only)' })
+    .input(z.object({ name: z.string().min(1), description: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      return await createCategory(input.name, input.description);
+    }),
+
+  deleteCategory: adminProcedure
+    .meta({ description: 'Delete a category and reassign its products (Admin only)' })
+    .input(z.object({ name: z.string().min(1), targetCategory: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      return await deleteCategory(input.name, input.targetCategory);
     }),
 });

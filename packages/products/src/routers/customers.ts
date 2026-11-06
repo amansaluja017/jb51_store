@@ -12,14 +12,14 @@ import {
 import { getCustomerOrderHistory } from '../orders.js';
 
 export const customersRouter = router({
-  getAll: publicProcedure
-    .meta({ description: 'Fetch all customers from the database' })
+  getAll: adminProcedure
+    .meta({ description: 'Fetch all customers from the database (Admin only)' })
     .query(async () => {
       return await getCustomers();
     }),
 
-  getPaginated: publicProcedure
-    .meta({ description: 'Fetch paginated and sorted customers' })
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated and sorted customers (Admin only)' })
     .input(
       z
         .object({
@@ -37,8 +37,8 @@ export const customersRouter = router({
       return await getPaginatedCustomers(input || undefined);
     }),
 
-  search: publicProcedure
-    .meta({ description: 'Fast search customers matching name, phone, email, address' })
+  search: adminProcedure
+    .meta({ description: 'Fast search customers matching name, phone, email, address (Admin only)' })
     .input(
       z
         .object({
@@ -51,8 +51,8 @@ export const customersRouter = router({
       return await searchCustomers(input || undefined);
     }),
 
-  suggestions: publicProcedure
-    .meta({ description: 'Real-time autocomplete suggestions for customers using pg_trgm' })
+  suggestions: adminProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for customers using pg_trgm (Admin only)' })
     .input(
       z.object({
         query: z.string().nullish(),

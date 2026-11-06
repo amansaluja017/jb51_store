@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireAdmin } from '@repo/auth';
 import { uploadMiddleware } from '../middleware/upload.js';
 import {
   uploadSingle,
@@ -11,22 +12,22 @@ import {
 
 const router: Router = Router();
 
-// Upload single image (memory buffer -> Cloudinary -> DB link)
-router.post('/upload', uploadMiddleware.any(), uploadSingle);
+// Upload single image (memory buffer -> Cloudinary -> DB link) - Admin only
+router.post('/upload', requireAdmin, uploadMiddleware.any(), uploadSingle);
 
-// Upload multiple images in parallel
-router.post('/upload/multiple', uploadMiddleware.array('images', 15), uploadMultiple);
+// Upload multiple images in parallel - Admin only
+router.post('/upload/multiple', requireAdmin, uploadMiddleware.array('images', 15), uploadMultiple);
 
-// Fetch all images for a given product ID
+// Fetch all images for a given product ID (public)
 router.get('/products/:productId/images', getProductImages);
 
-// Delete an image record by ID and remove from Cloudinary
-router.delete('/products/images/:id', deleteProductImage);
+// Delete an image record by ID and remove from Cloudinary - Admin only
+router.delete('/products/images/:id', requireAdmin, deleteProductImage);
 
-// Delete asset directly from Cloudinary & DB by URL or publicId
-router.delete('/upload', deleteUpload);
+// Delete asset directly from Cloudinary & DB by URL or publicId - Admin only
+router.delete('/upload', requireAdmin, deleteUpload);
 
-// Reorder images for a product
-router.patch('/products/images/reorder', reorderProductImagesHandler);
+// Reorder images for a product - Admin only
+router.patch('/products/images/reorder', requireAdmin, reorderProductImagesHandler);
 
 export default router;

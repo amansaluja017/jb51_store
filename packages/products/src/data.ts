@@ -179,6 +179,71 @@ export async function getCategories(): Promise<string[]> {
   return CATEGORIES;
 }
 
+export async function createCategory(name: string, description?: string): Promise<{ success: boolean; name: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('Category name cannot be empty');
+
+  const [existing] = await db
+    .select()
+    .from(categoryTable)
+    .where(eq(categoryTable.name, trimmed));
+
+  if (existing) {
+    return { success: true, name: existing.name };
+  }
+
+  const [inserted] = await db
+    .insert(categoryTable)
+    .values({ name: trimmed, description: description || null })
+    .returning();
+
+  return { success: true, name: inserted?.name || trimmed };
+}
+
+export async function deleteCategory(name: string, targetCategory?: string): Promise<{ success: boolean; target: string }> {
+  const trimmed = name.trim();
+  const target = (targetCategory || 'Uncategorized').trim();
+
+  if (trimmed === target) {
+    throw new Error('Target category must be different from the category being deleted');
+  }
+
+  // 1. Find or create the target category in categoryTable
+  let [targetCat] = await db
+    .select()
+    .from(categoryTable)
+    .where(eq(categoryTable.name, target));
+
+  if (!targetCat) {
+    const [created] = await db
+      .insert(categoryTable)
+      .values({ name: target })
+      .returning();
+    targetCat = created;
+  }
+
+  // 2. Find the category being deleted
+  const [catToDelete] = await db
+    .select()
+    .from(categoryTable)
+    .where(eq(categoryTable.name, trimmed));
+
+  if (catToDelete && targetCat) {
+    // Reassign any products linked by categoryId to targetCat.id
+    await db
+      .update(productTable)
+      .set({ categoryId: targetCat.id })
+      .where(eq(productTable.categoryId, catToDelete.id));
+
+    // Delete category from categoryTable
+    await db
+      .delete(categoryTable)
+      .where(eq(categoryTable.id, catToDelete.id));
+  }
+
+  return { success: true, target };
+}
+
 export function matchesSlug(row: ProductDbRow | ProductRowLike | Product | null | undefined, slug: string): boolean {
   if (!row || !slug) return false;
   const normSlug = slug.toLowerCase();

@@ -35,13 +35,16 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
   });
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const hasFetchedReviews = useRef(false);
+  const isFetchingReviewsRef = useRef(false);
 
   const handleFetchReviews = useCallback(async (force = false) => {
+    if (isFetchingReviewsRef.current) return;
     if (hasFetchedReviews.current && !force) return;
+    isFetchingReviewsRef.current = true;
     setIsLoadingReviews(true);
     try {
       const res = await trpcRequest<PaginatedReviewsResponse>('reviews.getPaginated', {
-        input: { page: 1, limit: 20 },
+        input: { page: 1, limit: 10 },
       });
       if (res?.items && Array.isArray(res.items)) {
         setReviews(res.items);
@@ -63,6 +66,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
       console.error('[handleFetchReviews Error]:', err);
     } finally {
       setIsLoadingReviews(false);
+      isFetchingReviewsRef.current = false;
     }
   }, [trpcRequest]);
 
@@ -76,6 +80,10 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
       const res = await trpcRequest<PaginatedReviewsResponse>('reviews.getPaginated', {
         input: params,
       });
+      if (res?.items && Array.isArray(res.items) && (!params?.page || params.page === 1) && !params?.search && params?.approved === undefined) {
+        setReviews(res.items);
+        hasFetchedReviews.current = true;
+      }
       if (res?.counts) {
         setReviewCounts(res.counts);
       }
@@ -86,7 +94,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
     }
   }, [trpcRequest]);
 
-  const handleAddReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => {
+  const handleAddReview = useCallback(async (reviewData: Omit<Review, 'id' | 'createdAt' | 'approved'>) => {
     try {
       const decoded = await trpcRequest<Review>('reviews.create', {
         method: 'POST',
@@ -108,9 +116,9 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
       const message = err instanceof Error ? err.message : 'Failed to submit review';
       showAlert('Error', message, 'error');
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleUpdateReview = async (reviewData: {
+  const handleUpdateReview = useCallback(async (reviewData: {
     id: string;
     name?: string;
     message?: string;
@@ -142,9 +150,9 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
       showAlert('Error', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleToggleReviewApproval = async (review: Review) => {
+  const handleToggleReviewApproval = useCallback(async (review: Review) => {
     const newApproved = !review.approved;
 
     try {
@@ -170,9 +178,9 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
       const message = err instanceof Error ? err.message : 'Failed to update review approval';
       showAlert('Error', message, 'error');
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleDeleteReview = (review: Review) => {
+  const handleDeleteReview = useCallback((review: Review) => {
     showAlert(
       'Delete Review',
       `Are you sure you want to delete review by "${review.name}"?`,
@@ -196,7 +204,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
         }
       }
     );
-  };
+  }, [trpcRequest, showAlert]);
 
   return {
     reviews,

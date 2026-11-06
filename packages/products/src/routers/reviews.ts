@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, publicProcedure } from './base.js';
+import { router, publicProcedure, adminProcedure } from './base.js';
 import {
   getReviews,
   getReviewCounts,
@@ -20,27 +20,28 @@ export const reviewsRouter = router({
   getAll: publicProcedure
     .meta({ description: 'Fetch customer reviews' })
     .input(z.object({ all: z.boolean().nullish() }).nullish())
-    .query(async ({ input }) => {
-      if (input?.all) {
+    .query(async ({ ctx, input }) => {
+      const isAdmin = ctx.isStaff || ctx.user?.role === 'admin' || ctx.user?.role === 'superadmin';
+      if (input?.all && isAdmin) {
         return await getReviews();
       }
       return await getReviews(true);
     }),
 
-  getModerationQueue: publicProcedure
-    .meta({ description: 'Fetch all reviews for moderation (including unapproved)' })
+  getModerationQueue: adminProcedure
+    .meta({ description: 'Fetch all reviews for moderation (including unapproved) (Admin only)' })
     .query(async () => {
       return await getReviews();
     }),
 
-  getCounts: publicProcedure
-    .meta({ description: 'Fetch review counts breakdown (all, approved, pending)' })
+  getCounts: adminProcedure
+    .meta({ description: 'Fetch review counts breakdown (all, approved, pending) (Admin only)' })
     .query(async () => {
       return await getReviewCounts();
     }),
 
-  getPaginated: publicProcedure
-    .meta({ description: 'Fetch paginated reviews' })
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated reviews (Admin only)' })
     .input(
       z
         .object({
@@ -55,8 +56,8 @@ export const reviewsRouter = router({
       return await getPaginatedReviews(input || undefined);
     }),
 
-  search: publicProcedure
-    .meta({ description: 'Fast search reviews using ilike' })
+  search: adminProcedure
+    .meta({ description: 'Fast search reviews using ilike (Admin only)' })
     .input(
       z
         .object({
@@ -70,8 +71,8 @@ export const reviewsRouter = router({
       return await searchReviews(input || undefined);
     }),
 
-  suggestions: publicProcedure
-    .meta({ description: 'Real-time autocomplete suggestions for reviews using pg_trgm' })
+  suggestions: adminProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for reviews using pg_trgm (Admin only)' })
     .input(
       z.object({
         query: z.string().nullish(),
@@ -93,16 +94,16 @@ export const reviewsRouter = router({
       });
     }),
 
-  update: publicProcedure
-    .meta({ description: 'Update an existing review' })
+  update: adminProcedure
+    .meta({ description: 'Update an existing review (Admin only)' })
     .input(UpdateReviewInputSchema)
     .mutation(async ({ input }) => {
       const { id, ...data } = input;
       return await updateReview(id, data);
     }),
 
-  delete: publicProcedure
-    .meta({ description: 'Delete an existing review' })
+  delete: adminProcedure
+    .meta({ description: 'Delete an existing review (Admin only)' })
     .input(DeleteReviewInputSchema)
     .mutation(async ({ input }) => {
       return await deleteReview(input.id);

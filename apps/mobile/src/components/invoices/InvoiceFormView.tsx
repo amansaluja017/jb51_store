@@ -311,6 +311,11 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
               <ChevronDown size={14} color="#71717a" />
             )}
           </TouchableOpacity>
+          {errors.clientName && (
+            <Text style={styles.inlineFieldError}>
+              {errors.clientName.message || 'Please select or enter customer details'}
+            </Text>
+          )}
         </View>
 
         {/* Expanded Customer Picker */}
@@ -442,17 +447,30 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                   <Controller
                     control={control}
                     name="clientPhone"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        keyboardType="phone-pad"
-                        value={value}
-                        onBlur={onBlur}
-                        onFocus={() => handleFieldFocus('customer', 40)}
-                        onChangeText={onChange}
-                        placeholder="Customer phone..."
-                        placeholderTextColor="#a1a1aa"
-                        style={styles.textInput}
-                      />
+                    rules={{
+                      validate: (val) => {
+                        if (!val || val.trim() === '') return true;
+                        const digits = val.replace(/\D/g, '');
+                        if (digits.length < 10) return 'Enter valid 10-digit mobile number';
+                        return true;
+                      },
+                    }}
+                    render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                      <View>
+                        <TextInput
+                          keyboardType="phone-pad"
+                          value={value}
+                          onBlur={onBlur}
+                          onFocus={() => handleFieldFocus('customer', 40)}
+                          onChangeText={onChange}
+                          placeholder="Customer phone..."
+                          placeholderTextColor="#a1a1aa"
+                          style={[styles.textInput, error && styles.inputErrorBorder]}
+                        />
+                        {error?.message && (
+                          <Text style={styles.inlineFieldError}>{error.message}</Text>
+                        )}
+                      </View>
                     )}
                   />
                 </View>
@@ -461,18 +479,31 @@ export const InvoiceFormView: React.FC<InvoiceFormViewProps> = ({
                   <Controller
                     control={control}
                     name="clientEmail"
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={value}
-                        onBlur={onBlur}
-                        onFocus={() => handleFieldFocus('customer', 90)}
-                        onChangeText={onChange}
-                        placeholder="Customer email..."
-                        placeholderTextColor="#a1a1aa"
-                        style={styles.textInput}
-                      />
+                    rules={{
+                      validate: (val) => {
+                        if (!val || val.trim() === '') return true;
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(val.trim())) return 'Enter a valid email address';
+                        return true;
+                      },
+                    }}
+                    render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                      <View>
+                        <TextInput
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          value={value}
+                          onBlur={onBlur}
+                          onFocus={() => handleFieldFocus('customer', 90)}
+                          onChangeText={onChange}
+                          placeholder="Customer email..."
+                          placeholderTextColor="#a1a1aa"
+                          style={[styles.textInput, error && styles.inputErrorBorder]}
+                        />
+                        {error?.message && (
+                          <Text style={styles.inlineFieldError}>{error.message}</Text>
+                        )}
+                      </View>
                     )}
                   />
                 </View>

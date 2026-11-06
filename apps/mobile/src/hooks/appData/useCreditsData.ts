@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Credit, CreditMetrics } from '../../types';
 
 interface PaginatedCreditsResponse {
@@ -27,12 +27,17 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
   const [creditMetrics, setCreditMetrics] = useState<CreditMetrics | null>(null);
   const [isLoadingCredits, setIsLoadingCredits] = useState(false);
   const [creditModalOpen, setCreditModalOpen] = useState(false);
+  const hasFetchedCredits = useRef(false);
+  const isFetchingCreditsRef = useRef(false);
 
-  const handleFetchCredits = async (isRefresh = false) => {
+  const handleFetchCredits = useCallback(async (isRefresh = false) => {
+    if (isFetchingCreditsRef.current) return;
+    if (hasFetchedCredits.current && !isRefresh) return;
+    isFetchingCreditsRef.current = true;
     setIsLoadingCredits(true);
     try {
       const res = await trpcRequest<PaginatedCreditsResponse>('credits.getPaginated', {
-        input: { page: 1, limit: 20 },
+        input: { page: 1, limit: 10 },
       });
       if (res?.items && Array.isArray(res.items)) {
         setCredits(res.items);
@@ -41,12 +46,14 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
         setCredits(res.credits);
         if (res.metrics) setCreditMetrics(res.metrics);
       }
+      hasFetchedCredits.current = true;
     } catch (err: unknown) {
       console.error('[handleFetchCredits Error]:', err);
     } finally {
       setIsLoadingCredits(false);
+      isFetchingCreditsRef.current = false;
     }
-  };
+  }, [trpcRequest]);
 
   const handleFetchPaginatedCredits = useCallback(async (params?: {
     search?: string;
@@ -62,6 +69,14 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
       if (res?.metrics) {
         setCreditMetrics(res.metrics);
       }
+      const page = params?.page ?? 1;
+      const isCleanQuery = !params?.search && (!params?.filterTab || params?.filterTab === 'all');
+      if (page === 1 && isCleanQuery) {
+        const items = res?.items || res?.credits;
+        if (Array.isArray(items)) {
+          setCredits(items);
+        }
+      }
       return res;
     } catch (err: unknown) {
       console.error('[handleFetchPaginatedCredits Error]:', err);
@@ -69,7 +84,7 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
     }
   }, [trpcRequest]);
 
-  const handleCreateCredit = async (data: {
+  const handleCreateCredit = useCallback(async (data: {
     orderId?: string | null;
     invoiceId?: string | null;
     paidAmount: number;
@@ -95,9 +110,9 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
       showAlert('Error Creating Credit', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchCredits, handleFetchInvoices]);
 
-  const handleUpdateCredit = async (data: {
+  const handleUpdateCredit = useCallback(async (data: {
     id: string;
     paidAmount?: number;
     dueAmount?: number;
@@ -121,9 +136,9 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
       showAlert('Error Updating Credit', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchCredits, handleFetchInvoices]);
 
-  const handleRecordCreditPayment = async (
+  const handleRecordCreditPayment = useCallback(async (
     id: string,
     amount: number,
     paymentMode = 'cash',
@@ -146,9 +161,9 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
       showAlert('Error Recording Payment', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchCredits, handleFetchInvoices]);
 
-  const handleDeleteCredit = async (id: string, skipConfirm = false) => {
+  const handleDeleteCredit = useCallback(async (id: string, skipConfirm = false) => {
     const doDelete = async () => {
       try {
         await trpcRequest('credits.delete', {
@@ -175,7 +190,7 @@ export function useCreditsData({ trpcRequest, showAlert, handleFetchInvoices }: 
         doDelete
       );
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchCredits]);
 
   return {
     credits,

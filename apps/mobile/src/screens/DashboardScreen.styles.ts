@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   },
   scrollPadding: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: Platform.OS === 'ios' ? 110 : 96,
     gap: 16,
   },
   filterRow: {

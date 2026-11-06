@@ -21,8 +21,8 @@ import {
 } from '../analytics.js';
 
 export const analyticsRouter = router({
-  getOverview: publicProcedure
-    .meta({ description: 'Get consolidated analytics overview using p-limit (concurrency: 3) and Promise.allSettled' })
+  getOverview: adminProcedure
+    .meta({ description: 'Get consolidated analytics overview using p-limit (concurrency: 3) and Promise.allSettled (Admin only)' })
     .input(
       z
         .object({
@@ -35,8 +35,8 @@ export const analyticsRouter = router({
       return await getDashboardOverviewAnalytics(input || undefined);
     }),
 
-  getDashboardOverview: publicProcedure
-    .meta({ description: 'Batch fetch all overview telemetry with concurrency limit of 3 using p-limit and Promise.allSettled' })
+  getDashboardOverview: adminProcedure
+    .meta({ description: 'Batch fetch all overview telemetry with concurrency limit of 3 using p-limit and Promise.allSettled (Admin only)' })
     .input(
       z
         .object({
@@ -49,14 +49,14 @@ export const analyticsRouter = router({
       return await getDashboardOverviewAnalytics(input || undefined);
     }),
 
-  getOverall: publicProcedure
-    .meta({ description: 'Get overall store views, clicks, and conversion rates' })
+  getOverall: adminProcedure
+    .meta({ description: 'Get overall store views, clicks, and conversion rates (Admin only)' })
     .query(async () => {
       return await getOverallAnalytics();
     }),
 
-  getProduct: publicProcedure
-    .meta({ description: 'Get individual product views, clicks, and conversion rates' })
+  getProduct: adminProcedure
+    .meta({ description: 'Get individual product views, clicks, and conversion rates (Admin only)' })
     .input(
       z.object({
         slug: z.string().nullish(),
@@ -73,8 +73,8 @@ export const analyticsRouter = router({
       return await getAllProductsAnalytics();
     }),
 
-  getViews: publicProcedure
-    .meta({ description: 'Get views telemetry for store or specific product' })
+  getViews: adminProcedure
+    .meta({ description: 'Get views telemetry for store or specific product (Admin only)' })
     .input(
       z
         .object({
@@ -87,8 +87,8 @@ export const analyticsRouter = router({
       return await getViewsAnalytics(input || undefined);
     }),
 
-  getClicks: publicProcedure
-    .meta({ description: 'Get click events telemetry (WhatsApp, Instagram, Total)' })
+  getClicks: adminProcedure
+    .meta({ description: 'Get click events telemetry (WhatsApp, Instagram, Total) (Admin only)' })
     .input(
       z
         .object({
@@ -101,8 +101,8 @@ export const analyticsRouter = router({
       return await getClicksAnalytics(input || undefined);
     }),
 
-  getConversion: publicProcedure
-    .meta({ description: 'Get conversion rates (inquiries, orders, online orders)' })
+  getConversion: adminProcedure
+    .meta({ description: 'Get conversion rates (inquiries, orders, online orders) (Admin only)' })
     .input(
       z
         .object({
@@ -115,8 +115,8 @@ export const analyticsRouter = router({
       return await getConversionAnalytics(input || undefined);
     }),
 
-  getFunnel: publicProcedure
-    .meta({ description: 'Get conversion funnel focusing specifically on online orders' })
+  getFunnel: adminProcedure
+    .meta({ description: 'Get conversion funnel focusing specifically on online orders (Admin only)' })
     .input(
       z
         .object({
@@ -129,8 +129,8 @@ export const analyticsRouter = router({
       return await getFunnelAnalytics(input || undefined);
     }),
 
-  getChannelRatio: publicProcedure
-    .meta({ description: 'Get online vs offline order ratio breakdown' })
+  getChannelRatio: adminProcedure
+    .meta({ description: 'Get online vs offline order ratio breakdown (Admin only)' })
     .input(
       z
         .object({
@@ -143,8 +143,8 @@ export const analyticsRouter = router({
       return await getChannelRatioAnalytics(input || undefined);
     }),
 
-  getGrowthPulse: publicProcedure
-    .meta({ description: 'Get 30-day velocity and growth pulse for total, online, and walk-in' })
+  getGrowthPulse: adminProcedure
+    .meta({ description: 'Get 30-day velocity and growth pulse for total, online, and walk-in (Admin only)' })
     .input(
       z
         .object({
@@ -157,8 +157,8 @@ export const analyticsRouter = router({
       return await getGrowthPulseAnalytics(input || undefined);
     }),
 
-  getPaymentModes: publicProcedure
-    .meta({ description: 'Get customer payment methods breakdown (Online, Cash, Credit/Khata)' })
+  getPaymentModes: adminProcedure
+    .meta({ description: 'Get customer payment methods breakdown (Online, Cash, Credit/Khata) (Admin only)' })
     .input(
       z
         .object({
@@ -199,8 +199,8 @@ export const analyticsRouter = router({
       return await getPaginatedCatalogueTelemetryAnalytics(input || undefined);
     }),
 
-  getInventorySummary: publicProcedure
-    .meta({ description: 'Get real-time inventory health and stock summary' })
+  getInventorySummary: adminProcedure
+    .meta({ description: 'Get real-time inventory health and stock summary (Admin only)' })
     .query(async () => {
       return await getInventorySummaryAnalytics();
     }),

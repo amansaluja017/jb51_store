@@ -18,6 +18,7 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const hasFetchedProducts = useRef(false);
+  const isFetchingProductsRef = useRef(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -31,7 +32,29 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     return products.find(p => p.slug === selectedProductDetails.slug) || selectedProductDetails;
   }, [products, selectedProductDetails]);
 
-  const handleFetchProducts = async (isRefresh = false) => {
+  const hasFetchedCategories = useRef(false);
+  const isFetchingCategoriesRef = useRef(false);
+
+  const handleFetchCategories = useCallback(async (force = false) => {
+    if (isFetchingCategoriesRef.current) return;
+    if (hasFetchedCategories.current && !force) return;
+    isFetchingCategoriesRef.current = true;
+    try {
+      const cats = await trpcRequest<string[]>('products.getCategories');
+      if (Array.isArray(cats) && cats.length > 0) {
+        setCategories(cats);
+        hasFetchedCategories.current = true;
+      }
+    } catch (err: unknown) {
+      console.error('[handleFetchCategories Error]:', err);
+    } finally {
+      isFetchingCategoriesRef.current = false;
+    }
+  }, [trpcRequest]);
+
+  const handleFetchProducts = useCallback(async (isRefresh = false) => {
+    if (isFetchingProductsRef.current) return;
+    isFetchingProductsRef.current = true;
     if (!isRefresh) {
       setIsLoading(true);
     }
@@ -59,13 +82,14 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
       console.error('[handleFetchProducts Error]:', err);
       setSyncMessage('Server offline - Sandbox active');
     } finally {
+      isFetchingProductsRef.current = false;
       if (!isRefresh) {
         setIsLoading(false);
       }
     }
-  };
+  }, [trpcRequest, setSyncMessage]);
 
-  const handleToggleStock = async (product: Product) => {
+  const handleToggleStock = useCallback(async (product: Product) => {
     const isCurrentlyInStock = isProductInStock(product);
     const newInStock = !isCurrentlyInStock;
 
@@ -90,9 +114,9 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
       const message = err instanceof Error ? err.message : 'Failed to update stock status';
       showAlert('Error', message, 'error');
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchProducts]);
 
-  const handleUpdateVisibility = async (product: Product, status: 'listed' | 'unListed') => {
+  const handleUpdateVisibility = useCallback(async (product: Product, status: 'listed' | 'unListed') => {
     try {
       await trpcRequest('products.updateStatus', {
         method: 'POST',
@@ -111,9 +135,9 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
       const message = err instanceof Error ? err.message : 'Failed to update status';
       showAlert('Error', message, 'error');
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchProducts]);
 
-  const handleDeleteProduct = (slug: string, name: string) => {
+  const handleDeleteProduct = useCallback((slug: string, name: string) => {
     showAlert(
       'Delete Outfit',
       `Are you sure you want to delete "${name}"?`,
@@ -132,9 +156,9 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
         }
       }
     );
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleReorderProductImages = async (newImages: string[]): Promise<string[]> => {
+  const handleReorderProductImages = useCallback(async (newImages: string[]): Promise<string[]> => {
     if (!editingSlug) return newImages;
     try {
       const res = await trpcRequest<{ images?: string[] }>('products.reorderImages', {
@@ -157,9 +181,9 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
       showAlert('Reorder Failed', message, 'error');
       return newImages;
     }
-  };
+  }, [editingSlug, trpcRequest, showAlert]);
 
-  const handleSaveProduct = async (payload: Product) => {
+  const handleSaveProduct = useCallback(async (payload: Product) => {
     if (isEditing && editingSlug) {
       try {
         const updated = await trpcRequest<Product>('products.update', {
@@ -176,7 +200,14 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
         return;
       }
     } else {
-      if (products.some(p => p.slug === payload.slug)) {
+      let isDuplicate = false;
+      setProducts(prev => {
+        if (prev.some(p => p.slug === payload.slug)) {
+          isDuplicate = true;
+        }
+        return prev;
+      });
+      if (isDuplicate) {
         showAlert('Unique Slug Required', 'An outfit with this slug already exists.', 'error');
         return;
       }
@@ -198,46 +229,52 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     }
 
     setFormModalOpen(false);
-  };
+  }, [isEditing, editingSlug, trpcRequest, showAlert]);
 
-  const handleAddCategory = (newCat: string) => {
-    if (!categories.includes(newCat)) {
-      setCategories(prev => [...prev, newCat]);
+  const handleAddCategory = useCallback(async (newCat: string) => {
+    const trimmed = newCat.trim();
+    if (!trimmed) return;
+    setCategories(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    try {
+      await trpcRequest('products.createCategory', {
+        method: 'POST',
+        body: { name: trimmed },
+      });
+    } catch (err: unknown) {
+      console.error('[handleAddCategory Error]:', err);
     }
-  };
+  }, [trpcRequest]);
 
-  const handleDeleteCategory = async (catToDelete: string, targetCategory?: string) => {
-    const target = targetCategory || 'Uncategorized';
+  const handleDeleteCategory = useCallback(async (catToDelete: string, targetCategory?: string) => {
+    const target = (targetCategory || 'Uncategorized').trim();
     if (!target || target === catToDelete) {
       showAlert('Error', 'Target category for reassignment is required.', 'error');
       return;
     }
-    try {
-      const affectedProducts = products.filter(p => p.category === catToDelete);
-      for (const p of affectedProducts) {
-        await trpcRequest('products.update', {
-          method: 'POST',
-          body: {
-            slug: p.slug,
-            data: { category: target },
-          },
-        });
+    setCategories(prev => {
+      const filtered = prev.filter(c => c !== catToDelete);
+      if (target === 'Uncategorized' && !filtered.includes('Uncategorized')) {
+        return [...filtered, 'Uncategorized'];
       }
+      return filtered;
+    });
 
-      setProducts(prev => prev.map(p => p.category === catToDelete ? { ...p, category: target } : p));
-      setCategories(prev => {
-        const filtered = prev.filter(c => c !== catToDelete);
-        if (target === 'Uncategorized' && !filtered.includes('Uncategorized')) {
-          return [...filtered, 'Uncategorized'];
-        }
-        return filtered;
+    setProducts(prev =>
+      prev.map(p => (p.category === catToDelete ? { ...p, category: target } : p))
+    );
+
+    try {
+      await trpcRequest('products.deleteCategory', {
+        method: 'POST',
+        body: { name: catToDelete, targetCategory: target },
       });
+
       showAlert('Category Deleted', `Products reassigned to ${target}.`, 'success');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to reassign product categories';
       showAlert('Error', message, 'error');
     }
-  };
+  }, [trpcRequest, showAlert]);
 
   const handleFetchPaginatedProducts = useCallback(async (params?: {
     search?: string;
@@ -248,26 +285,33 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     limit?: number;
   }) => {
     try {
-      return await trpcRequest<PaginatedProductsResponse>('products.getPaginated', {
+      const res = await trpcRequest<PaginatedProductsResponse>('products.getPaginated', {
         input: params,
       });
+      if (res?.items && Array.isArray(res.items)) {
+        if ((!params?.page || params.page === 1) && !params?.search && !params?.category) {
+          setProducts(res.items);
+          hasFetchedProducts.current = true;
+        }
+      }
+      return res;
     } catch (err: unknown) {
       console.error('[handleFetchPaginatedProducts Error]:', err);
       throw err;
     }
   }, [trpcRequest]);
 
-  const triggerAddProduct = () => {
+  const triggerAddProduct = useCallback(() => {
     setIsEditing(false);
     setEditingSlug(null);
     setFormModalOpen(true);
-  };
+  }, []);
 
-  const triggerEditProduct = (product: Product) => {
+  const triggerEditProduct = useCallback((product: Product) => {
     setIsEditing(true);
     setEditingSlug(product.slug);
     setFormModalOpen(true);
-  };
+  }, []);
 
   return {
     products,
@@ -298,6 +342,7 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     handleSaveProduct,
     handleDeleteProduct,
     handleReorderProductImages,
+    handleFetchCategories,
     handleAddCategory,
     handleDeleteCategory,
     handleFetchPaginatedProducts,

@@ -29,6 +29,7 @@ import {
 import { Invoice, Order } from '../../types';
 import { InvoiceSkeleton, OrderHistorySkeleton } from '../SkeletonLoader';
 import { Pagination } from '../ui';
+import { useScrollMemory } from '../../utils/scrollMemory';
 import styles from '../../screens/InvoiceScreen.styles';
 
 export interface LedgerSuggestion {
@@ -128,9 +129,15 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
       return sum;
     }, 0);
   }, [invoices]);
+
+  const { scrollViewRef, onScroll: handleScrollOffset } = useScrollMemory('invoices');
+
   return (
         <View style={styles.container}>
           <ScrollView
+            ref={scrollViewRef}
+            onScroll={handleScrollOffset}
+            scrollEventThrottle={16}
             contentContainerStyle={styles.scrollContainer}
             alwaysBounceVertical={true}
             keyboardShouldPersistTaps="handled"

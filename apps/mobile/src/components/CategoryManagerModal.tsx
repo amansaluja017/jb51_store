@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -7,12 +7,15 @@ import {
   TouchableOpacity, 
   TextInput, 
   Modal, 
-  Platform 
+  Platform,
+  RefreshControl,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Plus, Trash2, Tag } from 'lucide-react-native';
+import { X, Plus, Trash2, Tag, RotateCw } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { Product } from '../types';
+import { triggerHaptic } from '../utils/haptics';
 
 interface CategoryFormValues {
   name: string;
@@ -23,8 +26,9 @@ interface CategoryManagerModalProps {
   categories: string[];
   products: Product[];
   onClose: () => void;
-  onAddCategory: (category: string) => void;
-  onDeleteCategory: (category: string, targetCategory?: string) => void;
+  onAddCategory: (category: string) => Promise<void> | void;
+  onDeleteCategory: (category: string, targetCategory?: string) => Promise<void> | void;
+  onRefreshCategories?: () => Promise<void> | void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
 }
 
@@ -35,15 +39,28 @@ export default function CategoryManagerModal({
   onClose,
   onAddCategory,
   onDeleteCategory,
+  onRefreshCategories,
   showAlert
 }: CategoryManagerModalProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { control, handleSubmit, reset } = useForm<CategoryFormValues>({
     defaultValues: {
       name: '',
     },
   });
 
-  const onSubmit = (data: CategoryFormValues) => {
+  const handleRefresh = async () => {
+    if (!onRefreshCategories || isRefreshing) return;
+    try {
+      setIsRefreshing(true);
+      triggerHaptic('light');
+      await onRefreshCategories();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const onSubmit = async (data: CategoryFormValues) => {
     const trimmed = data.name.trim();
     if (!trimmed) {
       showAlert('Category Name Required', 'Please provide a non-empty category name.', 'error');
@@ -53,7 +70,8 @@ export default function CategoryManagerModal({
       showAlert('Duplicate Category', 'This category already exists.', 'error');
       return;
     }
-    onAddCategory(trimmed);
+    triggerHaptic('medium');
+    await onAddCategory(trimmed);
     reset({ name: '' });
     showAlert('Category Created', `"${trimmed}" has been added to categories.`, 'success');
   };
@@ -71,6 +89,7 @@ export default function CategoryManagerModal({
       message,
       'confirm',
       () => {
+        triggerHaptic('warning');
         onDeleteCategory(cat, targetCat);
       }
     );
@@ -85,12 +104,43 @@ export default function CategoryManagerModal({
             <Tag size={18} color="#FF5E36" />
             <Text style={styles.modalTitle}>Taxonomy Categories</Text>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <X size={20} color="#09090b" />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            {onRefreshCategories && (
+              <TouchableOpacity
+                onPress={handleRefresh}
+                disabled={isRefreshing}
+                style={styles.refreshBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Reload categories"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color="#FF5E36" />
+                ) : (
+                  <RotateCw size={16} color="#09090b" />
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <X size={20} color="#09090b" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <ScrollView style={styles.modalBody} contentContainerStyle={styles.scrollPadding}>
+        <ScrollView
+          style={styles.modalBody}
+          contentContainerStyle={styles.scrollPadding}
+          refreshControl={
+            onRefreshCategories ? (
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                colors={['#FF5E36']}
+                tintColor="#FF5E36"
+              />
+            ) : undefined
+          }
+        >
           {/* Create Category Section */}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Add New Category</Text>
@@ -121,8 +171,23 @@ export default function CategoryManagerModal({
 
           {/* Categories List Section */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Catalog Categories</Text>
-            <Text style={styles.sectionSubtitle}>Existing categories currently defined in the catalog database.</Text>
+            <View style={styles.listHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>Catalog Categories</Text>
+                <Text style={styles.sectionSubtitle}>Existing categories currently defined in the catalog database.</Text>
+              </View>
+              {onRefreshCategories && (
+                <TouchableOpacity
+                  onPress={handleRefresh}
+                  disabled={isRefreshing}
+                  style={styles.inlineReloadBtn}
+                  activeOpacity={0.7}
+                >
+                  <RotateCw size={11} color="#FF5E36" />
+                  <Text style={styles.inlineReloadText}>Reload</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
             <View style={styles.categoriesList}>
               {categories.map(cat => {
@@ -175,6 +240,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refreshBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#f4f4f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalTitle: {
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
     fontSize: 18,
@@ -203,6 +280,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 3,
     elevation: 1,
+  },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  inlineReloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#fff1ed',
+    marginLeft: 8,
+  },
+  inlineReloadText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FF5E36',
   },
   sectionTitle: {
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',

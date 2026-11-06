@@ -218,6 +218,11 @@ export default function ReviewsScreen({
     return reviews.filter(r => !r.approved).length;
   }, [reviewCounts, propReviewCounts, remoteData, reviews]);
 
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1);
+    onRefresh?.();
+  };
+
   // Local filtered reviews (for fallback or counting)
   const localFilteredReviews = useMemo(() => {
     return reviews.filter(rev => {
@@ -520,7 +525,7 @@ export default function ReviewsScreen({
           onRefresh ? (
             <RefreshControl
               refreshing={refreshing || false}
-              onRefresh={onRefresh}
+              onRefresh={handleRefresh}
               tintColor="#FF5E36"
               colors={['#FF5E36']}
               progressBackgroundColor="#ffffff"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { MessageCircle, Camera, CheckCircle2, Phone, Mail, Check, Globe } from 'lucide-react-native';
 import { Inquiry } from '../types';
@@ -8,7 +8,12 @@ interface InquiryItemProps {
   onResolve: (id: string, name: string) => void;
 }
 
-export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
+const INQUIRY_WORD_LIMIT = 25;
+
+function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
+  const [isResolving, setIsResolving] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const handleCall = () => {
     if (inquiry.phone) {
       Linking.openURL(`tel:${inquiry.phone}`).catch(() => {
@@ -26,8 +31,6 @@ export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
     }
   };
 
-  const [isResolving, setIsResolving] = useState(false);
-
   const handleResolve = async () => {
     if (isResolving) return;
     setIsResolving(true);
@@ -37,6 +40,15 @@ export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
       setIsResolving(false);
     }
   };
+
+  const queryWords = useMemo(() => {
+    return inquiry.query ? inquiry.query.trim().split(/\s+/) : [];
+  }, [inquiry.query]);
+
+  const isLongQuery = queryWords.length > INQUIRY_WORD_LIMIT;
+  const displayQuery = isLongQuery && !isExpanded
+    ? `${queryWords.slice(0, INQUIRY_WORD_LIMIT).join(' ')}...`
+    : inquiry.query;
 
   return (
     <View style={styles.card}>
@@ -89,7 +101,19 @@ export default function InquiryItem({ inquiry, onResolve }: InquiryItemProps) {
       {/* Query message block */}
       {inquiry.query && (
         <View style={styles.queryBlock}>
-          <Text style={styles.queryText}>"{inquiry.query}"</Text>
+          <Text style={styles.queryText}>"{displayQuery}"</Text>
+          {isLongQuery && (
+            <TouchableOpacity
+              onPress={() => setIsExpanded(prev => !prev)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.expandToggle}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.expandToggleText}>
+                {isExpanded ? 'Show less' : 'Show more'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -276,6 +300,15 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 16,
   },
+  expandToggle: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  expandToggleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF5E36',
+  },
   contactRow: {
     flexDirection: 'row',
     marginBottom: 14,
@@ -356,3 +389,5 @@ const styles = StyleSheet.create({
     color: '#10b981',
   },
 });
+
+export default React.memo(InquiryItem);

@@ -27,11 +27,14 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   const hasFetchedInvoices = useRef(false);
+  const isFetchingInvoices = useRef(false);
   const hasFetchedOrders = useRef(false);
   const isFetchingOrders = useRef(false);
 
   const handleFetchInvoices = useCallback(async (force = false) => {
+    if (isFetchingInvoices.current) return;
     if (hasFetchedInvoices.current && !force) return;
+    isFetchingInvoices.current = true;
     setIsLoadingInvoices(true);
     try {
       const res = await trpcRequest<PaginatedInvoicesResponse | Invoice[]>('invoices.getPaginated', {
@@ -47,6 +50,7 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
       console.error('[handleFetchInvoices Error]:', err);
     } finally {
       setIsLoadingInvoices(false);
+      isFetchingInvoices.current = false;
     }
   }, [trpcRequest]);
 
@@ -73,16 +77,15 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
   }, [trpcRequest]);
 
   const handleFetchOrders = useCallback(async (force = false) => {
-    if ((hasFetchedOrders.current || isFetchingOrders.current) && !force) {
-      return;
-    }
+    if (isFetchingOrders.current) return;
+    if (hasFetchedOrders.current && !force) return;
     isFetchingOrders.current = true;
     if (!hasFetchedOrders.current || force) {
       setIsLoadingOrders(true);
     }
     try {
       const res = await trpcRequest<PaginatedOrdersResponse | Order[]>('orders.getPaginated', {
-        input: { page: 1, limit: 20 },
+        input: { page: 1, limit: 15 },
       });
       if (res && 'items' in res && Array.isArray(res.items)) {
         setOrders(res.items);
@@ -120,7 +123,7 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
     }
   }, [trpcRequest]);
 
-  const handleCreateOrder = async (orderData: Record<string, unknown>) => {
+  const handleCreateOrder = useCallback(async (orderData: Record<string, unknown>) => {
     try {
       const res = await trpcRequest<CreateOrderResponse>('orders.create', {
         method: 'POST',
@@ -139,9 +142,9 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
       showAlert('Order Error', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleUpdateInvoice = async (invoiceData: Partial<Invoice> & { id: string }) => {
+  const handleUpdateInvoice = useCallback(async (invoiceData: Partial<Invoice> & { id: string }) => {
     try {
       const res = await trpcRequest<Invoice>('invoices.update', {
         method: 'POST',
@@ -157,9 +160,9 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
       showAlert('Update Invoice Error', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert]);
 
-  const handleDeleteOrder = async (id: string, label: string) => {
+  const handleDeleteOrder = useCallback(async (id: string, label: string) => {
     showAlert(
       'Delete Order',
       `Are you sure you want to delete order "${label}"? This action cannot be undone and will also delete the associated invoice, cancel credit records, and restore product stock.`,
@@ -184,7 +187,7 @@ export function useInvoicesOrdersData({ trpcRequest, showAlert }: UseInvoicesOrd
         }
       }
     );
-  };
+  }, [trpcRequest, showAlert]);
 
   return {
     invoices,

@@ -1,40 +1,37 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Tabs, useRouter, usePathname, type Href } from 'expo-router';
+import { Tabs, useRouter, usePathname, Redirect, type Href } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 import { useAppDataContext } from '../../src/context/AppDataContext';
+import LoadingScreen from '../../src/screens/LoadingScreen';
 import AppHeader from '../../src/components/AppHeader';
 import NavigationTabBar, { TabType } from '../../src/components/NavigationTabBar';
-
-const ROUTE_TAB_MAP: Record<string, TabType> = {
-  '/': 'dashboard',
-  '/products-catalog': 'catalogue',
-  '/stock': 'inventory',
-  '/invoices': 'invoices',
-  '/reviews': 'reviews',
-};
-
-const TAB_ROUTE_MAP: Record<TabType, Href> = {
-  dashboard: '/',
-  analytics: '/',
-  catalogue: '/products-catalog',
-  inventory: '/stock',
-  invoices: '/invoices',
-  reviews: '/reviews',
-};
+import { TAB_ROUTE_MAP, getTabFromPathname } from '../../src/utils/navigation';
 
 export default function TabLayout() {
+  const auth = useAuth();
   const data = useAppDataContext();
   const router = useRouter();
   const pathname = usePathname();
 
+  // Route protection: If checking credentials or hydrating session, show loader
+  if (auth.isCheckingAuth) {
+    return <LoadingScreen message={auth.authLoadingMessage || 'Restoring boutique session...'} />;
+  }
+
+  // Route protection: If unauthenticated, redirect to the login page
+  if (!auth.isAuthenticated) {
+    return <Redirect href="/login" />;
+  }
+
+  // Derive current tab directly from pathname as single source of truth
   const currentTab = useMemo<TabType>(() => {
-    return ROUTE_TAB_MAP[pathname] || data.activeTab || 'dashboard';
-  }, [pathname, data.activeTab]);
+    return getTabFromPathname(pathname);
+  }, [pathname]);
 
   const handleTabChange = (newTab: TabType) => {
-    data.setActiveTab(newTab);
     const targetRoute = TAB_ROUTE_MAP[newTab] || '/';
-    router.replace(targetRoute);
+    router.replace(targetRoute as Href);
   };
 
   return (

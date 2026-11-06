@@ -38,6 +38,8 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
+import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
+import { triggerHaptic } from '../utils/haptics';
 import { Product, Variant, InventoryTransaction, InventoryMetrics, isProductInStock } from '../types';
 
 export interface PaginatedStockResponse {
@@ -50,6 +52,8 @@ export interface PaginatedStockResponse {
 }
 import InventoryHistoryModal from '../components/InventoryHistoryModal';
 import { Pagination } from '../components/ui';
+import { isAbortError } from '../services/searchService';
+import { useScrollMemory } from '../utils/scrollMemory';
 import styles from './InventoryScreen.styles';
 
 export interface InventorySuggestionItem {
@@ -160,6 +164,7 @@ export default function InventoryScreen({
   const [remoteStockData, setRemoteStockData] = useState<PaginatedStockResponse | null>(null);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { scrollViewRef, onScroll: handleScrollOffset } = useScrollMemory('inventory');
   const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
   const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
 
@@ -188,7 +193,8 @@ export default function InventoryScreen({
             setSuggestions(res);
           }
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          if (isAbortError(err)) return;
           if (isMounted) setSuggestions(null);
         });
     } else {
@@ -245,7 +251,8 @@ export default function InventoryScreen({
             });
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         console.warn('[InventoryScreen fetch error]:', err);
       } finally {
         if (isMounted) setIsFetchingRemote(false);
@@ -519,6 +526,9 @@ export default function InventoryScreen({
     >
       {/* Main Inventory Scroll Area */}
       <ScrollView
+        ref={scrollViewRef}
+        onScroll={handleScrollOffset}
+        scrollEventThrottle={16}
         style={styles.scrollBody}
         contentContainerStyle={[
           styles.scrollPadding,
@@ -844,7 +854,7 @@ export default function InventoryScreen({
                     accessibilityLabel={`View details for ${product.name}`}
                   >
                     {rawImage ? (
-                      <Image source={{ uri: rawImage }} style={styles.productThumb} resizeMode="cover" />
+                      <Image source={{ uri: getOptimizedImageUrl(rawImage, ImagePresets.thumbnail) }} style={styles.productThumb} resizeMode="cover" />
                     ) : (
                       <View style={[styles.productThumb, styles.noThumb]}>
                         <ImageOff size={20} color="#a1a1aa" />

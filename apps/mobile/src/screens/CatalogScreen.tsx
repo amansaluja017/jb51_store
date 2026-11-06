@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useDebounce } from '../hooks/useDebounce';
-import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react-native';
+import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight, Sparkles, RotateCw } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
 import { Product, PaginatedProductsResponse } from '../types';
 import { Pagination } from '../components/ui';
+import { isAbortError } from '../services/searchService';
+import { useScrollMemory } from '../utils/scrollMemory';
+import { triggerHaptic } from '../utils/haptics';
 import styles from './CatalogScreen.styles';
 
 export interface ProductSuggestionItem {
@@ -41,6 +44,7 @@ export interface CatalogScreenProps {
   isLoading: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  onRefreshCategories?: () => Promise<void> | void;
   onAddProduct: () => void;
   onManageCategories: () => void;
   onToggleStock: (product: Product) => void;
@@ -76,6 +80,7 @@ export default function CatalogScreen({
   isLoading,
   refreshing,
   onRefresh,
+  onRefreshCategories,
   onAddProduct,
   onManageCategories,
   onToggleStock,
@@ -98,6 +103,7 @@ export default function CatalogScreen({
   } | null>(null);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { scrollViewRef, onScroll: handleScrollOffset } = useScrollMemory('catalog');
 
   // Debounced search query (500ms) - waits until user stops typing before querying backend
   const debouncedSearch = useDebounce(searchQuery.trim(), 500);
@@ -135,7 +141,8 @@ export default function CatalogScreen({
             setSuggestions(res);
           }
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          if (isAbortError(err)) return;
           if (isMounted) setSuggestions(null);
         });
     } else {
@@ -187,7 +194,8 @@ export default function CatalogScreen({
             });
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         console.warn('[CatalogScreen fetch error]:', err);
       } finally {
         if (isMounted) setIsFetchingRemote(false);
@@ -316,6 +324,20 @@ export default function CatalogScreen({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryPillsScroll}
           >
+            {onRefreshCategories && (
+              <TouchableOpacity
+                onPress={() => {
+                  triggerHaptic('light');
+                  onRefreshCategories();
+                }}
+                style={styles.categoryReloadPill}
+                accessibilityRole="button"
+                accessibilityLabel="Reload categories"
+                activeOpacity={0.7}
+              >
+                <RotateCw size={12} color="#71717a" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => setSelectedCategory('All')}
               style={[
@@ -369,6 +391,9 @@ export default function CatalogScreen({
 
       {/* Products List with Drag-to-Refresh & Bottom Pagination */}
       <ScrollView 
+        ref={scrollViewRef}
+        onScroll={handleScrollOffset}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           styles.scrollPadding,
           keyboardHeight > 0 && { paddingBottom: keyboardHeight + 80 }

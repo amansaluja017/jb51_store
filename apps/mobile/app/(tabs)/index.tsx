@@ -1,48 +1,70 @@
-import React from 'react';
-import { useRouter, type Href } from 'expo-router';
-import { useAppDataContext } from '../../src/context/AppDataContext';
+import React, { useCallback, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useTelemetry } from '../../src/context/TelemetryContext';
+import { useUi } from '../../src/context/UiContext';
 import DashboardScreen from '../../src/screens/DashboardScreen';
 
 export default function IndexScreen() {
-  const data = useAppDataContext();
+  const telemetry = useTelemetry();
+  const ui = useUi();
   const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!telemetry.analyticsOverview && !telemetry.isLoadingAnalytics) {
+        telemetry.handleFetchAnalytics();
+      }
+    }, [
+      telemetry.analyticsOverview,
+      telemetry.isLoadingAnalytics,
+      telemetry.handleFetchAnalytics,
+    ])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await telemetry.handleFetchAnalytics(telemetry.selectedAnalyticsSlug, true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [telemetry.handleFetchAnalytics, telemetry.selectedAnalyticsSlug]);
 
   return (
     <DashboardScreen
-      stats={data.stats}
-      products={data.products}
-      analyticsMetrics={data.analyticsMetrics}
-      analyticsOverview={data.analyticsOverview}
-      allProductsAnalytics={data.allProductsAnalytics}
-      viewsAnalytics={data.viewsAnalytics}
-      clicksAnalytics={data.clicksAnalytics}
-      conversionAnalytics={data.conversionAnalytics}
-      funnelAnalytics={data.funnelAnalytics}
-      channelRatioAnalytics={data.channelRatioAnalytics}
-      growthPulseAnalytics={data.growthPulseAnalytics}
-      paymentModesAnalytics={data.paymentModesAnalytics}
-      demandHighlightsAnalytics={data.demandHighlightsAnalytics}
-      catalogueTelemetryAnalytics={data.catalogueTelemetryAnalytics}
-      inventorySummaryAnalytics={data.inventorySummaryAnalytics}
-      fetchPaginatedCatalogueTelemetry={data.fetchPaginatedCatalogueTelemetry}
-      activeAnalyticsProduct={data.activeAnalyticsProduct}
-      selectedAnalyticsSlug={data.selectedAnalyticsSlug}
-      setSelectedAnalyticsSlug={data.setSelectedAnalyticsSlug}
-      showAnalyticsSelector={data.showAnalyticsSelector}
-      setShowAnalyticsSelector={data.setShowAnalyticsSelector}
-      isLoading={data.isLoading}
-      isLoadingAnalytics={data.isLoadingAnalytics}
-      refreshing={data.refreshing}
-      onRefresh={data.handleRefresh}
+      stats={telemetry.stats}
+      analyticsMetrics={telemetry.analyticsMetrics}
+      analyticsOverview={telemetry.analyticsOverview}
+      allProductsAnalytics={telemetry.allProductsAnalytics}
+      viewsAnalytics={telemetry.viewsAnalytics}
+      clicksAnalytics={telemetry.clicksAnalytics}
+      conversionAnalytics={telemetry.conversionAnalytics}
+      funnelAnalytics={telemetry.funnelAnalytics}
+      channelRatioAnalytics={telemetry.channelRatioAnalytics}
+      growthPulseAnalytics={telemetry.growthPulseAnalytics}
+      paymentModesAnalytics={telemetry.paymentModesAnalytics}
+      demandHighlightsAnalytics={telemetry.demandHighlightsAnalytics}
+      catalogueTelemetryAnalytics={telemetry.catalogueTelemetryAnalytics}
+      inventorySummaryAnalytics={telemetry.inventorySummaryAnalytics}
+      fetchPaginatedCatalogueTelemetry={telemetry.fetchPaginatedCatalogueTelemetry}
+      activeAnalyticsProduct={telemetry.activeAnalyticsProduct}
+      selectedAnalyticsSlug={telemetry.selectedAnalyticsSlug}
+      setSelectedAnalyticsSlug={telemetry.setSelectedAnalyticsSlug}
+      showAnalyticsSelector={telemetry.showAnalyticsSelector}
+      setShowAnalyticsSelector={telemetry.setShowAnalyticsSelector}
+      isLoading={telemetry.isLoadingAnalytics}
+      isLoadingAnalytics={telemetry.isLoadingAnalytics}
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
       onNavigateToTab={(tab) => {
-        data.setActiveTab(tab);
         if (tab === 'catalogue') {
           router.replace('/products-catalog');
         } else if (tab === 'inventory') {
           router.replace('/stock');
         }
       }}
-      showAlert={data.showAlert}
+      showAlert={ui.showAlert}
     />
   );
 }

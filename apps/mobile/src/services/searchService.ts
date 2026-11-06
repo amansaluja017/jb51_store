@@ -43,6 +43,33 @@ export interface SearchInventoryParams {
   limit?: number;
 }
 
+const activeAbortControllers = new Map<string, AbortController>();
+
+export function getAbortSignal(scope: string): AbortSignal {
+  const existing = activeAbortControllers.get(scope);
+  if (existing) {
+    try {
+      existing.abort();
+    } catch {
+      // ignore
+    }
+  }
+  const controller = new AbortController();
+  activeAbortControllers.set(scope, controller);
+  return controller.signal;
+}
+
+export function isAbortError(err: unknown): boolean {
+  if (!err) return false;
+  if (typeof err === 'object') {
+    const errorObj = err as Record<string, unknown>;
+    if (errorObj.name === 'CanceledError' || errorObj.name === 'AbortError') return true;
+    if (errorObj.code === 'ERR_CANCELED') return true;
+    if (typeof errorObj.message === 'string' && errorObj.message.toLowerCase().includes('canceled')) return true;
+  }
+  return false;
+}
+
 // 1. Products Search (ILIKE) & Suggestions (pg_trgm)
 export async function searchProducts(
   params: SearchProductsParams,
@@ -53,6 +80,7 @@ export async function searchProducts(
     input: params,
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('products.search'),
   })) as { items: Product[]; total: number; query: string };
 }
 
@@ -69,6 +97,7 @@ export async function getProductSuggestions(
     input: { query: trimmed },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('products.suggestions'),
   })) as ProductSuggestionsResponse;
 }
 
@@ -84,6 +113,7 @@ export async function searchInventory(
       input: params,
       token: options.token,
       apiHost: options.apiHost,
+      signal: getAbortSignal('inventory.search'),
     }
   );
 }
@@ -99,6 +129,7 @@ export async function getInventorySuggestions(
     input: { query: trimmed },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('inventory.suggestions'),
   })) as Array<{ id: string; name: string; category: string; availableStock: number; color?: string | null }>;
 }
 
@@ -112,6 +143,7 @@ export async function searchCustomers(
     input: { query },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('customers.search'),
   });
   return Array.isArray(res) ? res : res?.items ?? [];
 }
@@ -130,6 +162,7 @@ export async function getCustomerSuggestions(
     input: { query: trimmed },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('customers.suggestions'),
   });
   return Array.isArray(res) ? res : res?.suggestions ?? [];
 }
@@ -144,6 +177,7 @@ export async function searchOrders(
     input: { query },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('orders.search'),
   });
   return Array.isArray(res) ? res : res?.items ?? [];
 }
@@ -158,6 +192,7 @@ export async function searchInvoices(
     input: { query },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('invoices.search'),
   });
   return Array.isArray(res) ? res : res?.items ?? [];
 }
@@ -172,6 +207,7 @@ export async function searchCredits(
     input: { query },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('credits.search'),
   });
   const items = (Array.isArray(res) ? [...res] : [...(res?.items ?? [])]) as CreditSearchResult;
   if (res && !Array.isArray(res)) {
@@ -191,6 +227,7 @@ export async function searchReviews(
     input: { query },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('reviews.search'),
   });
   const items = (Array.isArray(res) ? [...res] : [...(res?.items ?? [])]) as ReviewSearchResult;
   if (res && !Array.isArray(res) && res.total !== undefined) {
@@ -220,6 +257,7 @@ export async function getReviewSuggestions(
     input: { query: trimmed },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('reviews.suggestions'),
   });
   const rawList = Array.isArray(res) ? res : (res?.suggestions ?? []);
   return rawList.map((s) => ({
@@ -243,6 +281,7 @@ export async function searchInquiries(
     input: { query },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('inquiries.search'),
   })) as Inquiry[];
 }
 
@@ -257,5 +296,6 @@ export async function getInquirySuggestions(
     input: { query: trimmed },
     token: options.token,
     apiHost: options.apiHost,
+    signal: getAbortSignal('inquiries.suggestions'),
   })) as Array<{ id: string; customerName: string; phoneNumber?: string | null; message: string; inqueryType?: string; productName?: string }>;
 }

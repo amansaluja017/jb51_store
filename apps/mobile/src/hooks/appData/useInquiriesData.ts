@@ -47,6 +47,7 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
   const inquiriesSortByRef = useRef(inquiriesSortBy);
   inquiriesSortByRef.current = inquiriesSortBy;
   const hasFetchedInquiries = useRef(false);
+  const isFetchingInquiriesRef = useRef(false);
 
   const pendingInquiriesCount = useMemo(
     () => (inquiriesPagination.pendingCount > 0 ? inquiriesPagination.pendingCount : inquiries.filter(i => i.status !== 'Resolved').length),
@@ -62,6 +63,8 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
       sortBy?: 'recent' | 'oldest' | 'name-asc' | 'name-desc';
       append?: boolean;
     }) => {
+      if (isFetchingInquiriesRef.current) return;
+      isFetchingInquiriesRef.current = true;
       setIsLoadingInquiries(true);
       try {
         const page = params?.page ?? 1;
@@ -71,7 +74,7 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
         const sortBy = params?.sortBy !== undefined ? params.sortBy : inquiriesSortByRef.current;
         const append = params?.append ?? false;
 
-        const res = await trpcRequest<PaginatedInquiriesResponse>('inqueries.getPaginated', {
+        const res = await trpcRequest<PaginatedInquiriesResponse>('inquiries.getPaginated', {
           input: {
             page,
             limit,
@@ -113,19 +116,20 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
         console.error('[handleFetchPaginatedInquiries Error]:', err);
       } finally {
         setIsLoadingInquiries(false);
+        isFetchingInquiriesRef.current = false;
       }
     },
     [trpcRequest]
   );
 
-  const handleResolveInquiry = async (id: string, name?: string) => {
+  const handleResolveInquiry = useCallback(async (id: string, name?: string) => {
     try {
-      await trpcRequest('inqueries.updateStatus', {
+      await trpcRequest('inquiries.updateStatus', {
         method: 'POST',
         body: { id, status: 'resolved' },
       });
       setInquiries(prev => {
-        if (inquiriesStatusFilter === 'pending') {
+        if (inquiriesStatusFilterRef.current === 'pending') {
           return prev.filter(inq => inq.id !== id);
         }
         return prev.map(inq => (inq.id === id ? { ...inq, status: 'Resolved' as const } : inq));
@@ -133,9 +137,9 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
       setInquiriesPagination(prev => {
         const nextPending = Math.max(0, prev.pendingCount - 1);
         const nextResolved = prev.resolvedCount + 1;
-        const nextTotal = inquiriesStatusFilter === 'pending' ? Math.max(0, prev.total - 1) : prev.total;
+        const nextTotal = inquiriesStatusFilterRef.current === 'pending' ? Math.max(0, prev.total - 1) : prev.total;
         const nextTotalPages =
-          inquiriesStatusFilter === 'pending'
+          inquiriesStatusFilterRef.current === 'pending'
             ? Math.max(1, Math.ceil(nextTotal / (prev.limit || 10)))
             : prev.totalPages;
         return {
@@ -149,7 +153,7 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
       showAlert('Inquiry Resolved', `Status for ${name || 'client'} marked as Resolved.`, 'success');
       handleFetchPaginatedInquiries({
         page: inquiriesPagination.page,
-        status: inquiriesStatusFilter,
+        status: inquiriesStatusFilterRef.current,
         append: false,
       });
     } catch (err: unknown) {
@@ -157,7 +161,7 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
       const message = err instanceof Error ? err.message : 'Failed to update inquiry status';
       showAlert('Error', message, 'error');
     }
-  };
+  }, [trpcRequest, showAlert, inquiriesPagination.page, handleFetchPaginatedInquiries]);
 
   return {
     inquiries,

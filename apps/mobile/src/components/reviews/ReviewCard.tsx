@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import {
   Star,
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react-native';
 import { Review } from '../../types';
 import styles from '../../screens/ReviewsScreen.styles';
+import { getOptimizedImageUrl, ImagePresets } from '../../utils/cloudinary';
+import { triggerHaptic } from '../../utils/haptics';
 
 export interface ReviewCardProps {
   review: Review;
@@ -23,17 +25,21 @@ export interface ReviewCardProps {
   onToggleApproval: (review: Review) => Promise<unknown> | void;
 }
 
-export const ReviewCard: React.FC<ReviewCardProps> = ({
+const REVIEW_WORD_LIMIT = 25;
+
+export const ReviewCard: React.FC<ReviewCardProps> = React.memo(({
   review,
   onEdit,
   onDelete,
   onToggleApproval,
 }) => {
   const [isApproving, setIsApproving] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleToggle = async () => {
     try {
       setIsApproving(true);
+      triggerHaptic('medium');
       await onToggleApproval(review);
     } finally {
       setIsApproving(false);
@@ -41,6 +47,15 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   };
 
   const currentStars = Number(review.stars) || 5;
+
+  const words = useMemo(() => {
+    return review.message ? review.message.trim().split(/\s+/) : [];
+  }, [review.message]);
+
+  const isLongMessage = words.length > REVIEW_WORD_LIMIT;
+  const displayMessage = isLongMessage && !isExpanded
+    ? `${words.slice(0, REVIEW_WORD_LIMIT).join(' ')}...`
+    : review.message;
 
   return (
     <View style={styles.reviewCard}>
@@ -102,12 +117,33 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
       </View>
 
       {/* Message */}
-      <Text style={styles.reviewMessage}>"{review.message}"</Text>
+      <Text style={[styles.reviewMessage, isLongMessage && { marginBottom: 6 }]}>
+        "{displayMessage}"
+      </Text>
+      {isLongMessage && (
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('light');
+            setIsExpanded(prev => !prev);
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={styles.expandToggle}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.expandToggleText}>
+            {isExpanded ? 'Show less' : 'Show more'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
-      {/* Image Preview if available */}
+      {/* Image Preview with Cloudinary Dynamic Optimization */}
       {review.image ? (
         <View style={styles.imageThumbnailContainer}>
-          <Image source={{ uri: review.image }} style={styles.imageThumbnail} resizeMode="cover" />
+          <Image
+            source={{ uri: getOptimizedImageUrl(review.image, ImagePresets.review) }}
+            style={styles.imageThumbnail}
+            resizeMode="cover"
+          />
         </View>
       ) : null}
 
@@ -168,7 +204,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 
         <View style={styles.rightActionsRow}>
           <TouchableOpacity
-            onPress={() => onEdit(review)}
+            onPress={() => {
+              triggerHaptic('light');
+              onEdit(review);
+            }}
             style={styles.editBtn}
             accessibilityRole="button"
             accessibilityLabel={`Edit review from ${review.name}`}
@@ -178,7 +217,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => onDelete(review)}
+            onPress={() => {
+              triggerHaptic('warning');
+              onDelete(review);
+            }}
             style={styles.deleteBtn}
             accessibilityRole="button"
             accessibilityLabel={`Delete review from ${review.name}`}
@@ -190,6 +232,6 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
       </View>
     </View>
   );
-};
+});
 
 export default ReviewCard;

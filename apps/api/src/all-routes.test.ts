@@ -73,7 +73,7 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
     const reviewsList = await publicCaller.reviews.getAll();
     assert.ok(Array.isArray(reviewsList));
 
-    const paginatedReviews = await publicCaller.reviews.getPaginated({ page: 1, limit: 10 });
+    const paginatedReviews = await adminCaller.reviews.getPaginated({ page: 1, limit: 10 });
     assert.ok(paginatedReviews);
     assert.ok(Array.isArray(paginatedReviews.items || paginatedReviews));
   });
@@ -193,10 +193,10 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
     assert.ok(Array.isArray((creditSearch as any)?.items || creditSearch));
 
     // 15.7 Reviews
-    const reviewSearch = await publicCaller.reviews.search({ query: 'great' });
+    const reviewSearch = await adminCaller.reviews.search({ query: 'great' });
     assert.ok(Array.isArray((reviewSearch as any)?.items || reviewSearch));
 
-    const reviewSuggestions = await publicCaller.reviews.suggestions({ query: 'gret' });
+    const reviewSuggestions = await adminCaller.reviews.suggestions({ query: 'gret' });
     assert.ok(Array.isArray((reviewSuggestions as any)?.suggestions || reviewSuggestions));
 
     // 15.8 Inquiries

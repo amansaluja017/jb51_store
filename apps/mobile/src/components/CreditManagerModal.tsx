@@ -41,6 +41,7 @@ import { formatDateSafe, formatDateToYMD } from '../utils/date';
 import { useDebounce } from '../hooks/useDebounce';
 import { Pagination } from './ui';
 import { TransactionHistorySkeleton } from './SkeletonLoader';
+import { isAbortError } from '../services/searchService';
 
 type FilterTab = 'all' | 'pending' | 'overdue' | 'settled';
 
@@ -207,7 +208,8 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
         } else {
           setRemoteCredits(null);
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         console.error('[fetchCredits] Error:', err);
       } finally {
         if (!isCancelled) {

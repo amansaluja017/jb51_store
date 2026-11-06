@@ -50,8 +50,8 @@ export const inventoryRouter = router({
       return await recordInventoryTransaction(input);
     }),
 
-  getTransactions: publicProcedure
-    .meta({ description: 'Fetch recent inventory transactions' })
+  getTransactions: adminProcedure
+    .meta({ description: 'Fetch recent inventory transactions (Admin only)' })
     .input(
       z
         .object({
@@ -64,8 +64,8 @@ export const inventoryRouter = router({
       return await getInventoryTransactions(input || undefined);
     }),
 
-  getPaginated: publicProcedure
-    .meta({ description: 'Fetch paginated inventory items with stock filters and store-wide metrics' })
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated inventory items with stock filters and store-wide metrics (Admin only)' })
     .input(
       z
         .object({
@@ -82,8 +82,8 @@ export const inventoryRouter = router({
       return await getPaginatedInventory(input || undefined);
     }),
 
-  search: publicProcedure
-    .meta({ description: 'Fast search inventory items with metrics using ilike' })
+  search: adminProcedure
+    .meta({ description: 'Fast search inventory items with metrics using ilike (Admin only)' })
     .input(
       z
         .object({
@@ -99,8 +99,8 @@ export const inventoryRouter = router({
       return await searchInventory(input || undefined);
     }),
 
-  suggestions: publicProcedure
-    .meta({ description: 'Real-time autocomplete suggestions for inventory items using pg_trgm' })
+  suggestions: adminProcedure
+    .meta({ description: 'Real-time autocomplete suggestions for inventory items using pg_trgm (Admin only)' })
     .input(
       z.object({
         query: z.string().nullish(),

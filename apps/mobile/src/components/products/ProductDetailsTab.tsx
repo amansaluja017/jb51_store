@@ -82,19 +82,31 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                     <Controller
                       control={control}
                       name="name"
-                      rules={{ required: 'Product name is required' }}
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={(val) => {
-                            onChange(val);
-                            handleNameChange(val);
-                          }}
-                          placeholder="e.g. Palace Silk Kurta"
-                          style={styles.modalInput}
-                          placeholderTextColor="#a1a1aa"
-                        />
+                      rules={{
+                        required: 'Design name is required',
+                        validate: (val) => {
+                          if (!val || !val.trim()) return 'Design name cannot be empty';
+                          if (val.trim().length < 3) return 'Design name must be at least 3 characters';
+                          return true;
+                        },
+                      }}
+                      render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                        <View>
+                          <TextInput
+                            value={value}
+                            onBlur={onBlur}
+                            onChangeText={(val) => {
+                              onChange(val);
+                              handleNameChange(val);
+                            }}
+                            placeholder="e.g. Palace Silk Kurta"
+                            style={[styles.modalInput, error && styles.inputErrorBorder]}
+                            placeholderTextColor="#a1a1aa"
+                          />
+                          {error?.message && (
+                            <Text style={styles.inlineFieldError}>{error.message}</Text>
+                          )}
+                        </View>
                       )}
                     />
                   </View>
@@ -182,55 +194,81 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                     {/* MRP with Rupee symbol */}
                     <View style={[styles.modalInputGroup, { flex: 1, marginRight: 8 }]}>
                       <Text style={styles.fieldLabel}>MRP (INR) *</Text>
-                      <View style={styles.priceInputWrapper}>
-                        <Text style={styles.pricePrefix}>₹</Text>
-                        <Controller
-                          control={control}
-                          name="mrp"
-                          rules={{ required: 'MRP is required' }}
-                          render={({ field: { onChange, onBlur, value } }) => (
-                            <TextInput
-                              value={value}
-                              onBlur={onBlur}
-                              onChangeText={(val) => {
-                                onChange(val);
-                                setFormMrp(val);
-                              }}
-                              placeholder="2999"
-                              keyboardType="numeric"
-                              style={styles.priceInput}
-                              placeholderTextColor="#a1a1aa"
-                            />
-                          )}
-                        />
-                      </View>
+                      <Controller
+                        control={control}
+                        name="mrp"
+                        rules={{
+                          required: 'MRP is required',
+                          validate: (val) => {
+                            const num = parseFloat(val);
+                            if (isNaN(num) || num <= 0) return 'MRP must be greater than 0';
+                            return true;
+                          },
+                        }}
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                          <View>
+                            <View style={[styles.priceInputWrapper, error && styles.inputErrorBorder]}>
+                              <Text style={styles.pricePrefix}>₹</Text>
+                              <TextInput
+                                value={value}
+                                onBlur={onBlur}
+                                onChangeText={(val) => {
+                                  onChange(val);
+                                  setFormMrp(val);
+                                }}
+                                placeholder="2999"
+                                keyboardType="numeric"
+                                style={styles.priceInput}
+                                placeholderTextColor="#a1a1aa"
+                              />
+                            </View>
+                            {error?.message && (
+                              <Text style={styles.inlineFieldError}>{error.message}</Text>
+                            )}
+                          </View>
+                        )}
+                      />
                     </View>
 
                     {/* Selling Price with Rupee symbol */}
                     <View style={[styles.modalInputGroup, { flex: 1, marginLeft: 8 }]}>
                       <Text style={styles.fieldLabel}>Selling Price (INR) *</Text>
-                      <View style={styles.priceInputWrapper}>
-                        <Text style={styles.pricePrefix}>₹</Text>
-                        <Controller
-                          control={control}
-                          name="sellingPrice"
-                          rules={{ required: 'Selling price is required' }}
-                          render={({ field: { onChange, onBlur, value } }) => (
-                            <TextInput
-                              value={value}
-                              onBlur={onBlur}
-                              onChangeText={(val) => {
-                                onChange(val);
-                                setFormSellingPrice(val);
-                              }}
-                              placeholder="1999"
-                              keyboardType="numeric"
-                              style={styles.priceInput}
-                              placeholderTextColor="#a1a1aa"
-                            />
-                          )}
-                        />
-                      </View>
+                      <Controller
+                        control={control}
+                        name="sellingPrice"
+                        rules={{
+                          required: 'Selling price is required',
+                          validate: (val) => {
+                            const num = parseFloat(val);
+                            if (isNaN(num) || num <= 0) return 'Selling price must be greater than 0';
+                            const mrpNum = parseFloat(formMrp);
+                            if (!isNaN(mrpNum) && num > mrpNum) return 'Selling price cannot exceed MRP';
+                            return true;
+                          },
+                        }}
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                          <View>
+                            <View style={[styles.priceInputWrapper, error && styles.inputErrorBorder]}>
+                              <Text style={styles.pricePrefix}>₹</Text>
+                              <TextInput
+                                value={value}
+                                onBlur={onBlur}
+                                onChangeText={(val) => {
+                                  onChange(val);
+                                  setFormSellingPrice(val);
+                                }}
+                                placeholder="1999"
+                                keyboardType="numeric"
+                                style={styles.priceInput}
+                                placeholderTextColor="#a1a1aa"
+                              />
+                            </View>
+                            {error?.message && (
+                              <Text style={styles.inlineFieldError}>{error.message}</Text>
+                            )}
+                          </View>
+                        )}
+                      />
                     </View>
                   </View>
 
@@ -373,7 +411,15 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                   <Controller
                     control={control}
                     name="description"
-                    render={({ field: { onChange, onBlur, value } }) => {
+                    rules={{
+                      required: 'Description is required',
+                      validate: (val) => {
+                        const words = countWords(val || '');
+                        if (words < 100) return `Description must be at least 100 words (${words}/100)`;
+                        return true;
+                      },
+                    }}
+                    render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => {
                       const words = countWords(value);
                       const isRequirementMet = words >= 100;
                       return (
@@ -391,6 +437,9 @@ export const ProductDetailsTab: React.FC<ProductDetailsTabProps> = ({
                             numberOfLines={5}
                             minWords={100}
                           />
+                          {error?.message && (
+                            <Text style={styles.inlineFieldError}>{error.message}</Text>
+                          )}
 
                           {/* Live 100-word validation status message */}
                           <View

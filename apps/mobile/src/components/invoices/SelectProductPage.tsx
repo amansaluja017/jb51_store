@@ -28,6 +28,8 @@ import {
 import { Product, PaginatedProductsResponse, isProductInStock, isProductDiscontinued } from '../../types';
 import { ProductSelectorSkeleton } from '../SkeletonLoader';
 import { Pagination } from '../ui';
+import { getOptimizedImageUrl, ImagePresets } from '../../utils/cloudinary';
+import { triggerHaptic } from '../../utils/haptics';
 
 export interface SelectProductPageProps {
   products: Product[];
@@ -409,7 +411,7 @@ export const SelectProductPage: React.FC<SelectProductPageProps> = ({
                 <View style={[styles.imageWrapper, !inStock && styles.imageWrapperDisabled]}>
                   {thumbnail ? (
                     <Image
-                      source={{ uri: thumbnail }}
+                      source={{ uri: getOptimizedImageUrl(thumbnail, ImagePresets.thumbnail) }}
                       style={[styles.productImage, !inStock && { opacity: 0.55 }]}
                       resizeMode="cover"
                     />

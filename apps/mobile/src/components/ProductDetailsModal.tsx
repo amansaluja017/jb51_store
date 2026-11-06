@@ -28,6 +28,8 @@ import {
   Hash,
 } from 'lucide-react-native';
 import { Product, isProductInStock } from '../types';
+import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
+import { triggerHaptic } from '../utils/haptics';
 import FormattedRichText from './FormattedRichText';
 import styles from './ProductDetailsModal.styles';
 
@@ -151,7 +153,7 @@ export default function ProductDetailsModal({
             {activeImageUri ? (
               <View style={styles.mainImageWrapper}>
                 <Image
-                  source={{ uri: activeImageUri }}
+                  source={{ uri: getOptimizedImageUrl(activeImageUri, ImagePresets.detail) }}
                   style={styles.mainImage}
                   resizeMode="cover"
                 />
@@ -182,14 +184,21 @@ export default function ProductDetailsModal({
                   return (
                     <TouchableOpacity
                       key={`thumb_${idx}`}
-                      onPress={() => setSelectedImageIndex(idx)}
+                      onPress={() => {
+                        triggerHaptic('selection');
+                        setSelectedImageIndex(idx);
+                      }}
                       style={[
                         styles.thumbnailItem,
                         isSelected && styles.thumbnailItemSelected,
                       ]}
                       activeOpacity={0.8}
                     >
-                      <Image source={{ uri }} style={styles.thumbnailImage} resizeMode="cover" />
+                      <Image
+                        source={{ uri: getOptimizedImageUrl(uri, ImagePresets.thumbnail) }}
+                        style={styles.thumbnailImage}
+                        resizeMode="cover"
+                      />
                     </TouchableOpacity>
                   );
                 })}

@@ -837,6 +837,17 @@ export default function ProductFormModal({
     setShowNewCatInput(false);
   };
 
+  const handleFormSubmit = handleSubmit(
+    async () => {
+      await handleSave();
+    },
+    (formErrors) => {
+      if (formErrors.name || formErrors.mrp || formErrors.sellingPrice || formErrors.description) {
+        setActiveTab('details');
+      }
+    }
+  );
+
   const handleSave = async () => {
     if (isUploadingImage || deletingUris.length > 0) {
       showAlert('Operation in Progress', 'Please wait until image upload/removal finishes.', 'error');
@@ -1190,7 +1201,7 @@ export default function ProductFormModal({
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={handleSubmit(() => handleSave())}
+              onPress={handleFormSubmit}
               style={[
                 styles.submitBottomBtn,
                 (isUploadingImage || deletingUris.length > 0 || isSubmitting) && { opacity: 0.6 }

@@ -81,6 +81,16 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e4e4e7',
   },
+  categoryReloadPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   categoryPillActive: {
     backgroundColor: '#FF5E36',
     borderColor: '#FF5E36',

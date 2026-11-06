@@ -156,7 +156,7 @@ export const styles = StyleSheet.create({
   },
   scrollPadding: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 110 : 96,
   },
   loader: {
     marginTop: 40,
@@ -255,6 +255,16 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
     fontStyle: 'italic',
     marginBottom: 12,
+  },
+  expandToggle: {
+    marginTop: -6,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+  },
+  expandToggleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF5E36',
   },
   attachmentsRow: {
     flexDirection: 'row',

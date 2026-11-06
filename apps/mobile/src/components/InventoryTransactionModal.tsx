@@ -26,6 +26,8 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { Product, Variant } from '../types';
 import styles from './InventoryTransactionModal.styles';
+import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
+import { triggerHaptic } from '../utils/haptics';
 
 export interface TransactionFormValues {
   type: 'sale' | 'purchase';
@@ -309,7 +311,11 @@ export default function InventoryTransactionModal({
                 {selectedProduct ? (
                   <View style={styles.selectedProductCard}>
                     {rawImage ? (
-                      <Image source={{ uri: rawImage }} style={styles.productThumb} resizeMode="cover" />
+                      <Image
+                        source={{ uri: getOptimizedImageUrl(rawImage, ImagePresets.thumbnail) }}
+                        style={styles.productThumb}
+                        resizeMode="cover"
+                      />
                     ) : (
                       <View style={[styles.productThumb, styles.noThumb]}>
                         <Package size={20} color="#a1a1aa" />

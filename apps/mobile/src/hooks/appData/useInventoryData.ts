@@ -32,9 +32,12 @@ export function useInventoryData({
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const hasFetchedTransactions = useRef(false);
+  const isFetchingTransactionsRef = useRef(false);
 
   const handleFetchTransactions = useCallback(async (force = false) => {
+    if (isFetchingTransactionsRef.current) return;
     if (hasFetchedTransactions.current && !force) return;
+    isFetchingTransactionsRef.current = true;
     try {
       setIsLoadingTransactions(true);
       const res = await trpcRequest<InventoryTransaction[]>('inventory.getTransactions');
@@ -46,10 +49,11 @@ export function useInventoryData({
       console.error('[handleFetchTransactions Error]:', err);
     } finally {
       setIsLoadingTransactions(false);
+      isFetchingTransactionsRef.current = false;
     }
   }, [trpcRequest]);
 
-  const handleUpdateInventory = async (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => {
+  const handleUpdateInventory = useCallback(async (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => {
     const totalVariantStock = updatedVariants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
     const newInStock = forceInStock !== undefined ? forceInStock : totalVariantStock > 0;
 
@@ -93,9 +97,9 @@ export function useInventoryData({
       showAlert('Error', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert, setProducts]);
 
-  const handleRecordTransaction = async (data: {
+  const handleRecordTransaction = useCallback(async (data: {
     productId: string;
     productVariantId?: string | null;
     type: 'sale' | 'purchase';
@@ -127,7 +131,7 @@ export function useInventoryData({
       showAlert('Transaction Error', message, 'error');
       throw err;
     }
-  };
+  }, [trpcRequest, showAlert, handleFetchProducts, handleFetchTransactions]);
 
   const handleFetchPaginatedStock = useCallback(async (params?: {
     search?: string;

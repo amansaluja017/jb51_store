@@ -8,3 +8,5 @@ coverage/
 .turbo
 dist/
 **/dist/
+
+upcomming_features.txt

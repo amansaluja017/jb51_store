@@ -43,6 +43,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { colors } from '../theme/colors';
 import { CustomerListSkeleton } from './SkeletonLoader';
 import { Pagination } from './ui';
+import { isAbortError } from '../services/searchService';
 
 export interface CustomerHistoryResponse {
   customer: Customer;
@@ -228,7 +229,8 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
           const list = Array.isArray(res) ? res : res?.suggestions;
           if (!isCancelled && Array.isArray(list)) setSuggestions(list);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          if (isAbortError(err)) return;
           if (!isCancelled) setSuggestions(null);
         });
     } else {
@@ -278,7 +280,8 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
             setCustomerTotalCount(res.total ?? 0);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         console.error('[CustomerManagerModal] Error fetching customers:', err);
       } finally {
         if (!isCancelled) {

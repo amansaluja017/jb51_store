@@ -47,7 +47,7 @@ export function useAuthData({ showAlert, onLogoutCleanup }: UseAuthDataProps = {
   const trpcRequest = useCallback(
     <T = unknown>(
       path: string,
-      options: { method?: 'GET' | 'POST'; body?: unknown; input?: unknown } = {}
+      options: { method?: 'GET' | 'POST'; body?: unknown; input?: unknown; signal?: AbortSignal } = {}
     ): Promise<T> => {
       return trpcRequestService<T>(path, { ...options, token: tokenRef.current, apiHost: apiHostRef.current });
     },
@@ -183,26 +183,27 @@ export function useAuthData({ showAlert, onLogoutCleanup }: UseAuthDataProps = {
   };
 
   const handleLogout = async () => {
-    try {
-      const refreshToken = await tokenStorage.getRefreshToken();
-      if (token || refreshToken) {
-        await trpcRequest('auth.logout', {
-          method: 'POST',
-          body: { refreshToken: refreshToken || undefined },
-        });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.log('[handleLogout] Logout API notice:', message);
-    } finally {
-      await tokenStorage.clearAuthData();
-      setToken(null);
-      setCurrentUser(null);
-      setIsAuthenticated(false);
-      setIsCheckingAuth(false);
-      onLogoutCleanup?.();
-      showAlert?.('Logged Out', 'Your admin session has ended.', 'info');
+    // 1. Instantly clear tokens and reset auth state so the user is logged out immediately
+    const refreshToken = await tokenStorage.getRefreshToken();
+    await tokenStorage.clearAuthData();
+    setToken(null);
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setIsCheckingAuth(false);
+    onLogoutCleanup?.();
+
+    // 2. Notify backend of token revocation asynchronously without blocking the UI
+    if (refreshToken) {
+      trpcRequest('auth.logout', {
+        method: 'POST',
+        body: { refreshToken },
+      }).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log('[handleLogout] Background logout notice:', message);
+      });
     }
+
+    showAlert?.('Logged Out', 'Your admin session has ended.', 'info');
   };
 
   const handleChangeUsername = async (newUserName: string) => {

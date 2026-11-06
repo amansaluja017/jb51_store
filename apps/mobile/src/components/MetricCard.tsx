@@ -10,7 +10,7 @@ interface MetricCardProps {
   onPress?: () => void;
 }
 
-export default function MetricCard({ 
+function MetricCard({ 
   icon, 
   value, 
   label, 
@@ -116,3 +116,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+
+export default React.memo(MetricCard);

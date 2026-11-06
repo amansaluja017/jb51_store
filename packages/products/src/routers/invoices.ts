@@ -11,14 +11,14 @@ import {
 import { orderItemSchema } from './orders.js';
 
 export const invoicesRouter = router({
-  getAll: publicProcedure
-    .meta({ description: 'Fetch all invoices' })
+  getAll: adminProcedure
+    .meta({ description: 'Fetch all invoices (Admin only)' })
     .query(async () => {
       return await getInvoices();
     }),
 
-  getPaginated: publicProcedure
-    .meta({ description: 'Fetch paginated and filtered invoices' })
+  getPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated and filtered invoices (Admin only)' })
     .input(
       z
         .object({
@@ -34,8 +34,8 @@ export const invoicesRouter = router({
       return await getPaginatedInvoices(input || undefined);
     }),
 
-  search: publicProcedure
-    .meta({ description: 'Fast search invoices' })
+  search: adminProcedure
+    .meta({ description: 'Fast search invoices (Admin only)' })
     .input(
       z
         .object({

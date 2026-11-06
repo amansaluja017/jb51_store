@@ -27,6 +27,7 @@ import InvoiceFormView from '../components/invoices/InvoiceFormView';
 import SelectCustomerPage from '../components/invoices/SelectCustomerPage';
 import SelectProductPage from '../components/invoices/SelectProductPage';
 import { useDebounce } from '../hooks/useDebounce';
+import { isAbortError } from '../services/searchService';
 
 
 import {
@@ -242,7 +243,8 @@ export default function InvoiceScreen({
             setInvoiceTotalCount(res.totalCount || 0);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         console.error('[fetchInvoices] Error:', err);
       } finally {
         if (!isCancelled) {
@@ -295,7 +297,8 @@ export default function InvoiceScreen({
             setOrderTotalCount(res.totalCount || 0);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         console.error('[fetchOrders] Error:', err);
       } finally {
         if (!isCancelled) {
@@ -310,17 +313,10 @@ export default function InvoiceScreen({
     };
   }, [orderPage, debouncedSearch, isSearchTyping, onSearchOrders, onFetchPaginatedOrders, activeLedgerTab, refreshing]);
 
-  // Hit order history route upon loading invoices section if needed
-  useEffect(() => {
-    if (!orders || orders.length === 0) {
-      onFetchOrders();
-    }
-  }, []);
-
   const handleSelectLedgerTab = (tab: 'invoices' | 'orders') => {
     setActiveLedgerTab(tab);
-    if (tab === 'orders' && (!orders || orders.length === 0)) {
-      onFetchOrders();
+    if (tab === 'orders' && !onFetchPaginatedOrders && (!orders || orders.length === 0)) {
+      onFetchOrders?.();
     }
   };
 
@@ -347,7 +343,7 @@ export default function InvoiceScreen({
   const [productSearchQuery, setProductSearchQuery] = useState('');
 
   // Invoice form state using react-hook-form
-  const { control, reset, setValue, watch, formState: { errors } } = useForm<InvoiceFormValues>({
+  const { control, reset, setValue, watch, setError, clearErrors, formState: { errors } } = useForm<InvoiceFormValues>({
     defaultValues: {
       invoiceNumber: '',
       invoiceDate: '',
@@ -824,11 +820,25 @@ export default function InvoiceScreen({
 
   // Complete end-to-end invoice creation flow
   const handleCreateAndShareInvoice = async () => {
+    let hasValidationErr = false;
     const clientName = formValues.clientName.trim();
     if (!clientName) {
-      showAlert('Customer Required', 'Please enter or select a customer.', 'error');
-      return;
+      setError('clientName', { type: 'manual', message: 'Customer name is required' });
+      hasValidationErr = true;
+    } else {
+      clearErrors('clientName');
     }
+
+    const phoneDigits = formValues.clientPhone.replace(/\D/g, '');
+    if (formValues.clientPhone.trim() && phoneDigits.length < 10) {
+      setError('clientPhone', { type: 'manual', message: 'Enter valid 10-digit mobile number' });
+      hasValidationErr = true;
+    } else {
+      clearErrors('clientPhone');
+    }
+
+    if (hasValidationErr) return;
+
     if (invoiceItems.length === 0) {
       showAlert('Items Required', 'Please add at least one item to the invoice.', 'error');
       return;
@@ -981,7 +991,7 @@ export default function InvoiceScreen({
 
       // 5. Refresh databases & Reset form
       await Promise.all([
-        onFetchOrders(true),
+        !onFetchPaginatedOrders ? onFetchOrders(true) : Promise.resolve(),
         onFetchCustomers(),
         onFetchCredits ? onFetchCredits() : Promise.resolve(),
       ]);
@@ -1332,10 +1342,34 @@ export default function InvoiceScreen({
             setIsFormOpen(false);
           }}
           onPreview={() => {
+            let hasError = false;
             if (!formValues.clientName.trim()) {
-              showAlert('Customer Required', 'Please select a customer.', 'error');
-              return;
+              setError('clientName', { type: 'manual', message: 'Customer name is required' });
+              hasError = true;
+            } else {
+              clearErrors('clientName');
             }
+
+            const phoneDigits = formValues.clientPhone.replace(/\D/g, '');
+            if (formValues.clientPhone.trim() && phoneDigits.length < 10) {
+              setError('clientPhone', { type: 'manual', message: 'Enter valid 10-digit mobile number' });
+              hasError = true;
+            } else {
+              clearErrors('clientPhone');
+            }
+
+            if (formValues.clientEmail.trim()) {
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!emailRegex.test(formValues.clientEmail.trim())) {
+                setError('clientEmail', { type: 'manual', message: 'Enter a valid email address' });
+                hasError = true;
+              } else {
+                clearErrors('clientEmail');
+              }
+            }
+
+            if (hasError) return;
+
             if (invoiceItems.length === 0) {
               showAlert('Items Required', 'Please add at least one item.', 'error');
               return;

@@ -138,6 +138,17 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     color: '#09090b',
   },
+  inputErrorBorder: {
+    borderColor: '#ef4444',
+    borderWidth: 1.5,
+  },
+  inlineFieldError: {
+    color: '#ef4444',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 2,
+  },
   dropdownTrigger: {
     flexDirection: 'row',
     justifyContent: 'space-between',

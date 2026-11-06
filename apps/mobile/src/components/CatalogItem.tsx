@@ -2,6 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, View, Image, Switch, TouchableOpacity } from 'react-native';
 import { Edit3, Trash2, ImageOff, ChevronRight } from 'lucide-react-native';
 import { Product } from '../types';
+import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
+import { triggerHaptic } from '../utils/haptics';
 
 interface CatalogItemProps {
   product: Product;
@@ -22,7 +24,7 @@ function isListed(product: Product): boolean {
   return product.isListed !== false;
 }
 
-export default function CatalogItem({
+function CatalogItem({
   product,
   onToggleStock,
   onUpdateVisibility,
@@ -35,6 +37,7 @@ export default function CatalogItem({
   const isOutOfStock = product.inStock === false || (variants.length > 0 && totalStock === 0);
   const rawImage = product.images && product.images.length > 0 ? product.images[0] : null;
   const imageUri = rawImage && typeof rawImage === 'string' && rawImage.trim() !== '' ? rawImage.trim() : null;
+  const optimizedImageUri = imageUri ? getOptimizedImageUrl(imageUri, ImagePresets.card) : null;
 
   const listed = isListed(product);
   const sellingPrice = product.sellingPrice ?? product.price ?? 0;
@@ -52,9 +55,9 @@ export default function CatalogItem({
         accessibilityRole="button"
         accessibilityLabel={`View details for ${product.name}`}
       >
-        {imageUri ? (
+        {optimizedImageUri ? (
           <Image
-            source={{ uri: imageUri }}
+            source={{ uri: optimizedImageUri }}
             style={styles.productThumbnail}
             resizeMode="cover"
           />
@@ -97,7 +100,10 @@ export default function CatalogItem({
         </View>
         <Switch
           value={!isOutOfStock}
-          onValueChange={() => onToggleStock(product)}
+          onValueChange={() => {
+            triggerHaptic('selection');
+            onToggleStock(product);
+          }}
           trackColor={{ false: '#e4e4e7', true: '#FF5E36' }}
           thumbColor="#ffffff"
         />
@@ -110,7 +116,12 @@ export default function CatalogItem({
       <View style={styles.actionRow}>
         <View style={styles.visibilityTogglePills}>
           <TouchableOpacity
-            onPress={() => { if (!listed) onUpdateVisibility(product, 'listed'); }}
+            onPress={() => {
+              if (!listed) {
+                triggerHaptic('light');
+                onUpdateVisibility(product, 'listed');
+              }
+            }}
             style={[styles.pillButton, listed && styles.activePillListed]}
             accessibilityRole="button"
             accessibilityLabel="Set product as listed"
@@ -118,7 +129,12 @@ export default function CatalogItem({
             <Text style={[styles.pillText, listed && styles.pillTextListed]}>Listed</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { if (listed) onUpdateVisibility(product, 'unListed'); }}
+            onPress={() => {
+              if (listed) {
+                triggerHaptic('light');
+                onUpdateVisibility(product, 'unListed');
+              }
+            }}
             style={[styles.pillButton, !listed && styles.activePillUnlisted]}
             accessibilityRole="button"
             accessibilityLabel="Set product as unlisted"
@@ -128,11 +144,20 @@ export default function CatalogItem({
         </View>
 
         <View style={styles.mainButtons}>
-          <TouchableOpacity onPress={() => onEdit(product)} style={styles.actionIconBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('light');
+              onEdit(product);
+            }}
+            style={styles.actionIconBtn}
+          >
             <Edit3 size={14} color="#71717a" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => onDelete(product.slug, product.name)}
+            onPress={() => {
+              triggerHaptic('warning');
+              onDelete(product.slug, product.name);
+            }}
             style={[styles.actionIconBtn, styles.deleteBtnBorder]}
           >
             <Trash2 size={14} color="#ef4444" />
@@ -311,3 +336,5 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
   },
 });
+
+export default React.memo(CatalogItem);

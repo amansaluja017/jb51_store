@@ -1,30 +1,30 @@
 import React from 'react';
-import { useAppDataContext } from '../../src/context/AppDataContext';
+import { useCatalog } from '../../src/context/CatalogContext';
 import CatalogScreen from '../../src/screens/CatalogScreen';
 
 export default function ProductsCatalogScreen() {
-  const data = useAppDataContext();
+  const catalog = useCatalog();
 
   return (
     <CatalogScreen
-      products={data.products}
-      categories={data.categories}
-      searchQuery={data.searchQuery}
-      setSearchQuery={data.setSearchQuery}
-      isLoading={data.isLoading}
-      refreshing={data.refreshing}
-      onRefresh={data.handleRefresh}
-      onAddProduct={data.triggerAddProduct}
-      onManageCategories={() => data.setCategoryModalOpen(true)}
-      onToggleStock={data.handleToggleStock}
-      onUpdateVisibility={data.handleUpdateVisibility}
-      onEditProduct={data.triggerEditProduct}
-      onDeleteProduct={data.handleDeleteProduct}
-      onViewProductDetails={(prod) => data.setSelectedProductDetails(prod)}
-      onFetchPaginatedProducts={data.handleFetchPaginatedProducts}
-      onSearchProducts={data.handleSearchProducts}
-      onGetProductSuggestions={data.handleGetProductSuggestions}
+      products={catalog.products}
+      categories={catalog.categories}
+      searchQuery={catalog.searchQuery}
+      setSearchQuery={catalog.setSearchQuery}
+      isLoading={catalog.isLoading}
+      refreshing={catalog.refreshing}
+      onRefresh={catalog.handleRefresh}
+      onRefreshCategories={() => catalog.handleFetchCategories(true)}
+      onAddProduct={catalog.triggerAddProduct}
+      onManageCategories={() => catalog.setCategoryModalOpen(true)}
+      onToggleStock={catalog.handleToggleStock}
+      onUpdateVisibility={catalog.handleUpdateVisibility}
+      onEditProduct={catalog.triggerEditProduct}
+      onDeleteProduct={catalog.handleDeleteProduct}
+      onViewProductDetails={(prod) => catalog.setSelectedProductDetails(prod)}
+      onFetchPaginatedProducts={catalog.handleFetchPaginatedProducts}
+      onSearchProducts={catalog.handleSearchProducts}
+      onGetProductSuggestions={catalog.handleGetProductSuggestions}
     />
   );
 }
-

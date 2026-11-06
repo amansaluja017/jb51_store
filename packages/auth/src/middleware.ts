@@ -108,5 +108,6 @@ export const createRoleMiddleware = (allowedRoles: Array<'admin' | 'customer' | 
   };
 };
 
-export const adminMiddleware = createRoleMiddleware(['admin']);
-export const customerMiddleware = createRoleMiddleware(['customer', 'admin']);
+export const adminMiddleware = createRoleMiddleware(['admin', 'superadmin']);
+export const superAdminMiddleware = createRoleMiddleware(['superadmin']);
+export const customerMiddleware = createRoleMiddleware(['customer', 'admin', 'superadmin']);

@@ -43,6 +43,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import SVGChart from '../components/SVGChart';
+import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
+import { triggerHaptic } from '../utils/haptics';
 import { DashboardSkeleton, TelemetryListSkeleton } from '../components/SkeletonLoader';
 import { useDebounce } from '../hooks/useDebounce';
 import {
@@ -80,7 +82,7 @@ interface DashboardScreenProps {
     oos: number;
     active: number;
   };
-  products: Product[];
+  products?: Product[];
   analyticsMetrics: {
     isUnavailable?: boolean;
     views: number;
@@ -108,7 +110,16 @@ interface DashboardScreenProps {
     search?: string;
     sortBy?: 'views' | 'inquiries' | 'orders' | 'conversion' | 'revenue';
   }) => Promise<PaginatedCatalogueTelemetryResult>;
-  activeAnalyticsProduct: Product | null;
+  activeAnalyticsProduct?: {
+    id?: string;
+    slug?: string;
+    name: string;
+    category?: string | null;
+    price?: number | null;
+    sellingPrice?: number | null;
+    image?: string | null;
+    images?: string[];
+  } | null;
   selectedAnalyticsSlug: string;
   setSelectedAnalyticsSlug: (val: string) => void;
   showAnalyticsSelector: boolean;
@@ -227,41 +238,16 @@ export default function DashboardScreen({
     return { data, title, color, labels };
   }, [activeMetric, analyticsMetrics, analyticsOverview]);
 
-  // Combined product telemetry mapping
+  // Consume server-side catalogue telemetry analytics directly from backend analytics routes
   const productPerformanceList = useMemo(() => {
-    const analyticsMap = new Map(
-      (allProductsAnalytics || []).map((a) => [a.productId || a.slug, a])
-    );
-
-    return products
-      .map((p) => {
-        const a = analyticsMap.get(p.id) || analyticsMap.get(p.slug);
-        return {
-          id: p.id,
-          slug: p.slug,
-          name: p.name,
-          category: p.category || 'Signature Collection',
-          price: p.sellingPrice ?? p.price ?? 0,
-          image: p.images && p.images.length > 0 ? p.images[0] : null,
-          views: a?.views ?? 0,
-          whatsappClicks: a?.whatsappClicks ?? 0,
-          instagramClicks: a?.instagramClicks ?? 0,
-          totalClicks: a?.totalClicks ?? 0,
-          conversionRate: a?.conversionRate ?? 0,
-          orderCount: a?.orderCount ?? 0,
-          onlineOrderCount: a?.onlineOrderCount ?? 0,
-          offlineOrderCount: a?.offlineOrderCount ?? 0,
-          onlineOrderConversionRate: a?.onlineOrderConversionRate ?? 0,
-          onlineOrderRatio: a?.onlineOrderRatio ?? 0,
-          offlineOrderRatio: a?.offlineOrderRatio ?? 0,
-          onlineRevenue: a?.onlineRevenue ?? 0,
-          cashRevenue: a?.cashRevenue ?? 0,
-          creditRevenue: a?.creditRevenue ?? 0,
-          totalRevenue: a?.totalRevenue ?? 0,
-        };
-      })
-      .sort((a, b) => b.views - a.views || b.totalClicks - a.totalClicks);
-  }, [products, allProductsAnalytics, catalogueTelemetryAnalytics]);
+    if (catalogueTelemetryAnalytics && catalogueTelemetryAnalytics.length > 0) {
+      return catalogueTelemetryAnalytics;
+    }
+    if (allProductsAnalytics && allProductsAnalytics.length > 0) {
+      return allProductsAnalytics;
+    }
+    return [];
+  }, [catalogueTelemetryAnalytics, allProductsAnalytics]);
 
   // Catalogue Telemetry 5 products display limit
   const TELEMETRY_INITIAL_COUNT = 5;
@@ -270,30 +256,10 @@ export default function DashboardScreen({
     return productPerformanceList.slice(0, TELEMETRY_INITIAL_COUNT);
   }, [productPerformanceList]);
 
-  // Leaderboard Highlights
-  const localMostViewed = useMemo(() => {
-    if (productPerformanceList.length === 0) return null;
-    return [...productPerformanceList].sort((a, b) => b.views - a.views)[0];
-  }, [productPerformanceList]);
-
-  const localMostDemanded = useMemo(() => {
-    if (productPerformanceList.length === 0) return null;
-    return [...productPerformanceList].sort(
-      (a, b) => b.totalClicks - a.totalClicks
-    )[0];
-  }, [productPerformanceList]);
-
-  const localTopConverting = useMemo(() => {
-    if (productPerformanceList.length === 0) return null;
-    const withViews = productPerformanceList.filter((p) => p.views > 0);
-    if (withViews.length === 0) return productPerformanceList[0];
-    return withViews.sort((a, b) => b.conversionRate - a.conversionRate)[0];
-  }, [productPerformanceList]);
-
-  // Support modular demand highlights or fallback to calculated
-  const mostViewedProduct = demandHighlightsAnalytics?.mostViewedProduct ?? localMostViewed;
-  const mostDemandedProduct = demandHighlightsAnalytics?.mostDemandedProduct ?? localMostDemanded;
-  const topConvertingProduct = demandHighlightsAnalytics?.topConvertingProduct ?? localTopConverting;
+  // Server-computed demand highlights directly from backend analytics routes
+  const mostViewedProduct = demandHighlightsAnalytics?.mostViewedProduct ?? (productPerformanceList[0] || null);
+  const mostDemandedProduct = demandHighlightsAnalytics?.mostDemandedProduct ?? (productPerformanceList[0] || null);
+  const topConvertingProduct = demandHighlightsAnalytics?.topConvertingProduct ?? (productPerformanceList[0] || null);
 
   // Paginated telemetry products for View All Modal
   const [modalTelemetryProducts, setModalTelemetryProducts] = useState<ProductAnalyticsItem[]>([]);
@@ -1339,7 +1305,12 @@ export default function DashboardScreen({
                 {activeAnalyticsProduct.images &&
                 activeAnalyticsProduct.images.length > 0 ? (
                   <Image
-                    source={{ uri: activeAnalyticsProduct.images[0] }}
+                    source={{ uri: getOptimizedImageUrl(activeAnalyticsProduct.images[0], ImagePresets.thumbnail) }}
+                    style={styles.focusedImage}
+                  />
+                ) : activeAnalyticsProduct.image ? (
+                  <Image
+                    source={{ uri: getOptimizedImageUrl(activeAnalyticsProduct.image, ImagePresets.thumbnail) }}
                     style={styles.focusedImage}
                   />
                 ) : (
@@ -1574,7 +1545,10 @@ export default function DashboardScreen({
                   {/* Product Info & Thumb */}
                   <View style={styles.productCell}>
                     {item.image ? (
-                      <Image source={{ uri: item.image }} style={styles.productThumb} />
+                      <Image
+                        source={{ uri: getOptimizedImageUrl(item.image, ImagePresets.thumbnail) }}
+                        style={styles.productThumb}
+                      />
                     ) : (
                       <View style={styles.productThumbFallback}>
                         <Award size={12} color="#94a3b8" />
@@ -1866,7 +1840,10 @@ export default function DashboardScreen({
                     </View>
 
                     {p.image ? (
-                      <Image source={{ uri: p.image }} style={styles.modalProductImg} />
+                      <Image
+                        source={{ uri: getOptimizedImageUrl(p.image, ImagePresets.thumbnail) }}
+                        style={styles.modalProductImg}
+                      />
                     ) : (
                       <View style={styles.modalProductImgFallback}>
                         <Award size={14} color="#94a3b8" />
