@@ -41,7 +41,7 @@ export const extractErrorMessage = (err: unknown): string => {
     const fieldErrors = zodError.fieldErrors;
     if (fieldErrors && typeof fieldErrors === 'object') {
       const messages: string[] = [];
-      for (const [field, errors] of Object.entries(fieldErrors)) {
+      for (const errors of Object.values(fieldErrors)) {
         if (Array.isArray(errors) && errors.length > 0) {
           messages.push(...errors);
         }
@@ -462,18 +462,6 @@ export const uploadMultipleProductImages = async (
     }
   }
   return results;
-};
-
-export const getProductDbImages = async (productId: string, apiHost?: string) => {
-  const host = (apiHost || getInitialApiHost()).trim().replace(/\/$/, '');
-  const response = await axios.get(`${host}/api/products/${productId}/images`);
-  return response.data?.images || [];
-};
-
-export const deleteProductImage = async (imageId: string, apiHost?: string) => {
-  const host = (apiHost || getInitialApiHost()).trim().replace(/\/$/, '');
-  const response = await axios.delete(`${host}/api/products/images/${imageId}`);
-  return response.data;
 };
 
 export const deleteProductImageByUrl = async (

@@ -11,14 +11,13 @@ import {
 } from 'react-native';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useDebounce } from '../hooks/useDebounce';
-import { Search, Plus, Tag, Package, XCircle, ChevronLeft, ChevronRight, Sparkles, RotateCw } from 'lucide-react-native';
+import { Search, Plus, Tag, Package, XCircle, Sparkles } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
 import { Product, PaginatedProductsResponse } from '../types';
 import { Pagination } from '../components/ui';
 import { isAbortError } from '../services/searchService';
 import { useScrollMemory } from '../utils/scrollMemory';
-import { triggerHaptic } from '../utils/haptics';
 import styles from './CatalogScreen.styles';
 
 export interface ProductSuggestionItem {
@@ -44,7 +43,6 @@ export interface CatalogScreenProps {
   isLoading: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
-  onRefreshCategories?: () => Promise<void> | void;
   onAddProduct: () => void;
   onManageCategories: () => void;
   onToggleStock: (product: Product) => void;
@@ -80,7 +78,6 @@ export default function CatalogScreen({
   isLoading,
   refreshing,
   onRefresh,
-  onRefreshCategories,
   onAddProduct,
   onManageCategories,
   onToggleStock,
@@ -324,20 +321,6 @@ export default function CatalogScreen({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryPillsScroll}
           >
-            {onRefreshCategories && (
-              <TouchableOpacity
-                onPress={() => {
-                  triggerHaptic('light');
-                  onRefreshCategories();
-                }}
-                style={styles.categoryReloadPill}
-                accessibilityRole="button"
-                accessibilityLabel="Reload categories"
-                activeOpacity={0.7}
-              >
-                <RotateCw size={12} color="#71717a" />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity
               onPress={() => setSelectedCategory('All')}
               style={[

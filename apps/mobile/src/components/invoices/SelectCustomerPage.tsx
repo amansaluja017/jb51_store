@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
@@ -14,16 +13,13 @@ import styles from './SelectCustomerPage.styles';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import {
   ChevronLeft,
-  ChevronRight,
   Search,
   X,
-  User,
   UserPlus,
   Phone,
   Mail,
   MapPin,
   Check,
-  ArrowUpDown,
   UserX,
 } from 'lucide-react-native';
 import { Customer, PaginatedCustomersResponse } from '../../types';

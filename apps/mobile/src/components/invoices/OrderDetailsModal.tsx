@@ -10,9 +10,6 @@ import {
   ShoppingBag,
   X,
   Trash2,
-  User,
-  PackageCheck,
-  Receipt,
   Globe,
   Store,
 } from 'lucide-react-native';

@@ -29,7 +29,6 @@ import {
   ImageOff,
   AlertTriangle,
   Lock,
-  ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -39,7 +38,6 @@ import {
 } from 'lucide-react-native';
 import { InventorySkeleton } from '../components/SkeletonLoader';
 import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
-import { triggerHaptic } from '../utils/haptics';
 import { Product, Variant, InventoryTransaction, InventoryMetrics, isProductInStock } from '../types';
 
 export interface PaginatedStockResponse {
@@ -166,7 +164,7 @@ export default function InventoryScreen({
   const [refreshKey, setRefreshKey] = useState(0);
   const { scrollViewRef, onScroll: handleScrollOffset } = useScrollMemory('inventory');
   const [collapsedSlugs, setCollapsedSlugs] = useState<Record<string, boolean>>({});
-  const [allCollapsed, setAllCollapsed] = useState<boolean>(true);
+  const allCollapsed = true;
 
   // Debounced search (500ms) - waits until user stops typing before querying backend
   const debouncedSearch = useDebounce(searchQuery.trim(), 500);
@@ -399,8 +397,6 @@ export default function InventoryScreen({
     : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const safePage = Math.min(page, totalPages);
-  const startRecord = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
 
   // Toggle collapse for single product
   const toggleProductCollapse = (slug: string) => {

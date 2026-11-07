@@ -5,8 +5,7 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  ScrollView,
-  Platform
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Check, Pipette, Tag } from 'lucide-react-native';

@@ -42,7 +42,7 @@ export function useAnalyticsData({
   trpcRequest,
   products,
   isAuthenticated,
-  activeTab,
+  activeTab: _activeTab,
 }: UseAnalyticsDataProps) {
   const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverviewData | null>(null);
   const [allProductsAnalytics, setAllProductsAnalytics] = useState<ProductAnalyticsItem[]>([]);

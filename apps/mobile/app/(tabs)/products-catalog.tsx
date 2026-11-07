@@ -14,7 +14,6 @@ export default function ProductsCatalogScreen() {
       isLoading={catalog.isLoading}
       refreshing={catalog.refreshing}
       onRefresh={catalog.handleRefresh}
-      onRefreshCategories={() => catalog.handleFetchCategories(true)}
       onAddProduct={catalog.triggerAddProduct}
       onManageCategories={() => catalog.setCategoryModalOpen(true)}
       onToggleStock={catalog.handleToggleStock}

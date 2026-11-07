@@ -23,7 +23,6 @@ import {
   Flame,
   Search,
   ArrowRight,
-  RotateCcw,
   Package,
   CreditCard,
   ArrowUpRight,
@@ -36,15 +35,12 @@ import {
   FileSpreadsheet,
   Maximize2,
   X,
-  SlidersHorizontal,
-  Download,
 } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import SVGChart from '../components/SVGChart';
 import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
-import { triggerHaptic } from '../utils/haptics';
 import { DashboardSkeleton, TelemetryListSkeleton } from '../components/SkeletonLoader';
 import { useDebounce } from '../hooks/useDebounce';
 import {
@@ -53,10 +49,8 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
   Badge,
   Progress,
-  Separator,
 } from '../components/ui';
 import {
   Product,
@@ -146,14 +140,14 @@ function escapeHtml(str: string) {
 }
 
 export default function DashboardScreen({
-  stats,
-  products,
+  stats: _stats,
+  products: _products,
   analyticsMetrics,
   analyticsOverview,
   allProductsAnalytics,
-  viewsAnalytics,
-  clicksAnalytics,
-  conversionAnalytics,
+  viewsAnalytics: _viewsAnalytics,
+  clicksAnalytics: _clicksAnalytics,
+  conversionAnalytics: _conversionAnalytics,
   funnelAnalytics,
   channelRatioAnalytics,
   growthPulseAnalytics,
@@ -165,8 +159,8 @@ export default function DashboardScreen({
   activeAnalyticsProduct,
   selectedAnalyticsSlug,
   setSelectedAnalyticsSlug,
-  showAnalyticsSelector,
-  setShowAnalyticsSelector,
+  showAnalyticsSelector: _showAnalyticsSelector,
+  setShowAnalyticsSelector: _setShowAnalyticsSelector,
   isLoading,
   isLoadingAnalytics,
   refreshing,
@@ -177,7 +171,7 @@ export default function DashboardScreen({
   const [activeMetric, setActiveMetric] = useState<
     'views' | 'waHits' | 'igHits' | 'conversion' | 'orders'
   >('views');
-  const [analyticsTab, setAnalyticsTab] = useState<string>('all');
+  const [analyticsTab] = useState<string>('all');
   const [showFullAnalysisModal, setShowFullAnalysisModal] = useState<boolean>(false);
   const [modalSearchQuery, setModalSearchQuery] = useState<string>('');
   const [modalSortKey, setModalSortKey] = useState<

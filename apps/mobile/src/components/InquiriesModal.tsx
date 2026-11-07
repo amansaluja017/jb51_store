@@ -94,7 +94,7 @@ export default function InquiriesModal({
   onSearchChange,
   onFetchPaginatedInquiries,
   onResolveInquiry,
-  onSearchInquiries,
+  onSearchInquiries: _onSearchInquiries,
   onGetInquirySuggestions,
 }: InquiriesModalProps) {
   const scrollViewRef = useRef<ScrollView>(null);
@@ -233,7 +233,6 @@ export default function InquiriesModal({
 
   const pendingCount = pagination?.pendingCount ?? inquiries.filter((i) => i.status !== 'Resolved').length;
   const resolvedCount = pagination?.resolvedCount ?? inquiries.filter((i) => i.status === 'Resolved').length;
-  const totalCount = pagination?.total ?? inquiries.length;
 
   return (
     <Modal

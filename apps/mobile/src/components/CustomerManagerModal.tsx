@@ -40,7 +40,6 @@ import {
 } from 'lucide-react-native';
 import { Customer, Order, PaginatedCustomersResponse } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
-import { colors } from '../theme/colors';
 import { CustomerListSkeleton } from './SkeletonLoader';
 import { Pagination } from './ui';
 import { isAbortError } from '../services/searchService';
@@ -145,7 +144,6 @@ export const CustomerManagerModal: React.FC<CustomerManagerModalProps> = ({
   const [formEmail, setFormEmail] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Trigger fetching customer order history via backend route
   const handleOpenHistory = async (cust: Customer) => {

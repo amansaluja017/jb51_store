@@ -1,17 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  Text,
   View,
   ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Modal,
   Platform,
   KeyboardAvoidingView,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useForm } from 'react-hook-form';
@@ -150,7 +144,7 @@ export default function InvoiceScreen({
   onRefresh,
   onFetchCustomers,
   onCreateCustomer,
-  onFetchInvoices,
+  onFetchInvoices: _onFetchInvoices,
   onFetchOrders,
   onCreateOrder,
   onUpdateInvoice,
@@ -197,7 +191,7 @@ export default function InvoiceScreen({
   // Debounce search filter (500ms) - waits until typing stops before querying backend
   const debouncedSearch = useDebounce(searchFilter.trim(), 500);
   const isSearchTyping = searchFilter.trim() !== debouncedSearch;
-  const [ledgerSuggestions, setLedgerSuggestions] = useState<LedgerSuggestion[] | null>(null);
+  const [ledgerSuggestions] = useState<LedgerSuggestion[] | null>(null);
 
   const handleSearchFilterChange = (q: string) => {
     setSearchFilter(q);
@@ -1141,18 +1135,6 @@ export default function InvoiceScreen({
     setIsFormOpen(true);
     setFormSubPage('form');
   };
-
-  const totalCollected = invoices.reduce(
-    (sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0),
-    0
-  );
-  const totalOrdersValue = orders.reduce(
-    (sum, ord) => sum + Number(ord.totalAmount || 0),
-    0
-  );
-  const cashCollected = invoices
-    .filter((inv) => (inv.mode || 'cash').toLowerCase() === 'cash')
-    .reduce((sum, inv) => sum + Number(inv.finalAmount ?? inv.totalAmount ?? 0), 0);
 
   if (isLoading) {
     return (

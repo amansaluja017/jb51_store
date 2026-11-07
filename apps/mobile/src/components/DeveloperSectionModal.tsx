@@ -44,7 +44,6 @@ import * as ImagePicker from 'expo-image-picker';
 import type {
   MobileSiteConfigData,
   MobileHeroSlideItem,
-  MobileFaqItem,
 } from '../types';
 import {
   fetchSiteConfig,

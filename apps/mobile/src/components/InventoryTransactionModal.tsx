@@ -27,7 +27,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { Product, Variant } from '../types';
 import styles from './InventoryTransactionModal.styles';
 import { getOptimizedImageUrl, ImagePresets } from '../utils/cloudinary';
-import { triggerHaptic } from '../utils/haptics';
 
 export interface TransactionFormValues {
   type: 'sale' | 'purchase';

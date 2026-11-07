@@ -7,8 +7,6 @@ import {
   Modal,
   ScrollView,
   Platform,
-  Keyboard,
-  Dimensions,
   KeyboardAvoidingView,
 } from 'react-native';
 import {
@@ -23,8 +21,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { Review } from '../../types';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import styles from '../../screens/ReviewsScreen.styles';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface ReviewFormValues {
   name: string;

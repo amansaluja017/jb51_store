@@ -4,7 +4,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Modal,
   Platform,
   KeyboardAvoidingView,
@@ -35,12 +34,10 @@ import styles from './ProductFormModal.styles';
 import {
   extractColorsFromCoverImage,
   getClosestColorName,
-  isValidHex,
-  isLightColor,
 } from '../utils/colorThiefHelper';
 import { uploadProductImage, deleteProductImageByUrl, reorderProductImagesApi } from '../services/api';
 import { countWords } from '../utils/text';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 
 export interface ProductFormData {
   name: string;

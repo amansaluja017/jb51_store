@@ -18,7 +18,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   X,
   Search,
-  Plus,
   Edit3,
   Trash2,
   Phone,
@@ -30,11 +29,7 @@ import {
   TrendingUp,
   Receipt,
   History,
-  FileText,
   Clock,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
 } from 'lucide-react-native';
 import { Credit, CreditMetrics, CreditTransaction } from '../types';
 import { formatDateSafe, formatDateToYMD } from '../utils/date';
@@ -109,7 +104,7 @@ export const CreditManagerModal: React.FC<CreditManagerModalProps> = ({
   isLoading,
   onClose,
   onRefresh,
-  onCreateCredit,
+  onCreateCredit: _onCreateCredit,
   onUpdateCredit,
   onRecordPayment,
   onDeleteCredit,

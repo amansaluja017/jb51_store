@@ -1,7 +1,7 @@
 import React from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Stack, useRouter, usePathname, type Href } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { TabType } from '../src/components/NavigationTabBar';
 import { getTabFromPathname } from '../src/utils/navigation';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';

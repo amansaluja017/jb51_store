@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import {
   Search,
@@ -14,15 +13,11 @@ import {
   X,
   Trash2,
   Edit3,
-  Printer,
   ShoppingBag,
   Eye,
   FileText,
   Receipt,
-  User,
   PackageCheck,
-  ChevronLeft,
-  ChevronRight,
   Globe,
   Store,
 } from 'lucide-react-native';

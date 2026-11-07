@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   Image,
   RefreshControl,
   KeyboardAvoidingView,
@@ -15,21 +14,18 @@ import styles from './SelectProductPage.styles';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import {
   ChevronLeft,
-  ChevronRight,
   Search,
   X,
   ShoppingBag,
   Package,
   Check,
   ArrowUpDown,
-  Filter,
   Ban,
 } from 'lucide-react-native';
 import { Product, PaginatedProductsResponse, isProductInStock, isProductDiscontinued } from '../../types';
 import { ProductSelectorSkeleton } from '../SkeletonLoader';
 import { Pagination } from '../ui';
 import { getOptimizedImageUrl, ImagePresets } from '../../utils/cloudinary';
-import { triggerHaptic } from '../../utils/haptics';
 
 export interface SelectProductPageProps {
   products: Product[];
