@@ -143,7 +143,7 @@ An Indian fashion model with a clean center-parted sleek low bun wearing the EXA
 
 ${sharedConsistencyRules}
 
-Ultra-close-up macro fashion photography of garment craftsmanship for JB51 Store.
+Ultra-close-up macro fashion photography of garment craftsmanship for JB51 Clothing House.
 Detailed focus on the neckline, sleeve borders, and dupatta edge of the EXACT Punjabi suit from the reference image (${fabric} in ${color}${hex}).
 - Composition: Tight macro framing capturing the intricate relief of ${desc}, fine metallic thread luster, and individual warp and weft weave of the ${fabric}.
 - Garment Fidelity: Exact 1:1 replication of the needlework motifs, seed pearls, and border lace shown in the reference suit photo.
@@ -156,7 +156,7 @@ Detailed focus on the neckline, sleeve borders, and dupatta edge of the EXACT Pu
 
 ${sharedConsistencyRules}
 
-Dynamic high-fashion motion photograph capturing fluid garment movement for JB51 Store.
+Dynamic high-fashion motion photograph capturing fluid garment movement for JB51 Clothing House.
 A joyful Indian female model captured in a graceful, slow twirl wearing the EXACT Punjabi suit from the reference image (${fabric} in ${color}${hex}, ${fit}, ${desc}).
 - Garment Action: The pleated salwar flares gently with authentic centrifugal ease, the lightweight dupatta floats elegantly through the air catching the light, while the kurta silhouette stays anchored and recognizable.
 - Setting: Warm festive evening setting, soft-focus background with gentle warm bokeh lights, festive ambiance without clutter.

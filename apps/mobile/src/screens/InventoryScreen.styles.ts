@@ -163,6 +163,9 @@ export const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: Platform.OS === 'ios' ? 105 : 90,
     gap: 14,
+    maxWidth: 1080,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // KPI Dashboard
@@ -214,7 +217,9 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   metricCard: {
-    width: '48%',
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 140,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,

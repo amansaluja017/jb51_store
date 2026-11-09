@@ -167,7 +167,7 @@ export const DEFAULT_TEMPLATES: Record<string, EditorTemplate[]> = {
   contact: [
     {
       title: 'Flagship Atelier Address',
-      text: 'JB51 Store, Model Town, Ludhiana, Punjab 141002, India. Private styling appointments and bespoke bridal consultations available.',
+      text: 'JB51 Clothing House, Model Town, Ludhiana, Punjab 141002, India. Private styling appointments and bespoke bridal consultations available.',
     },
   ],
   product: [

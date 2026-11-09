@@ -2220,7 +2220,7 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                           contactInfo: { ...config.contactInfo, address: txt },
                         })
                       }
-                      placeholder="JB51 Store, Main Market, Kaithal, Haryana 136027"
+                      placeholder="JB51 Clothing House, Main Market, Kaithal, Haryana 136027"
                       multiline
                       numberOfLines={3}
                       sectionType="contact"

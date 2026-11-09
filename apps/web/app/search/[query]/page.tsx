@@ -32,8 +32,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const decodedSearchTerm = cleanSearchQuery(query);
 
   return {
-    title: `Search: "${decodedSearchTerm}" | JB51`,
-    description: `Browse custom handcrafted designs and tailored Punjabi suits matching "${decodedSearchTerm}" at JB51.`,
+    title: `Search: "${decodedSearchTerm}" | JB51 Clothing House`,
+    description: `Browse custom handcrafted designs and tailored Punjabi suits matching "${decodedSearchTerm}" at JB51 Clothing House.`,
     robots: {
       index: false,
       follow: true,
@@ -42,17 +42,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       canonical: `${SITE_URL}/search/${query}`,
     },
     openGraph: {
-      title: `Search: "${decodedSearchTerm}" | JB51`,
-      description: `Browse custom handcrafted designs and tailored Punjabi suits matching "${decodedSearchTerm}".`,
+      title: `Search: "${decodedSearchTerm}" | JB51 Clothing House`,
+      description: `Browse custom handcrafted designs and tailored Punjabi suits matching "${decodedSearchTerm}" at JB51 Clothing House.`,
       url: `${SITE_URL}/search/${query}`,
-      siteName: 'JB51',
+      siteName: 'JB51 Clothing House',
       locale: 'en_IN',
       type: 'website',
     },
     twitter: {
       card: 'summary',
-      title: `Search: "${decodedSearchTerm}" | JB51`,
-      description: `Browse custom handcrafted designs and tailored Punjabi suits matching "${decodedSearchTerm}".`,
+      title: `Search: "${decodedSearchTerm}" | JB51 Clothing House`,
+      description: `Browse custom handcrafted designs and tailored Punjabi suits matching "${decodedSearchTerm}" at JB51 Clothing House.`,
     },
   };
 }

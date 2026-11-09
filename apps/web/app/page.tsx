@@ -3,9 +3,9 @@ import { HomeClient } from '@/components/home/HomeClient';
 import { SITE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
+  title: "JB51 Clothing House | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
   description:
-    "Explore JB51 — home of luxury Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke women's suits in Kaithal. Handcrafted heritage since 1951.",
+    "Explore JB51 Clothing House — home of luxury Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke women's suits in Kaithal. Handcrafted heritage since 1951.",
   keywords: [
     'punjabi suits',
     'premium suits',
@@ -24,17 +24,18 @@ export const metadata: Metadata = {
     'velvet suits',
     'party wear punjabi suits',
     'JB51 suits',
-    'JB51 store Kaithal',
+    'JB51 clothing house',
+    'JB51 clothing house Kaithal',
   ],
   alternates: {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
+    title: "JB51 Clothing House | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
     description:
-      "Explore JB51's exquisite collection of handcrafted Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke festive ensembles.",
+      "Explore JB51 Clothing House's exquisite collection of handcrafted Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke festive ensembles.",
     url: SITE_URL,
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     locale: 'en_IN',
     type: 'website',
     images: [
@@ -42,15 +43,15 @@ export const metadata: Metadata = {
         url: 'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80',
         width: 1200,
         height: 630,
-        alt: 'JB51 Signature Silhouettes',
+        alt: 'JB51 Clothing House Signature Silhouettes',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
+    title: "JB51 Clothing House | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
     description:
-      "Explore JB51's exquisite collection of handcrafted Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke festive ensembles.",
+      "Explore JB51 Clothing House's exquisite collection of handcrafted Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke festive ensembles.",
     images: [
       'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80',
     ],

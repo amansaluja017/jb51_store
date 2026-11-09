@@ -11,6 +11,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 10,
+    alignItems: 'center',
+    width: '100%',
+  },
+  searchInner: {
+    width: '100%',
+    maxWidth: 1080,
+    gap: 10,
   },
   searchBar: {
     flexDirection: 'row',
@@ -29,10 +36,12 @@ export const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   categoriesButton: {
     flex: 1,
+    minWidth: 130,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -50,6 +59,7 @@ export const styles = StyleSheet.create({
   },
   addButton: {
     flex: 1,
+    minWidth: 130,
     backgroundColor: '#FF5E36',
     borderRadius: 10,
     flexDirection: 'row',
@@ -68,10 +78,13 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
     paddingVertical: 8,
+    width: '100%',
+    alignItems: 'center',
   },
   categoryPillsScroll: {
     paddingHorizontal: 20,
     gap: 8,
+    maxWidth: 1080,
   },
   categoryPill: {
     paddingHorizontal: 12,
@@ -96,6 +109,9 @@ export const styles = StyleSheet.create({
   scrollPadding: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 105 : 90,
+    maxWidth: 1080,
+    width: '100%',
+    alignSelf: 'center',
   },
   countSummaryRow: {
     marginBottom: 12,

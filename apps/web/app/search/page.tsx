@@ -32,11 +32,11 @@ function extractTerm(params: { q?: string; filter?: string; query?: string }): s
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const params = await searchParams;
   const term = extractTerm(params);
-  const title = term ? `Search: "${term}" | JB51` : 'Search Atelier Catalog | JB51';
+  const title = term ? `Search: "${term}" | JB51 Clothing House` : 'Search Boutique Catalog | JB51 Clothing House';
 
   return {
     title,
-    description: 'Browse custom handcrafted designs and tailored Punjabi suits at JB51.',
+    description: 'Browse custom handcrafted designs and tailored Punjabi suits at JB51 Clothing House.',
     robots: {
       index: false,
       follow: true,

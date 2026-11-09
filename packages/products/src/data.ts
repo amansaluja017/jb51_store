@@ -163,8 +163,8 @@ export async function getCategories(): Promise<string[]> {
       const names = dbCategories.map(c => c.name).filter(Boolean);
       if (names.length > 0) return names;
     }
-  } catch (err) {
-    console.log('[DB getCategories Notice]:', err instanceof Error ? err.message : err);
+  } catch {
+    // Graceful fallback when database is empty or unavailable
   }
 
   // Fallback to distinct categories from existing products or boutique defaults
@@ -427,8 +427,8 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
         });
       return mapped;
     }
-  } catch (err) {
-    console.log('[DB getProducts Notice]:', err instanceof Error ? err.message : err);
+  } catch {
+    // Database empty or unavailable
   }
   return [];
 }
@@ -516,8 +516,8 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
       prod.inStock = statusRow[0].inStock ?? true;
     }
     return prod;
-  } catch (err) {
-    console.log('[DB getProductBySlug Notice]:', err instanceof Error ? err.message : err);
+  } catch {
+    // Product not found or DB unavailable
   }
   return null;
 }
@@ -1110,8 +1110,8 @@ export async function getProductStatus(slug: string): Promise<{ productId: strin
         };
       }
     }
-  } catch (err) {
-    console.log('[DB getProductStatus Notice]:', err instanceof Error ? err.message : err);
+  } catch {
+    // Product status unavailable
   }
 
   return null;
@@ -1161,7 +1161,7 @@ export async function updateProductStatus(
 export interface GetPaginatedProductsInput {
   search?: string | null;
   category?: string | null;
-  filter?: 'new' | 'bestseller' | 'all' | null;
+  filter?: 'new' | 'bestseller' | 'featured' | 'all' | null;
   inStockOnly?: boolean | null;
   sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default' | null;
   page?: number | null;
@@ -1217,6 +1217,8 @@ export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
     list = list.filter((p) => p.newArrival);
   } else if (input?.filter === 'bestseller') {
     list = list.filter((p) => p.bestseller);
+  } else if (input?.filter === 'featured') {
+    list = list.filter((p) => Boolean(p.featured));
   }
 
   if (inStockOnly) {

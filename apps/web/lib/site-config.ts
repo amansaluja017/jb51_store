@@ -37,8 +37,7 @@ export const getCachedSiteConfig = unstable_cache(
         faqs: data.faqs || DEFAULT_SITE_CONFIG.faqs,
         contactInfo: data.contactInfo || DEFAULT_SITE_CONFIG.contactInfo,
       };
-    } catch (err) {
-      console.warn('[getCachedSiteConfig fallback to default]:', err);
+    } catch {
       return DEFAULT_SITE_CONFIG;
     }
   },

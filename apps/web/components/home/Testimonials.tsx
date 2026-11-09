@@ -21,15 +21,18 @@ export function Testimonials() {
 
   // Map real database reviews exclusively (no mock/fallback testimonials)
   const allTestimonials: TestimonialItem[] = (dbReviews || []).map((r, i) => {
-    const starCount = Math.min(5, Math.max(1, Number(r.stars) || 5));
+    const parsedStars = Number(r.stars);
+    const validStars = Number.isFinite(parsedStars)
+      ? Math.min(5, Math.max(0.5, parsedStars))
+      : 5;
     return {
       id: r.id || `db-${i}`,
       author: r.name || 'Verified Patron',
       role: 'Patron',
       subtitle: r.location ? `Verified Patron • ${r.location}` : 'Verified Customer',
       quote: r.message,
-      stars: starCount,
-      rating: `${starCount}.0`,
+      stars: validStars,
+      rating: Number.isInteger(validStars) ? `${validStars}.0` : `${validStars.toFixed(1)}`,
       avatar: r.image || null,
     };
   });
@@ -235,17 +238,41 @@ export function Testimonials() {
                   </p>
                 </div>
 
-                {/* Rating Section: 5 Orange Stars + Rating Number */}
+                {/* Rating Section: 5 Stars with exact fractional/decimal support + Rating Number */}
                 <div className="my-5 flex items-center justify-center gap-1.5">
                   <div className="flex items-center gap-1">
-                    {[...Array(item.stars)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={15}
-                        className="fill-[#FF5E36] text-[#FF5E36]"
-                        aria-hidden="true"
-                      />
-                    ))}
+                    {[1, 2, 3, 4, 5].map((starIdx) => {
+                      const fillPercentage = Math.min(
+                        100,
+                        Math.max(0, (item.stars - (starIdx - 1)) * 100)
+                      );
+                      return (
+                        <div
+                          key={starIdx}
+                          className="relative w-[15px] h-[15px] shrink-0"
+                          aria-hidden="true"
+                        >
+                          {/* Unfilled base star */}
+                          <Star
+                            size={15}
+                            className="fill-zinc-200 text-zinc-200 shrink-0"
+                          />
+                          {/* Precision Fractional Fill Overlay */}
+                          {fillPercentage > 0 && (
+                            <div
+                              className="absolute top-0 left-0 h-full overflow-hidden"
+                              style={{ width: `${fillPercentage}%` }}
+                            >
+                              <Star
+                                size={15}
+                                className="fill-[#FF5E36] text-[#FF5E36] shrink-0"
+                                style={{ minWidth: 15 }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <span className="font-bold text-zinc-900 text-xs sm:text-sm ml-1 tracking-tight">
                     {item.rating}

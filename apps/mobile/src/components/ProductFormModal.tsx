@@ -37,6 +37,7 @@ import {
 } from '../utils/colorThiefHelper';
 import { uploadProductImage, deleteProductImageByUrl, reorderProductImagesApi } from '../services/api';
 import { countWords } from '../utils/text';
+import { getChangedProductFields } from '../utils/productDiff';
 import { useForm } from 'react-hook-form';
 
 export interface ProductFormData {
@@ -65,7 +66,7 @@ interface ProductFormModalProps {
   initialProduct: Product | null;
   categories: string[];
   onClose: () => void;
-  onSave: (product: Product) => void;
+  onSave: (product: Product, changedFields?: Partial<Product>) => Promise<void> | void;
   onReorderImages?: (newImages: string[]) => Promise<string[] | void>;
   onDeleteCategory: (categoryToDelete: string, targetCategory: string) => void;
   onAddNewCategory: (newCategory: string) => void;
@@ -881,16 +882,19 @@ export default function ProductFormModal({
       return;
     }
 
-    const descWords = countWords(formDescription);
-    if (descWords < 100) {
-      const remaining = 100 - descWords;
-      showAlert(
-        'Description Too Short',
-        `Product description must be at least 100 words (currently contains ${descWords} word${descWords === 1 ? '' : 's'}). Please add at least ${remaining} more word${remaining === 1 ? '' : 's'}.`,
-        'error'
-      );
-      setActiveTab('details');
-      return;
+    const isDescriptionChanged = !isEditing || (initialProduct && formDescription.trim() !== (initialProduct.description || '').trim());
+    if (isDescriptionChanged) {
+      const descWords = countWords(formDescription);
+      if (descWords < 100) {
+        const remaining = 100 - descWords;
+        showAlert(
+          'Description Too Short',
+          `Product description must be at least 100 words (currently contains ${descWords} word${descWords === 1 ? '' : 's'}). Please add at least ${remaining} more word${remaining === 1 ? '' : 's'}.`,
+          'error'
+        );
+        setActiveTab('details');
+        return;
+      }
     }
 
     // Auto-sync any local images that might still be un-uploaded before saving
@@ -1028,9 +1032,37 @@ export default function ProductFormModal({
       variants: cleanedVariants,
     };
 
+    let changedFields: Partial<Product> | undefined = undefined;
+    if (isEditing && initialProduct) {
+      changedFields = getChangedProductFields(initialProduct, {
+        name: formName,
+        slug: formSlug,
+        description: formDescription,
+        mrp: formMrp,
+        sellingPrice: formSellingPrice,
+        category: formCategory,
+        fabric: formFabric,
+        fit: formFit,
+        careInstructions: formCare,
+        tags: formTags,
+        featured: formFeatured,
+        newArrival: formNewArrival,
+        bestseller: formBestseller,
+        isListed: formIsListed,
+        images: finalProductImages,
+        variants: cleanedVariants,
+      });
+
+      if (Object.keys(changedFields).length === 0) {
+        showAlert('No Changes', 'No modifications were detected.', 'success');
+        onClose();
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
-      await onSave(savePayload);
+      await onSave(savePayload, changedFields);
     } finally {
       setIsSubmitting(false);
     }

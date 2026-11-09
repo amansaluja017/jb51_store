@@ -8,10 +8,11 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    removeConsole: true,
   },
-  // Allow access to remote image placeholder.
+  // Allow access to remote image placeholder and configured quality presets.
   images: {
+    qualities: [25, 50, 75, 85, 90, 95],
     remotePatterns: [
       {
         protocol: 'https',

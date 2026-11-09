@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Dimensions, Animated, Easing } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions, Animated, Easing } from 'react-native';
 import Svg, { Path, Circle, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
-
-const { width } = Dimensions.get('window');
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -22,10 +20,11 @@ export default function SVGChart({
   title,
   color = '#FF5E36'
 }: SVGChartProps) {
+  const { width: windowWidth } = useWindowDimensions();
   const chartHeight = 160;
   const paddingX = 24;
   const paddingY = 20;
-  const canvasWidth = width - 64;
+  const canvasWidth = Math.min(windowWidth - 64, 880);
   const chartWidth = canvasWidth - paddingX * 2;
   
   const maxVal = Math.max(...metricData, 1);

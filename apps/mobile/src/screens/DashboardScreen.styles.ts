@@ -9,11 +9,15 @@ export const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 110 : 96,
     gap: 16,
+    maxWidth: 1080,
+    width: '100%',
+    alignSelf: 'center',
   },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 10,
   },
   scopeSelector: {
@@ -119,7 +123,9 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   analyticsStatCard: {
-    width: '48.5%',
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 140,
     backgroundColor: '#ffffff',
     borderRadius: 14,
     padding: 12,

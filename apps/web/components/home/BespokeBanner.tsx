@@ -46,7 +46,6 @@ export function BespokeBanner({ config }: BespokeBannerProps) {
             src={imageUrl}
             alt={title}
             fill
-            priority
             className="object-cover object-[78%_center] md:object-center"
             sizes="100vw"
             quality={95}

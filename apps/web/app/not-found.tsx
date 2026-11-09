@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Page Not Found | JB51',
+  title: 'Page Not Found | JB51 Clothing House',
   description: 'The requested piece or collection could not be found.',
   robots: {
     index: false,

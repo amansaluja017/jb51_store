@@ -14,6 +14,9 @@ export const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   modalTitle: {
     fontFamily: Platform.OS === 'ios' ? 'Didot' : 'serif',
@@ -29,6 +32,9 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
     backgroundColor: '#ffffff',
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   tabButton: {
     flex: 1,
@@ -59,6 +65,9 @@ export const styles = StyleSheet.create({
   modalScrollPadding: {
     padding: 16,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   tabContentContainer: {
     gap: 16,
@@ -1117,6 +1126,9 @@ export const styles = StyleSheet.create({
     borderColor: '#e4e4e7',
     backgroundColor: '#ffffff',
     gap: 12,
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   secondaryBottomBtn: {
     flex: 1,

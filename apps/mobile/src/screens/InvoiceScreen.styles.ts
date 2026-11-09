@@ -8,11 +8,16 @@ export const styles = StyleSheet.create({
   scrollContainer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 110 : 96,
+    maxWidth: 1080,
+    width: '100%',
+    alignSelf: 'center',
   },
   ledgerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 16,
   },
   ledgerTitle: {
@@ -48,11 +53,13 @@ export const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 14,
     gap: 8,
   },
   statsCard: {
     flex: 1,
+    minWidth: 100,
     backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 12,

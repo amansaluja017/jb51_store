@@ -200,6 +200,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   titleWrapper: {
     flexDirection: 'row',
@@ -222,6 +225,9 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 16,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   sectionCard: {
     backgroundColor: '#ffffff',

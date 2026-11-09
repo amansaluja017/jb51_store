@@ -51,11 +51,11 @@ export const metadata: Metadata = {
     apple: '/favicon.png',
   },
   title: {
-    default: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
-    template: "%s | JB51",
+    default: "JB51 Clothing House | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
+    template: "%s | JB51 Clothing House",
   },
   description:
-    "Discover JB51 — home of luxury Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke women's suits in Kaithal. Handcrafted heritage since 1951.",
+    "Discover JB51 Clothing House — home of luxury Punjabi suits, pure Chanderi silk co-ords, royal velvet edits, and bespoke women's suits in Kaithal. Handcrafted heritage since 1951.",
   keywords: [
     'punjabi suits',
     'premium suits',
@@ -71,14 +71,15 @@ export const metadata: Metadata = {
     'ethnic wear for women',
     'party wear punjabi suits',
     'JB51 suits',
-    'JB51 store Kaithal',
+    'JB51 clothing house',
+    'JB51 clothing house Kaithal',
     'chanderi silk suits',
     'anarkali suits',
     'velvet suits',
   ],
-  authors: [{ name: 'JB51' }],
-  creator: 'JB51',
-  publisher: 'JB51',
+  authors: [{ name: 'JB51 Clothing House' }],
+  creator: 'JB51 Clothing House',
+  publisher: 'JB51 Clothing House',
   category: 'clothing',
   robots: {
     index: true,
@@ -92,27 +93,27 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "JB51 | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
+    title: "JB51 Clothing House | Designer Punjabi Suits, Luxury Handlooms & Occasion Wear",
     description:
-      "Explore the finest Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique ethnic wear in Kaithal at JB51. Crafted for elegance, luxury, and comfort.",
+      "Explore the finest Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique ethnic wear in Kaithal at JB51 Clothing House. Crafted for elegance, luxury, and comfort.",
     type: 'website',
     locale: 'en_IN',
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     url: SITE_URL,
     images: [
       {
         url: 'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80',
         width: 1200,
         height: 630,
-        alt: 'JB51 Luxury Silhouettes',
+        alt: 'JB51 Clothing House Luxury Silhouettes',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "JB51 | Best Punjabi Suits & Designer Ethnic Wear",
+    title: "JB51 Clothing House | Best Punjabi Suits & Designer Ethnic Wear",
     description:
-      "Discover designer Punjabi suits, bespoke women's suits, and luxury ethnic wear at JB51.",
+      "Discover designer Punjabi suits, bespoke women's suits, and luxury ethnic wear at JB51 Clothing House.",
     images: [
       'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80',
     ],
@@ -145,9 +146,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "ClothingStore",
-              "name": "JB51",
+              "name": "JB51 Clothing House",
               "url": SITE_URL,
-              "description": "Discover JB51 — luxury designer Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique suits in Kaithal.",
+              "description": "Discover JB51 Clothing House — luxury designer Punjabi suits, pure Chanderi silk co-ords, and bespoke boutique suits in Kaithal.",
               "telephone": siteConfig.contactInfo?.phoneNumber || "+91 93062 34357",
               "email": siteConfig.contactInfo?.email || "support@jb51.shop",
               "currenciesAccepted": "INR",

@@ -33,19 +33,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   return (
     <View style={styles.appHeader}>
-      <TouchableOpacity
-        onPress={onOpenMenu}
-        style={styles.hamburgerBtn}
-        accessibilityLabel="Navigation Menu"
-        accessibilityRole="button"
-      >
-        <Menu size={20} color="#09090b" />
-      </TouchableOpacity>
-      <View style={styles.headerTitleWrapper}>
-        <Text style={styles.headerSubtitle}>JB51</Text>
-        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-          {getTabTitle(activeTab)}
-        </Text>
+      <View style={styles.appHeaderInner}>
+        <TouchableOpacity
+          onPress={onOpenMenu}
+          style={styles.hamburgerBtn}
+          accessibilityLabel="Navigation Menu"
+          accessibilityRole="button"
+        >
+          <Menu size={20} color="#09090b" />
+        </TouchableOpacity>
+        <View style={styles.headerTitleWrapper}>
+          <Text style={styles.headerSubtitle}>JB51</Text>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+            {getTabTitle(activeTab)}
+          </Text>
+        </View>
       </View>
     </View>
   );

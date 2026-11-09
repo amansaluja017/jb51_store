@@ -172,10 +172,10 @@ export function Navbar({ siteConfig }: NavbarProps = {}) {
                 JB51
               </span>
               <span className={cn(
-                "text-[6px] tracking-[0.45em] uppercase -mt-1 font-bold transition-colors",
+                "text-[6px] tracking-[0.25em] uppercase -mt-1 font-bold transition-colors whitespace-nowrap",
                 isTransparent ? "text-white/60" : "text-[#FF5E36]"
               )}>
-                STORE
+                CLOTHING HOUSE
               </span>
             </Link>
 

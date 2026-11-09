@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 import { SITE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'My Curated Wishlist | JB51',
-  description: 'Review and manage your saved bespoke Punjabi suits, handloom ensembles, and luxury silhouettes at JB51.',
+  title: 'My Curated Wishlist | JB51 Clothing House',
+  description: 'Review and manage your saved bespoke Punjabi suits, handloom ensembles, and luxury silhouettes at JB51 Clothing House.',
   alternates: {
     canonical: `${SITE_URL}/wishlist`,
   },
@@ -14,17 +14,17 @@ export const metadata: Metadata = {
     follow: true,
   },
   openGraph: {
-    title: 'My Curated Wishlist | JB51',
-    description: 'Review and manage your saved bespoke Punjabi suits, handloom ensembles, and luxury silhouettes at JB51.',
+    title: 'My Curated Wishlist | JB51 Clothing House',
+    description: 'Review and manage your saved bespoke Punjabi suits, handloom ensembles, and luxury silhouettes at JB51 Clothing House.',
     url: `${SITE_URL}/wishlist`,
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     locale: 'en_IN',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'My Curated Wishlist | JB51',
-    description: 'Review and manage your saved bespoke Punjabi suits and luxury silhouettes.',
+    title: 'My Curated Wishlist | JB51 Clothing House',
+    description: 'Review and manage your saved bespoke Punjabi suits and luxury silhouettes at JB51 Clothing House.',
   },
 };
 

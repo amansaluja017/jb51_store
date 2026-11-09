@@ -1,5 +1,5 @@
 /**
- * Browser Fingerprinting Utility for JB51 Store
+ * Browser Fingerprinting Utility for JB51 Clothing House
  * Generates a stable, client-side browser fingerprint combining screen metrics,
  * canvas rendering characteristics, language, hardware concurrency, and timezone.
  */

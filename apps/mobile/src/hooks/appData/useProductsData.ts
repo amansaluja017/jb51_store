@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { Product, isProductInStock, PaginatedProductsResponse } from '../../types';
+import { getChangedProductFields } from '../../utils/productDiff';
 
 interface UseProductsDataProps {
   trpcRequest: <T = unknown>(path: string, options?: { method?: 'GET' | 'POST'; body?: unknown; input?: unknown }) => Promise<T>;
@@ -183,14 +184,32 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     }
   }, [editingSlug, trpcRequest, showAlert]);
 
-  const handleSaveProduct = useCallback(async (payload: Product) => {
+  const handleSaveProduct = useCallback(async (payload: Product, changedData?: Partial<Product>) => {
     if (isEditing && editingSlug) {
       try {
+        let updateData: Partial<Product>;
+        if (changedData && Object.keys(changedData).length > 0) {
+          updateData = changedData;
+        } else {
+          const currentProd = products.find(p => p.slug === editingSlug);
+          if (currentProd) {
+            updateData = getChangedProductFields(currentProd, payload);
+          } else {
+            updateData = payload;
+          }
+        }
+
+        if (Object.keys(updateData).length === 0) {
+          showAlert('No Changes', 'No modifications were detected.', 'success');
+          setFormModalOpen(false);
+          return;
+        }
+
         const updated = await trpcRequest<Product>('products.update', {
           method: 'POST',
-          body: { slug: editingSlug, data: payload },
+          body: { slug: editingSlug, data: updateData },
         });
-        const finalProd = updated && updated.slug ? updated : payload;
+        const finalProd = updated && updated.slug ? updated : { ...payload, ...updateData };
         setProducts(prev => prev.map(p => p.slug === editingSlug ? finalProd : p));
         showAlert('Outfit Saved', 'Persistence complete.', 'success');
       } catch (err: unknown) {
@@ -229,7 +248,7 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     }
 
     setFormModalOpen(false);
-  }, [isEditing, editingSlug, trpcRequest, showAlert]);
+  }, [isEditing, editingSlug, products, trpcRequest, showAlert]);
 
   const handleAddCategory = useCallback(async (newCat: string) => {
     const trimmed = newCat.trim();

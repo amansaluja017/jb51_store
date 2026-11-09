@@ -25,11 +25,11 @@ import { getCachedSiteConfig } from '@/lib/site-config';
 import { formatContactInfo } from '@/lib/contact-info';
 
 export const metadata: Metadata = {
-  title: 'Website Privacy Policy | JB51',
-  description: 'Understand how JB51 collects, safeguards, and manages your personal information, bespoke sizing records, and web orders exclusively through our official website.',
+  title: 'Website Privacy Policy | JB51 Clothing House',
+  description: 'Understand how JB51 Clothing House collects, safeguards, and manages your personal information, bespoke sizing records, and web orders exclusively through our official website.',
   keywords: [
     'website privacy policy',
-    'JB51 data protection',
+    'JB51 clothing house data protection',
     'luxury bespoke privacy',
     'e-commerce data security',
     'web cookie policy',
@@ -39,16 +39,16 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/privacy-policy`,
   },
   openGraph: {
-    title: 'Website Privacy Policy | JB51',
+    title: 'Website Privacy Policy | JB51 Clothing House',
     description: 'Our commitment to protecting your personal information, sizing records, and web browsing privacy.',
     url: `${SITE_URL}/privacy-policy`,
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     locale: 'en_IN',
     type: 'website',
   },
   twitter: {
     card: 'summary',
-    title: 'Website Privacy Policy | JB51',
+    title: 'Website Privacy Policy | JB51 Clothing House',
     description: 'Our commitment to protecting your personal information, sizing records, and web browsing privacy.',
   },
 };

@@ -153,15 +153,17 @@ export default function NavigationTabBar({
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 0,
+    right: 0,
     bottom: Platform.OS === 'ios' ? 24 : 12,
     alignItems: 'center',
+    paddingHorizontal: 12,
     zIndex: 99,
     overflow: 'visible',
   },
   navBar: {
     width: '100%',
+    maxWidth: 520,
     height: 64,
     backgroundColor: '#ffffff',
     borderRadius: 32,

@@ -49,7 +49,7 @@ export const productsRouter = router({
         .object({
           search: z.string().nullish(),
           category: z.string().nullish(),
-          filter: z.enum(['new', 'bestseller', 'all']).nullish(),
+          filter: z.enum(['new', 'bestseller', 'featured', 'all']).nullish(),
           inStockOnly: z.boolean().nullish(),
           sortBy: z
             .enum(['name-asc', 'name-desc', 'price-asc', 'price-desc', 'stock-desc', 'stock-asc', 'newest', 'default'])

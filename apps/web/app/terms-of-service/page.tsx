@@ -24,13 +24,13 @@ import { getCachedSiteConfig } from '@/lib/site-config';
 import { formatContactInfo } from '@/lib/contact-info';
 
 export const metadata: Metadata = {
-  title: 'Website Terms of Service & Conditions | JB51',
+  title: 'Website Terms of Service & Conditions | JB51 Clothing House',
   description: 'Read the official terms of service, bespoke tailoring standards, payment rules, shipping policies, and website terms of conditions governing your use of jb51.shop.',
   keywords: [
     'terms of service',
     'terms of conditions',
     'website terms and conditions',
-    'JB51 boutique terms',
+    'JB51 clothing house terms',
     'bespoke tailoring policy',
     'e-commerce shipping returns'
   ],
@@ -38,16 +38,16 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/terms-of-service`,
   },
   openGraph: {
-    title: 'Website Terms of Service & Conditions | JB51',
+    title: 'Website Terms of Service & Conditions | JB51 Clothing House',
     description: 'Terms of conditions governing your engagement with our web storefront, bespoke orders, and concierge services.',
     url: `${SITE_URL}/terms-of-service`,
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     locale: 'en_IN',
     type: 'website',
   },
   twitter: {
     card: 'summary',
-    title: 'Website Terms of Service & Conditions | JB51',
+    title: 'Website Terms of Service & Conditions | JB51 Clothing House',
     description: 'Terms of conditions governing your engagement with our web storefront, bespoke orders, and concierge services.',
   },
 };

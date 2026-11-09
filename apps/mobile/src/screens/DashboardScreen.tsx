@@ -375,7 +375,7 @@ export default function DashboardScreen({
         <html>
         <head>
           <meta charset="utf-8">
-          <title>JB51 Store - All Products Analysis</title>
+          <title>JB51 Clothing House - All Products Analysis</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #0f172a; }
             .header { border-bottom: 2px solid #FF5E36; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end; }
@@ -394,7 +394,7 @@ export default function DashboardScreen({
         <body>
           <div class="header">
             <div>
-              <div class="title">JB51 STORE • PRODUCTS ANALYSIS & TELEMETRY</div>
+              <div class="title">JB51 CLOTHING HOUSE • PRODUCTS ANALYSIS & TELEMETRY</div>
               <div class="subtitle">Complete Performance Audit • ${productPerformanceList.length} Active Catalogue Products</div>
             </div>
             <div class="date">
@@ -448,7 +448,7 @@ export default function DashboardScreen({
           </table>
 
           <div class="footer">
-            Confidential & Proprietary • JB51 Store Management Analytics Telemetry Engine
+            Confidential & Proprietary • JB51 Clothing House Management Analytics Telemetry Engine
           </div>
         </body>
         </html>

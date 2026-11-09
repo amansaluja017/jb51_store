@@ -298,11 +298,7 @@ export async function triggerWebRevalidation(tag = 'site-config') {
         'Content-Type': 'application/json',
       },
     });
-    if (!res.ok) {
-      console.warn(`[triggerWebRevalidation] Revalidation returned status ${res.status}`);
-    }
-  } catch (err: any) {
-    // If web is not reachable during test or development, log and proceed
-    console.log(`[triggerWebRevalidation] Notice: Web revalidation ping skipped (${err.message})`);
+  } catch {
+    // If web is not reachable during test or development, proceed silently
   }
 }

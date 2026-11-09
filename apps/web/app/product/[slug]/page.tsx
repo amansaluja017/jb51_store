@@ -25,24 +25,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!product) {
     return {
-      title: 'Product Not Found | JB51',
+      title: 'Product Not Found | JB51 Clothing House',
       robots: { index: false, follow: true },
     };
   }
 
   const rawDesc = cleanText(product.description);
   const description =
-    rawDesc.length > 160 ? `${rawDesc.substring(0, 157)}...` : rawDesc || `Handcrafted ${product.name} tailored from luxury Indian textiles by JB51.`;
+    rawDesc.length > 160 ? `${rawDesc.substring(0, 157)}...` : rawDesc || `Handcrafted ${product.name} tailored from luxury Indian textiles by JB51 Clothing House.`;
 
   const coverImage = product.images?.[0] || 'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?auto=format&fit=crop&w=1200&q=80';
 
   return {
-    title: `${product.name} | JB51`,
+    title: `${product.name} | JB51 Clothing House`,
     description,
     keywords: [
       product.name,
       product.category,
       'JB51 suit',
+      'JB51 clothing house',
       'handcrafted punjabi suit',
       'bespoke tailoring',
       'luxury indian suit',
@@ -51,10 +52,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: `${SITE_URL}/product/${slug}`,
     },
     openGraph: {
-      title: `${product.name} | JB51`,
+      title: `${product.name} | JB51 Clothing House`,
       description,
       url: `${SITE_URL}/product/${slug}`,
-      siteName: 'JB51',
+      siteName: 'JB51 Clothing House',
       locale: 'en_IN',
       type: 'article',
       images: [
@@ -62,13 +63,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: coverImage,
           width: 1000,
           height: 1250,
-          alt: `${product.name} - JB51`,
+          alt: `${product.name} - JB51 Clothing House`,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${product.name} | JB51`,
+      title: `${product.name} | JB51 Clothing House`,
       description,
       images: [coverImage],
     },
@@ -96,7 +97,7 @@ export default async function ProductPage({ params }: Props) {
     sku: product.id,
     brand: {
       '@type': 'Brand',
-      name: 'JB51',
+      name: 'JB51 Clothing House',
     },
     category: product.category,
     offers: {
@@ -110,7 +111,7 @@ export default async function ProductPage({ params }: Props) {
         : 'https://schema.org/OutOfStock',
       seller: {
         '@type': 'Organization',
-        name: 'JB51',
+        name: 'JB51 Clothing House',
       },
     },
   };

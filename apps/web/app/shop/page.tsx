@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { SITE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: "Shop Designer Punjabi Suits, Silk Co-ords & Luxury Suits | JB51",
+  title: "Shop Designer Punjabi Suits, Silk Co-ords & Luxury Suits | JB51 Clothing House",
   description:
     "Explore our complete catalog of handcrafted Punjabi suits, pure Chanderi silk co-ords, luxury velvet edits, and bespoke festive wear in Kaithal.",
   keywords: [
@@ -19,16 +19,17 @@ export const metadata: Metadata = {
     'velvet edit',
     'formal suits',
     'occasion wear',
+    'JB51 clothing house',
   ],
   alternates: {
     canonical: `${SITE_URL}/shop`,
   },
   openGraph: {
-    title: "Shop Designer Punjabi Suits & Luxury Ethnic Wear | JB51",
+    title: "Shop Designer Punjabi Suits & Luxury Ethnic Wear | JB51 Clothing House",
     description:
-      "Explore handcrafted Punjabi suits, pure Chanderi silk co-ords, and luxury velvet ensembles at JB51.",
+      "Explore handcrafted Punjabi suits, pure Chanderi silk co-ords, and luxury velvet ensembles at JB51 Clothing House.",
     url: `${SITE_URL}/shop`,
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     locale: 'en_IN',
     type: 'website',
     images: [

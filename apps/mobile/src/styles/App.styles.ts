@@ -13,6 +13,12 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     borderBottomWidth: 1,
     borderColor: colors.border.DEFAULT,
+    alignItems: 'center',
+    width: '100%',
+  },
+  appHeaderInner: {
+    width: '100%',
+    maxWidth: 1080,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

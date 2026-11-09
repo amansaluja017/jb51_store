@@ -15,6 +15,9 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#E4E4E7',
     backgroundColor: '#FFFFFF',
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
   },
   headerLeftGroup: {
     flexDirection: 'row',
@@ -71,6 +74,9 @@ export const styles = StyleSheet.create({
   modalScrollPadding: {
     padding: 20,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
   },
   // Hero Profile Card
   profileHeroCard: {

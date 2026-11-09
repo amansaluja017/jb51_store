@@ -249,67 +249,69 @@ export default function CatalogScreen({
     >
       {/* Search & Actions Header */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Search size={14} color="#a1a1aa" />
-          <TextInput 
-            placeholder="Search products or categories..."
-            placeholderTextColor="#a1a1aa"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <XCircle size={14} color="#a1a1aa" />
-            </TouchableOpacity>
+        <View style={styles.searchInner}>
+          <View style={styles.searchBar}>
+            <Search size={14} color="#a1a1aa" />
+            <TextInput 
+              placeholder="Search products or categories..."
+              placeholderTextColor="#a1a1aa"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.searchInput}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <XCircle size={14} color="#a1a1aa" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Backend pg_trgm Suggestions Bar */}
+          {debouncedSearch.length > 0 && suggestions && ((suggestions.categories?.length || 0) > 0 || (suggestions.tags?.length || 0) > 0 || (suggestions.products?.length || 0) > 0) && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, maxHeight: 30 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 }}>
+                <Sparkles size={11} color="#FF5E36" />
+                {suggestions.categories?.map((cat) => (
+                  <TouchableOpacity
+                    key={`cat-${cat}`}
+                    onPress={() => setSelectedCategory(cat)}
+                    style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                  >
+                    <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '600' }}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+                {suggestions.tags?.map((tag) => (
+                  <TouchableOpacity
+                    key={`tag-${tag}`}
+                    onPress={() => setSearchQuery(tag)}
+                    style={{ backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#ffedd5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                  >
+                    <Text style={{ fontSize: 10, color: '#FF5E36', fontWeight: '500' }}>#{tag}</Text>
+                  </TouchableOpacity>
+                ))}
+                {suggestions.products?.slice(0, 3).map((prod) => (
+                  <TouchableOpacity
+                    key={`prod-${prod.id}`}
+                    onPress={() => setSearchQuery(prod.name)}
+                    style={{ backgroundColor: '#fafafa', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                  >
+                    <Text style={{ fontSize: 10, color: '#52525b' }} numberOfLines={1}>{prod.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           )}
-        </View>
 
-        {/* Backend pg_trgm Suggestions Bar */}
-        {debouncedSearch.length > 0 && suggestions && ((suggestions.categories?.length || 0) > 0 || (suggestions.tags?.length || 0) > 0 || (suggestions.products?.length || 0) > 0) && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, maxHeight: 30 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 }}>
-              <Sparkles size={11} color="#FF5E36" />
-              {suggestions.categories?.map((cat) => (
-                <TouchableOpacity
-                  key={`cat-${cat}`}
-                  onPress={() => setSelectedCategory(cat)}
-                  style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
-                >
-                  <Text style={{ fontSize: 10, color: '#18181b', fontWeight: '600' }}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
-              {suggestions.tags?.map((tag) => (
-                <TouchableOpacity
-                  key={`tag-${tag}`}
-                  onPress={() => setSearchQuery(tag)}
-                  style={{ backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#ffedd5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
-                >
-                  <Text style={{ fontSize: 10, color: '#FF5E36', fontWeight: '500' }}>#{tag}</Text>
-                </TouchableOpacity>
-              ))}
-              {suggestions.products?.slice(0, 3).map((prod) => (
-                <TouchableOpacity
-                  key={`prod-${prod.id}`}
-                  onPress={() => setSearchQuery(prod.name)}
-                  style={{ backgroundColor: '#fafafa', borderWidth: 1, borderColor: '#e4e4e7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
-                >
-                  <Text style={{ fontSize: 10, color: '#52525b' }} numberOfLines={1}>{prod.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        )}
-
-        <View style={styles.actionsRow}>
-          <TouchableOpacity onPress={onManageCategories} style={styles.categoriesButton} accessibilityRole="button">
-            <Tag size={13} color="#09090b" />
-            <Text style={styles.categoriesButtonText}>Manage Categories</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onAddProduct} style={styles.addButton} accessibilityRole="button">
-            <Plus size={13} color="#fff" />
-            <Text style={styles.addButtonText}>Add Product</Text>
-          </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity onPress={onManageCategories} style={styles.categoriesButton} accessibilityRole="button">
+              <Tag size={13} color="#09090b" />
+              <Text style={styles.categoriesButtonText}>Manage Categories</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onAddProduct} style={styles.addButton} accessibilityRole="button">
+              <Plus size={13} color="#fff" />
+              <Text style={styles.addButtonText}>Add Product</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

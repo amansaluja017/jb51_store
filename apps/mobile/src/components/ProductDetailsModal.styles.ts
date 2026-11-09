@@ -14,6 +14,9 @@ export const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   headerIconBtn: {
     width: 36,
@@ -51,6 +54,9 @@ export const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
     gap: 14,
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
 
   // Gallery

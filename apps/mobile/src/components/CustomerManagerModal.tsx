@@ -1307,6 +1307,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderColor: '#e4e4e7',
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   backBtn: {
     flexDirection: 'row',
@@ -1369,6 +1372,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderColor: '#f4f4f5',
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   searchBox: {
     flexDirection: 'row',
@@ -1431,6 +1437,9 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   inlineLoadingBar: {
     flexDirection: 'row',

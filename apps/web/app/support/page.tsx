@@ -3,12 +3,12 @@ import { SupportClient } from '@/components/support/SupportClient';
 import { SITE_URL } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Client Services & Concierge | JB51',
+  title: 'Client Services & Concierge | JB51 Clothing House',
   description:
-    'Connect with JB51 concierge for custom measurements, styling consultations, bespoke tailoring requests, and order status tracking.',
+    'Connect with JB51 Clothing House concierge for custom measurements, styling consultations, bespoke tailoring requests, and order status tracking.',
   keywords: [
-    'JB51 support',
-    'store concierge',
+    'JB51 clothing house support',
+    'JB51 concierge',
     'custom sizing consultation',
     'bespoke suit fitting',
     'customer service kaithal',
@@ -18,11 +18,11 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/support`,
   },
   openGraph: {
-    title: 'Client Services & Concierge | JB51',
+    title: 'Client Services & Concierge | JB51 Clothing House',
     description:
-      'Connect with JB51 concierge for custom measurements, styling consultations, bespoke tailoring requests, and order status tracking.',
+      'Connect with JB51 Clothing House concierge for custom measurements, styling consultations, bespoke tailoring requests, and order status tracking.',
     url: `${SITE_URL}/support`,
-    siteName: 'JB51',
+    siteName: 'JB51 Clothing House',
     locale: 'en_IN',
     type: 'website',
     images: [

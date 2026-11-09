@@ -91,8 +91,7 @@ export async function getInquiries(filterStatus?: 'pending' | 'responded' | 'res
       : await query.orderBy(desc(inqueriesTable.createdAt));
 
     return rows.map(mapToInquiryItem);
-  } catch (err) {
-    console.log('[DB getInquiries Notice]:', err instanceof Error ? err.message : err);
+  } catch {
     return [];
   }
 }

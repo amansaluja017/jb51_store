@@ -5,20 +5,7 @@
   "private": true,
   "scripts": {
     "test": "tsx --test src/index.test.ts",
-    "test:all": "tsx --test src/*.test.ts",
-    "test:auth": "tsx --test src/auth.test.ts",
-    "test:products": "tsx --test src/products.test.ts",
-    "test:reviews": "tsx --test src/reviews.test.ts",
-    "test:inventory": "tsx --test src/inventory.test.ts",
-    "test:customers": "tsx --test src/customers.test.ts",
-    "test:orders": "tsx --test src/orders.test.ts",
-    "test:invoices": "tsx --test src/invoices.test.ts",
-    "test:credits": "tsx --test src/credits.test.ts",
-    "test:upload": "tsx --test src/upload.test.ts",
-    "test:router": "tsx --test src/router.test.ts",
-    "test:newsletter": "tsx --test src/newsletter.test.ts",
-    "test:analytics": "tsx --test src/analytics.test.ts",
-    "test:rate-limiting": "tsx --test src/rate-limiting.test.ts"
+    "test:all": "tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@repo/api": "workspace:*",

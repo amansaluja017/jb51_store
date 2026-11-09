@@ -99,11 +99,17 @@ export default function SimpleTextEditor({
     setModalDraft(value || '');
   }, [value]);
 
-  // Content growth auto-expansion
+  // Content growth auto-expansion (guarded against re-entrant layout loops)
   const handleContentSizeChange = (e: { nativeEvent: { contentSize: { height: number } } }) => {
-    if (multiline) {
-      const contentH = e.nativeEvent.contentSize.height;
-      setFieldHeight((prev) => Math.max(prev, Math.max(minHeight, contentH + 20)));
+    if (Platform.OS === 'web' || !multiline) {
+      return;
+    }
+    const contentH = e.nativeEvent?.contentSize?.height;
+    if (typeof contentH === 'number' && contentH > 0) {
+      const targetHeight = Math.max(minHeight, Math.min(400, Math.ceil(contentH)));
+      if (Math.abs(fieldHeight - targetHeight) > 4) {
+        setFieldHeight(targetHeight);
+      }
     }
   };
 
@@ -446,7 +452,7 @@ export default function SimpleTextEditor({
           value={value}
           onChangeText={onChangeText}
           onBlur={onBlur}
-          onContentSizeChange={handleContentSizeChange}
+          onContentSizeChange={Platform.OS === 'web' ? undefined : handleContentSizeChange}
           placeholder={placeholder || 'Write compelling description...'}
           placeholderTextColor="#94a3b8"
           multiline={multiline}

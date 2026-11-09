@@ -1,6 +1,4 @@
-import { StyleSheet, Platform, Dimensions } from 'react-native';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { StyleSheet, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
@@ -15,9 +13,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 10,
     alignItems: 'center',
+    width: '100%',
+    justifyContent: 'center',
   },
   searchBar: {
     flex: 1,
+    maxWidth: 1080,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f4f4f5',
@@ -54,6 +55,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 8,
+    width: '100%',
+    justifyContent: 'center',
   },
   superadminBanner: {
     flexDirection: 'row',
@@ -157,6 +160,9 @@ export const styles = StyleSheet.create({
   scrollPadding: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 110 : 96,
+    maxWidth: 1080,
+    width: '100%',
+    alignSelf: 'center',
   },
   loader: {
     marginTop: 40,
@@ -409,9 +415,11 @@ export const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: Math.round(SCREEN_HEIGHT * 0.85),
-    maxHeight: Math.round(SCREEN_HEIGHT * 0.9),
+    height: '85%',
+    maxHeight: '90%',
+    maxWidth: 640,
     width: '100%',
+    alignSelf: 'center',
     overflow: 'hidden',
   },
   modalHeader: {

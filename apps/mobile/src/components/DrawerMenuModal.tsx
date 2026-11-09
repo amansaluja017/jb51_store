@@ -92,7 +92,7 @@ export const DrawerMenuModal: React.FC<DrawerMenuModalProps> = ({
                   {currentUser?.role === 'superadmin' ? 'SUPER ADMIN' : 'STORE ADMIN'}
                 </Text>
               </View>
-              <Text style={drawerStyles.drawerTitle}>JB51 Store</Text>
+              <Text style={drawerStyles.drawerTitle}>JB51 Clothing House</Text>
               <Text style={drawerStyles.drawerSubtitle}>
                 {currentUser?.email || currentUser?.userName || 'Administrator'}
               </Text>

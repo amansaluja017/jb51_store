@@ -63,10 +63,19 @@ const DEFAULT_SLIDES = [
 export function HomeClient({ initialConfig }: HomeClientProps) {
   // Fetch products in focused batches instead of getting entire database at once
   const { data: trendingData, isLoading: isLoadingTrending } = api.products.getPaginated.useQuery({ limit: 12 });
+  const { data: featuredData, isLoading: isLoadingFeatured } = api.products.getPaginated.useQuery({ filter: 'featured', limit: 12 });
   const { data: bestSellerData, isLoading: isLoadingBestSeller } = api.products.getPaginated.useQuery({ filter: 'bestseller', limit: 6 });
   const { data: newArrivalData, isLoading: isLoadingNewArrival } = api.products.getPaginated.useQuery({ filter: 'new', limit: 6 });
 
   const products = trendingData?.items || [];
+  const featuredProducts = featuredData?.items || [];
+  const curatedProducts =
+    featuredProducts.length > 0
+      ? featuredProducts
+      : products.filter((p) => Boolean(p.featured)).length > 0
+        ? products.filter((p) => Boolean(p.featured))
+        : products;
+
   const bestSellerProducts = (bestSellerData?.items || []).slice(0, 4);
   const newArrivalProducts = (newArrivalData?.items || []).slice(0, 4);
   const fallbackNewArrivals = (
@@ -127,8 +136,11 @@ export function HomeClient({ initialConfig }: HomeClientProps) {
         <BespokeBanner config={initialConfig?.adBanner} />
       )}
 
-      {/* 6. Curated Silhouettes Curation tabs */}
-      <TrendingGrid products={products} isLoading={isLoadingTrending} />
+      {/* 6. Curated Silhouettes Homepage Featured Showcase */}
+      <TrendingGrid
+        products={curatedProducts}
+        isLoading={isLoadingFeatured || (featuredProducts.length === 0 && isLoadingTrending)}
+      />
 
       {/* 7. Interactive Flash Sale Banner Section */}
       {initialConfig?.saleSection?.enabled !== false && (

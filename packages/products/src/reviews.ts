@@ -69,8 +69,7 @@ export async function getReviews(filterApproved?: boolean): Promise<ReviewItem[]
       approved: !!r.approved,
       createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
     }));
-  } catch (err) {
-    console.log('[DB getReviews Notice]:', err instanceof Error ? err.message : err);
+  } catch {
     return [];
   }
 }

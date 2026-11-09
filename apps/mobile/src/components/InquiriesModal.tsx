@@ -514,6 +514,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderColor: '#e2e8f0',
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -596,6 +599,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#f1f5f9',
     gap: 10,
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   searchBar: {
     flexDirection: 'row',
@@ -670,6 +676,9 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     gap: 12,
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
   },
   inlineLoadingBar: {
     flexDirection: 'row',

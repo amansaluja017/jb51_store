@@ -34,7 +34,6 @@ export function SeasonalPrivilege({ config }: SeasonalPrivilegeProps) {
             src={imageUrl}
             alt={title}
             fill
-            priority
             className="object-cover object-[80%_center] md:object-[75%_center]"
             sizes="100vw"
             quality={90}
