@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS base
+FROM node:20-alpine
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.10.0 --activate
-RUN apk add --no-cache libc6-compat
 
-# 1. Install dependencies
-FROM base AS deps
+# Install pnpm globally and native compatibility libraries
+RUN npm install -g pnpm@9.10.0 && \
+    apk add --no-cache libc6-compat
+
 WORKDIR /app
 
+# 1. Copy monorepo package manifests for Docker layer caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 COPY apps/mobile/package.json ./apps/mobile/
@@ -22,32 +22,21 @@ COPY packages/products/package.json ./packages/products/
 COPY packages/rate-limiting/package.json ./packages/rate-limiting/
 COPY packages/test/package.json ./packages/test/
 
+# 2. Install all workspace dependencies
 RUN pnpm install --frozen-lockfile
 
-# 2. Builder stage
-FROM base AS builder
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /pnpm /pnpm
+# 3. Copy application and package source code
 COPY . .
 
-# Build workspace packages
-RUN pnpm --filter @repo/api build || true
-
-# 3. Production runner
-FROM base AS runner
-WORKDIR /app
-
+# 4. Set up non-root execution
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 apiservice
-
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /pnpm /pnpm
-COPY --from=builder --chown=apiservice:nodejs /app ./
+    adduser --system --uid 1001 apiservice && \
+    chown -R apiservice:nodejs /app
 
 USER apiservice
 
+WORKDIR /app/apps/api
+
 EXPOSE 3001
 
-CMD ["pnpm", "--filter", "@repo/api", "start"]
+CMD ["./node_modules/.bin/tsx", "src/server.ts"]

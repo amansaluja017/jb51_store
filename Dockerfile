@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# Base image with Node.js and pnpm
+# Base image with Node.js and global pnpm
 FROM node:20-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.10.0 --activate
-RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm@9.10.0 && \
+    apk add --no-cache libc6-compat
 
 # -------------------------------------------------------------
 # Stage 1: Dependency resolution & installation
@@ -69,16 +69,29 @@ CMD ["node", "apps/web/server.js"]
 FROM base AS api
 WORKDIR /app
 
-# Non-root user for security
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 apiservice
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/db/package.json ./packages/db/
+COPY packages/docs/package.json ./packages/docs/
+COPY packages/products/package.json ./packages/products/
+COPY packages/rate-limiting/package.json ./packages/rate-limiting/
+COPY packages/test/package.json ./packages/test/
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /pnpm /pnpm
-COPY --from=builder --chown=apiservice:nodejs /app ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 apiservice && \
+    chown -R apiservice:nodejs /app
 
 USER apiservice
 
+WORKDIR /app/apps/api
+
 EXPOSE 3001
 
-CMD ["pnpm", "--filter", "@repo/api", "start"]
+CMD ["./node_modules/.bin/tsx", "src/server.ts"]
