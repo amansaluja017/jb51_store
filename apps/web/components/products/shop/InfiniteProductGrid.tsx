@@ -3,7 +3,6 @@ import { type Product } from '@repo/products';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
 import { LotusIcon } from './ShopHeader';
-import { Sparkles } from 'lucide-react';
 
 interface InfiniteProductGridProps {
   products: Product[];
@@ -97,9 +96,6 @@ export function InfiniteProductGrid({
           {/* 6. End of Collection reached notice */}
           {!hasMore && products.length > 0 && (
             <div className="text-center py-16 flex flex-col items-center justify-center border-t border-zinc-100 mt-16 select-none">
-              <div className="w-10 h-10 rounded-full bg-[#FF5E36]/10 flex items-center justify-center text-[#FF5E36] mb-3">
-                <Sparkles size={18} />
-              </div>
               <h4 className="font-serif text-lg font-bold text-zinc-800 mb-1">
                 You&apos;ve explored all {products.length} bespoke creations
               </h4>

@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { 
   FileText, 
   ShieldCheck, 
-  Sparkles, 
   Award, 
   Truck, 
   RefreshCw, 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductCardSkeleton } from '@/components/products/ProductCardSkeleton';
 import { type Product } from '@repo/products';
@@ -79,8 +79,7 @@ export function TrendingGrid({ products = [], isLoading = false }: TrendingGridP
       {/* Header with Title and Prev/Next Carousel Navigation Controls */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 relative z-10">
         <div>
-          <span className="inline-flex items-center gap-1.5 text-[11px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold mb-2">
-            <Sparkles size={13} className="text-[#FF5E36]" />
+          <span className="text-[11px] tracking-[0.25em] uppercase text-[#FF5E36] font-bold block mb-2">
             HANDPICKED CURATION
           </span>
           <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-zinc-950 tracking-tight">

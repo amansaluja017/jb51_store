@@ -8,19 +8,6 @@ interface BespokeBannerProps {
   config?: AdBannerConfig;
 }
 
-// Delicate Diamond Sparkle Motif (inspired by reference festive jewelry typography)
-const SparkleMotif = () => (
-  <div className="flex flex-col items-center justify-center gap-1 select-none opacity-90 shrink-0" aria-hidden="true">
-    <span className="text-[7px] sm:text-[9px] text-amber-800 leading-none">✦</span>
-    <div className="flex items-center gap-1 leading-none">
-      <span className="text-[7px] sm:text-[9px] text-amber-800">✦</span>
-      <span className="text-[10px] sm:text-xs text-amber-900 font-bold">✦</span>
-      <span className="text-[7px] sm:text-[9px] text-amber-800">✦</span>
-    </div>
-    <span className="text-[7px] sm:text-[9px] text-amber-800 leading-none">✦</span>
-  </div>
-);
-
 export function BespokeBanner({ config }: BespokeBannerProps) {
   if (config?.enabled === false) {
     return null;
@@ -64,14 +51,10 @@ export function BespokeBanner({ config }: BespokeBannerProps) {
               {tagline}
             </span>
 
-            {/* Festive Title with Sparkling Diamond Motifs on both sides */}
-            <div className="flex items-center justify-center gap-2.5 sm:gap-5 mb-2 sm:mb-3">
-              <SparkleMotif />
-              <h2 className="font-serif text-2xl sm:text-4xl lg:text-5xl text-zinc-950 font-normal leading-[1.05] tracking-tight">
-                {title}
-              </h2>
-              <SparkleMotif />
-            </div>
+            {/* Festive Title */}
+            <h2 className="font-serif text-2xl sm:text-4xl lg:text-5xl text-zinc-950 font-normal leading-[1.05] tracking-tight mb-2 sm:mb-3">
+              {title}
+            </h2>
 
             {/* Offer / Pieces text */}
             <p className="text-xs sm:text-sm md:text-base text-zinc-800 font-medium tracking-wide mb-1">

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 import type { AdBannerConfig } from '@/lib/site-config';
 
@@ -71,7 +71,6 @@ export function SeasonalPrivilege({ config }: SeasonalPrivilegeProps) {
 
             {/* Exclusive Code Badge */}
             <div className="mb-6 inline-flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15">
-              <Sparkles size={13} className="text-[#FF5E36]" />
               <div className="flex items-center gap-2">
                 <span className="text-[9px] uppercase tracking-widest font-extrabold text-zinc-300">Code</span>
                 <span className="font-mono text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded">FESTIVE15</span>

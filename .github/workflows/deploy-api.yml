@@ -1,0 +1,190 @@
+name: Deploy API to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'Dockerfile'
+      - 'apps/api/Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/api
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Lint & Typecheck API before building
+  # -------------------------------------------------------------
+  lint-and-typecheck:
+    name: Lint & Typecheck API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck API package
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+
+  # -------------------------------------------------------------
+  # Job 2: Build & Push Docker Image to GHCR
+  # -------------------------------------------------------------
+  build-and-push:
+    name: Build & Push API Image
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # -------------------------------------------------------------
+  # Job 3: Deploy to Ubuntu EC2 Instance via SSH
+  # -------------------------------------------------------------
+  deploy-to-ec2:
+    name: Deploy to AWS EC2 (Ubuntu)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy API on EC2 Instance
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.EC2_USER || secrets.SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY || secrets.SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Starting deployment on AWS EC2 Ubuntu..."
+
+            # 1. Determine Docker command (with sudo fallback if user not in docker group)
+            DOCKER_CMD="docker"
+            if ! docker info >/dev/null 2>&1; then
+              if sudo docker info >/dev/null 2>&1; then
+                DOCKER_CMD="sudo docker"
+              else
+                echo "❌ Docker is not installed or running on this EC2 instance."
+                exit 1
+              fi
+            fi
+
+            # 2. Authenticate with GitHub Container Registry
+            echo "${{ secrets.GHCR_TOKEN }}" | $DOCKER_CMD login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+            # 3. Pull latest API Docker image
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            echo "⬇️ Pulling latest image: $IMAGE"
+            $DOCKER_CMD pull "$IMAGE"
+
+            # 4. Check for project directory on EC2
+            APP_DIR="${{ secrets.EC2_APP_DIR || '~/jb51_store' }}"
+            eval APP_DIR_EXPANDED="$APP_DIR"
+
+            if [ -d "$APP_DIR_EXPANDED" ]; then
+              cd "$APP_DIR_EXPANDED"
+              echo "📂 Navigated to project directory: $(pwd)"
+            elif [ -d "$HOME/jb51_store" ]; then
+              cd "$HOME/jb51_store"
+              echo "📂 Navigated to project directory: $(pwd)"
+            fi
+
+            # 5. Restart container using Docker Compose or Docker Run
+            if [ -f "docker-compose.yml" ]; then
+              echo "🔄 Updating container via docker compose..."
+              if $DOCKER_CMD compose version >/dev/null 2>&1; then
+                $DOCKER_CMD compose pull api || true
+                $DOCKER_CMD compose up -d --no-deps api
+              else
+                docker-compose pull api || true
+                docker-compose up -d --no-deps api
+              fi
+            else
+              echo "🔄 Updating standalone container..."
+              $DOCKER_CMD stop jb51-api 2>/dev/null || true
+              $DOCKER_CMD rm jb51-api 2>/dev/null || true
+
+              # Search for environment file
+              ENV_FLAG=""
+              if [ -f "apps/api/.env" ]; then
+                ENV_FLAG="--env-file apps/api/.env"
+              elif [ -f ".env" ]; then
+                ENV_FLAG="--env-file .env"
+              elif [ -f "$HOME/.env" ]; then
+                ENV_FLAG="--env-file $HOME/.env"
+              elif [ -f "$HOME/apps/api/.env" ]; then
+                ENV_FLAG="--env-file $HOME/apps/api/.env"
+              fi
+
+              $DOCKER_CMD run -d \
+                --name jb51-api \
+                --restart unless-stopped \
+                -p 3001:3001 \
+                $ENV_FLAG \
+                "$IMAGE"
+            fi
+
+            # 6. Verify container status
+            sleep 4
+            echo "📋 Active API container status:"
+            $DOCKER_CMD ps --filter "name=jb51-api"
+
+            # 7. Clean up old dangling images to preserve EC2 disk space
+            $DOCKER_CMD image prune -f
+
+            echo "✅ Deployment on EC2 Ubuntu completed successfully!"

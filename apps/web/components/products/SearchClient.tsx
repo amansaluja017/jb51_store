@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/trpc/client/react';
 import { ProductCard } from '@/components/products/ProductCard';
 import Link from 'next/link';
-import { Search, X, Sparkles } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 
 interface Props {
@@ -123,8 +123,8 @@ export function SearchClient({ query }: Props) {
             {/* Related tags & categories from pg_trgm suggestions */}
             {(relatedCategories.length > 0 || relatedTags.length > 0) && (
               <div className="flex flex-wrap items-center gap-2 mt-3 pt-2">
-                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#FF5E36]" /> Suggestions:
+                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                  Suggestions:
                 </span>
                 {relatedCategories.map((cat) => (
                   <button
