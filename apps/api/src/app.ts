@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import {
   globalRateLimiter,
@@ -17,8 +18,17 @@ export function createApp(): Express {
   // Trust reverse proxy hops (Nginx, cloud load balancers, CDN)
   app.set('trust proxy', 1);
 
-  // Enable CORS with dynamic client origin resolution
+  // Security headers with Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Disabled to permit Scalar docs and external frontend clients
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    })
+  );
+
+  // Enable CORS with dynamic client origin resolution and preflight handling
   app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
 
   // Request parsing with generous payload limits for uploads/analytics
   app.use(express.json({ limit: '50mb' }));
