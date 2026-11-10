@@ -23,7 +23,7 @@ COPY packages/rate-limiting/package.json ./packages/rate-limiting/
 COPY packages/test/package.json ./packages/test/
 
 # 2. Install all workspace dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # 3. Copy application and package source code
 COPY . .

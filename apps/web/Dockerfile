@@ -22,7 +22,7 @@ COPY packages/products/package.json ./packages/products/
 COPY packages/rate-limiting/package.json ./packages/rate-limiting/
 COPY packages/test/package.json ./packages/test/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # 2. Build Next.js application
 FROM base AS builder

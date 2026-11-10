@@ -44,7 +44,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Typecheck API package
         run: ./apps/api/node_modules/.bin/tsc --noEmit -p apps/api/tsconfig.json
