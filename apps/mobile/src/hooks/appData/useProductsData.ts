@@ -117,7 +117,7 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     }
   }, [trpcRequest, showAlert, handleFetchProducts]);
 
-  const handleUpdateVisibility = useCallback(async (product: Product, status: 'listed' | 'unListed') => {
+  const handleUpdateVisibility = useCallback(async (product: Product, status: 'listed' | 'unListed' | 'discontinued') => {
     try {
       await trpcRequest('products.updateStatus', {
         method: 'POST',
@@ -126,11 +126,17 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
       setProducts(prev =>
         prev.map(p =>
           p.slug === product.slug
-            ? { ...p, status, isListed: status === 'listed' }
+            ? {
+                ...p,
+                status,
+                isListed: status === 'listed',
+                isDiscontinued: status === 'discontinued',
+              }
             : p
         )
       );
-      showAlert('Status Updated', `${product.name} is now ${status === 'listed' ? 'Listed' : 'Unlisted'}.`, 'success');
+      const label = status === 'listed' ? 'Listed' : status === 'unListed' ? 'Unlisted' : 'Discontinued';
+      showAlert('Status Updated', `${product.name} is now ${label}.`, 'success');
     } catch (err: unknown) {
       await handleFetchProducts(true);
       const message = err instanceof Error ? err.message : 'Failed to update status';
@@ -299,16 +305,23 @@ export function useProductsData({ trpcRequest, showAlert, setSyncMessage }: UseP
     search?: string;
     category?: string;
     inStockOnly?: boolean;
+    includeUnlisted?: boolean;
+    includeDiscontinued?: boolean;
+    statusFilter?: 'all' | 'listed' | 'unListed' | 'discontinued';
     sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
     page?: number;
     limit?: number;
   }) => {
     try {
       const res = await trpcRequest<PaginatedProductsResponse>('products.getPaginated', {
-        input: params,
+        input: {
+          ...params,
+          // Mobile product catalog is the admin management interface: always show unlisted products by default
+          includeUnlisted: params?.includeUnlisted ?? true,
+        },
       });
       if (res?.items && Array.isArray(res.items)) {
-        if ((!params?.page || params.page === 1) && !params?.search && !params?.category) {
+        if ((!params?.page || params.page === 1) && !params?.search && !params?.category && !params?.statusFilter) {
           setProducts(res.items);
           hasFetchedProducts.current = true;
         }

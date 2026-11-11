@@ -51,6 +51,9 @@ export const productsRouter = router({
           category: z.string().nullish(),
           filter: z.enum(['new', 'bestseller', 'featured', 'all']).nullish(),
           inStockOnly: z.boolean().nullish(),
+          includeUnlisted: z.boolean().nullish(),
+          includeDiscontinued: z.boolean().nullish(),
+          statusFilter: z.enum(['all', 'listed', 'unListed', 'discontinued']).nullish(),
           sortBy: z
             .enum(['name-asc', 'name-desc', 'price-asc', 'price-desc', 'stock-desc', 'stock-asc', 'newest', 'default'])
             .nullish()
@@ -60,8 +63,15 @@ export const productsRouter = router({
         })
         .nullish()
     )
-    .query(async ({ input }) => {
-      return await getPaginatedProducts(input || undefined);
+    .query(async ({ input, ctx }) => {
+      const isStaff = (ctx as { isStaff?: boolean })?.isStaff;
+      const includeUnlisted = input?.includeUnlisted ?? isStaff ?? false;
+      const includeDiscontinued = Boolean(input?.includeDiscontinued || input?.statusFilter === 'discontinued');
+      return await getPaginatedProducts({
+        ...(input || {}),
+        includeUnlisted,
+        includeDiscontinued,
+      });
     }),
 
   search: publicProcedure
@@ -72,6 +82,9 @@ export const productsRouter = router({
           query: z.string().nullish(),
           category: z.string().nullish(),
           inStockOnly: z.boolean().nullish(),
+          includeUnlisted: z.boolean().nullish(),
+          includeDiscontinued: z.boolean().nullish(),
+          statusFilter: z.enum(['all', 'listed', 'unListed', 'discontinued']).nullish(),
           sortBy: z
             .enum(['name-asc', 'name-desc', 'price-asc', 'price-desc', 'stock-desc', 'stock-asc', 'newest', 'default'])
             .nullish(),
@@ -79,8 +92,15 @@ export const productsRouter = router({
         })
         .nullish()
     )
-    .query(async ({ input }) => {
-      return await searchProducts(input || undefined);
+    .query(async ({ input, ctx }) => {
+      const isStaff = (ctx as { isStaff?: boolean })?.isStaff;
+      const includeUnlisted = input?.includeUnlisted ?? isStaff ?? false;
+      const includeDiscontinued = Boolean(input?.includeDiscontinued || input?.statusFilter === 'discontinued');
+      return await searchProducts({
+        ...(input || {}),
+        includeUnlisted,
+        includeDiscontinued,
+      });
     }),
 
   suggestions: publicProcedure

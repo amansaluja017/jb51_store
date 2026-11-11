@@ -185,6 +185,11 @@ export const styles = StyleSheet.create({
   statusBadgeUnlisted: {
     backgroundColor: '#f1f5f9',
   },
+  statusBadgeDiscontinued: {
+    backgroundColor: '#fff1f2',
+    borderColor: '#fecdd3',
+    borderWidth: 1,
+  },
   statusBadgeText: {
     fontSize: 11,
     fontWeight: '600',
@@ -200,6 +205,9 @@ export const styles = StyleSheet.create({
   },
   statusBadgeTextUnlisted: {
     color: '#64748b',
+  },
+  statusBadgeTextDiscontinued: {
+    color: '#e11d48',
   },
 
   productTitle: {
@@ -329,6 +337,9 @@ export const styles = StyleSheet.create({
   pillBtnActiveUnlisted: {
     backgroundColor: '#64748b',
   },
+  pillBtnActiveDiscontinued: {
+    backgroundColor: '#e11d48',
+  },
   pillBtnText: {
     fontSize: 12,
     fontWeight: '600',
@@ -338,6 +349,9 @@ export const styles = StyleSheet.create({
     color: '#ffffff',
   },
   pillBtnTextActiveUnlisted: {
+    color: '#ffffff',
+  },
+  pillBtnTextActiveDiscontinued: {
     color: '#ffffff',
   },
 

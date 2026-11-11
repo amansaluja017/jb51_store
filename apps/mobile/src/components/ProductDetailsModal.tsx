@@ -38,7 +38,7 @@ interface ProductDetailsModalProps {
   onClose: () => void;
   onEdit: (product: Product) => void;
   onToggleStock?: (product: Product) => void;
-  onUpdateVisibility?: (product: Product, status: 'listed' | 'unListed') => void;
+  onUpdateVisibility?: (product: Product, status: 'listed' | 'unListed' | 'discontinued') => void;
 }
 
 const formatCurrency = (val: number) => {
@@ -95,7 +95,10 @@ export default function ProductDetailsModal({
   const totalStock = variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
   const totalReserved = variants.reduce((acc, v) => acc + (Number(v.reservedStock) || 0), 0);
   const inStock = isProductInStock(product);
-  const isListed = product.status ? product.status === 'listed' : product.isListed !== false;
+  const isDiscontinued = product.status === 'discontinued' || product.isDiscontinued || Boolean((product.features as { isDiscontinued?: boolean } | undefined)?.isDiscontinued);
+  const currentStatus: 'listed' | 'unListed' | 'discontinued' = isDiscontinued
+    ? 'discontinued'
+    : (product.status === 'unListed' || product.isListed === false ? 'unListed' : 'listed');
 
   const sellingPrice = product.sellingPrice ?? product.price ?? 0;
   const mrp = product.mrp ?? product.price ?? 0;
@@ -239,16 +242,28 @@ export default function ProductDetailsModal({
                 <View
                   style={[
                     styles.statusBadge,
-                    isListed ? styles.statusBadgeListed : styles.statusBadgeUnlisted,
+                    currentStatus === 'discontinued'
+                      ? styles.statusBadgeDiscontinued
+                      : currentStatus === 'listed'
+                      ? styles.statusBadgeListed
+                      : styles.statusBadgeUnlisted,
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusBadgeText,
-                      isListed ? styles.statusBadgeTextListed : styles.statusBadgeTextUnlisted,
+                      currentStatus === 'discontinued'
+                        ? styles.statusBadgeTextDiscontinued
+                        : currentStatus === 'listed'
+                        ? styles.statusBadgeTextListed
+                        : styles.statusBadgeTextUnlisted,
                     ]}
                   >
-                    {isListed ? 'Listed' : 'Unlisted'}
+                    {currentStatus === 'discontinued'
+                      ? 'Discontinued'
+                      : currentStatus === 'listed'
+                      ? 'Listed'
+                      : 'Unlisted'}
                   </Text>
                 </View>
               </View>
@@ -326,28 +341,42 @@ export default function ProductDetailsModal({
                   <View style={styles.controlMeta}>
                     <Text style={styles.controlTitle}>Storefront Listing</Text>
                     <Text style={styles.controlSubtitle}>
-                      {isListed ? 'Visible in web catalogue' : 'Hidden from public'}
+                      {currentStatus === 'listed'
+                        ? 'Visible in web catalogue'
+                        : currentStatus === 'unListed'
+                        ? 'Hidden from public'
+                        : 'Discontinued product'}
                     </Text>
                   </View>
                   <View style={styles.visibilityTogglePills}>
                     <TouchableOpacity
                       onPress={() => {
-                        if (!isListed) onUpdateVisibility(product, 'listed');
+                        if (currentStatus !== 'listed') onUpdateVisibility(product, 'listed');
                       }}
-                      style={[styles.pillBtn, isListed && styles.pillBtnActiveListed]}
+                      style={[styles.pillBtn, currentStatus === 'listed' && styles.pillBtnActiveListed]}
                     >
-                      <Text style={[styles.pillBtnText, isListed && styles.pillBtnTextActiveListed]}>
+                      <Text style={[styles.pillBtnText, currentStatus === 'listed' && styles.pillBtnTextActiveListed]}>
                         Listed
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
-                        if (isListed) onUpdateVisibility(product, 'unListed');
+                        if (currentStatus !== 'unListed') onUpdateVisibility(product, 'unListed');
                       }}
-                      style={[styles.pillBtn, !isListed && styles.pillBtnActiveUnlisted]}
+                      style={[styles.pillBtn, currentStatus === 'unListed' && styles.pillBtnActiveUnlisted]}
                     >
-                      <Text style={[styles.pillBtnText, !isListed && styles.pillBtnTextActiveUnlisted]}>
+                      <Text style={[styles.pillBtnText, currentStatus === 'unListed' && styles.pillBtnTextActiveUnlisted]}>
                         Unlisted
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (currentStatus !== 'discontinued') onUpdateVisibility(product, 'discontinued');
+                      }}
+                      style={[styles.pillBtn, currentStatus === 'discontinued' && styles.pillBtnActiveDiscontinued]}
+                    >
+                      <Text style={[styles.pillBtnText, currentStatus === 'discontinued' && styles.pillBtnTextActiveDiscontinued]}>
+                        Discontinued
                       </Text>
                     </TouchableOpacity>
                   </View>

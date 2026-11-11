@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useDebounce } from '../hooks/useDebounce';
-import { Search, Plus, Tag, Package, XCircle, Sparkles } from 'lucide-react-native';
+import { Search, Plus, Tag, Package, XCircle, Sparkles, Archive } from 'lucide-react-native';
 import CatalogItem from '../components/CatalogItem';
 import { CatalogSkeleton } from '../components/SkeletonLoader';
 import { Product, PaginatedProductsResponse } from '../types';
@@ -46,7 +46,7 @@ export interface CatalogScreenProps {
   onAddProduct: () => void;
   onManageCategories: () => void;
   onToggleStock: (product: Product) => void;
-  onUpdateVisibility: (product: Product, status: 'listed' | 'unListed') => void;
+  onUpdateVisibility: (product: Product, status: 'listed' | 'unListed' | 'discontinued') => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (slug: string, name: string) => void;
   onViewProductDetails?: (product: Product) => void;
@@ -54,6 +54,9 @@ export interface CatalogScreenProps {
     search?: string;
     category?: string;
     inStockOnly?: boolean;
+    includeUnlisted?: boolean;
+    includeDiscontinued?: boolean;
+    statusFilter?: 'all' | 'listed' | 'unListed' | 'discontinued';
     sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'default';
     page?: number;
     limit?: number;
@@ -62,6 +65,9 @@ export interface CatalogScreenProps {
     query?: string;
     category?: string;
     inStockOnly?: boolean;
+    includeUnlisted?: boolean;
+    includeDiscontinued?: boolean;
+    statusFilter?: 'all' | 'listed' | 'unListed' | 'discontinued';
     page?: number;
     limit?: number;
   }) => Promise<{ items: Product[]; total?: number; metrics?: unknown }>;
@@ -90,6 +96,7 @@ export default function CatalogScreen({
   onGetProductSuggestions,
 }: CatalogScreenProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [activeSection, setActiveSection] = useState<'active' | 'discontinued'>('active');
   const keyboardHeight = useKeyboardHeight();
   const [page, setPage] = useState(1);
   const [remoteData, setRemoteData] = useState<{
@@ -121,10 +128,10 @@ export default function CatalogScreen({
     return Array.from(list);
   }, [categories, products]);
 
-  // Reset to page 1 whenever filters change
+  // Reset to page 1 whenever filters or section changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, selectedCategory]);
+  }, [debouncedSearch, selectedCategory, activeSection]);
 
   // Fetch Suggestions from backend pg_trgm route (only after typing stops)
   useEffect(() => {
@@ -157,12 +164,16 @@ export default function CatalogScreen({
     let isMounted = true;
     const fetchBackendProducts = async () => {
       setIsFetchingRemote(true);
+      const isDiscontinuedSection = activeSection === 'discontinued';
       try {
         if (debouncedSearch && onSearchProducts) {
           // Backend ILIKE search route on product name, description, tags
           const searchRes = await onSearchProducts({
             query: debouncedSearch,
             category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            includeUnlisted: true,
+            includeDiscontinued: isDiscontinuedSection,
+            statusFilter: isDiscontinuedSection ? 'discontinued' : undefined,
             limit: PAGE_SIZE,
           });
           if (isMounted && searchRes) {
@@ -179,6 +190,9 @@ export default function CatalogScreen({
           const res = await onFetchPaginatedProducts({
             search: debouncedSearch || undefined,
             category: selectedCategory !== 'All' ? selectedCategory : undefined,
+            includeUnlisted: true,
+            includeDiscontinued: isDiscontinuedSection,
+            statusFilter: isDiscontinuedSection ? 'discontinued' : undefined,
             page,
             limit: PAGE_SIZE,
           });
@@ -203,7 +217,7 @@ export default function CatalogScreen({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, isSearchTyping, selectedCategory, page, refreshKey, onSearchProducts, onFetchPaginatedProducts]);
+  }, [debouncedSearch, isSearchTyping, selectedCategory, activeSection, page, refreshKey, onSearchProducts, onFetchPaginatedProducts]);
 
   const displayedProducts = remoteData
     ? remoteData.items
@@ -226,8 +240,39 @@ export default function CatalogScreen({
     setRefreshKey(k => k + 1);
   };
 
-  const handleUpdateVisibility = (prod: Product, status: 'listed' | 'unListed') => {
+  const handleUpdateVisibility = (prod: Product, status: 'listed' | 'unListed' | 'discontinued') => {
     onUpdateVisibility(prod, status);
+    // Optimistically update remoteData so items reflect status and transition cleanly between sections
+    setRemoteData(prev => {
+      if (!prev) return null;
+      if (activeSection === 'active' && status === 'discontinued') {
+        return {
+          ...prev,
+          items: prev.items.filter(p => p.slug !== prod.slug),
+          total: Math.max(0, prev.total - 1),
+        };
+      }
+      if (activeSection === 'discontinued' && (status === 'listed' || status === 'unListed')) {
+        return {
+          ...prev,
+          items: prev.items.filter(p => p.slug !== prod.slug),
+          total: Math.max(0, prev.total - 1),
+        };
+      }
+      return {
+        ...prev,
+        items: prev.items.map(p =>
+          p.slug === prod.slug
+            ? {
+                ...p,
+                status,
+                isListed: status === 'listed',
+                isDiscontinued: status === 'discontinued',
+              }
+            : p
+        ),
+      };
+    });
     setRefreshKey(k => k + 1);
   };
 
@@ -315,6 +360,57 @@ export default function CatalogScreen({
         </View>
       </View>
 
+      {/* Catalog Section Switcher (Active Outfits vs Discontinued) */}
+      <View style={styles.sectionTabsContainer}>
+        <TouchableOpacity
+          onPress={() => {
+            if (activeSection !== 'active') {
+              setActiveSection('active');
+            }
+          }}
+          style={[
+            styles.sectionTab,
+            activeSection === 'active' && styles.sectionTabActive,
+          ]}
+          accessibilityRole="tab"
+          accessibilityLabel="Active outfits catalog"
+        >
+          <Package size={14} color={activeSection === 'active' ? '#FF5E36' : '#71717a'} />
+          <Text
+            style={[
+              styles.sectionTabText,
+              activeSection === 'active' && styles.sectionTabTextActive,
+            ]}
+          >
+            Active Outfits
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            if (activeSection !== 'discontinued') {
+              setActiveSection('discontinued');
+            }
+          }}
+          style={[
+            styles.sectionTab,
+            activeSection === 'discontinued' && styles.sectionTabDiscontinuedActive,
+          ]}
+          accessibilityRole="tab"
+          accessibilityLabel="Discontinued outfits"
+        >
+          <Archive size={14} color={activeSection === 'discontinued' ? '#e11d48' : '#71717a'} />
+          <Text
+            style={[
+              styles.sectionTabText,
+              activeSection === 'discontinued' && styles.sectionTabTextDiscontinuedActive,
+            ]}
+          >
+            Discontinued
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Category Pills Filter Bar */}
       {categoryList.length > 0 && (
         <View style={styles.categoryPillsContainer}>
@@ -338,14 +434,11 @@ export default function CatalogScreen({
                   selectedCategory === 'All' && styles.categoryPillTextActive
                 ]}
               >
-                All ({products.length})
+                All
               </Text>
             </TouchableOpacity>
 
             {categoryList.map(cat => {
-              const count = products.filter(
-                p => p.category?.toLowerCase() === cat.toLowerCase()
-              ).length;
               const isActive = selectedCategory.toLowerCase() === cat.toLowerCase();
 
               return (
@@ -365,7 +458,7 @@ export default function CatalogScreen({
                       isActive && styles.categoryPillTextActive
                     ]}
                   >
-                    {cat} ({count})
+                    {cat}
                   </Text>
                 </TouchableOpacity>
               );
@@ -417,6 +510,14 @@ export default function CatalogScreen({
                 >
                   <Text style={styles.clearFilterText}>Reset Filters</Text>
                 </TouchableOpacity>
+              </>
+            ) : activeSection === 'discontinued' ? (
+              <>
+                <Archive size={44} color="#d4d4d8" />
+                <Text style={styles.emptyTitle}>No Discontinued Outfits</Text>
+                <Text style={styles.emptyLabel}>
+                  You have no discontinued products. Any outfits marked as discontinued will appear here for archival or restoration.
+                </Text>
               </>
             ) : (
               <>

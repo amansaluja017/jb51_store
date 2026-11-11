@@ -13,6 +13,9 @@ export interface SearchProductsParams {
   query?: string;
   category?: string;
   inStockOnly?: boolean;
+  includeUnlisted?: boolean;
+  includeDiscontinued?: boolean;
+  statusFilter?: 'all' | 'listed' | 'unListed' | 'discontinued';
   sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default';
   limit?: number;
 }
@@ -77,7 +80,10 @@ export async function searchProducts(
 ): Promise<{ items: Product[]; total: number; query: string }> {
   return (await trpcRequest('products.search', {
     method: 'GET',
-    input: params,
+    input: {
+      ...params,
+      includeUnlisted: params.includeUnlisted ?? true,
+    },
     token: options.token,
     apiHost: options.apiHost,
     signal: getAbortSignal('products.search'),

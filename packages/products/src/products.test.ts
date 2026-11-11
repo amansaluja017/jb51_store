@@ -222,6 +222,19 @@ describe('Products Router API Integration Tests', () => {
     await adminCaller.delete({ slug });
     const discontinuedRes = await adminCaller.getStatus({ slug });
     assert.strictEqual(discontinuedRes?.status, 'discontinued');
+
+    // Restore product back to listed
+    const restoreRes = await adminCaller.updateStatus({ slug, status: 'listed' });
+    assert.notStrictEqual(restoreRes, null);
+    assert.strictEqual(restoreRes?.status, 'listed');
+
+    // Verify product is now active again
+    const activeStatus = await adminCaller.getStatus({ slug });
+    assert.strictEqual(activeStatus?.status, 'listed');
+
+    // Set directly to discontinued
+    const directDiscRes = await adminCaller.updateStatus({ slug, status: 'discontinued' });
+    assert.strictEqual(directDiscRes?.status, 'discontinued');
   });
 
   it('9. should reject product creation when mandatory fields (description, category, images < 2, stock) are invalid', async () => {

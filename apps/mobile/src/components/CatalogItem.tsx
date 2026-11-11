@@ -8,7 +8,7 @@ import { triggerHaptic } from '../utils/haptics';
 interface CatalogItemProps {
   product: Product;
   onToggleStock: (product: Product) => void;
-  onUpdateVisibility: (product: Product, status: 'listed' | 'unListed') => void;
+  onUpdateVisibility: (product: Product, status: 'listed' | 'unListed' | 'discontinued') => void;
   onEdit: (product: Product) => void;
   onDelete: (slug: string, name: string) => void;
   onViewDetails?: (product: Product) => void;
@@ -18,10 +18,19 @@ const formatCurrency = (val: number) => {
   return `₹${val.toLocaleString('en-IN')}`;
 };
 
-/** Derive whether the product is currently listed. */
-function isListed(product: Product): boolean {
-  if (product.status) return product.status === 'listed';
-  return product.isListed !== false;
+/** Derive whether the product is currently listed, unlisted, or discontinued. */
+function getProductStatus(product: Product): 'listed' | 'unListed' | 'discontinued' {
+  if (
+    product.status === 'discontinued' ||
+    product.isDiscontinued ||
+    Boolean((product.features as { isDiscontinued?: boolean } | undefined)?.isDiscontinued)
+  ) {
+    return 'discontinued';
+  }
+  if (product.status === 'unListed' || product.isListed === false) {
+    return 'unListed';
+  }
+  return 'listed';
 }
 
 function CatalogItem({
@@ -39,7 +48,7 @@ function CatalogItem({
   const imageUri = rawImage && typeof rawImage === 'string' && rawImage.trim() !== '' ? rawImage.trim() : null;
   const optimizedImageUri = imageUri ? getOptimizedImageUrl(imageUri, ImagePresets.card) : null;
 
-  const listed = isListed(product);
+  const currentStatus = getProductStatus(product);
   const sellingPrice = product.sellingPrice ?? product.price ?? 0;
   const mrp = product.mrp ?? product.price ?? 0;
   const hasDiscount = mrp > sellingPrice;
@@ -69,7 +78,18 @@ function CatalogItem({
         )}
         <View style={styles.productMeta}>
           <Text style={styles.productNameText} numberOfLines={2}>{product.name}</Text>
-          <Text style={styles.productCategoryText}>{product.category || 'Uncategorized'}</Text>
+          <View style={styles.categoryRow}>
+            <Text style={styles.productCategoryText}>{product.category || 'Uncategorized'}</Text>
+            {currentStatus === 'discontinued' ? (
+              <View style={styles.discontinuedBadge}>
+                <Text style={styles.discontinuedBadgeText}>DISCONTINUED</Text>
+              </View>
+            ) : currentStatus === 'unListed' ? (
+              <View style={styles.unlistedBadge}>
+                <Text style={styles.unlistedBadgeText}>UNLISTED</Text>
+              </View>
+            ) : null}
+          </View>
           <View style={styles.priceContainer}>
             <Text style={styles.productPriceText}>{formatCurrency(sellingPrice)}</Text>
             {hasDiscount && (
@@ -112,34 +132,47 @@ function CatalogItem({
       {/* Separator */}
       <View style={styles.cardSeparator} />
 
-      {/* Visibility 2-segment + action buttons */}
+      {/* Visibility 3-segment (Listed / Unlisted / Discontinued) + action buttons */}
       <View style={styles.actionRow}>
         <View style={styles.visibilityTogglePills}>
           <TouchableOpacity
             onPress={() => {
-              if (!listed) {
+              if (currentStatus !== 'listed') {
                 triggerHaptic('light');
                 onUpdateVisibility(product, 'listed');
               }
             }}
-            style={[styles.pillButton, listed && styles.activePillListed]}
+            style={[styles.pillButton, currentStatus === 'listed' && styles.activePillListed]}
             accessibilityRole="button"
             accessibilityLabel="Set product as listed"
           >
-            <Text style={[styles.pillText, listed && styles.pillTextListed]}>Listed</Text>
+            <Text style={[styles.pillText, currentStatus === 'listed' && styles.pillTextListed]}>Listed</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
-              if (listed) {
+              if (currentStatus !== 'unListed') {
                 triggerHaptic('light');
                 onUpdateVisibility(product, 'unListed');
               }
             }}
-            style={[styles.pillButton, !listed && styles.activePillUnlisted]}
+            style={[styles.pillButton, currentStatus === 'unListed' && styles.activePillUnlisted]}
             accessibilityRole="button"
             accessibilityLabel="Set product as unlisted"
           >
-            <Text style={[styles.pillText, !listed && styles.pillTextUnlisted]}>Unlisted</Text>
+            <Text style={[styles.pillText, currentStatus === 'unListed' && styles.pillTextUnlisted]}>Unlisted</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              if (currentStatus !== 'discontinued') {
+                triggerHaptic('warning');
+                onUpdateVisibility(product, 'discontinued');
+              }
+            }}
+            style={[styles.pillButton, currentStatus === 'discontinued' && styles.activePillDiscontinued]}
+            accessibilityRole="button"
+            accessibilityLabel="Set product as discontinued"
+          >
+            <Text style={[styles.pillText, currentStatus === 'discontinued' && styles.pillTextDiscontinued]}>Discontinued</Text>
           </TouchableOpacity>
         </View>
 
@@ -220,10 +253,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#09090b',
   },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
+    flexWrap: 'wrap',
+  },
   productCategoryText: {
     fontSize: 9,
     color: '#a1a1aa',
-    marginTop: 3,
+  },
+  unlistedBadge: {
+    backgroundColor: '#f4f4f5',
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  unlistedBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#71717a',
+    letterSpacing: 0.3,
+  },
+  discontinuedBadge: {
+    backgroundColor: '#fff1f2',
+    borderWidth: 1,
+    borderColor: '#fecdd3',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  discontinuedBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#e11d48',
+    letterSpacing: 0.3,
   },
   priceContainer: {
     flexDirection: 'row',
@@ -297,7 +364,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   pillButton: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     backgroundColor: '#ffffff',
   },
@@ -306,6 +373,9 @@ const styles = StyleSheet.create({
   },
   activePillUnlisted: {
     backgroundColor: '#f4f4f5',
+  },
+  activePillDiscontinued: {
+    backgroundColor: '#fff1f2',
   },
   pillText: {
     fontSize: 9,
@@ -319,6 +389,9 @@ const styles = StyleSheet.create({
   },
   pillTextUnlisted: {
     color: '#52525b',
+  },
+  pillTextDiscontinued: {
+    color: '#e11d48',
   },
   mainButtons: {
     flexDirection: 'row',

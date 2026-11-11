@@ -418,9 +418,11 @@ export async function getProducts(includeDiscontinued = false): Promise<Product[
             prod.isListed = status.status === 'listed';
             prod.status = status.status;
             prod.inStock = status.inStock ?? true;
+            prod.isDiscontinued = status.status === 'discontinued';
           } else {
-            prod.isListed = rFeat.isListed !== false && !rFeat.isDiscontinued;
-            prod.status = prod.isListed ? 'listed' : 'unListed';
+            prod.isDiscontinued = Boolean(rFeat.isDiscontinued);
+            prod.isListed = rFeat.isListed !== false && !prod.isDiscontinued;
+            prod.status = prod.isDiscontinued ? 'discontinued' : prod.isListed ? 'listed' : 'unListed';
             prod.inStock = true;
           }
           return prod;
@@ -1130,11 +1132,12 @@ export async function updateProductStatus(
       return await db.transaction(async (tx) => {
         if (updates.status !== undefined) {
           const isListed = updates.status === 'listed';
+          const isDiscontinued = updates.status === 'discontinued';
           const currentFeat = (targetRow.features as Record<string, unknown>) || {};
           await tx
             .update(productTable)
             .set({
-              features: { ...currentFeat, isListed },
+              features: { ...currentFeat, isListed, isDiscontinued },
             })
             .where(eq(productTable.id, targetRow.id));
         }
@@ -1163,6 +1166,9 @@ export interface GetPaginatedProductsInput {
   category?: string | null;
   filter?: 'new' | 'bestseller' | 'featured' | 'all' | null;
   inStockOnly?: boolean | null;
+  includeUnlisted?: boolean | null;
+  includeDiscontinued?: boolean | null;
+  statusFilter?: 'all' | 'listed' | 'unListed' | 'discontinued' | null;
   sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default' | null;
   page?: number | null;
   limit?: number | null;
@@ -1174,15 +1180,35 @@ export async function getPaginatedProducts(input?: GetPaginatedProductsInput) {
   const search = (input?.search || '').trim().toLowerCase();
   const category = (input?.category || 'All').trim();
   const inStockOnly = !!input?.inStockOnly;
+  const includeUnlisted = Boolean(input?.includeUnlisted);
+  const includeDiscontinued = Boolean(input?.includeDiscontinued || input?.statusFilter === 'discontinued');
+  const statusFilter = input?.statusFilter || (includeDiscontinued ? 'discontinued' : undefined);
   const sortBy = input?.sortBy || 'name-asc';
 
-  let list = (await getProducts()).filter(
-    (p) =>
-      p.isListed !== false &&
-      p.status !== 'unListed' &&
-      p.status !== 'discontinued' &&
-      !p.isDiscontinued &&
-      !(p.features as { isDiscontinued?: boolean } | undefined)?.isDiscontinued
+  let list = (await getProducts(includeDiscontinued || statusFilter === 'all')).filter(
+    (p) => {
+      const isDisc = p.status === 'discontinued' || p.isDiscontinued || Boolean((p.features as { isDiscontinued?: boolean } | undefined)?.isDiscontinued);
+      const isList = p.status === 'listed' && p.isListed !== false && !isDisc;
+      const isUnlist = (p.status === 'unListed' || p.isListed === false) && !isDisc;
+
+      if (statusFilter === 'discontinued') {
+        return isDisc;
+      }
+      if (statusFilter === 'listed') {
+        return isList;
+      }
+      if (statusFilter === 'unListed') {
+        return isUnlist;
+      }
+      if (statusFilter === 'all') {
+        return true;
+      }
+
+      // Default active catalog filtering
+      if (isDisc) return false;
+      if (!includeUnlisted && isUnlist) return false;
+      return true;
+    }
   );
 
   if (search) {
@@ -1279,6 +1305,9 @@ export interface SearchProductsInput {
   query?: string | null;
   category?: string | null;
   inStockOnly?: boolean | null;
+  includeUnlisted?: boolean | null;
+  includeDiscontinued?: boolean | null;
+  statusFilter?: 'all' | 'listed' | 'unListed' | 'discontinued' | null;
   sortBy?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-desc' | 'stock-asc' | 'newest' | 'default' | null;
   limit?: number | null;
 }
@@ -1286,6 +1315,9 @@ export interface SearchProductsInput {
 export async function searchProducts(input?: SearchProductsInput) {
   const query = (input?.query || '').trim();
   const limit = Math.max(1, input?.limit || 20);
+  const includeUnlisted = Boolean(input?.includeUnlisted);
+  const includeDiscontinued = Boolean(input?.includeDiscontinued || input?.statusFilter === 'discontinued');
+  const statusFilter = input?.statusFilter || (includeDiscontinued ? 'discontinued' : undefined);
 
   if (query) {
     const searchPattern = `%${query}%`;
@@ -1303,8 +1335,22 @@ export async function searchProducts(input?: SearchProductsInput) {
         );
 
       const matchedIds = new Set(dbMatched.map((r) => r.id));
-      const allProducts = await getProducts();
-      let filtered = allProducts.filter((p) => matchedIds.has(p.id));
+      const allProducts = await getProducts(includeDiscontinued || statusFilter === 'all');
+      let filtered = allProducts.filter((p) => {
+        if (!matchedIds.has(p.id)) return false;
+        const isDisc = p.status === 'discontinued' || p.isDiscontinued || Boolean((p.features as { isDiscontinued?: boolean } | undefined)?.isDiscontinued);
+        const isList = p.status === 'listed' && p.isListed !== false && !isDisc;
+        const isUnlist = (p.status === 'unListed' || p.isListed === false) && !isDisc;
+
+        if (statusFilter === 'discontinued') return isDisc;
+        if (statusFilter === 'listed') return isList;
+        if (statusFilter === 'unListed') return isUnlist;
+        if (statusFilter === 'all') return true;
+
+        if (isDisc) return false;
+        if (!includeUnlisted && isUnlist) return false;
+        return true;
+      });
 
       if (input?.category && input.category !== 'All') {
         const normCat = input.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -1333,6 +1379,9 @@ export async function searchProducts(input?: SearchProductsInput) {
     search: query,
     category: input?.category,
     inStockOnly: input?.inStockOnly,
+    includeUnlisted,
+    includeDiscontinued,
+    statusFilter,
     sortBy: input?.sortBy,
     limit,
     page: 1,
