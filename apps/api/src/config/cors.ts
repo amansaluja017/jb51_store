@@ -58,17 +58,22 @@ function originMatchesPattern(origin: string, pattern: string): boolean {
   if (pattern === '*') return true;
   if (origin.toLowerCase() === pattern.toLowerCase()) return true;
 
+  // Protocol-agnostic match (e.g. pattern "jb51.shop" matches origin "https://jb51.shop" or "http://jb51.shop")
+  const originWithoutProto = origin.replace(/^https?:\/\//i, '');
+  const patternWithoutProto = pattern.replace(/^https?:\/\//i, '');
+
+  if (originWithoutProto.toLowerCase() === patternWithoutProto.toLowerCase()) {
+    return true;
+  }
+
   if (pattern.includes('*')) {
-    let p = pattern;
-    let schemePrefix = '';
-    if (!p.startsWith('http://') && !p.startsWith('https://')) {
-      schemePrefix = '(?:https?:\\/\\/)?';
+    const p = patternWithoutProto;
+    const rootPattern = p.replace(/\*\./, '');
+    if (rootPattern !== p && originWithoutProto.toLowerCase() === rootPattern.toLowerCase()) {
+      return true;
     }
-    const escaped = p
-      .replace(/[.+?^${}()|[\]\\\/]/g, '\\$&')
-      .replace(/\*/g, '.*');
-    const regex = new RegExp('^' + schemePrefix + escaped + '$', 'i');
-    return regex.test(origin);
+    const escaped = p.replace(/[.+?^${}()|[\]\\\/]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp('^' + escaped + '$', 'i').test(originWithoutProto);
   }
 
   return false;

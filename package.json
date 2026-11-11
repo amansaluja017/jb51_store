@@ -6,6 +6,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
+    "test": "pnpm --filter @repo/api test",
     "clean": "turbo clean"
   },
   "devDependencies": {

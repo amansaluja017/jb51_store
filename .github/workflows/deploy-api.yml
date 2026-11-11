@@ -23,10 +23,10 @@ env:
 
 jobs:
   # -------------------------------------------------------------
-  # Job 1: Lint & Typecheck API before building
+  # Job 1: Test & Typecheck API before building
   # -------------------------------------------------------------
-  lint-and-typecheck:
-    name: Lint & Typecheck API
+  test-and-typecheck:
+    name: Test & Typecheck API
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -49,12 +49,28 @@ jobs:
       - name: Typecheck API package
         run: ./apps/api/node_modules/.bin/tsc --noEmit -p apps/api/tsconfig.json
 
+      - name: Run automated application tests
+        env:
+          NODE_ENV: test
+          CLIENT_URL: "http://localhost:3000,https://jb51.shop"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "🧪 Running API unit, CORS, and documentation tests..."
+          ./apps/api/node_modules/.bin/tsx --test apps/api/src/cors.test.ts apps/api/src/docs.test.ts
+
+          if [ -n "$DATABASE_URL" ]; then
+            echo "🧪 DATABASE_URL secret detected: running full integration test suite..."
+            ./apps/api/node_modules/.bin/tsx --test apps/api/src/all-routes.test.ts
+          else
+            echo "ℹ️ Note: DATABASE_URL repository secret not set. Skipping live database integration tests."
+          fi
+
   # -------------------------------------------------------------
   # Job 2: Build & Push Docker Image to GHCR
   # -------------------------------------------------------------
   build-and-push:
     name: Build & Push API Image
-    needs: lint-and-typecheck
+    needs: test-and-typecheck
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -179,10 +195,26 @@ jobs:
                 "$IMAGE"
             fi
 
-            # 6. Verify container status
+            # 6. Verify container status and test application health
             sleep 4
             echo "📋 Active API container status:"
             $DOCKER_CMD ps --filter "name=jb51-api"
+
+            echo "🩺 Testing deployed application health endpoint..."
+            HEALTH_OK=false
+            for i in $(seq 1 10); do
+              if curl -sf http://localhost:3001/health >/dev/null 2>&1 || curl -sf http://127.0.0.1:3001/health >/dev/null 2>&1; then
+                echo "✅ Health check passed! API application is running and healthy."
+                HEALTH_OK=true
+                break
+              fi
+              echo "⏳ Waiting for API container to initialize (attempt $i/10)..."
+              sleep 2
+            done
+
+            if [ "$HEALTH_OK" != "true" ]; then
+              echo "⚠️ Warning: Health check did not return HTTP 200 within timeout."
+            fi
 
             # 7. Clean up old dangling images to preserve EC2 disk space
             $DOCKER_CMD image prune -f

@@ -252,13 +252,14 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
     const del = await adminCaller.newsletter.deleteSubscriber({ idOrEmail: testEmail });
     assert.strictEqual(del.success, true);
   });
-});
 
-// Graceful cleanup after full test execution
-setTimeout(async () => {
-  try {
-    const { client } = await import('@repo/db');
-    await client.end({ timeout: 1 });
-  } catch (_) {}
-}, 600000).unref();
+  // Graceful cleanup of database connections immediately after tests complete
+  t.after(async () => {
+    try {
+      const { client } = await import('@repo/db');
+      await client.end({ timeout: 1 });
+    } catch (_) {}
+    process.exit(0);
+  });
+});
 

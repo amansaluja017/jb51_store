@@ -22,6 +22,14 @@ export function createApp(): Express {
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions));
 
+  // Catch-all preflight handler: never let unhandled OPTIONS requests fall through to tRPC (which responds with 415)
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+    next();
+  });
+
   // Security headers with Helmet
   app.use(
     helmet({

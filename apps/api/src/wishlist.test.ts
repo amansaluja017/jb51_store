@@ -24,7 +24,10 @@ test('Wishlist Routes with Browser Fingerprint Integration Test Suite', async (t
           await db.delete(wishlistTable).where(eq(wishlistTable.id, wl.id));
         }
       }
+      const { client } = await import('@repo/db');
+      await client.end({ timeout: 1 });
     } catch (_) {}
+    process.exit(0);
   });
 
   await t.test('1. wishlist.get returns empty list for new browser fingerprint', async () => {
@@ -93,12 +96,4 @@ test('Wishlist Routes with Browser Fingerprint Integration Test Suite', async (t
 process.on('beforeExit', () => {
   process.exit(0);
 });
-
-// Clean shutdown hook to close client pool if needed
-setTimeout(async () => {
-  try {
-    const { client } = await import('@repo/db');
-    await client.end({ timeout: 1 });
-  } catch (_) {}
-}, 60000).unref();
 

@@ -9,9 +9,11 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "tsx src/server.ts",
-    "test": "tsx --test src/all-routes.test.ts",
+    "test": "tsx --test src/cors.test.ts src/docs.test.ts",
+    "test:cors": "tsx --test src/cors.test.ts",
     "test:docs": "tsx --test src/docs.test.ts",
-    "test:all": "tsx --test src/*.test.ts"
+    "test:integration": "tsx --test src/all-routes.test.ts",
+    "test:all": "tsx --test src/cors.test.ts src/docs.test.ts src/all-routes.test.ts"
   },
   "dependencies": {
     "@repo/auth": "workspace:*",
