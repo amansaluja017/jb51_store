@@ -16,7 +16,7 @@ const getJwtSecret = (): string => {
 };
 
 const getJwtRefreshSecret = (): string => {
-  const secret = process.env.JWT_REFRESH_SECRET;
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === 'test') return 'test-jwt-refresh-secret-key-12345678901234567890';
     throw new Error('JWT_REFRESH_SECRET environment variable is missing.');

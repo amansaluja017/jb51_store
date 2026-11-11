@@ -24,9 +24,11 @@ const setItem = async (key: string, value: string): Promise<void> => {
   try {
     const available = await isSecureStoreAvailable();
     if (available) {
-      await SecureStore.setItemAsync(key, value, {
-        keychainAccessible: SecureStore.WHEN_UNLOCKED,
-      });
+      const options =
+        Platform.OS === 'ios' && SecureStore.WHEN_UNLOCKED !== undefined
+          ? { keychainAccessible: SecureStore.WHEN_UNLOCKED }
+          : undefined;
+      await SecureStore.setItemAsync(key, value, options);
       return;
     }
   } catch (err) {
@@ -169,13 +171,34 @@ export const tokenStorage = {
 
   isJwtExpired: (token: string): boolean => {
     try {
-      if (!token) return true;
-      const parts = token.split('.');
+      if (!token || typeof token !== 'string') return true;
+      const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
+      const parts = cleanToken.split('.');
       if (parts.length < 2) return true;
       const base64Url = parts[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const padLength = (4 - (base64.length % 4)) % 4;
+      const paddedBase64 = base64 + '='.repeat(padLength);
+
+      let decodedStr = '';
+      if (typeof atob === 'function') {
+        decodedStr = atob(paddedBase64);
+      } else {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+        let str = paddedBase64.replace(/=+$/, '');
+        for (let bc = 0, bs = 0, buffer, idx = 0; (buffer = str.charAt(idx++)); ) {
+          const charIndex = chars.indexOf(buffer);
+          if (~charIndex) {
+            bs = bc % 4 ? bs * 64 + charIndex : charIndex;
+            if (bc++ % 4) {
+              decodedStr += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6)));
+            }
+          }
+        }
+      }
+
       const jsonPayload = decodeURIComponent(
-        atob(base64)
+        decodedStr
           .split('')
           .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
           .join('')

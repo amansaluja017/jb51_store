@@ -141,6 +141,48 @@ export const refreshAuthToken = async (refreshToken: string) => {
     );
 
   if (!storedToken || new Date() > storedToken.expiresAt) {
+    // Check if this token was recently revoked within a 60-second grace window
+    // (Handles network retries, fast page/app reloads, and concurrent requests gracefully)
+    const [recentlyRevoked] = await db
+      .select()
+      .from(tokenTable)
+      .where(
+        and(
+          eq(tokenTable.tokenHash, tokenHash),
+          eq(tokenTable.isRevoked, true)
+        )
+      );
+
+    const GRACE_PERIOD_MS = 60 * 1000;
+    const isWithinGrace =
+      recentlyRevoked &&
+      recentlyRevoked.updatedAt &&
+      Date.now() - new Date(recentlyRevoked.updatedAt).getTime() < GRACE_PERIOD_MS;
+
+    if (isWithinGrace) {
+      const [foundUser] = await db
+        .select()
+        .from(user)
+        .where(eq(user.id, decoded.sub));
+
+      if (foundUser) {
+        const sanitized = sanitizeUser(foundUser);
+        const tokens = await generateAuthTokens({
+          id: sanitized.id,
+          email: sanitized.email,
+          userName: sanitized.userName,
+          role: sanitized.role,
+        });
+
+        return {
+          user: sanitized,
+          token: tokens.accessToken,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        };
+      }
+    }
+
     throw new Error('Invalid or revoked refresh token');
   }
 

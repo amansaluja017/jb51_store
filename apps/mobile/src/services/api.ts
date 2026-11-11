@@ -170,13 +170,20 @@ export const refreshAccessToken = async (apiHost?: string): Promise<string | nul
 
       return null;
     } catch (refreshErr: unknown) {
-      const errorMessage = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
-      console.warn('[refreshAccessToken] Failed to refresh token:', errorMessage);
+      const serverMessage = extractErrorMessage(refreshErr);
       const isAxios = axios.isAxiosError(refreshErr);
       const status = isAxios ? refreshErr.response?.status : undefined;
-      const isAuthRejection = status === 401 || status === 403 || status === 400;
+      console.warn(`[refreshAccessToken] Failed to refresh token (status ${status}):`, serverMessage || refreshErr);
 
-      if (isAuthRejection) {
+      // Only wipe stored credentials if the server explicitly rejected the refresh token as invalid or revoked.
+      // Do NOT clear credentials on network timeouts, connectivity drops, or temporary server issues.
+      const isTokenExplicitlyRejected =
+        status === 401 &&
+        (serverMessage.toLowerCase().includes('refresh token') ||
+         serverMessage.toLowerCase().includes('revoked') ||
+         serverMessage.toLowerCase().includes('expired'));
+
+      if (isTokenExplicitlyRejected) {
         console.warn('[refreshAccessToken] Refresh token was rejected by server. Clearing credentials.');
         await tokenStorage.clearAuthData();
         tokenListeners.forEach((listener) => {
