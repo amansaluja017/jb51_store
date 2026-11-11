@@ -1,109 +1,136 @@
 import { CorsOptions } from 'cors';
-
-const defaultAllowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:19006',
-  'http://localhost:8081',
-];
-
-const productionAllowedOrigins = [
-  'https://jb51.shop',
-  'https://www.jb51.shop',
-  'https://api.jb51.shop',
-];
+import 'dotenv/config';
 
 /**
- * Parses allowed origins from environment variables (comma-separated)
+ * Parses allowed origins strictly from environment variables.
+ * Supported environment variables:
+ * - CLIENT_URL
+ * - CORS_ORIGIN / CORS_ORIGINS
+ * - ALLOWED_ORIGINS
+ * - FRONTEND_URL
+ * - NEXT_PUBLIC_SITE_URL
+ *
+ * Supports:
+ * - Comma or semicolon separated lists
+ * - Wildcard '*' (allows any requesting origin)
+ * - Wildcard patterns (e.g. 'https://*.jb51.shop', '*.vercel.app', 'http://localhost:*')
+ * - Stripping surrounding quotes (' " `) and trailing slashes
  */
-function getEnvOrigins(): string[] {
+export function getEnvOrigins(): string[] {
   const envSources = [
     process.env.CLIENT_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGIN,
+    process.env.CORS_ORIGINS,
     process.env.ALLOWED_ORIGINS,
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
   ];
 
   const origins: string[] = [];
+
   for (const src of envSources) {
-    if (src) {
-      origins.push(...src.split(',').map((url) => url.trim().replace(/\/$/, '')).filter(Boolean));
+    if (!src) continue;
+    // Strip surrounding quotes if the entire env value was quoted
+    const unquoted = src.trim().replace(/^["'`]|["'`]$/g, '');
+    const items = unquoted.split(/[,;]/);
+    for (const item of items) {
+      const cleaned = item
+        .trim()
+        .replace(/^["'`]|["'`]$/g, '')
+        .replace(/\/+$/, '');
+      if (cleaned) {
+        origins.push(cleaned);
+      }
     }
   }
-  return origins;
+
+  return Array.from(new Set(origins));
 }
 
 /**
- * Checks whether an origin is allowed:
- * - Matching configured allowed origins or env CLIENT_URL / NEXT_PUBLIC_SITE_URL
- * - Official production domains (jb51.shop, www.jb51.shop)
- * - Vercel preview deployment URLs (*.vercel.app)
- * - Localhost / 127.0.0.1
- * - Private LAN IP addresses (10.x, 192.168.x, 172.16-31.x) for mobile Expo/device testing
+ * Matches an incoming origin against an allowed pattern from environment variables.
+ * Supports:
+ * - Exact match (e.g. "https://jb51.shop" matches "https://jb51.shop")
+ * - Universal wildcard ("*")
+ * - Subdomain / port wildcards (e.g. "https://*.jb51.shop", "*.vercel.app", "http://localhost:*")
+ */
+function originMatchesPattern(origin: string, pattern: string): boolean {
+  if (pattern === '*') return true;
+  if (origin.toLowerCase() === pattern.toLowerCase()) return true;
+
+  if (pattern.includes('*')) {
+    let p = pattern;
+    let schemePrefix = '';
+    if (!p.startsWith('http://') && !p.startsWith('https://')) {
+      schemePrefix = '(?:https?:\\/\\/)?';
+    }
+    const escaped = p
+      .replace(/[.+?^${}()|[\]\\\/]/g, '\\$&')
+      .replace(/\*/g, '.*');
+    const regex = new RegExp('^' + schemePrefix + escaped + '$', 'i');
+    return regex.test(origin);
+  }
+
+  return false;
+}
+
+/**
+ * Checks whether an incoming origin is allowed based purely on environment variables.
+ * - Non-browser requests (!origin) are always permitted (e.g. server-to-server, mobile app HTTP).
+ * - Matches dynamically against origins configured in environment variables.
+ * - In non-production environments with no env vars configured, permits all origins for development ease.
  */
 export function isAllowedOrigin(origin: string | undefined): boolean {
-  if (!origin) return true; // Allow non-browser requests (e.g. mobile apps, curl, server-to-server)
+  // Allow non-browser requests (e.g. mobile apps, curl, server-to-server)
+  if (!origin) return true;
 
-  // Normalize origin by stripping trailing slash
-  const cleanOrigin = origin.replace(/\/$/, '');
+  // Clean trailing slash
+  const cleanOrigin = origin.replace(/\/+$/, '');
 
-  const allowedOrigins = [
-    ...defaultAllowedOrigins,
-    ...productionAllowedOrigins,
-    ...getEnvOrigins(),
-  ];
+  const envOrigins = getEnvOrigins();
 
-  if (allowedOrigins.includes(cleanOrigin)) {
-    return true;
+  // If environment variables specify origins, check against them
+  if (envOrigins.length > 0) {
+    for (const pattern of envOrigins) {
+      if (originMatchesPattern(cleanOrigin, pattern)) {
+        return true;
+      }
+    }
+    // Defined origins exist, but this origin didn't match any of them
+    return false;
   }
 
-  // Allow Vercel preview deployments (e.g. jb51-store-git-feat-xxx.vercel.app)
-  const vercelPreviewRegex = /^https:\/\/[a-zA-Z0-9-_.]+\.vercel\.app$/;
-  if (vercelPreviewRegex.test(cleanOrigin)) {
-    return true;
-  }
-
-  // Local development hostnames
-  if (cleanOrigin.startsWith('http://localhost') || cleanOrigin.startsWith('http://127.0.0.1')) {
-    return true;
-  }
-
-  // Private network IP regex for mobile devices on local WiFi
-  const privateIpRegex = /^http:\/\/(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/;
-  if (privateIpRegex.test(cleanOrigin)) {
-    return true;
-  }
-
-  // In non-production environments, remain permissive for mobile dev
+  // If no environment variables are defined at all:
+  // In development / local testing, allow all origins
   if (process.env.NODE_ENV !== 'production') {
     return true;
   }
 
+  // In production with no configured origins, log a warning and block browser requests
+  console.warn(
+    `[CORS] Request blocked from origin "${origin}". No allowed origins defined in environment variables (CLIENT_URL, CORS_ORIGIN, ALLOWED_ORIGINS).`
+  );
   return false;
 }
 
 export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     if (isAllowedOrigin(origin)) {
+      // Returning true causes the cors middleware to reflect the incoming origin header:
+      // Access-Control-Allow-Origin: <origin>
+      // Access-Control-Allow-Credentials: true
       callback(null, true);
     } else {
-      // Do not throw an Error here as that results in a 500 Internal Server Error in Express.
-      // Returning callback(null, false) instructs CORS to omit Access-Control-Allow-Origin safely.
+      // Do not throw an Error as that causes Express to respond with 500.
+      // Passing false omits Access-Control-Allow-Origin so the browser safely blocks cross-origin requests.
       callback(null, false);
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'x-trpc-source',
-    'baggage',
-    'sentry-trace',
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-  ],
+  // Leaving allowedHeaders unset allows cors to dynamically reflect whatever
+  // headers the client requests in access-control-request-headers (e.g. trpc-accept,
+  // x-trpc-source, authorization, content-type).
   exposedHeaders: ['set-cookie'],
   optionsSuccessStatus: 204,
   maxAge: 86400,
