@@ -345,7 +345,7 @@ export default function ProductDetailsModal({
                         ? 'Visible in web catalogue'
                         : currentStatus === 'unListed'
                         ? 'Hidden from public'
-                        : 'Discontinued product'}
+                        : 'Discontinued product (tap Listed to restore)'}
                     </Text>
                   </View>
                   <View style={styles.visibilityTogglePills}>
@@ -354,6 +354,8 @@ export default function ProductDetailsModal({
                         if (currentStatus !== 'listed') onUpdateVisibility(product, 'listed');
                       }}
                       style={[styles.pillBtn, currentStatus === 'listed' && styles.pillBtnActiveListed]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Set listed"
                     >
                       <Text style={[styles.pillBtnText, currentStatus === 'listed' && styles.pillBtnTextActiveListed]}>
                         Listed
@@ -364,19 +366,11 @@ export default function ProductDetailsModal({
                         if (currentStatus !== 'unListed') onUpdateVisibility(product, 'unListed');
                       }}
                       style={[styles.pillBtn, currentStatus === 'unListed' && styles.pillBtnActiveUnlisted]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Set unlisted"
                     >
                       <Text style={[styles.pillBtnText, currentStatus === 'unListed' && styles.pillBtnTextActiveUnlisted]}>
                         Unlisted
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (currentStatus !== 'discontinued') onUpdateVisibility(product, 'discontinued');
-                      }}
-                      style={[styles.pillBtn, currentStatus === 'discontinued' && styles.pillBtnActiveDiscontinued]}
-                    >
-                      <Text style={[styles.pillBtnText, currentStatus === 'discontinued' && styles.pillBtnTextActiveDiscontinued]}>
-                        Discontinued
                       </Text>
                     </TouchableOpacity>
                   </View>

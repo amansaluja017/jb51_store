@@ -28,7 +28,9 @@ export function ShopClient() {
   const [hasSetMaxPrice, setHasSetMaxPrice] = useState(false);
 
   // 1. Fetch categories dynamically from API route: api.products.getCategories
-  const { data: apiCategories = [] } = api.products.getCategories.useQuery();
+  const { data: apiCategories = [] } = api.products.getCategories.useQuery(undefined, {
+    staleTime: 10 * 60 * 1000,
+  });
 
   // Dynamic database categories without mock/fallback categories
   const dynamicCategories = useMemo(() => {

@@ -58,6 +58,10 @@ export interface InvoicePreviewModalProps {
   activeTransactions?: InvoicePreviewTransaction[];
   activeNotes?: string;
   isEditing?: boolean;
+  storeName?: string;
+  storeAddress?: string;
+  storeEmail?: string;
+  storePhone?: string;
   isSubmitting?: boolean;
   isExporting?: boolean;
   onShareOrExport: () => void;
@@ -88,6 +92,10 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
   activeAdvancePaymentMode,
   activeTransactions = [],
   activeNotes,
+  storeName = 'JB51',
+  storeAddress = 'Chandni Chowk, New Delhi, India',
+  storeEmail = 'support@jb51.shop',
+  storePhone = '+91 98100 00051',
   isSubmitting,
   isExporting,
   onShareOrExport,
@@ -249,10 +257,10 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                 {/* Brand & Invoice Header */}
                 <View style={styles.invoiceHeaderRow}>
                   <View>
-                    <Text style={styles.brandTitle}>JB51</Text>
+                    <Text style={styles.brandTitle}>{storeName}</Text>
                     <Text style={styles.brandSubtitle}>EST. 1951</Text>
                     <Text style={styles.brandAddress}>
-                      Chandni Chowk, New Delhi, India{'\n'}support@jb51.shop
+                      {storeAddress}{'\n'}{storeEmail}{storePhone ? ` | ${storePhone}` : ''}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -506,12 +514,12 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                 {/* Brand & Statement Header */}
                 <View style={styles.invoiceHeaderRow}>
                   <View>
-                    <Text style={styles.brandTitle}>JB51</Text>
+                    <Text style={styles.brandTitle}>{storeName}</Text>
                     <Text style={[styles.brandSubtitle, { color: '#c2410c' }]}>
                       EST. 1951
                     </Text>
                     <Text style={styles.brandAddress}>
-                      Chandni Chowk, New Delhi, India{'\n'}support@jb51.shop | +91 98100 00051
+                      {storeAddress}{'\n'}{storeEmail}{storePhone ? ` | ${storePhone}` : ''}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>

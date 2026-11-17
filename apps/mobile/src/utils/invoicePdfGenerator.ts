@@ -8,6 +8,10 @@ export interface GenerateInvoicePdfData {
   clientPhone?: string;
   clientEmail?: string;
   clientAddress?: string;
+  storeName?: string;
+  storeAddress?: string;
+  storeEmail?: string;
+  storePhone?: string;
   date: string;
   items: InvoiceItem[];
   subtotal: number;
@@ -112,6 +116,15 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
 
   const currentDateStr = formatDateSafe(new Date());
 
+  const storeName = inv.storeName || 'JB51';
+  const storeAddress = inv.storeAddress || 'Chandni Chowk, New Delhi, India';
+  const storeEmail = inv.storeEmail || 'support@jb51.shop';
+  const storePhone = inv.storePhone || '+91 98100 00051';
+  const storeDetailsHtml = `
+    ${escapeHtml(storeAddress).replace(/\r?\n/g, '<br>')}<br>
+    ${escapeHtml(storeEmail)}${storePhone ? ` | ${escapeHtml(storePhone)}` : ''}
+  `;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -130,11 +143,10 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
         <div class="page-content">
           <div class="header-row">
             <div>
-              <h1 class="brand-title">JB51</h1>
+              <h1 class="brand-title">${escapeHtml(storeName)}</h1>
               <div class="brand-subtitle">EST. 1951</div>
               <div class="brand-details">
-                Chandni Chowk, New Delhi, India<br>
-                support@jb51.shop | +91 98100 00051
+                ${storeDetailsHtml}
               </div>
             </div>
             <div class="invoice-details">
@@ -270,11 +282,10 @@ export const generateInvoiceHtml = (inv: GenerateInvoicePdfData) => {
         <div class="page-content">
           <div class="header-row">
             <div>
-              <h1 class="brand-title">JB51</h1>
+              <h1 class="brand-title">${escapeHtml(storeName)}</h1>
               <div class="brand-subtitle">EST. 1951</div>
               <div class="brand-details">
-                Chandni Chowk, New Delhi, India<br>
-                support@jb51.shop | +91 98100 00051
+                ${storeDetailsHtml}
               </div>
             </div>
             <div class="invoice-details">

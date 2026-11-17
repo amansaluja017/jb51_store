@@ -13,9 +13,10 @@ export async function POST(req: NextRequest) {
       now: Date.now(),
       message: `Tag "${tag}" revalidated successfully`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err.message : 'Revalidation failed';
     return NextResponse.json(
-      { revalidated: false, error: err?.message || 'Revalidation failed' },
+      { revalidated: false, error },
       { status: 500 }
     );
   }
@@ -33,9 +34,10 @@ export async function GET(req: NextRequest) {
       now: Date.now(),
       message: `Tag "${tag}" revalidated successfully`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err.message : 'Revalidation failed';
     return NextResponse.json(
-      { revalidated: false, error: err?.message || 'Revalidation failed' },
+      { revalidated: false, error },
       { status: 500 }
     );
   }

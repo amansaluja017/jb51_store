@@ -1,7 +1,7 @@
 import test, { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getChangedProductFields } from './productDiff';
-import { Product } from '../types';
+import { getChangedProductFields } from '../../../apps/mobile/src/utils/productDiff.ts';
+import type { Product } from '../../../apps/mobile/src/types.ts';
 
 describe('Product Diffing for Partial Update', () => {
   const baseProduct: Product = {
@@ -60,9 +60,7 @@ describe('Product Diffing for Partial Update', () => {
       variants: baseProduct.variants,
     });
 
-    assert.deepStrictEqual(changes, {
-      name: 'Royal Pearl White Kurti',
-    });
+    assert.deepStrictEqual(changes, { name: 'Royal Pearl White Kurti' });
     assert.strictEqual(Object.keys(changes).length, 1);
   });
 
@@ -171,4 +169,3 @@ describe('Product Diffing for Partial Update', () => {
     });
   });
 });
-

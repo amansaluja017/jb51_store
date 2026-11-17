@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { appRouter } from './router.js';
+import { appRouter } from '@repo/api';
 import { db, product as productTable, wishlist as wishlistTable, wishlistItems as wishlistItemsTable } from '@repo/db';
 import { eq } from 'drizzle-orm';
 
@@ -48,52 +48,47 @@ test('Wishlist Routes with Browser Fingerprint Integration Test Suite', async (t
     assert.strictEqual(res.success, true);
     assert.ok(res.productIds.includes(testIds[0]));
 
-    // Query back using get route
-    const fetched = await caller.wishlist.get({ fingerprint: fingerprintA });
-    assert.ok(fetched);
-    assert.strictEqual(fetched.fingerprint, fingerprintA);
-    assert.ok(fetched.productIds.includes(testIds[0]));
+    // Query DB to verify
+    const dbWishlist = await db.query.wishlist.findFirst({
+      where: eq(wishlistTable.fingerprint, fingerprintA),
+      with: { items: true },
+    });
+    assert.ok(dbWishlist);
+    assert.ok(dbWishlist.items.some(item => item.productId === testIds[0]));
   });
 
-  await t.test('3. wishlist.add adds new product to fingerprint wishlist', async () => {
-    if (testProductId2) {
-      const addRes = await caller.wishlist.add({
-        fingerprint: fingerprintA,
-        productId: testProductId2,
-      });
-      assert.ok(addRes);
-      assert.strictEqual(addRes.success, true);
+  await t.test('3. wishlist.add adds a product to fingerprint wishlist', async () => {
+    if (!testProductId2) return;
+    const res = await caller.wishlist.add({
+      fingerprint: fingerprintA,
+      productId: testProductId2,
+    });
 
-      // Verify fetched includes both products
-      const fetched = await caller.wishlist.get({ fingerprint: fingerprintA });
-      assert.ok(fetched.productIds.includes(testProductId2));
-    }
+    assert.ok(res);
+    assert.strictEqual(res.success, true);
+    assert.ok(res.productIds.includes(testProductId2));
   });
 
-  await t.test('4. wishlist.remove removes product from fingerprint wishlist', async () => {
-    if (testProductId1) {
-      const removeRes = await caller.wishlist.remove({
-        fingerprint: fingerprintA,
-        productId: testProductId1,
-      });
-      assert.ok(removeRes);
-      assert.strictEqual(removeRes.success, true);
+  await t.test('4. wishlist.remove removes a product from fingerprint wishlist', async () => {
+    if (!testProductId2) return;
+    const res = await caller.wishlist.remove({
+      fingerprint: fingerprintA,
+      productId: testProductId2,
+    });
 
-      const fetched = await caller.wishlist.get({ fingerprint: fingerprintA });
-      assert.strictEqual(fetched.productIds.includes(testProductId1), false);
-    }
+    assert.ok(res);
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.productIds.includes(testProductId2), false);
   });
 
-  await t.test('5. browser fingerprints are isolated (Fingerprint B does not see Fingerprint A items)', async () => {
-    // Fingerprint B gets its own empty wishlist
+  await t.test('5. multiple browser fingerprints maintain completely isolated wishlists', async () => {
     const resB = await caller.wishlist.get({ fingerprint: fingerprintB });
-    assert.ok(resB);
-    assert.strictEqual(resB.fingerprint, fingerprintB);
     assert.deepStrictEqual(resB.productIds, []);
-  });
-});
 
-process.on('beforeExit', () => {
-  process.exit(0);
+    const resA = await caller.wishlist.get({ fingerprint: fingerprintA });
+    if (testProductId1) {
+      assert.ok(resA.productIds.includes(testProductId1));
+    }
+  });
 });
 

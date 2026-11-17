@@ -274,7 +274,12 @@ export function Navbar({ siteConfig }: NavbarProps = {}) {
                 {suggestedProducts.length > 0 ? (
                   <div className="flex flex-col gap-2">
                     {suggestedProducts.map(p => {
-                      const imageSrc = p.image || (p as any).images?.[0] || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500';
+                      const imageSrc =
+                        p.image ||
+                        ('images' in p && Array.isArray((p as { images?: string[] }).images)
+                          ? (p as { images: string[] }).images[0]
+                          : undefined) ||
+                        'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500';
                       return (
                         <Link
                           key={p.id}
@@ -526,7 +531,12 @@ export function Navbar({ siteConfig }: NavbarProps = {}) {
               {suggestedProducts.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {suggestedProducts.map(p => {
-                    const imageSrc = p.image || (p as any).images?.[0] || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500';
+                    const imageSrc =
+                      p.image ||
+                      ('images' in p && Array.isArray((p as { images?: string[] }).images)
+                        ? (p as { images: string[] }).images[0]
+                        : undefined) ||
+                      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500';
                     return (
                       <Link
                         key={p.id}

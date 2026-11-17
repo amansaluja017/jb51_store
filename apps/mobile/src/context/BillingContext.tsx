@@ -9,8 +9,13 @@ import { useSearchData } from '../hooks/appData/useSearchData';
 export interface BillingContextType {
   // Invoices & Orders
   invoices: ReturnType<typeof useInvoicesOrdersData>['invoices'];
+  invoiceTotalCount: ReturnType<typeof useInvoicesOrdersData>['invoiceTotalCount'];
+  invoiceTotalRevenue: ReturnType<typeof useInvoicesOrdersData>['invoiceTotalRevenue'];
+  invoiceCashRevenue: ReturnType<typeof useInvoicesOrdersData>['invoiceCashRevenue'];
   isLoadingInvoices: ReturnType<typeof useInvoicesOrdersData>['isLoadingInvoices'];
   orders: ReturnType<typeof useInvoicesOrdersData>['orders'];
+  orderTotalCount: ReturnType<typeof useInvoicesOrdersData>['orderTotalCount'];
+  totalOrdersRevenue: ReturnType<typeof useInvoicesOrdersData>['totalOrdersRevenue'];
   isLoadingOrders: ReturnType<typeof useInvoicesOrdersData>['isLoadingOrders'];
   handleFetchInvoices: ReturnType<typeof useInvoicesOrdersData>['handleFetchInvoices'];
   handleFetchPaginatedInvoices: ReturnType<typeof useInvoicesOrdersData>['handleFetchPaginatedInvoices'];
@@ -65,17 +70,23 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
   const invoicesOrdersData = useInvoicesOrdersData({
     trpcRequest: auth.trpcRequest,
     showAlert: ui.showAlert,
+    isAuthenticated: auth.isAuthenticated,
+    activeTab: ui.activeSection,
   });
 
   const customersData = useCustomersData({
     trpcRequest: auth.trpcRequest,
     showAlert: ui.showAlert,
+    isAuthenticated: auth.isAuthenticated,
+    activeTab: ui.activeSection,
   });
 
   const creditsData = useCreditsData({
     trpcRequest: auth.trpcRequest,
     showAlert: ui.showAlert,
     handleFetchInvoices: invoicesOrdersData.handleFetchInvoices,
+    isAuthenticated: auth.isAuthenticated,
+    activeTab: ui.activeSection,
   });
 
   const searchData = useSearchData({
@@ -92,9 +103,14 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<BillingContextType>(() => ({
     // Invoices & Orders
-    invoices: invoicesOrdersData.invoices,
+    invoices: invoicesOrdersData.invoices || [],
+    invoiceTotalCount: invoicesOrdersData.invoiceTotalCount,
+    invoiceTotalRevenue: invoicesOrdersData.invoiceTotalRevenue,
+    invoiceCashRevenue: invoicesOrdersData.invoiceCashRevenue,
     isLoadingInvoices: invoicesOrdersData.isLoadingInvoices,
-    orders: invoicesOrdersData.orders,
+    orders: invoicesOrdersData.orders || [],
+    orderTotalCount: invoicesOrdersData.orderTotalCount,
+    totalOrdersRevenue: invoicesOrdersData.totalOrdersRevenue,
     isLoadingOrders: invoicesOrdersData.isLoadingOrders,
     handleFetchInvoices: invoicesOrdersData.handleFetchInvoices,
     handleFetchPaginatedInvoices: invoicesOrdersData.handleFetchPaginatedInvoices,
@@ -105,7 +121,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     handleDeleteOrder: invoicesOrdersData.handleDeleteOrder,
 
     // Customers
-    customers: customersData.customers,
+    customers: customersData.customers || [],
     customerTotalCount: customersData.customerTotalCount,
     isLoadingCustomers: customersData.isLoadingCustomers,
     customerModalOpen: customersData.customerModalOpen,

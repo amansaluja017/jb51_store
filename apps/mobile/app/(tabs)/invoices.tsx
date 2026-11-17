@@ -11,11 +11,16 @@ export default function InvoicesScreen() {
 
   return (
     <InvoiceScreen
-      products={catalog.products}
-      categories={catalog.categories}
-      customers={billing.customers}
-      invoices={billing.invoices}
-      orders={billing.orders}
+      products={catalog.products || []}
+      categories={catalog.categories || []}
+      customers={billing.customers || []}
+      invoices={billing.invoices || []}
+      invoiceTotalCount={billing.invoiceTotalCount}
+      invoiceTotalRevenue={billing.invoiceTotalRevenue}
+      invoiceCashRevenue={billing.invoiceCashRevenue}
+      orders={billing.orders || []}
+      orderTotalCount={billing.orderTotalCount}
+      totalOrdersRevenue={billing.totalOrdersRevenue}
       showAlert={ui.showAlert}
       isLoading={billing.isLoadingInvoices}
       isLoadingOrders={billing.isLoadingOrders}

@@ -11,15 +11,18 @@ export default function StockScreen() {
     <InventoryScreen
       products={catalog.products}
       categories={catalog.categories}
-      isLoading={catalog.isLoading || catalog.isLoadingTransactions}
+      isLoading={catalog.isLoading}
       refreshing={catalog.refreshing}
       onRefresh={catalog.handleRefresh}
       onToggleStock={catalog.handleToggleStock}
       onUpdateInventory={catalog.handleUpdateInventory}
       onRecordTransaction={catalog.handleRecordTransaction}
       transactions={catalog.transactions}
+      transactionsPagination={catalog.transactionsPagination}
+      transactionStats={catalog.transactionStats}
       isLoadingTransactions={catalog.isLoadingTransactions}
       onFetchTransactions={catalog.handleFetchTransactions}
+      onFetchPaginatedTransactions={catalog.handleFetchPaginatedTransactions}
       onViewProductDetails={(prod) => catalog.setSelectedProductDetails(prod)}
       showAlert={ui.showAlert}
       onFetchPaginatedStock={catalog.handleFetchPaginatedStock}

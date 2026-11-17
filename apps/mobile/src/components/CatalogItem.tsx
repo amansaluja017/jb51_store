@@ -132,49 +132,66 @@ function CatalogItem({
       {/* Separator */}
       <View style={styles.cardSeparator} />
 
-      {/* Visibility 3-segment (Listed / Unlisted / Discontinued) + action buttons */}
+      {/* Visibility 2-segment (Listed / Unlisted) + action buttons */}
       <View style={styles.actionRow}>
-        <View style={styles.visibilityTogglePills}>
-          <TouchableOpacity
-            onPress={() => {
-              if (currentStatus !== 'listed') {
-                triggerHaptic('light');
-                onUpdateVisibility(product, 'listed');
-              }
-            }}
-            style={[styles.pillButton, currentStatus === 'listed' && styles.activePillListed]}
-            accessibilityRole="button"
-            accessibilityLabel="Set product as listed"
-          >
-            <Text style={[styles.pillText, currentStatus === 'listed' && styles.pillTextListed]}>Listed</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              if (currentStatus !== 'unListed') {
-                triggerHaptic('light');
-                onUpdateVisibility(product, 'unListed');
-              }
-            }}
-            style={[styles.pillButton, currentStatus === 'unListed' && styles.activePillUnlisted]}
-            accessibilityRole="button"
-            accessibilityLabel="Set product as unlisted"
-          >
-            <Text style={[styles.pillText, currentStatus === 'unListed' && styles.pillTextUnlisted]}>Unlisted</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              if (currentStatus !== 'discontinued') {
-                triggerHaptic('warning');
-                onUpdateVisibility(product, 'discontinued');
-              }
-            }}
-            style={[styles.pillButton, currentStatus === 'discontinued' && styles.activePillDiscontinued]}
-            accessibilityRole="button"
-            accessibilityLabel="Set product as discontinued"
-          >
-            <Text style={[styles.pillText, currentStatus === 'discontinued' && styles.pillTextDiscontinued]}>Discontinued</Text>
-          </TouchableOpacity>
-        </View>
+        {currentStatus === 'discontinued' ? (
+          <View style={styles.restorePillGroup}>
+            <Text style={styles.restorePromptText}>Restore as:</Text>
+            <View style={styles.visibilityTogglePills}>
+              <TouchableOpacity
+                onPress={() => {
+                  triggerHaptic('success');
+                  onUpdateVisibility(product, 'listed');
+                }}
+                style={[styles.pillButton, styles.restorePillListed]}
+                accessibilityRole="button"
+                accessibilityLabel="Restore as listed"
+              >
+                <Text style={[styles.pillText, styles.pillTextListed]}>Listed</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  triggerHaptic('light');
+                  onUpdateVisibility(product, 'unListed');
+                }}
+                style={[styles.pillButton, styles.restorePillUnlisted]}
+                accessibilityRole="button"
+                accessibilityLabel="Restore as unlisted"
+              >
+                <Text style={[styles.pillText, styles.pillTextUnlisted]}>Unlisted</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.visibilityTogglePills}>
+            <TouchableOpacity
+              onPress={() => {
+                if (currentStatus !== 'listed') {
+                  triggerHaptic('light');
+                  onUpdateVisibility(product, 'listed');
+                }
+              }}
+              style={[styles.pillButton, currentStatus === 'listed' && styles.activePillListed]}
+              accessibilityRole="button"
+              accessibilityLabel="Set product as listed"
+            >
+              <Text style={[styles.pillText, currentStatus === 'listed' && styles.pillTextListed]}>Listed</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                if (currentStatus !== 'unListed') {
+                  triggerHaptic('light');
+                  onUpdateVisibility(product, 'unListed');
+                }
+              }}
+              style={[styles.pillButton, currentStatus === 'unListed' && styles.activePillUnlisted]}
+              accessibilityRole="button"
+              accessibilityLabel="Set product as unlisted"
+            >
+              <Text style={[styles.pillText, currentStatus === 'unListed' && styles.pillTextUnlisted]}>Unlisted</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.mainButtons}>
           <TouchableOpacity
@@ -183,18 +200,24 @@ function CatalogItem({
               onEdit(product);
             }}
             style={styles.actionIconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${product.name}`}
           >
             <Edit3 size={14} color="#71717a" />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              triggerHaptic('warning');
-              onDelete(product.slug, product.name);
-            }}
-            style={[styles.actionIconBtn, styles.deleteBtnBorder]}
-          >
-            <Trash2 size={14} color="#ef4444" />
-          </TouchableOpacity>
+          {currentStatus !== 'discontinued' && (
+            <TouchableOpacity
+              onPress={() => {
+                triggerHaptic('warning');
+                onDelete(product.slug, product.name);
+              }}
+              style={[styles.actionIconBtn, styles.deleteBtnBorder]}
+              accessibilityRole="button"
+              accessibilityLabel={`Discontinue ${product.name}`}
+            >
+              <Trash2 size={14} color="#ef4444" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -363,6 +386,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
+  restorePillGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  restorePromptText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#71717a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  restorePillListed: {
+    backgroundColor: '#ecfdf5',
+  },
+  restorePillUnlisted: {
+    backgroundColor: '#f4f4f5',
+  },
   pillButton: {
     paddingHorizontal: 9,
     paddingVertical: 5,
@@ -373,9 +414,6 @@ const styles = StyleSheet.create({
   },
   activePillUnlisted: {
     backgroundColor: '#f4f4f5',
-  },
-  activePillDiscontinued: {
-    backgroundColor: '#fff1f2',
   },
   pillText: {
     fontSize: 9,

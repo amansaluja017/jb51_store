@@ -1,5 +1,14 @@
-import { useState, useRef, useCallback } from 'react';
-import { Product, Variant, InventoryTransaction, PaginatedStockResponse } from '../../types';
+import { useState, useCallback } from 'react';
+import {
+  Product,
+  Variant,
+  InventoryTransaction,
+  PaginatedStockResponse,
+  PaginatedInventoryTransactionsResponse,
+  InventoryTransactionStats,
+} from '../../types';
+import { TabType } from '../../components/NavigationTabBar';
+import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 
 interface UpdateInventoryResponse {
   inStock?: boolean;
@@ -20,38 +29,99 @@ interface UseInventoryDataProps {
     onConfirm?: () => void
   ) => void;
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-  handleFetchProducts: (isRefresh?: boolean) => Promise<void>;
+  handleFetchProducts?: (isRefresh?: boolean) => Promise<void>;
+  isAuthenticated?: boolean;
+  activeTab?: TabType;
 }
 
 export function useInventoryData({
   trpcRequest,
   showAlert,
   setProducts,
-  handleFetchProducts,
+  handleFetchProducts: _handleFetchProducts,
+  isAuthenticated: _isAuthenticated,
+  activeTab: _activeTab,
 }: UseInventoryDataProps) {
+  // Local state for paginated transactions - fetched ON DEMAND only when history modal is opened
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const [transactionsPagination, setTransactionsPagination] = useState({
+    page: 1,
+    limit: 15,
+    total: 0,
+    totalPages: 1,
+  });
+  const [transactionStats, setTransactionStats] = useState<InventoryTransactionStats>({
+    salesCount: 0,
+    purchasesCount: 0,
+    adjustmentsCount: 0,
+    totalSoldUnits: 0,
+    totalPurchasedUnits: 0,
+  });
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
-  const hasFetchedTransactions = useRef(false);
-  const isFetchingTransactionsRef = useRef(false);
+  const [transactionsError, setTransactionsError] = useState<Error | null>(null);
 
-  const handleFetchTransactions = useCallback(async (force = false) => {
-    if (isFetchingTransactionsRef.current) return;
-    if (hasFetchedTransactions.current && !force) return;
-    isFetchingTransactionsRef.current = true;
+  /**
+   * On-demand paginated fetching for inventory transactions ledger.
+   * Utilizes TanStack Query caching and deduplication.
+   */
+  const handleFetchPaginatedTransactions = useCallback(async (params?: {
+    page?: number;
+    limit?: number;
+    productId?: string;
+    search?: string;
+    type?: 'all' | 'sale' | 'purchase' | 'adjustment' | 'reservation' | 'release' | 'return';
+    force?: boolean;
+  }) => {
+    setIsLoadingTransactions(true);
+    setTransactionsError(null);
     try {
-      setIsLoadingTransactions(true);
-      const res = await trpcRequest<InventoryTransaction[]>('inventory.getTransactions');
-      if (Array.isArray(res)) {
-        setTransactions(res);
+      const queryParams = {
+        page: params?.page || 1,
+        limit: params?.limit || 15,
+        productId: params?.productId,
+        search: params?.search,
+        type: params?.type,
+      };
+
+      const res = await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.inventory.paginatedTransactions(queryParams),
+        queryFn: () => trpcRequest<PaginatedInventoryTransactionsResponse>('inventory.getTransactions', {
+          input: queryParams,
+        }),
+        staleTime: params?.force ? 0 : 30 * 1000,
+      });
+
+      if (res && Array.isArray(res.items)) {
+        setTransactions(res.items);
+        setTransactionsPagination({
+          page: res.page || queryParams.page,
+          limit: res.limit || queryParams.limit,
+          total: res.total || 0,
+          totalPages: res.totalPages || 1,
+        });
+        if (res.stats) {
+          setTransactionStats(res.stats);
+        }
+        return res;
       }
-      hasFetchedTransactions.current = true;
+      return null;
     } catch (err: unknown) {
-      console.error('[handleFetchTransactions Error]:', err);
+      console.error('[handleFetchPaginatedTransactions Error]:', err);
+      const e = err instanceof Error ? err : new Error('Failed to fetch transactions');
+      setTransactionsError(e);
+      return null;
     } finally {
       setIsLoadingTransactions(false);
-      isFetchingTransactionsRef.current = false;
     }
   }, [trpcRequest]);
+
+  const handleFetchTransactions = useCallback(async (force = false) => {
+    await handleFetchPaginatedTransactions({
+      page: transactionsPagination.page,
+      limit: transactionsPagination.limit,
+      force,
+    });
+  }, [handleFetchPaginatedTransactions, transactionsPagination.page, transactionsPagination.limit]);
 
   const handleUpdateInventory = useCallback(async (product: Product, updatedVariants: Variant[], forceInStock?: boolean) => {
     const totalVariantStock = updatedVariants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
@@ -90,6 +160,12 @@ export function useInventoryData({
             : p
         )
       );
+
+      // Invalidate both inventory and products cache in TanStack Query
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.inventory.transactions });
+      await queryClient.invalidateQueries({ queryKey: ['inventory', 'paginatedTransactions'] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+
       showAlert('Inventory Updated', `Stock updated for ${product.name}.`, 'success');
     } catch (err: unknown) {
       console.error('[handleUpdateInventory Error]:', err);
@@ -123,15 +199,17 @@ export function useInventoryData({
         'success'
       );
 
-      await handleFetchProducts(true);
-      await handleFetchTransactions(true);
+      // Invalidate inventory transactions and products caches
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.inventory.transactions });
+      await queryClient.invalidateQueries({ queryKey: ['inventory', 'paginatedTransactions'] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
     } catch (err: unknown) {
       console.error('[handleRecordTransaction Error]:', err);
       const message = err instanceof Error ? err.message : 'Failed to record inventory transaction';
       showAlert('Transaction Error', message, 'error');
       throw err;
     }
-  }, [trpcRequest, showAlert, handleFetchProducts, handleFetchTransactions]);
+  }, [trpcRequest, showAlert]);
 
   const handleFetchPaginatedStock = useCallback(async (params?: {
     search?: string;
@@ -142,8 +220,10 @@ export function useInventoryData({
     limit?: number;
   }) => {
     try {
-      return await trpcRequest<PaginatedStockResponse>('inventory.getPaginated', {
-        input: params,
+      return await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.inventory.paginatedStock(params),
+        queryFn: () => trpcRequest<PaginatedStockResponse>('inventory.getPaginated', { input: params }),
+        staleTime: 30 * 1000,
       });
     } catch (err: unknown) {
       console.error('[handleFetchPaginatedStock Error]:', err);
@@ -154,13 +234,18 @@ export function useInventoryData({
   return {
     transactions,
     setTransactions,
+    transactionsPagination,
+    setTransactionsPagination,
+    transactionStats,
     isLoadingTransactions,
     setIsLoadingTransactions,
-    hasFetchedTransactions,
+    isTransactionsError: !!transactionsError,
+    transactionsError,
+    hasFetchedTransactions: transactions.length > 0 || transactionsPagination.total > 0,
     handleFetchTransactions,
+    handleFetchPaginatedTransactions,
     handleUpdateInventory,
     handleRecordTransaction,
     handleFetchPaginatedStock,
   };
 }
-

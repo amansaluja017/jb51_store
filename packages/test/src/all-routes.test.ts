@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { appRouter } from './router.js';
+import { appRouter } from '@repo/api';
 
 test('Comprehensive All-Routes Integration Test Suite', async (t) => {
   const adminContext = {
@@ -102,6 +102,10 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
   await t.test('9. inventory.getPaginated & inventory.getTransactions', async () => {
     const inv = await adminCaller.inventory.getPaginated({ page: 1, limit: 10 });
     assert.ok(inv);
+
+    const txs = await adminCaller.inventory.getTransactions({ page: 1, limit: 10 });
+    assert.ok(txs);
+    assert.strictEqual(Array.isArray(txs.items), true);
   });
 
   // 8. Orders Routes
@@ -175,36 +179,36 @@ test('Comprehensive All-Routes Integration Test Suite', async (t) => {
 
     // 15.3 Customers
     const custSearch = await adminCaller.customers.search({ query: 'test' });
-    assert.ok(Array.isArray((custSearch as any)?.items || custSearch));
+    assert.ok(Array.isArray((custSearch as { items?: unknown[] })?.items || custSearch));
 
     const custSuggestions = await adminCaller.customers.suggestions({ query: 'test' });
-    assert.ok(Array.isArray((custSuggestions as any)?.suggestions || custSuggestions));
+    assert.ok(Array.isArray((custSuggestions as { suggestions?: unknown[] })?.suggestions || custSuggestions));
 
     // 15.4 Orders
     const orderSearch = await adminCaller.orders.search({ query: 'ORD' });
-    assert.ok(Array.isArray((orderSearch as any)?.items || orderSearch));
+    assert.ok(Array.isArray((orderSearch as { items?: unknown[] })?.items || orderSearch));
 
     // 15.5 Invoices
     const invoiceSearch = await adminCaller.invoices.search({ query: 'INV' });
-    assert.ok(Array.isArray((invoiceSearch as any)?.items || invoiceSearch));
+    assert.ok(Array.isArray((invoiceSearch as { items?: unknown[] })?.items || invoiceSearch));
 
     // 15.6 Credits
     const creditSearch = await adminCaller.credits.search({ query: 'test' });
-    assert.ok(Array.isArray((creditSearch as any)?.items || creditSearch));
+    assert.ok(Array.isArray((creditSearch as { items?: unknown[] })?.items || creditSearch));
 
     // 15.7 Reviews
     const reviewSearch = await adminCaller.reviews.search({ query: 'great' });
-    assert.ok(Array.isArray((reviewSearch as any)?.items || reviewSearch));
+    assert.ok(Array.isArray((reviewSearch as { items?: unknown[] })?.items || reviewSearch));
 
     const reviewSuggestions = await adminCaller.reviews.suggestions({ query: 'gret' });
-    assert.ok(Array.isArray((reviewSuggestions as any)?.suggestions || reviewSuggestions));
+    assert.ok(Array.isArray((reviewSuggestions as { suggestions?: unknown[] })?.suggestions || reviewSuggestions));
 
     // 15.8 Inquiries
     const inqSearch = await adminCaller.inquiries.search({ query: 'suit' });
-    assert.ok(Array.isArray((inqSearch as any)?.items || inqSearch));
+    assert.ok(Array.isArray((inqSearch as { items?: unknown[] })?.items || inqSearch));
 
     const inqSuggestions = await adminCaller.inquiries.suggestions({ query: 'suit' });
-    assert.ok(Array.isArray((inqSuggestions as any)?.suggestions || inqSuggestions));
+    assert.ok(Array.isArray((inqSuggestions as { suggestions?: unknown[] })?.suggestions || inqSuggestions));
   });
 
   await t.test('16. siteConfig.get & siteConfig.update for Web UI customizer', async () => {

@@ -9,9 +9,13 @@ import { ShieldCheck, Heart } from 'lucide-react';
 
 export function WishlistClient() {
   const { wishlist, fingerprint, isSyncing } = useWishlist();
-  const { data: paginatedData, isLoading: loading } = api.products.getPaginated.useQuery({
-    limit: 48,
-  });
+  const { data: paginatedData, isLoading: loading } = api.products.getPaginated.useQuery(
+    { limit: 48 },
+    {
+      enabled: wishlist.length > 0,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
   const products = paginatedData?.items || [];
 
   // Filter products that are in the user's wishlist

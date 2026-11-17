@@ -1,10 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { createApp } from './app.js';
+import { createApp } from '@repo/api';
 import { generateOpenApiDocument } from '@repo/docs';
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import type { Server } from 'node:http';
+
+interface OpenApiSchemaResponse {
+  openapi: string;
+  info: { title: string };
+  paths: Record<string, {
+    get?: { summary?: string; description?: string; tags?: string[] };
+    post?: { summary?: string; description?: string; tags?: string[]; requestBody?: { content: Record<string, { schema: unknown }> } };
+  }>;
+  tags: Array<{ name: string }>;
+}
 
 test('Scalar OpenAPI Automatic Documentation Integration Tests', async (t) => {
   const app = createApp();
@@ -42,7 +52,7 @@ test('Scalar OpenAPI Automatic Documentation Integration Tests', async (t) => {
     const contentType = res.headers.get('content-type') || '';
     assert.ok(contentType.includes('application/json'), `Expected JSON content-type, got ${contentType}`);
 
-    const spec = (await res.json()) as any;
+    const spec = (await res.json()) as OpenApiSchemaResponse;
     assert.strictEqual(spec.openapi, '3.1.0');
     assert.strictEqual(spec.info.title, 'JB51 Store API');
 

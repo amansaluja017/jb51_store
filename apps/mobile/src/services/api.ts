@@ -446,31 +446,6 @@ export const uploadProductImage = async (
   }
 };
 
-export const uploadMultipleProductImages = async (
-  fileUris: string[],
-  options?: {
-    productId?: string;
-    productVariantId?: string;
-    token?: string | null;
-    apiHost?: string;
-  }
-): Promise<UploadImageResult[]> => {
-  const results: UploadImageResult[] = [];
-  for (let i = 0; i < fileUris.length; i++) {
-    const uri = fileUris[i];
-    if (uri.startsWith('http://') || uri.startsWith('https://')) {
-      results.push({ url: uri });
-    } else {
-      const res = await uploadProductImage(uri, {
-        ...options,
-        orderIndex: i,
-      });
-      results.push(res);
-    }
-  }
-  return results;
-};
-
 export const deleteProductImageByUrl = async (
   url: string,
   options?: { apiHost?: string; token?: string | null }

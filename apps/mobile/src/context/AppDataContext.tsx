@@ -59,13 +59,27 @@ function AppDataBridge({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([
-      catalog.handleRefresh(),
-      billing.handleRefreshBilling(),
-      inquiriesReviews.handleFetchReviews(true),
-      telemetry.handleFetchAnalytics(telemetry.selectedAnalyticsSlug, true),
-    ]);
-  }, [catalog.handleRefresh, billing.handleRefreshBilling, inquiriesReviews.handleFetchReviews, telemetry.handleFetchAnalytics, telemetry.selectedAnalyticsSlug]);
+    switch (ui.activeSection) {
+      case 'dashboard':
+      case 'analytics':
+        await telemetry.handleFetchAnalytics(telemetry.selectedAnalyticsSlug, true);
+        break;
+      case 'catalogue':
+        await catalog.handleRefresh();
+        break;
+      case 'invoices':
+        await billing.handleRefreshBilling();
+        break;
+      case 'reviews':
+        await inquiriesReviews.handleFetchPaginatedReviews({ page: 1, limit: 10 });
+        break;
+      case 'inventory':
+        await catalog.handleFetchTransactions();
+        break;
+      default:
+        await telemetry.handleFetchAnalytics(telemetry.selectedAnalyticsSlug, true);
+    }
+  }, [ui.activeSection, telemetry, catalog, billing, inquiriesReviews]);
 
   const setActiveTab = useCallback((tab: TabType) => {
     ui.setActiveTab(tab);
@@ -142,8 +156,11 @@ function AppDataBridge({ children }: { children: React.ReactNode }) {
       handleDeleteCategory: catalog.handleDeleteCategory,
       handleFetchPaginatedProducts: catalog.handleFetchPaginatedProducts,
       transactions: catalog.transactions,
+      transactionsPagination: catalog.transactionsPagination,
+      transactionStats: catalog.transactionStats,
       isLoadingTransactions: catalog.isLoadingTransactions,
       handleFetchTransactions: catalog.handleFetchTransactions,
+      handleFetchPaginatedTransactions: catalog.handleFetchPaginatedTransactions,
       handleUpdateInventory: catalog.handleUpdateInventory,
       handleRecordTransaction: catalog.handleRecordTransaction,
       handleFetchPaginatedStock: catalog.handleFetchPaginatedStock,
@@ -156,6 +173,8 @@ function AppDataBridge({ children }: { children: React.ReactNode }) {
       setCategoryModalOpen: catalog.setCategoryModalOpen,
       isEditing: catalog.isEditing,
       editingSlug: catalog.editingSlug,
+      editingProduct: catalog.editingProduct,
+      setEditingProduct: catalog.setEditingProduct,
       triggerAddProduct: catalog.triggerAddProduct,
       triggerEditProduct: catalog.triggerEditProduct,
       handleSearchProducts: catalog.handleSearchProducts,
@@ -164,9 +183,14 @@ function AppDataBridge({ children }: { children: React.ReactNode }) {
       handleGetInventorySuggestions: catalog.handleGetInventorySuggestions,
 
       // Billing (Invoices, Orders, Customers, Credits)
-      invoices: billing.invoices,
+      invoices: billing.invoices || [],
+      invoiceTotalCount: billing.invoiceTotalCount,
+      invoiceTotalRevenue: billing.invoiceTotalRevenue,
+      invoiceCashRevenue: billing.invoiceCashRevenue,
       isLoadingInvoices: billing.isLoadingInvoices,
-      orders: billing.orders,
+      orders: billing.orders || [],
+      orderTotalCount: billing.orderTotalCount,
+      totalOrdersRevenue: billing.totalOrdersRevenue,
       isLoadingOrders: billing.isLoadingOrders,
       handleFetchInvoices: billing.handleFetchInvoices,
       handleFetchPaginatedInvoices: billing.handleFetchPaginatedInvoices,
@@ -175,7 +199,7 @@ function AppDataBridge({ children }: { children: React.ReactNode }) {
       handleCreateOrder: billing.handleCreateOrder,
       handleUpdateInvoice: billing.handleUpdateInvoice,
       handleDeleteOrder: billing.handleDeleteOrder,
-      customers: billing.customers,
+      customers: billing.customers || [],
       customerTotalCount: billing.customerTotalCount,
       isLoadingCustomers: billing.isLoadingCustomers,
       customerModalOpen: billing.customerModalOpen,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { queryClient } from '../../lib/queryClient';
 import {
   getInitialApiHost,
   trpcRequest as trpcRequestService,
@@ -78,9 +79,11 @@ export function useAuthData({ showAlert, onLogoutCleanup }: UseAuthDataProps = {
         let storedAccessToken = await tokenStorage.getAccessToken();
         let storedUser = await tokenStorage.getUser();
 
-        const needsRefresh = !storedAccessToken || tokenStorage.isJwtExpired(storedAccessToken);
+        const isAccessTokenValid = Boolean(
+          storedAccessToken && !tokenStorage.isJwtExpired(storedAccessToken)
+        );
 
-        if (needsRefresh) {
+        if (!isAccessTokenValid) {
           if (isMounted) {
             setAuthLoadingMessage('Refreshing security credentials...');
           }
@@ -89,13 +92,21 @@ export function useAuthData({ showAlert, onLogoutCleanup }: UseAuthDataProps = {
             if (refreshedToken) {
               storedAccessToken = refreshedToken;
               storedUser = await tokenStorage.getUser();
+            } else {
+              // Refresh failed or network error: we cannot use the expired token
+              storedAccessToken = null;
             }
           } catch (refreshErr) {
             console.warn('[useAuthData] Token refresh failed during startup:', refreshErr);
+            storedAccessToken = null;
           }
         }
 
-        if (storedAccessToken && isMounted) {
+        const hasValidSession = Boolean(
+          storedAccessToken && !tokenStorage.isJwtExpired(storedAccessToken)
+        );
+
+        if (hasValidSession && isMounted) {
           setToken(storedAccessToken);
           if (storedUser) {
             setCurrentUser(storedUser);
@@ -105,6 +116,11 @@ export function useAuthData({ showAlert, onLogoutCleanup }: UseAuthDataProps = {
           setIsAuthenticated(true);
         } else if (isMounted) {
           console.warn('[useAuthData] Could not restore valid session, showing login.');
+          setToken(null);
+          if (storedUser) {
+            if (storedUser.email) setEmail(storedUser.email);
+            if (storedUser.userName) setUsername(storedUser.userName);
+          }
           setIsAuthenticated(false);
         }
       } catch (err) {
@@ -190,6 +206,7 @@ export function useAuthData({ showAlert, onLogoutCleanup }: UseAuthDataProps = {
     setCurrentUser(null);
     setIsAuthenticated(false);
     setIsCheckingAuth(false);
+    queryClient.clear();
     onLogoutCleanup?.();
 
     // 2. Notify backend of token revocation asynchronously without blocking the UI

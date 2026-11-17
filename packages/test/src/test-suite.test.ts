@@ -1,6 +1,6 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert';
-import { appRouter } from './router.js';
+import { appRouter, isCloudinaryConfigured, extractPublicIdFromUrl, uploadRouter } from '@repo/api';
 
 test('Reviews API moderation & creation', async (t) => {
   await t.test('should successfully create a new review', async () => {
@@ -130,8 +130,6 @@ test('Shop Price Range Calculation Regression', async (t) => {
 
 test('Product Images & Cloudinary Upload Infrastructure', async (t) => {
   const { productImages } = await import('@repo/db');
-  const { isCloudinaryConfigured } = await import('./services/cloudinary.js');
-  const uploadRouter = (await import('./routes/upload.js')).default;
 
   await t.test('product_images table schema has required columns', () => {
     assert.ok(productImages, 'productImages table should be defined');
@@ -155,8 +153,6 @@ test('Product Images & Cloudinary Upload Infrastructure', async (t) => {
   });
 
   await t.test('extractPublicIdFromUrl extracts public_id correctly', async () => {
-    const { extractPublicIdFromUrl } = await import('./services/cloudinary.js');
-    
     // With version tag
     const url1 = 'https://res.cloudinary.com/cloudname/image/upload/v1725900000/jb51_store/products/sample_item.jpg';
     assert.strictEqual(extractPublicIdFromUrl(url1), 'jb51_store/products/sample_item');
@@ -244,3 +240,4 @@ after(async () => {
   } catch (_) {}
   process.exit(0);
 });
+

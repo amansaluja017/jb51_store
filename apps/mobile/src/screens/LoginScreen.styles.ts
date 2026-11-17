@@ -10,9 +10,13 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingVertical: 24,
+  },
+  centeredWrapper: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 24,
+    width: '100%',
   },
   loginBox: {
     width: '90%',

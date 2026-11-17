@@ -51,12 +51,32 @@ export const inventoryRouter = router({
     }),
 
   getTransactions: adminProcedure
-    .meta({ description: 'Fetch recent inventory transactions (Admin only)' })
+    .meta({ description: 'Fetch paginated inventory transactions ledger (Admin only)' })
     .input(
       z
         .object({
           productId: z.string().nullish(),
+          page: z.number().nullish(),
           limit: z.number().nullish(),
+          search: z.string().nullish(),
+          type: z.enum(['all', 'sale', 'purchase', 'adjustment', 'reservation', 'release', 'return']).nullish(),
+        })
+        .nullish()
+    )
+    .query(async ({ input }) => {
+      return await getInventoryTransactions(input || undefined);
+    }),
+
+  getTransactionsPaginated: adminProcedure
+    .meta({ description: 'Fetch paginated inventory transactions ledger (Admin only)' })
+    .input(
+      z
+        .object({
+          productId: z.string().nullish(),
+          page: z.number().nullish(),
+          limit: z.number().nullish(),
+          search: z.string().nullish(),
+          type: z.enum(['all', 'sale', 'purchase', 'adjustment', 'reservation', 'release', 'return']).nullish(),
         })
         .nullish()
     )

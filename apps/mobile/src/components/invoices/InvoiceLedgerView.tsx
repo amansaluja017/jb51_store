@@ -48,6 +48,9 @@ export interface InvoiceLedgerViewProps {
   setSearchFilter: (query: string) => void;
   filteredInvoices: Invoice[];
   filteredOrders: Order[];
+  totalRevenue?: number;
+  cashRevenue?: number;
+  ordersRevenue?: number;
   onOpenNewInvoice: () => void;
   onViewInvoice: (inv: Invoice) => void;
   onEditInvoice?: (inv: Invoice) => void;
@@ -68,9 +71,35 @@ export interface InvoiceLedgerViewProps {
   suggestions?: LedgerSuggestion[];
 }
 
+const getInvoiceItemCount = (inv: Invoice): number => {
+  let items = inv.items;
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch {
+      items = undefined;
+    }
+  }
+  if (Array.isArray(items) && items.length > 0) {
+    return items.reduce((sum, it) => sum + (Number(it?.quantity) || 1), 0);
+  }
+  return Number(inv.quantity) || 1;
+};
+
+const formatSafeDate = (dateVal?: string | Date | null): string => {
+  if (!dateVal) return 'Recent';
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return 'Recent';
+    return d.toLocaleDateString('en-IN');
+  } catch {
+    return 'Recent';
+  }
+};
+
 export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
-  invoices,
-  orders,
+  invoices = [],
+  orders = [],
   isLoading,
   isLoadingOrders,
   refreshing,
@@ -79,8 +108,11 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   setActiveLedgerTab,
   searchFilter,
   setSearchFilter,
-  filteredInvoices,
-  filteredOrders,
+  filteredInvoices = [],
+  filteredOrders = [],
+  totalRevenue,
+  cashRevenue,
+  ordersRevenue,
   onOpenNewInvoice,
   onViewInvoice,
   onEditInvoice,
@@ -100,22 +132,33 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
   onOrderPageChange,
   suggestions,
 }) => {
-  const totalCollected = useMemo(() => {
-    return invoices.reduce((sum, inv) => {
+  const safeInvoices = useMemo(() => (Array.isArray(invoices) ? invoices : []), [invoices]);
+  const safeOrders = useMemo(() => (Array.isArray(orders) ? orders : []), [orders]);
+  const safeFilteredInvoices = useMemo(
+    () => (Array.isArray(filteredInvoices) ? filteredInvoices : safeInvoices),
+    [filteredInvoices, safeInvoices]
+  );
+  const safeFilteredOrders = useMemo(
+    () => (Array.isArray(filteredOrders) ? filteredOrders : safeOrders),
+    [filteredOrders, safeOrders]
+  );
+
+  const localTotalCollected = useMemo(() => {
+    return safeInvoices.reduce((sum, inv) => {
       const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);
       return sum + (isNaN(amt) ? 0 : amt);
     }, 0);
-  }, [invoices]);
+  }, [safeInvoices]);
 
-  const totalOrdersValue = useMemo(() => {
-    return orders.reduce((sum, ord) => {
+  const localTotalOrdersValue = useMemo(() => {
+    return safeOrders.reduce((sum, ord) => {
       const amt = Number(ord.totalAmount ?? 0);
       return sum + (isNaN(amt) ? 0 : amt);
     }, 0);
-  }, [orders]);
+  }, [safeOrders]);
 
-  const cashCollected = useMemo(() => {
-    return invoices.reduce((sum, inv) => {
+  const localCashCollected = useMemo(() => {
+    return safeInvoices.reduce((sum, inv) => {
       const mode = (inv.mode || inv.paymentMethod || 'cash').toLowerCase();
       if (mode === 'cash') {
         const amt = Number(inv.finalAmount ?? inv.totalAmount ?? 0);
@@ -123,7 +166,14 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
       }
       return sum;
     }, 0);
-  }, [invoices]);
+  }, [safeInvoices]);
+
+  const displayTotalRevenue = typeof totalRevenue === 'number' && totalRevenue > 0 ? totalRevenue : localTotalCollected;
+  const displayOrdersValue = typeof ordersRevenue === 'number' && ordersRevenue > 0 ? ordersRevenue : localTotalOrdersValue;
+  const displayCashRevenue = typeof cashRevenue === 'number' && cashRevenue > 0 ? cashRevenue : localCashCollected;
+
+  const displayInvoiceCount = typeof invoiceTotalCount === 'number' && invoiceTotalCount > 0 ? invoiceTotalCount : safeInvoices.length;
+  const displayOrderCount = typeof orderTotalCount === 'number' && orderTotalCount > 0 ? orderTotalCount : safeOrders.length;
 
   const { scrollViewRef, onScroll: handleScrollOffset } = useScrollMemory('invoices');
 
@@ -154,7 +204,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
               <View>
                 <Text style={styles.ledgerTitle}>Invoices & Orders</Text>
                 <Text style={styles.ledgerSubtitle}>
-                  {invoices.length} {invoices.length === 1 ? 'invoice' : 'invoices'} • {orders.length} {orders.length === 1 ? 'order' : 'orders'} recorded
+                  {displayInvoiceCount} {displayInvoiceCount === 1 ? 'invoice' : 'invoices'} • {displayOrderCount} {displayOrderCount === 1 ? 'order' : 'orders'} recorded
                 </Text>
               </View>
               <TouchableOpacity
@@ -173,7 +223,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
               <View style={styles.statsCard}>
                 <Text style={styles.statsLabel}>Total Revenue</Text>
                 <Text style={styles.statsValue}>
-                  &#8377;{totalCollected.toLocaleString('en-IN')}
+                  &#8377;{displayTotalRevenue.toLocaleString('en-IN')}
                 </Text>
               </View>
               <View style={[styles.statsCard, { borderColor: '#e0f2fe' }]}>
@@ -181,7 +231,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   Orders Value
                 </Text>
                 <Text style={[styles.statsValue, { color: '#0284c7' }]}>
-                  &#8377;{totalOrdersValue.toLocaleString('en-IN')}
+                  &#8377;{displayOrdersValue.toLocaleString('en-IN')}
                 </Text>
               </View>
               <View style={[styles.statsCard, { borderColor: '#fef3c7' }]}>
@@ -189,7 +239,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                   Cash Pay
                 </Text>
                 <Text style={[styles.statsValue, { color: '#d97706' }]}>
-                  &#8377;{cashCollected.toLocaleString('en-IN')}
+                  &#8377;{displayCashRevenue.toLocaleString('en-IN')}
                 </Text>
               </View>
             </View>
@@ -214,7 +264,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                     activeLedgerTab === 'invoices' && styles.ledgerSegmentTextActive,
                   ]}
                 >
-                  Invoices ({invoices.length})
+                  Invoices ({displayInvoiceCount})
                 </Text>
               </TouchableOpacity>
 
@@ -236,7 +286,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                     activeLedgerTab === 'orders' && styles.ledgerSegmentTextActive,
                   ]}
                 >
-                  Order History ({orders.length})
+                  Order History ({displayOrderCount})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -286,9 +336,9 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
             {activeLedgerTab === 'invoices' ? (
               <>
                 <Text style={styles.sectionHeader}>Stored Invoices</Text>
-                {isLoading && (!refreshing || filteredInvoices.length === 0) ? (
+                {isLoading && (!refreshing || safeFilteredInvoices.length === 0) ? (
                   <InvoiceSkeleton />
-                ) : filteredInvoices.length === 0 ? (
+                ) : safeFilteredInvoices.length === 0 ? (
                   <View style={styles.emptyState}>
                     <FileText size={32} color="#a1a1aa" />
                     <Text style={styles.emptyStateText}>
@@ -301,7 +351,7 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                     </Text>
                   </View>
                 ) : (
-                  filteredInvoices.map((inv) => {
+                  safeFilteredInvoices.map((inv) => {
                     const mode = (inv.mode || inv.paymentMethod || 'cash').toLowerCase();
                     const isCredit = mode === 'credit';
                     const isCash = mode === 'cash';
@@ -311,10 +361,8 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                       inv.dueAmount !== undefined && inv.dueAmount !== null
                         ? Number(inv.dueAmount)
                         : Math.max(0, amt - paid);
-                    const itemCount = Array.isArray(inv.items) ? inv.items.length : 1;
-                    const dateDisplay = inv.createdAt
-                      ? new Date(inv.createdAt).toLocaleDateString('en-IN')
-                      : 'Recent';
+                    const itemCount = getInvoiceItemCount(inv);
+                    const dateDisplay = formatSafeDate(inv.createdAt);
 
                     return (
                       <View key={inv.id} style={styles.invoiceCard}>
@@ -432,9 +480,9 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
               // ================= ORDER HISTORY TAB =================
               <>
                 <Text style={styles.sectionHeader}>Order History</Text>
-                {isLoadingOrders && (!refreshing || filteredOrders.length === 0) ? (
+                {isLoadingOrders && (!refreshing || safeFilteredOrders.length === 0) ? (
                   <OrderHistorySkeleton />
-                ) : filteredOrders.length === 0 ? (
+                ) : safeFilteredOrders.length === 0 ? (
                   <View style={styles.emptyState}>
                     <ShoppingBag size={32} color="#a1a1aa" />
                     <Text style={styles.emptyStateText}>
@@ -447,19 +495,13 @@ export const InvoiceLedgerView: React.FC<InvoiceLedgerViewProps> = ({
                     </Text>
                   </View>
                 ) : (
-                  filteredOrders.map((ord) => {
+                  safeFilteredOrders.map((ord) => {
                     const ordMode = (ord.paymentMethod || 'cash').toLowerCase();
                     const isCredit = ordMode === 'credit';
                     const isCash = ordMode === 'cash';
                     const amt = Number(ord.totalAmount || 0);
                     const items = ord.items || [];
-                    const dateDisplay = ord.createdAt
-                      ? new Date(ord.createdAt).toLocaleDateString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })
-                      : 'Recent';
+                    const dateDisplay = formatSafeDate(ord.createdAt);
 
                     return (
                       <View key={ord.id} style={styles.orderCard}>

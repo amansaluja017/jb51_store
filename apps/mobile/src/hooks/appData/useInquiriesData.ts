@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
+import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 import { Inquiry } from '../../types';
 
 interface PaginatedInquiriesResponse {
@@ -74,13 +75,18 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
         const sortBy = params?.sortBy !== undefined ? params.sortBy : inquiriesSortByRef.current;
         const append = params?.append ?? false;
 
-        const res = await trpcRequest<PaginatedInquiriesResponse>('inquiries.getPaginated', {
-          input: {
-            page,
-            limit,
-            search: search && search.trim() ? search.trim() : null,
-            status: status || 'all',
-            sortBy: sortBy || 'recent',
+        const res = await queryClient.fetchQuery({
+          queryKey: QUERY_KEYS.inquiries.paginated({ page, limit, search, status, sortBy }),
+          queryFn: async () => {
+            return trpcRequest<PaginatedInquiriesResponse>('inquiries.getPaginated', {
+              input: {
+                page,
+                limit,
+                search: search && search.trim() ? search.trim() : null,
+                status: status || 'all',
+                sortBy: sortBy || 'recent',
+              },
+            });
           },
         });
 
@@ -128,6 +134,10 @@ export function useInquiriesData({ trpcRequest, showAlert }: UseInquiriesDataPro
         method: 'POST',
         body: { id, status: 'resolved' },
       });
+
+      // Invalidate inquiries cache across TanStack Query
+      await queryClient.invalidateQueries({ queryKey: ['inquiries'] });
+
       setInquiries(prev => {
         if (inquiriesStatusFilterRef.current === 'pending') {
           return prev.filter(inq => inq.id !== id);

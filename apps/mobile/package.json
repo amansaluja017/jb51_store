@@ -7,6 +7,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.3.1",
     "@mui/x-charts": "^9.12.0",
+    "@tanstack/react-query": "^5.101.4",
     "@types/jpeg-js": "^0.3.7",
     "@types/upng-js": "^2.1.5",
     "axios": "^1.20.0",
@@ -47,7 +48,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/utils/productDiff.test.ts src/hooks/appData/useProductsData.test.ts"
+    "test": "npm --prefix ../../packages/test run test:mobile"
   },
   "private": true
 }

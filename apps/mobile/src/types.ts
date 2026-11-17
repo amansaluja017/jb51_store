@@ -59,6 +59,8 @@ export interface PaginatedInvoicesResponse {
   totalPages?: number;
   page?: number;
   limit?: number;
+  totalCollected?: number;
+  cashCollected?: number;
 }
 
 export interface PaginatedOrdersResponse {
@@ -68,6 +70,7 @@ export interface PaginatedOrdersResponse {
   totalPages?: number;
   page?: number;
   limit?: number;
+  totalOrdersValue?: number;
 }
 
 export interface PaginatedCustomersResponse {
@@ -164,6 +167,23 @@ export interface InventoryTransaction {
   customerEmail?: string | null;
   sellerName?: string | null;
   sellerEmail?: string | null;
+}
+
+export interface InventoryTransactionStats {
+  salesCount: number;
+  purchasesCount: number;
+  adjustmentsCount: number;
+  totalSoldUnits: number;
+  totalPurchasedUnits: number;
+}
+
+export interface PaginatedInventoryTransactionsResponse {
+  items: InventoryTransaction[];
+  total: number;
+  totalPages: number;
+  page: number;
+  limit: number;
+  stats?: InventoryTransactionStats;
 }
 
 export interface InventoryMetrics {

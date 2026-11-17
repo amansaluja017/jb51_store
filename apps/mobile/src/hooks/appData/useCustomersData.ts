@@ -1,5 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Customer, Order, PaginatedCustomersResponse } from '../../types';
+import { TabType } from '../../components/NavigationTabBar';
+import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 
 interface CustomerOrderHistoryResponse {
   customer: Customer;
@@ -17,34 +20,55 @@ interface UseCustomersDataProps {
     type?: 'info' | 'success' | 'error' | 'confirm',
     onConfirm?: () => void
   ) => void;
+  isAuthenticated?: boolean;
+  activeTab?: TabType;
 }
 
-export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataProps) {
+export function useCustomersData({ trpcRequest, showAlert, isAuthenticated, activeTab: _activeTab }: UseCustomersDataProps) {
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+
+  const defaultCustomerParams = useMemo(() => ({ page: 1, limit: 10, sortBy: 'name-asc' as const }), []);
+
+  // TanStack Query for Paginated Customers list - scoped to only fetch when customer modal is explicitly opened
+  const {
+    data: fetchedCustomersData,
+    isLoading: isLoadingQueryCustomers,
+    isFetching: isFetchingQueryCustomers,
+    isError: isCustomersError,
+    error: customersError,
+    refetch: refetchCustomers,
+  } = useQuery<PaginatedCustomersResponse>({
+    queryKey: QUERY_KEYS.customers.paginated(defaultCustomerParams),
+    queryFn: async () => {
+      const res = await trpcRequest<PaginatedCustomersResponse>('customers.getPaginated', {
+        input: defaultCustomerParams,
+      });
+      if (res && typeof res.total === 'number') {
+        setCustomerTotalCount(res.total);
+      }
+      return res || { items: [], total: 0, totalPages: 1 };
+    },
+    enabled: Boolean(isAuthenticated) && customerModalOpen,
+    staleTime: 60 * 1000,
+  });
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerTotalCount, setCustomerTotalCount] = useState<number>(0);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [customerModalOpen, setCustomerModalOpen] = useState(false);
-  const hasFetchedCustomers = useRef(false);
-  const isFetchingCustomersRef = useRef(false);
 
-  const handleFetchCustomers = useCallback(async (force = false) => {
-    if (isFetchingCustomersRef.current) return;
-    if (hasFetchedCustomers.current && !force) return;
-    isFetchingCustomersRef.current = true;
-    setIsLoadingCustomers(true);
-    try {
-      const res = await trpcRequest<Customer[]>('customers.getAll');
-      if (Array.isArray(res)) {
-        setCustomers(res);
+  useEffect(() => {
+    if (fetchedCustomersData) {
+      if (Array.isArray(fetchedCustomersData.items)) {
+        setCustomers(fetchedCustomersData.items);
       }
-      hasFetchedCustomers.current = true;
-    } catch (err: unknown) {
-      console.error('[handleFetchCustomers Error]:', err);
-    } finally {
-      setIsLoadingCustomers(false);
-      isFetchingCustomersRef.current = false;
+      if (typeof fetchedCustomersData.total === 'number') {
+        setCustomerTotalCount(fetchedCustomersData.total);
+      }
     }
-  }, [trpcRequest]);
+  }, [fetchedCustomersData]);
+
+  const handleFetchCustomers = useCallback(async (_force = false) => {
+    await refetchCustomers();
+  }, [refetchCustomers]);
 
   const handleFetchPaginatedCustomers = useCallback(async (params?: {
     search?: string;
@@ -52,14 +76,29 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
     page?: number;
     limit?: number;
   }) => {
+    const cleanParams = {
+      page: params?.page || 1,
+      limit: params?.limit || 10,
+      sortBy: params?.sortBy || 'name-asc',
+      ...(params?.search ? { search: params.search } : {}),
+    };
     try {
-      const res = await trpcRequest<PaginatedCustomersResponse>('customers.getPaginated', {
-        input: params,
+      return await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.customers.paginated(cleanParams),
+        queryFn: async () => {
+          const res = await trpcRequest<PaginatedCustomersResponse>('customers.getPaginated', {
+            input: cleanParams,
+          });
+          if (res && typeof res.total === 'number') {
+            setCustomerTotalCount(res.total);
+          }
+          if ((!params?.page || params.page === 1) && !params?.search && res?.items && Array.isArray(res.items)) {
+            setCustomers(res.items);
+          }
+          return res;
+        },
+        staleTime: 30 * 1000,
       });
-      if (res && typeof res.total === 'number') {
-        setCustomerTotalCount(res.total);
-      }
-      return res;
     } catch (err: unknown) {
       console.error('[handleFetchPaginatedCustomers Error]:', err);
       throw err;
@@ -79,6 +118,11 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
       });
       const newCust = res;
       setCustomers(prev => [newCust, ...prev]);
+      setCustomerTotalCount(prev => prev + 1);
+
+      // Invalidate customers query cache
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+
       showAlert('Customer Added', `Customer "${data.name}" added successfully.`, 'success');
       return newCust;
     } catch (err: unknown) {
@@ -105,6 +149,10 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
       setCustomers(prev =>
         prev.map(c => (c.id === updatedCust.id ? { ...c, ...updatedCust } : c))
       );
+
+      // Invalidate customers query cache
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+
       showAlert('Customer Updated', `Customer "${updatedCust.name}" updated successfully.`, 'success');
       return updatedCust;
     } catch (err: unknown) {
@@ -128,6 +176,10 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
           });
           setCustomers(prev => prev.filter(c => c.id !== id));
           setCustomerTotalCount(prev => Math.max(0, prev - 1));
+
+          // Invalidate customers query cache
+          await queryClient.invalidateQueries({ queryKey: ['customers'] });
+
           showAlert('Customer Deleted', 'Customer has been removed successfully.', 'success');
           onSuccess?.();
         } catch (err: unknown) {
@@ -141,10 +193,13 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
 
   const handleFetchCustomerOrderHistory = useCallback(async (customerId: string) => {
     try {
-      const res = await trpcRequest<CustomerOrderHistoryResponse>('customers.getOrderHistory', {
-        input: { customerId },
+      return await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.customers.history(customerId),
+        queryFn: () => trpcRequest<CustomerOrderHistoryResponse>('customers.getOrderHistory', {
+          input: { customerId },
+        }),
+        staleTime: 60 * 1000,
       });
-      return res;
     } catch (err: unknown) {
       console.error('[handleFetchCustomerOrderHistory Error]:', err);
       const message = err instanceof Error ? err.message : 'Failed to fetch customer order history';
@@ -162,9 +217,11 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
     setCustomers,
     customerTotalCount,
     setCustomerTotalCount,
-    isLoadingCustomers,
-    setIsLoadingCustomers,
-    hasFetchedCustomers,
+    isLoadingCustomers: isLoadingQueryCustomers || isFetchingQueryCustomers,
+    setIsLoadingCustomers: () => {},
+    isCustomersError,
+    customersError,
+    hasFetchedCustomers: !!fetchedCustomersData,
     customerModalOpen,
     setCustomerModalOpen,
     handleFetchCustomers,
@@ -175,4 +232,3 @@ export function useCustomersData({ trpcRequest, showAlert }: UseCustomersDataPro
     handleFetchCustomerOrderHistory,
   };
 }
-

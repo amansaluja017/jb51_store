@@ -19,6 +19,9 @@ import { DeveloperSectionModal } from '../src/components/DeveloperSectionModal';
 import CustomAlert from '../src/components/CustomAlert';
 import ToastNotification from '../src/components/ToastNotification';
 import { configureNotifications } from '../src/services/notifications';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../src/lib/queryClient';
+import { colors } from '../src/theme/colors';
 import styles from '../src/styles/App.styles';
 
 function RootLayoutContent() {
@@ -32,13 +35,15 @@ function RootLayoutContent() {
     return getTabFromPathname(pathname);
   }, [pathname]);
 
+  const isLoginPage = pathname === '/login' || (!auth.isAuthenticated && !auth.isCheckingAuth);
+
   // Route protection: If unauthenticated, redirect to /login; if authenticated on /login, redirect to /
   React.useEffect(() => {
     if (auth.isCheckingAuth) return;
-    const isLoginPage = pathname === '/login';
-    if (!auth.isAuthenticated && !isLoginPage) {
+    const isLogin = pathname === '/login';
+    if (!auth.isAuthenticated && !isLogin) {
       router.replace('/login');
-    } else if (auth.isAuthenticated && isLoginPage) {
+    } else if (auth.isAuthenticated && isLogin) {
       router.replace('/');
     }
   }, [auth.isAuthenticated, auth.isCheckingAuth, pathname, router]);
@@ -49,8 +54,15 @@ function RootLayoutContent() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.appContainer}>
-      <StatusBar style="dark" />
+    <SafeAreaView 
+      edges={isLoginPage ? ['left', 'right'] : ['top', 'left', 'right']} 
+      style={[styles.appContainer, isLoginPage && { backgroundColor: '#09090b' }]}
+    >
+      <StatusBar 
+        style={isLoginPage ? 'light' : 'dark'} 
+        backgroundColor={isLoginPage ? '#09090b' : colors.background.surface}
+        translucent={true}
+      />
 
       {/* Main Navigation Stack */}
       <Stack screenOptions={{ headerShown: false }}>
@@ -67,7 +79,7 @@ function RootLayoutContent() {
             editingSlug={data.editingSlug}
             initialProduct={
               data.isEditing && data.editingSlug
-                ? data.products.find((p) => p.slug === data.editingSlug) || null
+                ? data.editingProduct || data.products.find((p) => p.slug === data.editingSlug) || null
                 : null
             }
             categories={data.categories}
@@ -99,7 +111,7 @@ function RootLayoutContent() {
             onClose={() => data.setCategoryModalOpen(false)}
             onAddCategory={data.handleAddCategory}
             onDeleteCategory={data.handleDeleteCategory}
-            onRefreshCategories={() => data.handleFetchCategories(true)}
+            onRefreshCategories={data.handleFetchCategories}
             showAlert={data.showAlert}
           />
 
@@ -226,11 +238,13 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <AppDataProvider>
-          <RootLayoutContent />
-        </AppDataProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppDataProvider>
+            <RootLayoutContent />
+          </AppDataProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }

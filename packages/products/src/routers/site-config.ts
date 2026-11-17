@@ -71,8 +71,8 @@ export const siteConfigRouter = router({
       return await getSiteConfig();
     }),
 
-  update: superAdminProcedure
-    .meta({ description: 'Update web UI configuration and trigger revalidation (Superadmin only)' })
+  update: adminProcedure
+    .meta({ description: 'Update web UI configuration and trigger revalidation (Admin & Superadmin)' })
     .input(
       z.object({
         maintenanceMode: maintenanceModeSchema.optional(),

@@ -4,13 +4,18 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "tsx --test src/index.test.ts",
+    "test": "tsx --test src/cors.test.ts src/docs.test.ts src/mobile-protected-route.test.ts src/mobile-product-diff.test.ts src/mobile-products-data.test.ts src/mobile-inventory-transactions.test.ts src/mobile-invoices-and-categories.test.ts",
+    "test:unit": "tsx --test src/cors.test.ts src/docs.test.ts src/mobile-protected-route.test.ts src/mobile-product-diff.test.ts src/mobile-products-data.test.ts src/mobile-inventory-transactions.test.ts src/mobile-invoices-and-categories.test.ts",
+    "test:mobile": "tsx --test src/mobile-protected-route.test.ts src/mobile-product-diff.test.ts src/mobile-products-data.test.ts src/mobile-inventory-transactions.test.ts src/mobile-invoices-and-categories.test.ts",
+    "test:api": "tsx --test src/cors.test.ts src/docs.test.ts",
+    "test:integration": "tsx --test src/index.test.ts",
     "test:all": "tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@repo/api": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/docs": "workspace:*",
     "@repo/products": "workspace:*",
     "@repo/rate-limiting": "workspace:*",
     "@trpc/server": "^11.18.0",

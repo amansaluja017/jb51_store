@@ -240,9 +240,15 @@ export async function recordInventoryTransaction(input: RecordTransactionInput) 
   });
 }
 
-export async function getInventoryTransactions(options?: { productId?: string | null; limit?: number | null }) {
-  const limit = Math.min(100, Math.max(1, options?.limit || 50));
+export interface GetInventoryTransactionsInput {
+  productId?: string | null;
+  page?: number | null;
+  limit?: number | null;
+  search?: string | null;
+  type?: 'all' | 'sale' | 'purchase' | 'adjustment' | 'reservation' | 'release' | 'return' | null;
+}
 
+export async function getInventoryTransactions(options?: GetInventoryTransactionsInput) {
   let query = db
     .select({
       id: inventryTransactionTable.id,
@@ -268,10 +274,9 @@ export async function getInventoryTransactions(options?: { productId?: string | 
     .leftJoin(productVariantTable, eq(inventryTransactionTable.productVariant, productVariantTable.id))
     .leftJoin(customerDetailsTable, eq(inventryTransactionTable.customerId, customerDetailsTable.id))
     .leftJoin(userTable, eq(inventryTransactionTable.userId, userTable.id))
-    .orderBy(desc(inventryTransactionTable.createdAt))
-    .limit(limit);
+    .orderBy(desc(inventryTransactionTable.createdAt));
 
-  const txs = options?.productId
+  const allTxs = options?.productId
     ? await query.where(eq(inventryTransactionTable.productId, options.productId))
     : await query;
 
@@ -279,7 +284,7 @@ export async function getInventoryTransactions(options?: { productId?: string | 
   const allInventory = await db.select().from(inventryTable);
   const allVariants = await db.select().from(productVariantTable);
 
-  return txs.map(tx => {
+  const enrichedTxs = allTxs.map(tx => {
     let avail = 0;
     let reserved = 0;
     let total = 0;
@@ -315,6 +320,72 @@ export async function getInventoryTransactions(options?: { productId?: string | 
       totalStock: total,
     };
   });
+
+  // Calculate overall stats before pagination
+  let salesCount = 0;
+  let purchasesCount = 0;
+  let adjustmentsCount = 0;
+  let totalSoldUnits = 0;
+  let totalPurchasedUnits = 0;
+
+  enrichedTxs.forEach(t => {
+    const q = Number(t.quantity) || 0;
+    if (t.type === 'sale') {
+      salesCount++;
+      totalSoldUnits += q;
+    } else if (t.type === 'purchase') {
+      purchasesCount++;
+      totalPurchasedUnits += q;
+    } else {
+      adjustmentsCount++;
+    }
+  });
+
+  // Filter by transaction type
+  let filtered = enrichedTxs;
+  if (options?.type && options.type !== 'all') {
+    if (options.type === 'adjustment') {
+      filtered = filtered.filter(tx => tx.type === 'adjustment' || tx.type === 'reservation' || tx.type === 'release');
+    } else {
+      filtered = filtered.filter(tx => tx.type === options.type);
+    }
+  }
+
+  // Filter by search keyword
+  if (options?.search?.trim()) {
+    const q = options.search.trim().toLowerCase();
+    filtered = filtered.filter(tx => {
+      const prod = (tx.productName || '').toLowerCase();
+      const cust = (tx.customerName || '').toLowerCase();
+      const sell = (tx.sellerName || '').toLowerCase();
+      const phone = (tx.customerPhone || '').toLowerCase();
+      const notes = (tx.notes || '').toLowerCase();
+      return prod.includes(q) || cust.includes(q) || sell.includes(q) || phone.includes(q) || notes.includes(q);
+    });
+  }
+
+  const page = Math.max(1, options?.page || 1);
+  const limit = Math.min(100, Math.max(1, options?.limit || 15));
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const items = filtered.slice(offset, offset + limit);
+
+  return {
+    items,
+    total,
+    totalPages,
+    page: safePage,
+    limit,
+    stats: {
+      salesCount,
+      purchasesCount,
+      adjustmentsCount,
+      totalSoldUnits,
+      totalPurchasedUnits,
+    },
+  };
 }
 
 export interface GetPaginatedInventoryInput {

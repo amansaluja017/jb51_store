@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useUi } from './UiContext';
 import { useProductsData } from '../hooks/appData/useProductsData';
@@ -27,8 +27,11 @@ export interface CatalogContextType {
 
   // Inventory & Stock
   transactions: ReturnType<typeof useInventoryData>['transactions'];
+  transactionsPagination: ReturnType<typeof useInventoryData>['transactionsPagination'];
+  transactionStats: ReturnType<typeof useInventoryData>['transactionStats'];
   isLoadingTransactions: ReturnType<typeof useInventoryData>['isLoadingTransactions'];
   handleFetchTransactions: ReturnType<typeof useInventoryData>['handleFetchTransactions'];
+  handleFetchPaginatedTransactions: ReturnType<typeof useInventoryData>['handleFetchPaginatedTransactions'];
   handleUpdateInventory: ReturnType<typeof useInventoryData>['handleUpdateInventory'];
   handleRecordTransaction: ReturnType<typeof useInventoryData>['handleRecordTransaction'];
   handleFetchPaginatedStock: ReturnType<typeof useInventoryData>['handleFetchPaginatedStock'];
@@ -43,6 +46,8 @@ export interface CatalogContextType {
   setCategoryModalOpen: ReturnType<typeof useProductsData>['setCategoryModalOpen'];
   isEditing: ReturnType<typeof useProductsData>['isEditing'];
   editingSlug: ReturnType<typeof useProductsData>['editingSlug'];
+  editingProduct: ReturnType<typeof useProductsData>['editingProduct'];
+  setEditingProduct: ReturnType<typeof useProductsData>['setEditingProduct'];
   triggerAddProduct: ReturnType<typeof useProductsData>['triggerAddProduct'];
   triggerEditProduct: ReturnType<typeof useProductsData>['triggerEditProduct'];
 
@@ -63,6 +68,8 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
     trpcRequest: auth.trpcRequest,
     showAlert: ui.showAlert,
     setSyncMessage: ui.setSyncMessage,
+    isAuthenticated: auth.isAuthenticated,
+    activeTab: ui.activeSection,
   });
 
   const inventoryData = useInventoryData({
@@ -70,6 +77,8 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
     showAlert: ui.showAlert,
     setProducts: productsData.setProducts,
     handleFetchProducts: productsData.handleFetchProducts,
+    isAuthenticated: auth.isAuthenticated,
+    activeTab: ui.activeSection,
   });
 
   const searchData = useSearchData({
@@ -88,10 +97,6 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       productsData.setRefreshing(false);
     }
   }, [productsData.handleFetchPaginatedProducts, productsData.handleFetchCategories, productsData.setRefreshing]);
-
-  useEffect(() => {
-    productsData.handleFetchCategories();
-  }, [productsData.handleFetchCategories]);
 
   const value = useMemo<CatalogContextType>(() => ({
     // Products
@@ -115,8 +120,11 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
     // Inventory
     transactions: inventoryData.transactions,
+    transactionsPagination: inventoryData.transactionsPagination,
+    transactionStats: inventoryData.transactionStats,
     isLoadingTransactions: inventoryData.isLoadingTransactions,
     handleFetchTransactions: inventoryData.handleFetchTransactions,
+    handleFetchPaginatedTransactions: inventoryData.handleFetchPaginatedTransactions,
     handleUpdateInventory: inventoryData.handleUpdateInventory,
     handleRecordTransaction: inventoryData.handleRecordTransaction,
     handleFetchPaginatedStock: inventoryData.handleFetchPaginatedStock,
@@ -131,6 +139,8 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
     setCategoryModalOpen: productsData.setCategoryModalOpen,
     isEditing: productsData.isEditing,
     editingSlug: productsData.editingSlug,
+    editingProduct: productsData.editingProduct,
+    setEditingProduct: productsData.setEditingProduct,
     triggerAddProduct: productsData.triggerAddProduct,
     triggerEditProduct: productsData.triggerEditProduct,
 

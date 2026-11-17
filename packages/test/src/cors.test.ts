@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { createApp } from './app.js';
-import { isAllowedOrigin, getEnvOrigins } from './config/cors.js';
+import { createApp, isAllowedOrigin, getEnvOrigins } from '@repo/api';
 import type { Server } from 'node:http';
 
 test('CORS Configuration & Security Headers Test Suite', async (t) => {
@@ -46,16 +45,11 @@ test('CORS Configuration & Security Headers Test Suite', async (t) => {
     process.env.CLIENT_URL = 'https://jb51.shop';
     const app = createApp();
 
-    let server: Server;
-    let baseUrl: string;
-
-    await new Promise<void>((resolve) => {
-      server = app.listen(0, () => {
-        const address = server.address();
-        if (address && typeof address === 'object') {
-          baseUrl = `http://localhost:${address.port}`;
-        }
-        resolve();
+    const { server, baseUrl } = await new Promise<{ server: Server; baseUrl: string }>((resolve) => {
+      const s = app.listen(0, () => {
+        const address = s.address();
+        const port = address && typeof address === 'object' ? address.port : 0;
+        resolve({ server: s, baseUrl: `http://localhost:${port}` });
       });
     });
 
@@ -83,7 +77,7 @@ test('CORS Configuration & Security Headers Test Suite', async (t) => {
       assert.strictEqual(health.headers.get('access-control-allow-origin'), 'https://jb51.shop');
       assert.strictEqual(health.headers.get('cross-origin-resource-policy'), 'cross-origin');
     } finally {
-      server!.close();
+      server.close();
     }
   });
 });

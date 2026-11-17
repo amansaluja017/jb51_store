@@ -83,8 +83,29 @@ export interface InventoryScreenProps {
     totalAmount?: number;
   }) => Promise<void>;
   transactions?: InventoryTransaction[];
+  transactionsPagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  transactionStats?: {
+    salesCount: number;
+    purchasesCount: number;
+    adjustmentsCount: number;
+    totalSoldUnits: number;
+    totalPurchasedUnits: number;
+  };
   isLoadingTransactions?: boolean;
   onFetchTransactions?: () => Promise<void>;
+  onFetchPaginatedTransactions?: (params?: {
+    page?: number;
+    limit?: number;
+    productId?: string;
+    search?: string;
+    type?: 'all' | 'sale' | 'purchase' | 'adjustment' | 'reservation' | 'release' | 'return';
+    force?: boolean;
+  }) => Promise<unknown>;
   onViewProductDetails?: (product: Product) => void;
   showAlert: (title: string, message: string, type: 'info' | 'success' | 'error' | 'confirm', onConfirm?: () => void) => void;
   onFetchPaginatedStock?: (params?: {
@@ -143,8 +164,11 @@ export default function InventoryScreen({
   onUpdateInventory,
   onRecordTransaction: _onRecordTransaction,
   transactions = [],
+  transactionsPagination,
+  transactionStats,
   isLoadingTransactions = false,
   onFetchTransactions,
+  onFetchPaginatedTransactions,
   onViewProductDetails,
   showAlert: _showAlert,
   onFetchPaginatedStock,
@@ -495,8 +519,18 @@ export default function InventoryScreen({
         delete next[product.slug];
         return next;
       });
-      // Refresh transactions history immediately
-      await onFetchTransactions?.();
+      // Refresh transactions history immediately if modal is currently open
+      if (historyModalOpen) {
+        if (onFetchPaginatedTransactions) {
+          await onFetchPaginatedTransactions({
+            page: transactionsPagination?.page || 1,
+            limit: 15,
+            force: true,
+          });
+        } else {
+          await onFetchTransactions?.();
+        }
+      }
     } catch (err: unknown) {
       console.error('[Inventory Update Error]:', err);
     } finally {
@@ -648,7 +682,6 @@ export default function InventoryScreen({
 
             <TouchableOpacity
               onPress={() => {
-                onFetchTransactions?.();
                 setHistoryModalOpen(true);
               }}
               style={styles.historyBtn}
@@ -656,9 +689,11 @@ export default function InventoryScreen({
             >
               <History size={15} color="#18181b" />
               <Text style={styles.historyBtnText}>History</Text>
-              {transactions.length > 0 && (
+              {(transactionsPagination?.total ?? transactions.length) > 0 && (
                 <View style={styles.historyBadge}>
-                  <Text style={styles.historyBadgeText}>{transactions.length}</Text>
+                  <Text style={styles.historyBadgeText}>
+                    {transactionsPagination?.total ?? transactions.length}
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -1226,8 +1261,21 @@ export default function InventoryScreen({
         visible={historyModalOpen}
         onClose={() => setHistoryModalOpen(false)}
         transactions={transactions}
+        transactionsPagination={transactionsPagination}
+        transactionStats={transactionStats}
         isLoading={isLoadingTransactions}
-        onRefresh={() => onFetchTransactions?.()}
+        onRefresh={() => {
+          if (onFetchPaginatedTransactions) {
+            onFetchPaginatedTransactions({
+              page: transactionsPagination?.page || 1,
+              limit: transactionsPagination?.limit || 15,
+              force: true,
+            });
+          } else {
+            onFetchTransactions?.();
+          }
+        }}
+        onFetchPaginatedTransactions={onFetchPaginatedTransactions}
       />
     </KeyboardAvoidingView>
   );

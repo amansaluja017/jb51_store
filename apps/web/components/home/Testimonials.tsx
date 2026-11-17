@@ -17,7 +17,9 @@ interface TestimonialItem {
 }
 
 export function Testimonials() {
-  const { data: dbReviews = [] } = api.reviews.getAll.useQuery();
+  const { data: dbReviews = [] } = api.reviews.getAll.useQuery(undefined, {
+    staleTime: 10 * 60 * 1000,
+  });
 
   // Map real database reviews exclusively (no mock/fallback testimonials)
   const allTestimonials: TestimonialItem[] = (dbReviews || []).map((r, i) => {

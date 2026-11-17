@@ -104,17 +104,17 @@ export function ProductClient({ product }: { product: Product }) {
   const discountPercent = hasDiscount ? Math.round(((mrp! - sellingPrice) / mrp!) * 100) : 0;
   const savedAmount = hasDiscount ? mrp! - sellingPrice : 0;
 
-  // Fetch live product status from API route: api.products.getStatus
-  const { data: liveStatus } = api.products.getStatus.useQuery(
-    { slug: product.slug },
-    { enabled: !!product?.slug }
-  );
-
   // Fetch and filter similar products using paginated category batch
-  const { data: categoryBatch, isLoading: loading } = api.products.getPaginated.useQuery({
-    category: product.category,
-    limit: 8,
-  });
+  const { data: categoryBatch, isLoading: loading } = api.products.getPaginated.useQuery(
+    {
+      category: product.category,
+      limit: 8,
+    },
+    {
+      enabled: Boolean(product?.category && product.category !== 'All'),
+      staleTime: 10 * 60 * 1000,
+    }
+  );
   const products = (categoryBatch?.items || []) as Product[];
 
   const similarProductsByTag = (products || [])
@@ -205,9 +205,9 @@ export function ProductClient({ product }: { product: Product }) {
   };
 
   // Get current stock count for selected shade
-  const selectedVariant = variants.find((v: any) => v.color === selectedColor) || variants[0];
+  const selectedVariant = variants.find((v) => v.color === selectedColor) || variants[0];
   const currentStock = selectedVariant ? selectedVariant.stock : 0;
-  const isSelectedOutOfStock = currentStock === 0 || liveStatus?.inStock === false;
+  const isSelectedOutOfStock = currentStock === 0 || product.inStock === false;
 
   return (
     <div className="bg-white min-h-screen text-zinc-800">

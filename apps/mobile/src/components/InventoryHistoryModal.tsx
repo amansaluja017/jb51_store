@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Text,
   View,
@@ -22,16 +22,33 @@ import {
   RotateCw,
   Lock,
 } from 'lucide-react-native';
-import { InventoryTransaction } from '../types';
+import { InventoryTransaction, InventoryTransactionStats } from '../types';
 import { TransactionHistorySkeleton } from './SkeletonLoader';
+import { Pagination } from './ui';
+import { useDebounce } from '../hooks/useDebounce';
 import styles from './InventoryHistoryModal.styles';
 
 interface InventoryHistoryModalProps {
   visible: boolean;
   onClose: () => void;
   transactions: InventoryTransaction[];
+  transactionsPagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  transactionStats?: InventoryTransactionStats;
   isLoading: boolean;
   onRefresh: () => void;
+  onFetchPaginatedTransactions?: (params?: {
+    page?: number;
+    limit?: number;
+    productId?: string;
+    search?: string;
+    type?: 'all' | 'sale' | 'purchase' | 'adjustment' | 'reservation' | 'release' | 'return';
+    force?: boolean;
+  }) => Promise<unknown>;
 }
 
 type FilterType = 'all' | 'sale' | 'purchase' | 'adjustment';
@@ -53,13 +70,63 @@ export default function InventoryHistoryModal({
   visible,
   onClose,
   transactions,
+  transactionsPagination,
+  transactionStats,
   isLoading,
   onRefresh,
+  onFetchPaginatedTransactions,
 }: InventoryHistoryModalProps) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery.trim(), 400);
+
+  // When modal becomes visible or search/filter changes, fetch page 1
+  useEffect(() => {
+    if (visible && onFetchPaginatedTransactions) {
+      onFetchPaginatedTransactions({
+        page: currentPage,
+        limit: 15,
+        search: debouncedSearchQuery || undefined,
+        type: filterType,
+      });
+    }
+  }, [visible, currentPage, filterType, debouncedSearchQuery, onFetchPaginatedTransactions]);
+
+  // Reset to page 1 when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, debouncedSearchQuery]);
+
+  // Reset page to 1 when modal is reopened
+  useEffect(() => {
+    if (visible) {
+      setCurrentPage(1);
+    }
+  }, [visible]);
+
+  const handleRefresh = useCallback(() => {
+    if (onFetchPaginatedTransactions) {
+      onFetchPaginatedTransactions({
+        page: currentPage,
+        limit: 15,
+        search: debouncedSearchQuery || undefined,
+        type: filterType,
+        force: true,
+      });
+    } else {
+      onRefresh();
+    }
+  }, [onFetchPaginatedTransactions, currentPage, debouncedSearchQuery, filterType, onRefresh]);
+
+  const totalPages = transactionsPagination?.totalPages || 1;
+  const totalCount = transactionsPagination?.total ?? transactions.length;
 
   const filteredTransactions = useMemo(() => {
+    if (onFetchPaginatedTransactions) {
+      // Backend handles filtering and pagination
+      return transactions;
+    }
     return transactions.filter(t => {
       if (filterType !== 'all') {
         if (filterType === 'adjustment') {
@@ -87,9 +154,12 @@ export default function InventoryHistoryModal({
       }
       return true;
     });
-  }, [transactions, filterType, searchQuery]);
+  }, [transactions, filterType, searchQuery, onFetchPaginatedTransactions]);
 
   const stats = useMemo(() => {
+    if (transactionStats) {
+      return transactionStats;
+    }
     let salesCount = 0;
     let purchasesCount = 0;
     let adjustmentsCount = 0;
@@ -110,7 +180,7 @@ export default function InventoryHistoryModal({
     });
 
     return { salesCount, purchasesCount, adjustmentsCount, totalSoldUnits, totalPurchasedUnits };
-  }, [transactions]);
+  }, [transactionStats, transactions]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -123,12 +193,12 @@ export default function InventoryHistoryModal({
               <View>
                 <Text style={styles.headerTitle}>Inventory History & Ledger</Text>
                 <Text style={styles.headerSubtitle}>
-                  {transactions.length} movement{transactions.length === 1 ? '' : 's'} recorded in database
+                  {totalCount} movement{totalCount === 1 ? '' : 's'} recorded in database
                 </Text>
               </View>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity onPress={onRefresh} style={styles.reloadBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={handleRefresh} style={styles.reloadBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <RotateCw size={16} color="#71717a" />
               </TouchableOpacity>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -220,7 +290,7 @@ export default function InventoryHistoryModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
             refreshControl={
-              <RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="#FF5E36" colors={['#FF5E36']} />
+              <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor="#FF5E36" colors={['#FF5E36']} />
             }
           >
             {isLoading && transactions.length === 0 ? (
@@ -234,131 +304,146 @@ export default function InventoryHistoryModal({
                 </Text>
               </View>
             ) : (
-              filteredTransactions.map(tx => {
-                const isSale = tx.type === 'sale';
-                const isPurchase = tx.type === 'purchase';
+              <>
+                {filteredTransactions.map(tx => {
+                  const isSale = tx.type === 'sale';
+                  const isPurchase = tx.type === 'purchase';
 
-                const party = isSale
-                  ? (tx.customerName || 'Walk-in Customer')
-                  : isPurchase
-                  ? (tx.sellerName || 'Supplier')
-                  : 'Stock Adjustment / Admin Sync';
-                const contact = isSale ? tx.customerPhone : isPurchase ? tx.sellerEmail : null;
-                const totalAmt = tx.totalAmount ? `₹${Number(tx.totalAmount).toLocaleString('en-IN')}` : null;
+                  const party = isSale
+                    ? (tx.customerName || 'Walk-in Customer')
+                    : isPurchase
+                    ? (tx.sellerName || 'Supplier')
+                    : 'Stock Adjustment / Admin Sync';
+                  const contact = isSale ? tx.customerPhone : isPurchase ? tx.sellerEmail : null;
+                  const totalAmt = tx.totalAmount ? `₹${Number(tx.totalAmount).toLocaleString('en-IN')}` : null;
 
-                return (
-                  <View key={tx.id} style={styles.card}>
-                    {/* Top Row: Type badge and Date */}
-                    <View style={styles.cardTopRow}>
-                      <View
-                        style={[
-                          styles.badge,
-                          isSale ? styles.badgeSale : isPurchase ? styles.badgePurchase : styles.badgeAdjustment,
-                        ]}
-                      >
-                        {isSale ? (
-                          <TrendingDown size={11} color="#ef4444" style={{ marginRight: 4 }} />
-                        ) : isPurchase ? (
-                          <TrendingUp size={11} color="#10b981" style={{ marginRight: 4 }} />
-                        ) : (
-                          <RotateCw size={11} color="#d97706" style={{ marginRight: 4 }} />
-                        )}
-                        <Text
+                  return (
+                    <View key={tx.id} style={styles.card}>
+                      {/* Top Row: Type badge and Date */}
+                      <View style={styles.cardTopRow}>
+                        <View
                           style={[
-                            styles.badgeText,
-                            isSale
-                              ? styles.badgeTextSale
-                              : isPurchase
-                              ? styles.badgeTextPurchase
-                              : styles.badgeTextAdjustment,
+                            styles.badge,
+                            isSale ? styles.badgeSale : isPurchase ? styles.badgePurchase : styles.badgeAdjustment,
                           ]}
                         >
-                          {isSale ? 'SALE' : isPurchase ? 'PURCHASE' : (tx.type || 'ADJUSTMENT').toUpperCase()}
-                        </Text>
-                      </View>
-
-                      <View style={styles.timeRow}>
-                        <Clock size={11} color="#a1a1aa" style={{ marginRight: 3 }} />
-                        <Text style={styles.timeText}>{formatTimestamp(tx.createdAt)}</Text>
-                      </View>
-                    </View>
-
-                    {/* Product & Quantity Row */}
-                    <View style={styles.cardProductRow}>
-                      <View style={styles.productInfoCol}>
-                        <Text style={styles.productName} numberOfLines={1}>
-                          {tx.productName || 'Outfit Item'}
-                        </Text>
-                        {tx.variantColor && (
-                          <View style={styles.variantRow}>
-                            {tx.variantHex && (
-                              <View style={[styles.colorDot, { backgroundColor: tx.variantHex }]} />
-                            )}
-                            <Text style={styles.variantText}>{tx.variantColor}</Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={styles.quantityWrap}>
-                        <Text
-                          style={[
-                            styles.qtyText,
-                            isSale ? styles.qtyTextSale : isPurchase ? styles.qtyTextPurchase : styles.qtyTextAdjustment,
-                          ]}
-                        >
-                          {isSale ? `-${tx.quantity}` : isPurchase ? `+${tx.quantity}` : `±${tx.quantity}`} units
-                        </Text>
-                        {totalAmt && <Text style={styles.amountText}>{totalAmt}</Text>}
-                      </View>
-                    </View>
-
-                    {/* Stock Position: Available & Reserved Stock */}
-                    <View style={styles.stockLevelRow}>
-                      <View style={styles.stockPillAvail}>
-                        <Package size={11} color="#047857" />
-                        <Text style={styles.stockPillAvailLabel}>Available:</Text>
-                        <Text style={styles.stockPillAvailVal}>
-                          {tx.availableStock !== undefined && tx.availableStock !== null ? `${tx.availableStock} units` : '—'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.stockPillReserved}>
-                        <Lock size={11} color="#c2410c" />
-                        <Text style={styles.stockPillReservedLabel}>Reserved:</Text>
-                        <Text style={styles.stockPillReservedVal}>
-                          {tx.reservedStock !== undefined && tx.reservedStock !== null ? `${tx.reservedStock} units` : '0 units'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Party Details */}
-                    <View style={styles.partyRow}>
-                      <User size={12} color="#71717a" style={{ marginRight: 5 }} />
-                      <Text style={styles.partyName} numberOfLines={1}>
-                        {party}
-                      </Text>
-                      {contact && (
-                        <>
-                          <Text style={styles.partyDot}>•</Text>
-                          <Text style={styles.partyContact} numberOfLines={1}>
-                            {contact}
+                          {isSale ? (
+                            <TrendingDown size={11} color="#ef4444" style={{ marginRight: 4 }} />
+                          ) : isPurchase ? (
+                            <TrendingUp size={11} color="#10b981" style={{ marginRight: 4 }} />
+                          ) : (
+                            <RotateCw size={11} color="#d97706" style={{ marginRight: 4 }} />
+                          )}
+                          <Text
+                            style={[
+                              styles.badgeText,
+                              isSale
+                                ? styles.badgeTextSale
+                                : isPurchase
+                                ? styles.badgeTextPurchase
+                                : styles.badgeTextAdjustment,
+                            ]}
+                          >
+                            {isSale ? 'SALE' : isPurchase ? 'PURCHASE' : (tx.type || 'ADJUSTMENT').toUpperCase()}
                           </Text>
-                        </>
-                      )}
-                    </View>
+                        </View>
 
-                    {/* Notes if any */}
-                    {tx.notes ? (
-                      <View style={styles.notesRow}>
-                        <FileText size={11} color="#a1a1aa" style={{ marginRight: 4 }} />
-                        <Text style={styles.notesText} numberOfLines={2}>
-                          {tx.notes}
-                        </Text>
+                        <View style={styles.timeRow}>
+                          <Clock size={11} color="#a1a1aa" style={{ marginRight: 3 }} />
+                          <Text style={styles.timeText}>{formatTimestamp(tx.createdAt)}</Text>
+                        </View>
                       </View>
-                    ) : null}
+
+                      {/* Product & Quantity Row */}
+                      <View style={styles.cardProductRow}>
+                        <View style={styles.productInfoCol}>
+                          <Text style={styles.productName} numberOfLines={1}>
+                            {tx.productName || 'Outfit Item'}
+                          </Text>
+                          {tx.variantColor && (
+                            <View style={styles.variantRow}>
+                              {tx.variantHex && (
+                                <View style={[styles.colorDot, { backgroundColor: tx.variantHex }]} />
+                              )}
+                              <Text style={styles.variantText}>{tx.variantColor}</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View style={styles.quantityWrap}>
+                          <Text
+                            style={[
+                              styles.qtyText,
+                              isSale ? styles.qtyTextSale : isPurchase ? styles.qtyTextPurchase : styles.qtyTextAdjustment,
+                            ]}
+                          >
+                            {isSale ? `-${tx.quantity}` : isPurchase ? `+${tx.quantity}` : `±${tx.quantity}`} units
+                          </Text>
+                          {totalAmt && <Text style={styles.amountText}>{totalAmt}</Text>}
+                        </View>
+                      </View>
+
+                      {/* Stock Position: Available & Reserved Stock */}
+                      <View style={styles.stockLevelRow}>
+                        <View style={styles.stockPillAvail}>
+                          <Package size={11} color="#047857" />
+                          <Text style={styles.stockPillAvailLabel}>Available:</Text>
+                          <Text style={styles.stockPillAvailVal}>
+                            {tx.availableStock !== undefined && tx.availableStock !== null ? `${tx.availableStock} units` : '—'}
+                          </Text>
+                        </View>
+
+                        <View style={styles.stockPillReserved}>
+                          <Lock size={11} color="#c2410c" />
+                          <Text style={styles.stockPillReservedLabel}>Reserved:</Text>
+                          <Text style={styles.stockPillReservedVal}>
+                            {tx.reservedStock !== undefined && tx.reservedStock !== null ? `${tx.reservedStock} units` : '0 units'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Party Details */}
+                      <View style={styles.partyRow}>
+                        <User size={12} color="#71717a" style={{ marginRight: 5 }} />
+                        <Text style={styles.partyName} numberOfLines={1}>
+                          {party}
+                        </Text>
+                        {contact && (
+                          <>
+                            <Text style={styles.partyDot}>•</Text>
+                            <Text style={styles.partyContact} numberOfLines={1}>
+                              {contact}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+
+                      {/* Notes if any */}
+                      {tx.notes ? (
+                        <View style={styles.notesRow}>
+                          <FileText size={11} color="#a1a1aa" style={{ marginRight: 4 }} />
+                          <Text style={styles.notesText} numberOfLines={2}>
+                            {tx.notes}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+
+                {/* Bottom Pagination Controls */}
+                {totalPages > 1 && (
+                  <View style={{ paddingTop: 8, paddingBottom: 16 }}>
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalCount={totalCount}
+                      itemLabel="movements"
+                      onPageChange={(p) => setCurrentPage(p)}
+                    />
                   </View>
-                );
-              })
+                )}
+              </>
             )}
           </ScrollView>
         </View>

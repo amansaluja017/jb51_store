@@ -22,6 +22,10 @@ import SelectCustomerPage from '../components/invoices/SelectCustomerPage';
 import SelectProductPage from '../components/invoices/SelectProductPage';
 import { useDebounce } from '../hooks/useDebounce';
 import { isAbortError } from '../services/searchService';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
+import { QUERY_KEYS } from '../lib/queryClient';
+import { fetchSiteConfig } from '../services/siteConfigService';
 
 
 import {
@@ -129,14 +133,19 @@ interface InvoiceScreenProps {
   isLoadingProducts?: boolean;
   onSearchInvoices?: (query: string) => Promise<Invoice[]>;
   onSearchOrders?: (query: string) => Promise<Order[]>;
+  invoiceTotalCount?: number;
+  invoiceTotalRevenue?: number;
+  invoiceCashRevenue?: number;
+  orderTotalCount?: number;
+  totalOrdersRevenue?: number;
 }
 
 export default function InvoiceScreen({
-  products,
+  products = [],
   categories = [],
-  customers,
-  invoices,
-  orders,
+  customers = [],
+  invoices = [],
+  orders = [],
   showAlert,
   isLoading,
   isLoadingOrders,
@@ -159,6 +168,11 @@ export default function InvoiceScreen({
   isLoadingProducts,
   onSearchInvoices,
   onSearchOrders,
+  invoiceTotalCount: propInvoiceTotalCount,
+  invoiceTotalRevenue: propInvoiceTotalRevenue,
+  invoiceCashRevenue: propInvoiceCashRevenue,
+  orderTotalCount: propOrderTotalCount,
+  totalOrdersRevenue: propTotalOrdersRevenue,
 }: InvoiceScreenProps) {
   // Screen modes
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -169,22 +183,76 @@ export default function InvoiceScreen({
   const [isExporting, setIsExporting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Store information (Superadmin address & email from Developer Section site config)
+  const auth = useAuth();
+
+  // TanStack Query for superadmin site configuration (store address, email, phone)
+  const { data: siteConfigData } = useQuery({
+    queryKey: QUERY_KEYS.siteConfig.current,
+    queryFn: () => fetchSiteConfig(auth.apiHost, auth.token),
+    enabled: !!auth.apiHost,
+  });
+
+  const storeEmail =
+    siteConfigData?.contactInfo?.email ||
+    auth.currentUser?.email ||
+    'support@jb51.shop';
+  const storeAddress =
+    siteConfigData?.contactInfo?.address ||
+    'Chandni Chowk, New Delhi, India';
+  const storePhone =
+    siteConfigData?.contactInfo?.phoneNumber ||
+    '+91 98100 00051';
+
   // Active Ledger Tab: Invoices vs Order History
   const [activeLedgerTab, setActiveLedgerTab] = useState<'invoices' | 'orders'>('invoices');
 
   // Paginated state for Invoices
   const [invoicePage, setInvoicePage] = useState(1);
   const [invoiceTotalPages, setInvoiceTotalPages] = useState(1);
-  const [invoiceTotalCount, setInvoiceTotalCount] = useState(0);
+  const [invoiceTotalCount, setInvoiceTotalCount] = useState(propInvoiceTotalCount ?? 0);
+  const [invoiceTotalRevenue, setInvoiceTotalRevenue] = useState(propInvoiceTotalRevenue ?? 0);
+  const [invoiceCashRevenue, setInvoiceCashRevenue] = useState(propInvoiceCashRevenue ?? 0);
   const [remoteInvoices, setRemoteInvoices] = useState<Invoice[] | null>(null);
   const [isLoadingRemoteInvoices, setIsLoadingRemoteInvoices] = useState(false);
 
   // Paginated state for Orders
   const [orderPage, setOrderPage] = useState(1);
   const [orderTotalPages, setOrderTotalPages] = useState(1);
-  const [orderTotalCount, setOrderTotalCount] = useState(0);
+  const [orderTotalCount, setOrderTotalCount] = useState(propOrderTotalCount ?? 0);
+  const [totalOrdersRevenue, setTotalOrdersRevenue] = useState(propTotalOrdersRevenue ?? 0);
   const [remoteOrders, setRemoteOrders] = useState<Order[] | null>(null);
   const [isLoadingRemoteOrders, setIsLoadingRemoteOrders] = useState(false);
+
+  useEffect(() => {
+    if (typeof propInvoiceTotalCount === 'number' && propInvoiceTotalCount > 0) {
+      setInvoiceTotalCount(propInvoiceTotalCount);
+    }
+  }, [propInvoiceTotalCount]);
+
+  useEffect(() => {
+    if (typeof propInvoiceTotalRevenue === 'number' && propInvoiceTotalRevenue > 0) {
+      setInvoiceTotalRevenue(propInvoiceTotalRevenue);
+    }
+  }, [propInvoiceTotalRevenue]);
+
+  useEffect(() => {
+    if (typeof propInvoiceCashRevenue === 'number' && propInvoiceCashRevenue > 0) {
+      setInvoiceCashRevenue(propInvoiceCashRevenue);
+    }
+  }, [propInvoiceCashRevenue]);
+
+  useEffect(() => {
+    if (typeof propOrderTotalCount === 'number' && propOrderTotalCount > 0) {
+      setOrderTotalCount(propOrderTotalCount);
+    }
+  }, [propOrderTotalCount]);
+
+  useEffect(() => {
+    if (typeof propTotalOrdersRevenue === 'number' && propTotalOrdersRevenue > 0) {
+      setTotalOrdersRevenue(propTotalOrdersRevenue);
+    }
+  }, [propTotalOrdersRevenue]);
 
   // Search filter for past invoices & orders in Ledger
   const [searchFilter, setSearchFilter] = useState('');
@@ -212,6 +280,8 @@ export default function InvoiceScreen({
     }
     prevRefreshingRef.current = !!refreshing;
 
+    if (activeLedgerTab !== 'invoices') return;
+
     let isCancelled = false;
     const fetchInvoices = async () => {
       try {
@@ -219,8 +289,12 @@ export default function InvoiceScreen({
         if (debouncedSearch && onSearchInvoices) {
           // Backend search route for invoices
           const res = await onSearchInvoices(debouncedSearch);
-          const items = Array.isArray(res) ? res : [];
-          if (!isCancelled && Array.isArray(items)) {
+          const items = Array.isArray(res)
+            ? res
+            : res && typeof res === 'object' && 'items' in res && Array.isArray((res as { items?: Invoice[] }).items)
+              ? (res as { items: Invoice[] }).items
+              : [];
+          if (!isCancelled) {
             setRemoteInvoices(items);
             setInvoiceTotalPages(1);
             setInvoiceTotalCount(items.length);
@@ -232,9 +306,22 @@ export default function InvoiceScreen({
             search: debouncedSearch || undefined,
           });
           if (!isCancelled && res) {
-            setRemoteInvoices(res.items || []);
-            setInvoiceTotalPages(res.totalPages || 1);
-            setInvoiceTotalCount(res.totalCount || 0);
+            const items = Array.isArray(res) ? res : (res.items || []);
+            const total = typeof res.total === 'number'
+              ? res.total
+              : typeof res.totalCount === 'number'
+                ? res.totalCount
+                : items.length;
+            const totalPages = res.totalPages || Math.max(1, Math.ceil(total / 15));
+            setRemoteInvoices(items);
+            setInvoiceTotalPages(totalPages);
+            setInvoiceTotalCount(total);
+            if (typeof res.totalCollected === 'number') {
+              setInvoiceTotalRevenue(res.totalCollected);
+            }
+            if (typeof res.cashCollected === 'number') {
+              setInvoiceCashRevenue(res.cashCollected);
+            }
           }
         }
       } catch (err: unknown) {
@@ -251,7 +338,7 @@ export default function InvoiceScreen({
     return () => {
       isCancelled = true;
     };
-  }, [invoicePage, debouncedSearch, isSearchTyping, onSearchInvoices, onFetchPaginatedInvoices, refreshing]);
+  }, [invoicePage, debouncedSearch, isSearchTyping, onSearchInvoices, onFetchPaginatedInvoices, activeLedgerTab, refreshing]);
 
   // Fetch orders from backend (dedicated search or paginated route)
   const prevOrderRefreshingRef = useRef(false);
@@ -273,8 +360,12 @@ export default function InvoiceScreen({
         if (debouncedSearch && onSearchOrders) {
           // Backend search route for orders
           const res = await onSearchOrders(debouncedSearch);
-          const items = Array.isArray(res) ? res : [];
-          if (!isCancelled && Array.isArray(items)) {
+          const items = Array.isArray(res)
+            ? res
+            : res && typeof res === 'object' && 'items' in res && Array.isArray((res as { items?: Order[] }).items)
+              ? (res as { items: Order[] }).items
+              : [];
+          if (!isCancelled) {
             setRemoteOrders(items);
             setOrderTotalPages(1);
             setOrderTotalCount(items.length);
@@ -286,9 +377,19 @@ export default function InvoiceScreen({
             search: debouncedSearch || undefined,
           });
           if (!isCancelled && res) {
-            setRemoteOrders(res.items || []);
-            setOrderTotalPages(res.totalPages || 1);
-            setOrderTotalCount(res.totalCount || 0);
+            const items = Array.isArray(res) ? res : (res.items || []);
+            const total = typeof res.total === 'number'
+              ? res.total
+              : typeof res.totalCount === 'number'
+                ? res.totalCount
+                : items.length;
+            const totalPages = res.totalPages || Math.max(1, Math.ceil(total / 15));
+            setRemoteOrders(items);
+            setOrderTotalPages(totalPages);
+            setOrderTotalCount(total);
+            if (typeof res.totalOrdersValue === 'number') {
+              setTotalOrdersRevenue(res.totalOrdersValue);
+            }
           }
         }
       } catch (err: unknown) {
@@ -396,12 +497,13 @@ export default function InvoiceScreen({
     if (remoteInvoices !== null) {
       return remoteInvoices;
     }
+    const safeInvs = Array.isArray(invoices) ? invoices : [];
     const q = searchFilter.trim().toLowerCase();
-    if (!q) return invoices;
+    if (!q) return safeInvs;
     const cleanDigits = q.replace(/\D/g, '');
     const isPhoneSearch = cleanDigits.length >= 10;
 
-    return invoices.filter((inv) => {
+    return safeInvs.filter((inv) => {
       const invNum = (inv.invoiceNumber || '').toLowerCase();
       const invId = (inv.id || '').toLowerCase();
       const orderNum = (inv.orderNumber || '').toLowerCase();
@@ -434,12 +536,13 @@ export default function InvoiceScreen({
     if (remoteOrders !== null) {
       return remoteOrders;
     }
+    const safeOrds = Array.isArray(orders) ? orders : [];
     const q = searchFilter.trim().toLowerCase();
-    if (!q) return orders;
+    if (!q) return safeOrds;
     const cleanDigits = q.replace(/\D/g, '');
     const isPhoneSearch = cleanDigits.length >= 10;
 
-    return orders.filter((ord) => {
+    return safeOrds.filter((ord) => {
       const ordNum = (ord.orderNumber || '').toLowerCase();
       const ordId = (ord.id || '').toLowerCase();
       const name = (ord.customerName || '').toLowerCase();
@@ -474,8 +577,17 @@ export default function InvoiceScreen({
     const gstAmount = Number(viewingInvoice.gst ?? 0);
     const disc = Number(viewingInvoice.discount ?? 0);
 
-    const items: InvoiceItem[] = Array.isArray(viewingInvoice.items)
-      ? viewingInvoice.items.map((it) => ({
+    let rawItems = viewingInvoice.items;
+    if (typeof rawItems === 'string') {
+      try {
+        rawItems = JSON.parse(rawItems);
+      } catch {
+        rawItems = [];
+      }
+    }
+
+    const items: InvoiceItem[] = Array.isArray(rawItems)
+      ? rawItems.map((it) => ({
         id: it.id || it.productId || Math.random().toString(),
         productId: it.productId || '',
         productVariantId: it.productVariantId,
@@ -933,6 +1045,10 @@ export default function InvoiceScreen({
         clientPhone: formValues.clientPhone.trim(),
         clientEmail: formValues.clientEmail.trim(),
         clientAddress: formValues.clientAddress.trim(),
+        storeName: 'JB51',
+        storeAddress,
+        storeEmail,
+        storePhone,
         date: formValues.invoiceDate || new Date().toLocaleDateString('en-IN'),
         paymentDate: pDate.includes('-')
           ? new Date(pDate).toLocaleDateString('en-IN')
@@ -993,18 +1109,39 @@ export default function InvoiceScreen({
         setInvoicePage(1);
         const res = await onFetchPaginatedInvoices({ page: 1, limit: 15 });
         if (res) {
-          setRemoteInvoices(res.items || []);
-          setInvoiceTotalPages(res.totalPages || 1);
-          setInvoiceTotalCount(res.totalCount || 0);
+          const items = Array.isArray(res) ? res : (res.items || []);
+          const total = typeof res.total === 'number'
+            ? res.total
+            : typeof res.totalCount === 'number'
+              ? res.totalCount
+              : items.length;
+          setRemoteInvoices(items);
+          setInvoiceTotalPages(res.totalPages || Math.max(1, Math.ceil(total / 15)));
+          setInvoiceTotalCount(total);
+          if (typeof res.totalCollected === 'number') {
+            setInvoiceTotalRevenue(res.totalCollected);
+          }
+          if (typeof res.cashCollected === 'number') {
+            setInvoiceCashRevenue(res.cashCollected);
+          }
         }
       }
       if (onFetchPaginatedOrders) {
         setOrderPage(1);
         const res = await onFetchPaginatedOrders({ page: 1, limit: 15 });
         if (res) {
-          setRemoteOrders(res.items || []);
-          setOrderTotalPages(res.totalPages || 1);
-          setOrderTotalCount(res.totalCount || 0);
+          const items = Array.isArray(res) ? res : (res.items || []);
+          const total = typeof res.total === 'number'
+            ? res.total
+            : typeof res.totalCount === 'number'
+              ? res.totalCount
+              : items.length;
+          setRemoteOrders(items);
+          setOrderTotalPages(res.totalPages || Math.max(1, Math.ceil(total / 15)));
+          setOrderTotalCount(total);
+          if (typeof res.totalOrdersValue === 'number') {
+            setTotalOrdersRevenue(res.totalOrdersValue);
+          }
         }
       }
 
@@ -1028,7 +1165,14 @@ export default function InvoiceScreen({
   const handleSharePastInvoice = async (inv: GenerateInvoicePdfData) => {
     setIsExporting(true);
     try {
-      const html = generateInvoiceHtml(inv);
+      const enrichedInv: GenerateInvoicePdfData = {
+        ...inv,
+        storeName: inv.storeName || 'JB51',
+        storeAddress: inv.storeAddress || storeAddress,
+        storeEmail: inv.storeEmail || storeEmail,
+        storePhone: inv.storePhone || storePhone,
+      };
+      const html = generateInvoiceHtml(enrichedInv);
       const { uri } = await Print.printToFileAsync({ html });
 
       if (await Sharing.isAvailableAsync()) {
@@ -1181,15 +1325,18 @@ export default function InvoiceScreen({
           suggestions={ledgerSuggestions || undefined}
           filteredInvoices={filteredInvoices}
           filteredOrders={filteredOrders}
+          totalRevenue={invoiceTotalRevenue}
+          cashRevenue={invoiceCashRevenue}
+          ordersRevenue={totalOrdersRevenue}
           invoicePage={invoicePage}
           invoiceTotalPages={invoiceTotalPages}
-          invoiceTotalCount={invoiceTotalCount || (remoteInvoices ? remoteInvoices.length : invoices.length)}
+          invoiceTotalCount={invoiceTotalCount || (remoteInvoices ? remoteInvoices.length : (Array.isArray(invoices) ? invoices.length : 0))}
           onInvoicePrevPage={() => setInvoicePage((p) => Math.max(1, p - 1))}
           onInvoiceNextPage={() => setInvoicePage((p) => Math.min(invoiceTotalPages, p + 1))}
           onInvoicePageChange={(p) => setInvoicePage(p)}
           orderPage={orderPage}
           orderTotalPages={orderTotalPages}
-          orderTotalCount={orderTotalCount || (remoteOrders ? remoteOrders.length : orders.length)}
+          orderTotalCount={orderTotalCount || (remoteOrders ? remoteOrders.length : (Array.isArray(orders) ? orders.length : 0))}
           onOrderPrevPage={() => setOrderPage((p) => Math.max(1, p - 1))}
           onOrderNextPage={() => setOrderPage((p) => Math.min(orderTotalPages, p + 1))}
           onOrderPageChange={(p) => setOrderPage(p)}
@@ -1212,9 +1359,18 @@ export default function InvoiceScreen({
                   search: searchFilter.trim() || undefined,
                 });
                 if (res) {
-                  setRemoteOrders(res.items || []);
-                  setOrderTotalPages(res.totalPages || 1);
-                  setOrderTotalCount(res.totalCount || 0);
+                  const items = Array.isArray(res) ? res : (res.items || []);
+                  const total = typeof res.total === 'number'
+                    ? res.total
+                    : typeof res.totalCount === 'number'
+                      ? res.totalCount
+                      : items.length;
+                  setRemoteOrders(items);
+                  setOrderTotalPages(res.totalPages || Math.max(1, Math.ceil(total / 15)));
+                  setOrderTotalCount(total);
+                  if (typeof res.totalOrdersValue === 'number') {
+                    setTotalOrdersRevenue(res.totalOrdersValue);
+                  }
                 }
               }
               if (onFetchPaginatedInvoices) {
@@ -1224,9 +1380,21 @@ export default function InvoiceScreen({
                   search: searchFilter.trim() || undefined,
                 });
                 if (invRes) {
-                  setRemoteInvoices(invRes.items || []);
-                  setInvoiceTotalPages(invRes.totalPages || 1);
-                  setInvoiceTotalCount(invRes.totalCount || 0);
+                  const items = Array.isArray(invRes) ? invRes : (invRes.items || []);
+                  const total = typeof invRes.total === 'number'
+                    ? invRes.total
+                    : typeof invRes.totalCount === 'number'
+                      ? invRes.totalCount
+                      : items.length;
+                  setRemoteInvoices(items);
+                  setInvoiceTotalPages(invRes.totalPages || Math.max(1, Math.ceil(total / 15)));
+                  setInvoiceTotalCount(total);
+                  if (typeof invRes.totalCollected === 'number') {
+                    setInvoiceTotalRevenue(invRes.totalCollected);
+                  }
+                  if (typeof invRes.cashCollected === 'number') {
+                    setInvoiceCashRevenue(invRes.cashCollected);
+                  }
                 }
               }
             }
@@ -1437,6 +1605,10 @@ export default function InvoiceScreen({
         }}
         isViewingPast={isViewingPast}
         isEditing={!!editingInvoice}
+        storeName="JB51"
+        storeAddress={storeAddress}
+        storeEmail={storeEmail}
+        storePhone={storePhone}
         activeInvNumber={activeInvNumber}
         activeInvDate={activeInvDate}
         activePaymentMethod={activePaymentMethod}

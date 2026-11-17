@@ -28,7 +28,6 @@ import {
   Image as ImageIcon,
   Sparkles,
   HelpCircle,
-  Phone,
   Flame,
   Zap,
   Camera,
@@ -39,8 +38,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Layers,
+  Store,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { queryClient, QUERY_KEYS } from '../lib/queryClient';
 import type {
   MobileSiteConfigData,
   MobileHeroSlideItem,
@@ -573,7 +574,7 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
       case 'secondAdBanner': return 'Ad Banner 2';
       case 'sale': return 'Flash Sale';
       case 'faqs': return 'FAQs';
-      case 'contact': return 'Contact Info';
+      case 'contact': return 'Store Info';
     }
   };
 
@@ -679,6 +680,7 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
         }
         setConfig(updated);
         setInitialConfig(JSON.parse(JSON.stringify(updated)));
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.siteConfig.current });
         Alert.alert(
           'Saved & Published',
           `Updated [${changedKeys.join(', ')}] on web! Next.js cache has been automatically revalidated.`
@@ -966,9 +968,9 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
               style={[styles.tab, activeTab === 'contact' && styles.activeTab]}
               onPress={() => setActiveTab('contact')}
             >
-              <Phone size={13} color={activeTab === 'contact' ? '#FF5E36' : '#71717a'} />
+              <Store size={13} color={activeTab === 'contact' ? '#FF5E36' : '#71717a'} />
               <Text style={[styles.tabText, activeTab === 'contact' && styles.activeTabText]}>
-                Contact Info
+                Store Info
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -976,8 +978,9 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
 
         {/* Scrollable Form Content inside dedicated KeyboardAvoiding Container */}
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
         >
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -998,9 +1001,8 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
               contentContainerStyle={[
                 styles.contentContainer,
                 isTablet && { maxWidth: 740, alignSelf: 'center', width: '100%' },
-                { paddingBottom: isKeyboardVisible ? 140 : 100 },
+                { paddingBottom: isKeyboardVisible ? keyboardHeight + 120 : 100 },
               ]}
-              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
@@ -2157,12 +2159,12 @@ export const DeveloperSectionModal: React.FC<DeveloperSectionModalProps> = ({
                 </View>
               )}
 
-              {/* TAB 6: CONTACT INFORMATION */}
+              {/* TAB 6: STORE & INVOICE INFORMATION */}
               {activeTab === 'contact' && (
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>Contact & Social Information</Text>
+                  <Text style={styles.sectionTitle}>Store & Invoice Information</Text>
                   <Text style={styles.sectionDesc}>
-                    Displayed in the website footer, navbar WhatsApp icon, and customer support links.
+                    Superadmin physical address, email, and phone printed on all customer invoices, PDF statements, website footer, and support channels.
                   </Text>
 
                   <Text style={styles.inputLabel}>Phone Number (Display)</Text>

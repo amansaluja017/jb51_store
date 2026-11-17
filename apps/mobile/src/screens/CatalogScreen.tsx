@@ -45,8 +45,8 @@ export interface CatalogScreenProps {
   onRefresh?: () => void;
   onAddProduct: () => void;
   onManageCategories: () => void;
-  onToggleStock: (product: Product) => void;
-  onUpdateVisibility: (product: Product, status: 'listed' | 'unListed' | 'discontinued') => void;
+  onToggleStock: (product: Product) => Promise<unknown> | void;
+  onUpdateVisibility: (product: Product, status: 'listed' | 'unListed' | 'discontinued') => Promise<unknown> | void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (slug: string, name: string) => void;
   onViewProductDetails?: (product: Product) => void;
@@ -235,14 +235,34 @@ export default function CatalogScreen({
   const startRecord = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const endRecord = Math.min(safePage * PAGE_SIZE, totalCount);
 
-  const handleToggleStock = (prod: Product) => {
-    onToggleStock(prod);
-    setRefreshKey(k => k + 1);
+  const handleToggleStock = async (prod: Product) => {
+    const nextInStock = !prod.inStock;
+    // Optimistic UI update in remoteData immediately
+    setRemoteData(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        items: prev.items.map(p => (p.slug === prod.slug ? { ...p, inStock: nextInStock } : p)),
+      };
+    });
+
+    try {
+      await onToggleStock(prod);
+    } catch {
+      // Rollback on failure
+      setRemoteData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          items: prev.items.map(p => (p.slug === prod.slug ? { ...p, inStock: prod.inStock } : p)),
+        };
+      });
+    }
   };
 
-  const handleUpdateVisibility = (prod: Product, status: 'listed' | 'unListed' | 'discontinued') => {
-    onUpdateVisibility(prod, status);
-    // Optimistically update remoteData so items reflect status and transition cleanly between sections
+  const handleUpdateVisibility = async (prod: Product, status: 'listed' | 'unListed' | 'discontinued') => {
+    const previousRemoteData = remoteData;
+    // 1. Optimistic UI update immediately (no refetching or full page reload)
     setRemoteData(prev => {
       if (!prev) return null;
       if (activeSection === 'active' && status === 'discontinued') {
@@ -273,12 +293,70 @@ export default function CatalogScreen({
         ),
       };
     });
-    setRefreshKey(k => k + 1);
+
+    // 2. Call server and wait for response to reflect actual state
+    try {
+      const res = (await onUpdateVisibility(prod, status)) as {
+        status?: 'listed' | 'unListed' | 'discontinued';
+        inStock?: boolean;
+      } | null;
+
+      if (res && res.status) {
+        const serverStatus = res.status;
+        setRemoteData(prev => {
+          if (!prev) return null;
+          if (activeSection === 'active' && serverStatus === 'discontinued') {
+            return {
+              ...prev,
+              items: prev.items.filter(p => p.slug !== prod.slug),
+              total: Math.max(0, prev.total - 1),
+            };
+          }
+          if (activeSection === 'discontinued' && (serverStatus === 'listed' || serverStatus === 'unListed')) {
+            return {
+              ...prev,
+              items: prev.items.filter(p => p.slug !== prod.slug),
+              total: Math.max(0, prev.total - 1),
+            };
+          }
+          return {
+            ...prev,
+            items: prev.items.map(p =>
+              p.slug === prod.slug
+                ? {
+                    ...p,
+                    status: serverStatus,
+                    isListed: serverStatus === 'listed',
+                    isDiscontinued: serverStatus === 'discontinued',
+                    ...(typeof res.inStock === 'boolean' ? { inStock: res.inStock } : {}),
+                  }
+                : p
+            ),
+          };
+        });
+      }
+    } catch {
+      // Rollback on failure without refetching
+      if (previousRemoteData) {
+        setRemoteData(previousRemoteData);
+      }
+    }
   };
 
   const handleDeleteProduct = (slug: string, name: string) => {
     onDeleteProduct(slug, name);
-    setRefreshKey(k => k + 1);
+    // Optimistically update remoteData so if in active section, it is removed immediately without refetch
+    setRemoteData(prev => {
+      if (!prev) return null;
+      if (activeSection === 'active') {
+        return {
+          ...prev,
+          items: prev.items.filter(p => p.slug !== slug),
+          total: Math.max(0, prev.total - 1),
+        };
+      }
+      return prev;
+    });
   };
 
   const handleRefresh = () => {

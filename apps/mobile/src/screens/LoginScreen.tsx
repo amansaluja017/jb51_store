@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, RefreshCw, Eye, EyeOff } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useForm, Controller } from 'react-hook-form';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import styles from './LoginScreen.styles';
 
 export interface LoginFormValues {
@@ -56,6 +57,8 @@ export default function LoginScreen({
   onManualSync
 }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
+  const isKeyboardOpen = keyboardHeight > 0;
 
   const initialEmail = email || username || '';
 
@@ -74,19 +77,22 @@ export default function LoginScreen({
   };
 
   return (
-    <SafeAreaView style={styles.loginContainer}>
-      <StatusBar style="light" />
+    <SafeAreaView style={styles.loginContainer} edges={['top', 'bottom', 'left', 'right']}>
+      <StatusBar style="light" backgroundColor="#09090b" translucent={true} />
       <KeyboardAvoidingView 
         style={styles.keyboardAvoid} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
+          contentContainerStyle={[
+            styles.scrollContent,
+            isKeyboardOpen && { paddingBottom: keyboardHeight + 40 }
+          ]} 
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          alwaysBounceVertical={true}
+          alwaysBounceVertical={false}
           refreshControl={
             <RefreshControl
               refreshing={isSyncing}
@@ -97,7 +103,11 @@ export default function LoginScreen({
             />
           }
         >
-          <View style={styles.loginBox}>
+          <View style={[
+            styles.centeredWrapper,
+            isKeyboardOpen && { justifyContent: 'flex-start', paddingTop: 16 }
+          ]}>
+            <View style={styles.loginBox}>
             {/* Logo */}
             <Text style={styles.brandLogo}>JB51</Text>
             <Text style={styles.brandSubLogo}>S T O R E</Text>
@@ -228,9 +238,10 @@ export default function LoginScreen({
               </View>
             )}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+);
 }
 

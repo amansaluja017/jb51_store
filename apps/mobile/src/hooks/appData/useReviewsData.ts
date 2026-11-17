@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 import { Review } from '../../types';
 
 interface ReviewCounts {
@@ -43,8 +44,16 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
     isFetchingReviewsRef.current = true;
     setIsLoadingReviews(true);
     try {
-      const res = await trpcRequest<PaginatedReviewsResponse>('reviews.getPaginated', {
-        input: { page: 1, limit: 10 },
+      if (force) {
+        await queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      }
+      const res = await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.reviews.paginated({ page: 1, limit: 10 }),
+        queryFn: async () => {
+          return trpcRequest<PaginatedReviewsResponse>('reviews.getPaginated', {
+            input: { page: 1, limit: 10 },
+          });
+        },
       });
       if (res?.items && Array.isArray(res.items)) {
         setReviews(res.items);
@@ -77,8 +86,13 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
     limit?: number;
   }) => {
     try {
-      const res = await trpcRequest<PaginatedReviewsResponse>('reviews.getPaginated', {
-        input: params,
+      const res = await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.reviews.paginated(params),
+        queryFn: async () => {
+          return trpcRequest<PaginatedReviewsResponse>('reviews.getPaginated', {
+            input: params,
+          });
+        },
       });
       if (res?.items && Array.isArray(res.items) && (!params?.page || params.page === 1) && !params?.search && params?.approved === undefined) {
         setReviews(res.items);
@@ -101,6 +115,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
         body: reviewData,
       });
       if (decoded && decoded.id && decoded.name) {
+        await queryClient.invalidateQueries({ queryKey: ['reviews'] });
         setReviews(prev => [decoded, ...prev]);
         setReviewCounts(prev => ({
           all: prev.all + 1,
@@ -137,6 +152,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
         body: reviewData,
       });
       if (decoded && decoded.id) {
+        await queryClient.invalidateQueries({ queryKey: ['reviews'] });
         setReviews(prev =>
           prev.map(r => r.id === decoded.id ? { ...r, ...decoded } : r)
         );
@@ -161,6 +177,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
         body: { id: review.id, approved: newApproved },
       });
       if (decoded && decoded.id) {
+        await queryClient.invalidateQueries({ queryKey: ['reviews'] });
         setReviews(prev =>
           prev.map(r => r.id === review.id ? { ...r, approved: newApproved } : r)
         );
@@ -191,6 +208,7 @@ export function useReviewsData({ trpcRequest, showAlert }: UseReviewsDataProps) 
             method: 'POST',
             body: { id: review.id },
           });
+          await queryClient.invalidateQueries({ queryKey: ['reviews'] });
           setReviews(prev => prev.filter(r => r.id !== review.id));
           setReviewCounts(prev => ({
             all: Math.max(0, prev.all - 1),

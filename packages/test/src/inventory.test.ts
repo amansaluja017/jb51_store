@@ -44,10 +44,24 @@ describe('Inventory Router and Controller Suite', () => {
       assert.ok(typeof result.totalPages === 'number');
     });
 
-    it('getTransactions: should retrieve recent inventory transactions', async () => {
+    it('getTransactions: should retrieve paginated inventory transactions', async () => {
       const caller = inventoryRouter.createCaller(unauthContext);
-      const transactions = await caller.getTransactions({ limit: 10 });
-      assert.strictEqual(Array.isArray(transactions), true);
+      const result = await caller.getTransactions({ limit: 10, page: 1 });
+      assert.ok(result);
+      assert.strictEqual(Array.isArray(result.items), true);
+      assert.ok(typeof result.total === 'number');
+      assert.ok(typeof result.totalPages === 'number');
+      assert.strictEqual(result.page, 1);
+      assert.strictEqual(result.limit, 10);
+    });
+
+    it('getTransactionsPaginated: should retrieve paginated inventory transactions via alias', async () => {
+      const caller = inventoryRouter.createCaller(unauthContext);
+      const result = await caller.getTransactionsPaginated({ limit: 5, page: 1 });
+      assert.ok(result);
+      assert.strictEqual(Array.isArray(result.items), true);
+      assert.ok(typeof result.total === 'number');
+      assert.ok(typeof result.totalPages === 'number');
     });
   });
 

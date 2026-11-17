@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 import {
   Product,
   AnalyticsOverviewData,
@@ -42,8 +44,11 @@ export function useAnalyticsData({
   trpcRequest,
   products,
   isAuthenticated,
-  activeTab: _activeTab,
+  activeTab,
 }: UseAnalyticsDataProps) {
+  const [selectedAnalyticsSlug, setSelectedAnalyticsSlug] = useState<string>('all');
+  const [showAnalyticsSelector, setShowAnalyticsSelector] = useState(false);
+
   const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverviewData | null>(null);
   const [allProductsAnalytics, setAllProductsAnalytics] = useState<ProductAnalyticsItem[]>([]);
   const [viewsAnalytics, setViewsAnalytics] = useState<ViewsAnalytics | null>(null);
@@ -56,12 +61,67 @@ export function useAnalyticsData({
   const [demandHighlightsAnalytics, setDemandHighlightsAnalytics] = useState<DemandHighlightsAnalytics | null>(null);
   const [catalogueTelemetryAnalytics, setCatalogueTelemetryAnalytics] = useState<ProductAnalyticsItem[]>([]);
   const [inventorySummaryAnalytics, setInventorySummaryAnalytics] = useState<InventorySummaryAnalytics | null>(null);
-  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
-  const isFetchingRef = useRef(false);
-  const lastFetchedSlugRef = useRef<string | null>(null);
 
-  const [selectedAnalyticsSlug, setSelectedAnalyticsSlug] = useState<string>('all');
-  const [showAnalyticsSelector, setShowAnalyticsSelector] = useState(false);
+  // TanStack Query for Analytics Overview data
+  const {
+    data: overviewData,
+    isLoading: isLoadingQuery,
+    isFetching: isFetchingQuery,
+  } = useQuery<OverviewAggregatedResponse & AnalyticsOverviewData>({
+    queryKey: QUERY_KEYS.analytics.overview(selectedAnalyticsSlug),
+    queryFn: async () => {
+      const inputPayload = selectedAnalyticsSlug && selectedAnalyticsSlug !== 'all' ? { slug: selectedAnalyticsSlug } : undefined;
+      const res = await trpcRequest<OverviewAggregatedResponse & AnalyticsOverviewData>('analytics.getOverview', { input: inputPayload });
+      return res;
+    },
+    enabled: Boolean(isAuthenticated) && (!activeTab || activeTab === 'dashboard' || activeTab === 'analytics'),
+    staleTime: 60 * 1000,
+  });
+
+  // Sync query data into granular state pieces for consumer screens
+  useEffect(() => {
+    if (overviewData) {
+      if (overviewData.viewsAnalytics) {
+        setViewsAnalytics(overviewData.viewsAnalytics);
+      }
+      if (overviewData.clicksAnalytics) {
+        setClicksAnalytics(overviewData.clicksAnalytics);
+      }
+      if (overviewData.conversionAnalytics) {
+        setConversionAnalytics(overviewData.conversionAnalytics);
+      }
+      if (overviewData.funnelAnalytics) {
+        setFunnelAnalytics(overviewData.funnelAnalytics);
+      }
+      if (overviewData.channelRatioAnalytics) {
+        setChannelRatioAnalytics(overviewData.channelRatioAnalytics);
+      }
+      if (overviewData.growthPulseAnalytics) {
+        setGrowthPulseAnalytics(overviewData.growthPulseAnalytics);
+      }
+      if (overviewData.paymentModesAnalytics) {
+        setPaymentModesAnalytics(overviewData.paymentModesAnalytics);
+      }
+      if (overviewData.demandHighlightsAnalytics) {
+        setDemandHighlightsAnalytics(overviewData.demandHighlightsAnalytics);
+      }
+      if (Array.isArray(overviewData.catalogueTelemetryAnalytics)) {
+        setCatalogueTelemetryAnalytics(overviewData.catalogueTelemetryAnalytics);
+        setAllProductsAnalytics(overviewData.catalogueTelemetryAnalytics);
+      }
+      if (overviewData.inventorySummaryAnalytics) {
+        setInventorySummaryAnalytics(overviewData.inventorySummaryAnalytics);
+      }
+
+      if (overviewData.overview) {
+        setAnalyticsOverview(overviewData.overview);
+      } else {
+        setAnalyticsOverview(overviewData);
+      }
+    }
+  }, [overviewData]);
+
+  const isLoadingAnalytics = isLoadingQuery || isFetchingQuery;
 
   const stats = useMemo(() => {
     if (inventorySummaryAnalytics) {
@@ -114,75 +174,22 @@ export function useAnalyticsData({
     if (!isAuthenticated) return;
     const targetSlug = slug !== undefined ? slug : selectedAnalyticsSlug;
 
-    // Deduplication guard: ignore redundant requests while fetching or when data is already cached
-    if (isFetchingRef.current) return;
-    if (!force && lastFetchedSlugRef.current === targetSlug && analyticsOverview) return;
-
-    isFetchingRef.current = true;
-    setIsLoadingAnalytics(true);
-
-    try {
-      const inputPayload = targetSlug && targetSlug !== 'all' ? { slug: targetSlug } : undefined;
-
-      // Consolidated single backend request: backend executes with p-limit (concurrency: 3) & Promise.allSettled
-      const res = await trpcRequest<OverviewAggregatedResponse & AnalyticsOverviewData>('analytics.getOverview', { input: inputPayload });
-
-      if (res) {
-        lastFetchedSlugRef.current = targetSlug;
-        if (res.viewsAnalytics) {
-          setViewsAnalytics(res.viewsAnalytics);
-        }
-        if (res.clicksAnalytics) {
-          setClicksAnalytics(res.clicksAnalytics);
-        }
-        if (res.conversionAnalytics) {
-          setConversionAnalytics(res.conversionAnalytics);
-        }
-        if (res.funnelAnalytics) {
-          setFunnelAnalytics(res.funnelAnalytics);
-        }
-        if (res.channelRatioAnalytics) {
-          setChannelRatioAnalytics(res.channelRatioAnalytics);
-        }
-        if (res.growthPulseAnalytics) {
-          setGrowthPulseAnalytics(res.growthPulseAnalytics);
-        }
-        if (res.paymentModesAnalytics) {
-          setPaymentModesAnalytics(res.paymentModesAnalytics);
-        }
-        if (res.demandHighlightsAnalytics) {
-          setDemandHighlightsAnalytics(res.demandHighlightsAnalytics);
-        }
-        if (Array.isArray(res.catalogueTelemetryAnalytics)) {
-          setCatalogueTelemetryAnalytics(res.catalogueTelemetryAnalytics);
-          setAllProductsAnalytics(res.catalogueTelemetryAnalytics);
-        }
-        if (res.inventorySummaryAnalytics) {
-          setInventorySummaryAnalytics(res.inventorySummaryAnalytics);
-        }
-
-        if (res.overview) {
-          setAnalyticsOverview(res.overview);
-        } else {
-          setAnalyticsOverview(res);
-        }
-      }
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.warn('[handleFetchAnalytics Error]:', errorMsg);
-    } finally {
-      isFetchingRef.current = false;
-      setIsLoadingAnalytics(false);
+    if (targetSlug !== selectedAnalyticsSlug) {
+      setSelectedAnalyticsSlug(targetSlug);
     }
-  }, [trpcRequest, isAuthenticated, selectedAnalyticsSlug, analyticsOverview]);
 
-  // When selectedAnalyticsSlug changes to a different product, re-fetch for that slug
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    if (selectedAnalyticsSlug !== lastFetchedSlugRef.current && lastFetchedSlugRef.current !== null) {
-      handleFetchAnalytics(selectedAnalyticsSlug);
+    if (force) {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics.overview(targetSlug) });
     }
-  }, [selectedAnalyticsSlug, isAuthenticated, handleFetchAnalytics]);
+
+    return queryClient.fetchQuery({
+      queryKey: QUERY_KEYS.analytics.overview(targetSlug),
+      queryFn: async () => {
+        const inputPayload = targetSlug && targetSlug !== 'all' ? { slug: targetSlug } : undefined;
+        return trpcRequest<OverviewAggregatedResponse & AnalyticsOverviewData>('analytics.getOverview', { input: inputPayload });
+      },
+    });
+  }, [isAuthenticated, selectedAnalyticsSlug, trpcRequest]);
 
   const analyticsMetrics = useMemo(() => {
     const views = viewsAnalytics?.views ?? analyticsOverview?.views ?? 0;
@@ -207,12 +214,17 @@ export function useAnalyticsData({
     sortBy?: 'views' | 'inquiries' | 'orders' | 'conversion' | 'revenue';
   }): Promise<PaginatedCatalogueTelemetryResult> => {
     try {
-      const res = await trpcRequest<PaginatedCatalogueTelemetryResult>('analytics.getCatalogueTelemetryPaginated', {
-        input: {
-          page: params?.page ?? 1,
-          limit: params?.limit ?? 10,
-          search: params?.search ?? undefined,
-          sortBy: params?.sortBy ?? 'views',
+      const res = await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.analytics.catalogueTelemetry(params),
+        queryFn: async () => {
+          return trpcRequest<PaginatedCatalogueTelemetryResult>('analytics.getCatalogueTelemetryPaginated', {
+            input: {
+              page: params?.page ?? 1,
+              limit: params?.limit ?? 10,
+              search: params?.search ?? undefined,
+              sortBy: params?.sortBy ?? 'views',
+            },
+          });
         },
       });
       return (
