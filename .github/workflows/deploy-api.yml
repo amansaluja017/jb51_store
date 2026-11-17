@@ -56,11 +56,11 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           echo "🧪 Running API unit, CORS, and documentation tests..."
-          ./apps/api/node_modules/.bin/tsx --test apps/api/src/cors.test.ts apps/api/src/docs.test.ts
+          ./apps/api/node_modules/.bin/tsx --test packages/test/src/cors.test.ts packages/test/src/docs.test.ts
 
           if [ -n "$DATABASE_URL" ]; then
             echo "🧪 DATABASE_URL secret detected: running full integration test suite..."
-            ./apps/api/node_modules/.bin/tsx --test apps/api/src/all-routes.test.ts
+            ./apps/api/node_modules/.bin/tsx --test packages/test/src/all-routes.test.ts
           else
             echo "ℹ️ Note: DATABASE_URL repository secret not set. Skipping live database integration tests."
           fi

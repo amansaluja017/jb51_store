@@ -6,11 +6,10 @@ import {
   TouchableOpacity, 
   Platform,
   KeyboardAvoidingView,
-  ScrollView,
-  RefreshControl
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, RefreshCw, Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useForm, Controller } from 'react-hook-form';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -28,15 +27,8 @@ interface LoginScreenProps {
   setUsername?: (val: string) => void;
   password: string;
   setPassword: (val: string) => void;
-  apiHost: string;
-  setApiHost: (val: string) => void;
-  showConfig: boolean;
-  setShowConfig: (val: boolean) => void;
-  isSyncing: boolean;
-  syncMessage: string;
   isLoggingIn?: boolean;
   onLogin: (data?: LoginFormValues) => void;
-  onManualSync: () => void;
 }
 
 export default function LoginScreen({
@@ -46,15 +38,8 @@ export default function LoginScreen({
   setUsername,
   password,
   setPassword,
-  apiHost,
-  setApiHost,
-  showConfig,
-  setShowConfig,
-  isSyncing,
-  syncMessage,
   isLoggingIn,
-  onLogin,
-  onManualSync
+  onLogin
 }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const keyboardHeight = useKeyboardHeight();
@@ -93,15 +78,6 @@ export default function LoginScreen({
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           alwaysBounceVertical={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isSyncing}
-              onRefresh={onManualSync}
-              tintColor="#FF5E36"
-              colors={['#FF5E36']}
-              progressBackgroundColor="#18181b"
-            />
-          }
         >
           <View style={[
             styles.centeredWrapper,
@@ -200,43 +176,6 @@ export default function LoginScreen({
                 {isLoggingIn ? 'Authenticating...' : 'Authenticate Access'}
               </Text>
             </TouchableOpacity>
-
-            {/* Configurations toggle */}
-            <TouchableOpacity 
-              onPress={() => setShowConfig(!showConfig)}
-              style={styles.configToggle}
-            >
-              <Settings size={14} color="#71717a" />
-              <Text style={styles.configToggleText}>tRPC Sync Settings</Text>
-            </TouchableOpacity>
-
-            {showConfig && (
-              <View style={styles.configBox}>
-                <Text style={styles.configTitle}>Backend Server Path</Text>
-                <TextInput 
-                  value={apiHost}
-                  onChangeText={setApiHost}
-                  style={styles.configInput}
-                  autoCapitalize="none"
-                />
-                <View style={styles.presetRow}>
-                  <TouchableOpacity onPress={() => setApiHost('http://10.220.109.189:3001')} style={styles.presetBadge}>
-                    <Text style={styles.presetBadgeText}>LAN (10.220.109.189)</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setApiHost('http://10.0.2.2:3001')} style={styles.presetBadge}>
-                    <Text style={styles.presetBadgeText}>Emulator (10.0.2.2)</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setApiHost('http://localhost:3001')} style={styles.presetBadge}>
-                    <Text style={styles.presetBadgeText}>Localhost</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity onPress={onManualSync} style={styles.syncBtn}>
-                  <RefreshCw size={12} color="#fff" />
-                  <Text style={styles.syncBtnText}>{isSyncing ? 'Syncing...' : 'Ping & Sync Now'}</Text>
-                </TouchableOpacity>
-                <Text style={styles.syncMessageText}>{syncMessage}</Text>
-              </View>
-            )}
           </View>
         </View>
       </ScrollView>
